@@ -72,3 +72,4 @@ min_slic3r_version = 2.7.0.4
 
 min_slic3r_version = 2.7.0.5-alpha1
 0.0.69 Changed output filename to 2.7.0.5-alpha1_{input_filename_base}_{layer_height}mm_{filament_type[0]}_n{nozzle_diameter[0]}.gcode
+0.0.70 Changed FieldRACK nozzle to 0.4, updated PA Values; Layer time, fixed external_perimeter_extrusion_width
