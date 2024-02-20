@@ -7105,7 +7105,7 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
         Point last_post_before_retract = this->last_pos_defined() ? this->last_pos() : Point{0, 0};
 
-        bool no_lift_on_retract = travel.length() <= scale_(EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_before_travel, 0)) && travel.size() > 1;
+        bool no_lift_on_retract = m_writer.get_extra_lift() == 0 && travel.length() <= scale_(EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_before_travel, 0)) && travel.size() > 1;
         gcode += this->retract_and_wipe(false, no_lift_on_retract /*, comment*/);
 
         // When "Wipe while retracting" is enabled, then extruder moves to another position, and travel from this position can cross perimeters.
@@ -7544,6 +7544,9 @@ std::string GCodeGenerator::travel_to(
 
 bool GCodeGenerator::needs_retraction(const Polyline& travel, ExtrusionRole role /*=ExtrusionRole::None*/, coordf_t max_min_dist /*=0*/)
 {
+    // If extra lift set, please lift (and retract, as one is dependent on the other)
+    if (m_writer.get_extra_lift() > 0)
+        return true;
     coordf_t min_dist = scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(retract_before_travel, 0));
     if (max_min_dist > 0)
         min_dist = std::min(max_min_dist, min_dist);
