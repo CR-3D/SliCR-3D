@@ -145,7 +145,7 @@ struct PaintedLineVisitor
     Line                                                                                  line_to_test;
     std::unordered_set<std::pair<size_t, size_t>, boost::hash<std::pair<size_t, size_t>>> painted_lines_set;
     int                                                                                   color             = -1;
-    double                                                                                resolution = 50 * SCALED_EPSILON;
+    coordf_t                                                                              resolution = 50 * SCALED_EPSILON;
 
     static inline const double                                                            cos_threshold2    = Slic3r::sqr(cos(M_PI * 30. / 180.));
     static inline const double                                                            append_threshold  = 50 * SCALED_EPSILON;
@@ -1446,7 +1446,7 @@ static inline std::vector<std::vector<ExPolygons>> mmu_segmentation_top_and_bott
                 // color_idx == 0 means "don't know" extruder aka the underlying extruder.
                 // As this region may split existing regions, we collect statistics over all regions for color_idx == 0.
                 color_idx == 0 || config.perimeter_extruder == int(color_idx)) {
-                double perimeter_extrusion_width = config.get_computed_value("perimeter_extrusion_width");
+                double perimeter_extrusion_width = config.get_computed_value("perimeter_extrusion_width", config.perimeter_extruder);
                 out.extrusion_width     = std::max<double>(out.extrusion_width, perimeter_extrusion_width);
                 out.top_solid_layers    = std::max<int>(out.top_solid_layers, config.top_solid_layers);
                 out.bottom_solid_layers = std::max<int>(out.bottom_solid_layers, config.bottom_solid_layers);
@@ -1691,7 +1691,7 @@ std::vector<std::vector<ExPolygons>> multi_material_segmentation_by_painting(con
     std::vector<EdgeGrid::Grid>           edge_grids(num_layers);
     const ConstLayerPtrsAdaptor           layers = print_object.layers();
     std::vector<ExPolygons>               input_expolygons(num_layers);
-    coord_t                               resolution = scale_t(print_object.config().option("resolution")->getFloat());
+    coordf_t                              resolution = scale_d(print_object.print()->config().resolution);
 
     throw_on_cancel_callback();
 
@@ -1824,6 +1824,7 @@ std::vector<std::vector<ExPolygons>> multi_material_segmentation_by_painting(con
                             assert(mutex_idx < painted_lines_mutex.size());
 
                             PaintedLineVisitor visitor(edge_grids[layer_idx], painted_lines[layer_idx], painted_lines_mutex[mutex_idx], 16);
+                            visitor.resolution = resolution; // note: multiply that if there is still problem with artifact on mmu paint with low resolution (high resolution value).
                             visitor.line_to_test = line_to_test;
                             visitor.color        = int(extruder_idx);
                             edge_grids[layer_idx].visit_cells_intersecting_line(line_to_test.a, line_to_test.b, visitor);

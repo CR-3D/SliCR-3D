@@ -157,7 +157,7 @@ public:
     }
 	bool			set_value(const t_config_option_key& id, const boost::any& value, bool change_event = false) {
 							if (m_fields.find(id) == m_fields.end()) return false;
-							m_fields.at(id)->set_value(value, change_event);
+							m_fields.at(id)->set_any_value(value, change_event);
 							return true;
     }
 	boost::any		get_value(const t_config_option_key& id) {
@@ -265,12 +265,16 @@ public:
 	void        set_config(DynamicPrintConfig* config) { 
 		m_config = config; m_modelconfig = nullptr; 
 	}
-	bool		has_option(const std::string& opt_key, int opt_index = -1);
-	// more like "create option from def"
-	Option		get_option(const std::string& opt_key, int opt_index = -1);
+
+    bool has_option_def(const std::string &opt_key);
+    const Option* get_option_def(const std::string &opt_key);
+	//these 'has' and 'get' are about m_opt_map and not m_options. it's the option + id
+    bool has_option(const std::string &opt_key, int opt_index = -1);
+	// more like "create option from def" (old "get_option")
+	Option		create_option_from_def(const std::string& opt_key, int opt_index = -1);
 	void		register_to_search(const std::string& opt_key, const ConfigOptionDef& option_def, int opt_index, bool reset);
 	Option		get_option_and_register(const std::string& opt_key, int opt_index = -1) {
-		Option opt = get_option(opt_key, opt_index);
+        Option opt = create_option_from_def(opt_key, opt_index);
 		if(m_use_custom_ctrl) // fill group and category values just for options from Settings Tab
 			register_to_search(opt_key, opt.opt, opt_index, true);
 		return opt;
@@ -305,9 +309,6 @@ public:
     void        msw_rescale();
     void        sys_color_changed();
     void        refresh();
-	boost::any	config_value(const std::string& opt_key, int opt_index, bool deserialize);
-	// return option value from config 
-	boost::any	get_config_value(const DynamicConfig& config, const std::string& opt_key, int opt_index = -1);
 	Field*		get_fieldc(const t_config_option_key& opt_key, int opt_index);
 	std::pair<OG_CustomCtrl*, bool*>	get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int opt_index/* = -1*/);
 

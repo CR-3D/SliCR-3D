@@ -56,6 +56,7 @@ group:Thumbnails
 	line:Thumbnail options
 		setting:thumbnails_format
 		setting:thumbnails_with_bed
+		setting:thumbnails_tag_format
 		setting:thumbnails_end_file
 	end_line
 group:Advanced

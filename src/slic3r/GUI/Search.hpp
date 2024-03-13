@@ -106,6 +106,7 @@ class OptionsSearcher
     ConfigOptionMode                        current_tags {comNone};
 
     std::vector<Option>                     options{};
+    std::vector<Option>                     script_options{};
     std::vector<FoundOption>                found {};
     std::map<ConfigOptionMode, wxString>    tag_label_cache;
 
@@ -133,6 +134,7 @@ public:
     void check_and_update(  PrinterTechnology pt_in, 
                             ConfigOptionMode tags_in, 
                             std::vector<InputInfo> input_values);
+    void append_script_option(const ConfigOptionDef &opt, Preset::Type preset_type, int16_t idx);
     bool search();
     bool search(const std::string& search, bool force = false);
 

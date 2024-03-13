@@ -11139,7 +11139,7 @@ msgstr "Mode simple"
 msgid "Simple widget to enable/disable the overhangs detection (using 55% and 75% for the two thresholds)\nUse the expert mode to get more detailled widgets"
 msgstr ""
 "Element graphique simplifié pour activer/désactiver la détection des "
-"surplombs (utisant 55% et 75% pour els deux seuils)\n"
+"surplombs (utisant 55% et 75% pour les deux seuils)\n"
 "Utiliser le mode expert permet de modifier les seuils."
 
 msgid "Simulate Prusa 'no thick bridge'"

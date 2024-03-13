@@ -74,7 +74,7 @@ int GUI_Run(GUI_InitParams &params)
         gui->init_params = &params;
 
 #ifdef WIN32
-        test_win32_dll_loaded(gui->app_config);
+        test_win32_dll_loaded(gui->app_config.get());
 #endif
 
         return wxEntry(params.argc, params.argv);

@@ -12,7 +12,7 @@ using namespace std::literals;
 struct CompressedPNG : CompressedImageBuffer 
 {
     ~CompressedPNG() override { if (data) mz_free(data); }
-    std::string_view tag() const override { return "thumbnail"sv; }
+    std::string_view tag() const override { return "thumbnail_PNG"sv; }
 };
 
 struct CompressedJPG : CompressedImageBuffer

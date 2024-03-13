@@ -1,7 +1,7 @@
 
 //#define CATCH_CONFIG_DISABLE
 
-#include <catch2/catch.hpp>
+#include <catch_main.hpp>
 #include <memory>
 
 #include "libslic3r/GCodeWriter.hpp"
@@ -9,8 +9,6 @@
 #include <iomanip>
 #include <iostream>
 //#include "test_data.hpp" // get access to init_print, etc
-#define PRECISION(val, precision) std::fixed << std::setprecision(precision) << val
-#define XYZF_NUM(val) PRECISION(val, 3)
 
 using namespace Slic3r;
 using namespace std::literals::string_literals;
@@ -22,17 +20,20 @@ SCENARIO("lift() and unlift() behavior with large values of Z", "[!shouldfail]")
         GCodeWriter writer{};
         GCodeConfig& config {writer.config};
         config.set_defaults();
-        config.load(std::string{ TEST_DATA_DIR PATH_SEPARATOR } +"test_gcodewriter/config_lift_unlift.ini"s);
+        config.load(std::string{ TEST_DATA_DIR PATH_SEPARATOR } +"fff_print_tests/test_gcodewriter/config_lift_unlift.ini"s, Slic3r::ForwardCompatibilitySubstitutionRule::Disable);
+        assert(!config.retract_lift.values.empty() && config.retract_lift.values.front() > 0);
 
         std::vector<uint16_t> extruder_ids {0};
         writer.set_extruders(extruder_ids);
         writer.set_tool(0);
+        int lift_layer_id = 1; // not first layer, as lift is deactivated on it by default
 
         WHEN("Z is set to 9007199254740992") {
             double trouble_Z{ 9007199254740992 };
-            writer.travel_to_z(trouble_Z);
+            const std::string travel_str = writer.travel_to_z(trouble_Z);
+            REQUIRE(travel_str.size() > 0);
             AND_WHEN("GcodeWriter::Lift() is called") {
-                const std::string lift = writer.lift();
+                const std::string lift = writer.lift(lift_layer_id);
                 REQUIRE(lift.size() > 0);
                 AND_WHEN("Z is moved post-lift to the same delta as the config Z lift") {
                     REQUIRE(writer.travel_to_z(trouble_Z + config.retract_lift.values[0]).size() == 0);
@@ -40,7 +41,7 @@ SCENARIO("lift() and unlift() behavior with large values of Z", "[!shouldfail]")
                         const std::string unlift = writer.unlift();
                         REQUIRE(unlift.size() == 0); // we're the same height so no additional move happens.
                         THEN("GCodeWriter::Lift() emits gcode.") {
-                            const std::string lift_again = writer.lift();
+                            const std::string lift_again = writer.lift(lift_layer_id);
                             REQUIRE(lift_again.size() > 0);
                         }
                     }
@@ -55,23 +56,24 @@ SCENARIO("lift() is not ignored after unlift() at normal values of Z") {
         GCodeWriter writer{};
         GCodeConfig& config {writer.config};
         config.set_defaults();
-        config.load(std::string{ TEST_DATA_DIR PATH_SEPARATOR } +"test_gcodewriter/config_lift_unlift.ini"s);
+        config.load(std::string{ TEST_DATA_DIR PATH_SEPARATOR } +"fff_print_tests/test_gcodewriter/config_lift_unlift.ini"s, Slic3r::ForwardCompatibilitySubstitutionRule::Disable);
 
         std::vector<uint16_t> extruder_ids {0};
         writer.set_extruders(extruder_ids);
         writer.set_tool(0);
+        int lift_layer_id = 1;
 
         WHEN("Z is set to 203") {
             double trouble_Z{ 203 };
             writer.travel_to_z(trouble_Z);
             AND_WHEN("GcodeWriter::Lift() is called") {
-                REQUIRE(writer.lift().size() > 0);
+                REQUIRE(writer.lift(lift_layer_id).size() > 0);
                 AND_WHEN("Z is moved post-lift to the same delta as the config Z lift") {
                     REQUIRE(writer.travel_to_z(trouble_Z + config.retract_lift.values[0]).size() == 0);
                     AND_WHEN("GCodeWriter::Unlift() is called") {
                         REQUIRE(writer.unlift().size() == 0); // we're the same height so no additional move happens.
                         THEN("GCodeWriter::Lift() emits gcode.") {
-                            REQUIRE(writer.lift().size() > 0);
+                            REQUIRE(writer.lift(lift_layer_id).size() > 0);
                         }
                     }
                 }
@@ -81,13 +83,13 @@ SCENARIO("lift() is not ignored after unlift() at normal values of Z") {
             double trouble_Z{ 500003 };
             writer.travel_to_z(trouble_Z);
             AND_WHEN("GcodeWriter::Lift() is called") {
-                REQUIRE(writer.lift().size() > 0);
+                REQUIRE(writer.lift(lift_layer_id).size() > 0);
                 AND_WHEN("Z is moved post-lift to the same delta as the config Z lift") {
                     REQUIRE(writer.travel_to_z(trouble_Z + config.retract_lift.values[0]).size() == 0);
                     AND_WHEN("GCodeWriter::Unlift() is called") {
                         REQUIRE(writer.unlift().size() == 0); // we're the same height so no additional move happens.
                         THEN("GCodeWriter::Lift() emits gcode.") {
-                            REQUIRE(writer.lift().size() > 0);
+                            REQUIRE(writer.lift(lift_layer_id).size() > 0);
                         }
                     }
                 }
@@ -97,13 +99,13 @@ SCENARIO("lift() is not ignored after unlift() at normal values of Z") {
             double trouble_Z{ 10.3 };
             writer.travel_to_z(trouble_Z);
             AND_WHEN("GcodeWriter::Lift() is called") {
-                REQUIRE(writer.lift().size() > 0);
+                REQUIRE(writer.lift(lift_layer_id).size() > 0);
                 AND_WHEN("Z is moved post-lift to the same delta as the config Z lift") {
                     REQUIRE(writer.travel_to_z(trouble_Z + config.retract_lift.values[0]).size() == 0);
                     AND_WHEN("GCodeWriter::Unlift() is called") {
                         REQUIRE(writer.unlift().size() == 0); // we're the same height so no additional move happens.
                         THEN("GCodeWriter::Lift() emits gcode.") {
-                            REQUIRE(writer.lift().size() > 0);
+                            REQUIRE(writer.lift(lift_layer_id).size() > 0);
                         }
                     }
                 }
@@ -123,23 +125,23 @@ SCENARIO("set_speed emits values with fixed-point output.") {
         //    }
         //}
         WHEN("set_speed is called to set speed to 9.99321e+04") {
-            THEN("Output string is G1 F99932.100") {
-                REQUIRE_THAT(writer.set_speed(9.99321e+04), Catch::Equals("G1 F10932.100\n"));
+            THEN("Output string is G1 F5995926") {
+                REQUIRE_THAT(writer.set_speed(9.99321e+04), Catch::Equals("G1 F5995926\n"));
             }
         }
         WHEN("set_speed is called to set speed to 1") {
-            THEN("Output string is G1 F1.000") {
-                REQUIRE_THAT(writer.set_speed(1.0), Catch::Equals("G1 F1.000\n"));
+            THEN("Output string is G1 F60") {
+                REQUIRE_THAT(writer.set_speed(1.0), Catch::Equals("G1 F60\n"));
             }
         }
-        WHEN("set_speed is called to set speed to 203.200022") {
-            THEN("Output string is G1 F203.200") {
-                REQUIRE_THAT(writer.set_speed(203.200022), Catch::Equals("G1 F203.200\n"));
+        WHEN("set_speed is called to set speed to 203.2000022") {
+            THEN("Output string is G1 F12192") {
+                REQUIRE_THAT(writer.set_speed(203.2000022), Catch::Equals("G1 F12192\n"));
             }
         }
-        WHEN("set_speed is called to set speed to 203.200522") {
-            THEN("Output string is G1 F203.200") {
-                REQUIRE_THAT(writer.set_speed(203.200522), Catch::Equals("G1 F203.201\n"));
+        WHEN("set_speed is called to set speed to 203.2000522") {
+            THEN("Output string is G1 F12192.003") {
+                REQUIRE_THAT(writer.set_speed(203.2000522), Catch::Equals("G1 F12192.003\n"));
             }
         }
     }

@@ -802,7 +802,7 @@ ConfigSubstitutions PresetBundle::load_config_file(const std::string &path, Forw
         ConfigSubstitutions config_substitutions = config.load_from_gcode_file(path, compatibility_rule);
         Preset::normalize(config);
         if(from_prusa)
-            config.convert_from_prusa();
+            config.convert_from_prusa(true);
 		load_config_file_config(path, true, std::move(config));
 		return config_substitutions;
 	}
@@ -838,7 +838,7 @@ ConfigSubstitutions PresetBundle::load_config_file(const std::string &path, Forw
             config_substitutions = config.load(tree, compatibility_rule);
     		Preset::normalize(config);
             if (from_prusa) {
-                config.convert_from_prusa();
+                config.convert_from_prusa(true);
             }
     		load_config_file_config(path, true, std::move(config));
             return config_substitutions;
@@ -1321,7 +1321,7 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             std::vector<std::string>  renamed_from;
             try {
                 auto parse_config_section = [&section, &alias_name, &renamed_from, &substitution_context, &path, &flags](DynamicPrintConfig &config) {
-                    substitution_context.substitutions.clear();
+                    substitution_context.clear();
                     for (auto &kvp : section.second) {
                     	if (kvp.first == "alias")
                     		alias_name = kvp.second.data();
@@ -1332,10 +1332,16 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                        		}
                     	}
                         // Throws on parsing error. For system presets, no substituion is being done, but an exception is thrown.
-                        config.set_deserialize(kvp.first, kvp.second.data(), substitution_context);
+                        std::string opt_key = kvp.first;
+                        std::string value =  kvp.second.data();
+                        PrintConfigDef::handle_legacy(opt_key, value, true);
+                        // don't throw for an unknown key, just ignore it
+                        if (!opt_key.empty()) {
+                            config.set_deserialize(opt_key, value, substitution_context);
+                        }
                     }
                     if (flags.has(LoadConfigBundleAttribute::ConvertFromPrusa))
-                        config.convert_from_prusa();
+                        config.convert_from_prusa(true);
                 };
                 if (presets == &this->printers) {
                     // Select the default config based on the printer_technology field extracted from kvp.
@@ -1446,9 +1452,8 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
 	         	loaded.alias = std::move(alias_name);
 	        loaded.renamed_from = std::move(renamed_from);
             if (! substitution_context.empty())
-                substitutions.push_back({ 
-                    preset_name, presets->type(), PresetConfigSubstitutions::Source::ConfigBundle, 
-                    std::string(), std::move(substitution_context.substitutions) });
+                substitutions.push_back({preset_name, presets->type(), PresetConfigSubstitutions::Source::ConfigBundle,
+                                         std::string(), std::move(substitution_context).data()});
             ++ presets_loaded;
         }
 
@@ -1457,10 +1462,20 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             const DynamicPrintConfig& default_config = ph_printers->default_config();
             DynamicPrintConfig        config = default_config;
 
-            substitution_context.substitutions.clear();
+            substitution_context.clear();
             try {
-                for (auto& kvp : section.second)
-                    config.set_deserialize(kvp.first, kvp.second.data(), substitution_context);
+                for (auto& kvp : section.second) {
+                    std::string opt_key = kvp.first;
+                    std::string value = kvp.second.data();
+                    PrintConfigDef::handle_legacy(opt_key, value, true);
+                    if (opt_key.empty()) {
+                        if (substitution_context.rule != ForwardCompatibilitySubstitutionRule::Disable) {
+                            substitution_context.add(ConfigSubstitution(kvp.first, value));
+                        }
+                    } else {
+                        config.set_deserialize(opt_key, value, substitution_context);
+                    }
+                }
             } catch (const ConfigurationError &e) {
                 throw ConfigurationError(format("Invalid configuration bundle \"%1%\", section [%2%]: ", path, section.first) + e.what());
             }
@@ -1491,9 +1506,9 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             // Load the preset into the list of presets, save it to disk.
             ph_printers->load_printer(file_path.string(), ph_printer_name, std::move(config), false, flags.has(LoadConfigBundleAttribute::SaveImported));
             if (! substitution_context.empty())
-                substitutions.push_back({
-                    ph_printer_name, Preset::TYPE_PHYSICAL_PRINTER, PresetConfigSubstitutions::Source::ConfigBundle, 
-                    std::string(), std::move(substitution_context.substitutions) });
+                substitutions.push_back({ph_printer_name, Preset::TYPE_PHYSICAL_PRINTER,
+                                         PresetConfigSubstitutions::Source::ConfigBundle, std::string(),
+                                         std::move(substitution_context).data()});
             ++ ph_printers_loaded;
         }
     }

@@ -75,7 +75,7 @@ PresetComboBox::PresetComboBox(wxWindow* parent, Preset::Type preset_type, const
     m_type(preset_type),
     m_last_selected(wxNOT_FOUND),
     m_em_unit(em_unit(this)),
-    m_preset_bundle(preset_bundle ? preset_bundle : wxGetApp().preset_bundle)
+    m_preset_bundle(preset_bundle ? preset_bundle : wxGetApp().preset_bundle.get())
 {
     switch (m_type)
     {

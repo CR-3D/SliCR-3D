@@ -52,7 +52,7 @@ private:
     uint16_t                    m_num_extruders { 0 };
     // Referencs GCode::m_config, which is FullPrintConfig. While the PrintObjectConfig slice of FullPrintConfig is being modified,
     // the PrintConfig slice of FullPrintConfig is constant, thus no thread synchronization is required.
-    const PrintConfig          &m_config;
+    const FullPrintConfig      &m_config;
     uint16_t                    m_current_extruder;
 
     //saved previous unslowed layer 

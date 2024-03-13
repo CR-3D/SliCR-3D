@@ -102,23 +102,41 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
         xyzScale = 1;
         model.objects[objs_idx[0]]->scale(xyzScale, xyzScale * 0.5, xyzScale);
     }
+    
+    // it's rotated but not around the good origin: correct that
+    double init_z_rotate_angle = Geometry::deg2rad(plat->config()->opt_float("init_z_rotate"));
+    Matrix3d rot_matrix = Eigen::Quaterniond(Eigen::AngleAxisd(init_z_rotate_angle, Vec3d{0,0,1})).toRotationMatrix();
+    auto     translate_from_rotation = [&rot_matrix, &model, &objs_idx](int idx, const Vec3d &translation) {
+            ModelVolume *vol_parent = model.objects[objs_idx[idx]]->volumes[model.objects[objs_idx[idx]]->volumes.size()-2];
+            ModelVolume *vol = model.objects[objs_idx[idx]]->volumes[model.objects[objs_idx[idx]]->volumes.size()-1];
+            //Geometry::Transformation trsf = vol->get_transformation();
+            //Vec3d rotxtrans = rot_matrix * translation;
+            //Vec3d  offset_reste =  trsf.get_offset()- translation;
+            //Vec3d  tot = rot_matrix * translation + trsf.get_offset()- translation;
+            //Vec3d  tot2 =  translation + trsf.get_offset()- rot_matrix * translation;
+            //trsf.set_offset( (rot_matrix *translation) - translation + trsf.get_offset());
+            Geometry::Transformation trsf = vol->get_transformation();
+            trsf.set_offset( (rot_matrix *translation) + vol_parent->get_offset());
+            vol->set_transformation(trsf);
+        };
 
     //add 8 others
-    std::vector<ModelObject*>tower;
-    tower.push_back(model.objects[objs_idx[0]]);
     float zshift = (1 - xyzScale) / 2;
     if (temperature > 175 && temperature < 290 && temperature%5==0) {
-        tower.push_back(add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t"+std::to_string(temperature)+".amf")).string(),
-            //Vec3d{ xyzScale * 5, - xyzScale * 2.5, zshift - xyzScale * 2.5}, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }));
-            Vec3d{ 8 - xyzScale * 5, -xyzScale * 2.3, xyzScale * (0 * 10 - 2.45) }, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }));
+        Vec3d translate{ 0 - xyzScale * 3.75, -xyzScale * 2.7, xyzScale * (0 * 10 - 2.45) };
+        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t"+std::to_string(temperature)+".amf")).string(),
+            translate, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 });
+        translate_from_rotation(0, translate);
     }
     for (int16_t i = 1; i < nb_items; i++) {
-        tower.push_back(add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("Smart_compact_temperature_calibration_item.amf")).string(),
-            Vec3d{ 0,0, i * 10 * xyzScale }, Vec3d{ xyzScale, xyzScale * 0.5, xyzScale }));
+        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("Smart_compact_temperature_calibration_item.amf")).string(),
+            Vec3d{ 0,0, i * 10 * xyzScale }, Vec3d{ xyzScale, xyzScale * 0.5, xyzScale });
         int sub_temp = temperature - i * step_temp;
         if (sub_temp > 175 && sub_temp < 290 && sub_temp % 5 == 0) {
-            tower.push_back(add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(sub_temp) + ".amf")).string(),
-                Vec3d{ 8 - xyzScale * 5, -xyzScale * 2.3, xyzScale * (i * 10 - 2.5) }, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }));
+            Vec3d translate{ 0 - xyzScale * 3.75, -xyzScale * 2.7, xyzScale * (0 * 10 - 2.45) };
+            add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(sub_temp) + ".amf")).string(),
+                translate, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 });
+            translate_from_rotation(0, translate);
         }
     }
 

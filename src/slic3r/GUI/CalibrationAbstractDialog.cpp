@@ -5,6 +5,7 @@
 #include "GUI.hpp"
 #include "GUI_ObjectList.hpp"
 #include "Tab.hpp"
+#include "Plater.hpp"
 
 #include <wx/scrolwin.h>
 #include <wx/display.h>
@@ -101,7 +102,7 @@ void CalibrationAbstractDialog::close_me(wxCommandEvent& event_args) {
     this->Destroy();
 }
 
-ModelObject* CalibrationAbstractDialog::add_part(ModelObject* model_object, std::string input_file, Vec3d move, Vec3d scale) {
+void CalibrationAbstractDialog::add_part(ModelObject* model_object, std::string input_file, Vec3d move, Vec3d scale, bool rotate) {
     Model model;
     try {
         model = Model::read_from_file(input_file);
@@ -124,6 +125,8 @@ ModelObject* CalibrationAbstractDialog::add_part(ModelObject* model_object, std:
             if (scale != Vec3d{ 1,1,1 }) {
                 volume->scale(scale);
             }
+            if(rotate)
+                volume->rotate(Geometry::deg2rad(this->main_frame->plater()->config()->opt_float("init_z_rotate")), Axis::Z);
             ModelVolume* new_volume = model_object->add_volume(*volume);
             new_volume->set_type(ModelVolumeType::MODEL_PART);
             new_volume->name = boost::filesystem::path(input_file).filename().string();
@@ -145,7 +148,6 @@ ModelObject* CalibrationAbstractDialog::add_part(ModelObject* model_object, std:
         }
     }
     assert(model.objects.size() == 1);
-    return model.objects.empty()?nullptr: model.objects[0];
 }
 
 void CalibrationAbstractDialog::on_dpi_changed(const wxRect& suggested_rect)

@@ -60,7 +60,7 @@ void fill_iniconf(ConfMap &m, const SLAPrint &print)
     double used_material = (stats.objects_used_material +
                             stats.support_used_material) / 1000;
     
-    int num_fade = print.default_object_config().faded_layers.getInt();
+    int num_fade = print.default_object_config().faded_layers.get_int();
     num_fade = num_fade >= 0 ? num_fade : 0;
     
     m["usedMaterial"] = std::to_string(used_material);

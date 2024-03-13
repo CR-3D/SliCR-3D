@@ -181,6 +181,9 @@ public:
             if (limit_volumetric_flow) {
                 float e_speed = e / (((len == 0.f) ? std::abs(e) : len) / f * 60.f);
                 f /= std::max(1.f, e_speed / m_filpar[m_current_tool].max_e_speed);
+                if (len > 0 && m_filpar[m_current_tool].max_speed > 0) {
+                    f = std::min(f, m_filpar[m_current_tool].max_speed);
+                }
             }
             gcode += set_format_F(f);
         }
@@ -730,6 +733,9 @@ void WipeTower::set_extruder(size_t idx)
     float nozzle_diameter = float(m_config->nozzle_diameter.get_at(idx));
     m_filpar[idx].nozzle_diameter = nozzle_diameter; // to be used in future with (non-single) multiextruder MM
 
+    float max_speed = float(m_config->filament_max_speed.get_at(idx));
+    if (max_speed > 0.f)
+        m_filpar[idx].max_speed = max_speed;
     float max_vol_speed = float(m_config->filament_max_volumetric_speed.get_at(idx));
     if (max_vol_speed!= 0.f)
         m_filpar[idx].max_e_speed = (max_vol_speed / filament_area());

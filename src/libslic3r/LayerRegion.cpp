@@ -132,6 +132,7 @@ void LayerRegion::make_perimeters(const SurfaceCollection &slices, SurfaceCollec
     g.overhang_flow         = this->bridging_flow(frPerimeter);
     g.solid_infill_flow     = this->flow(frSolidInfill);
     g.use_arachne = (this->layer()->object()->config().perimeter_generator.value == PerimeterGeneratorType::Arachne);
+    g.throw_if_canceled = [this]() { this->layer()->object()->print()->throw_if_canceled(); };
 
     g.process();
 

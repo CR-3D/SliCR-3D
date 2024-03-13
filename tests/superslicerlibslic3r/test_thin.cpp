@@ -1,12 +1,12 @@
 
 //#define CATCH_CONFIG_DISABLE
-
-#include <catch2/catch.hpp>
+#include <catch_main.hpp>
 #include "test_data.hpp"
 #include <libslic3r/ClipperUtils.hpp>
-#include <libslic3r/MedialAxis.hpp>
+#include <libslic3r/Geometry/MedialAxis.hpp>
 #include <libslic3r/SVG.hpp>
 #include <libslic3r/GCode.hpp>
+#include <libslic3r/Format/3mf.hpp>
 
 using namespace Slic3r;
 using namespace Slic3r::Geometry;
@@ -16,7 +16,7 @@ class ExtrusionVolumeVisitor : public ExtrusionVisitorConst {
     double volume = 0;
 public:
     virtual void use(const ExtrusionPath &path) override { 
-        for (int i = 0; i < path.polyline.size() - 1; i++) volume += path.polyline.points[i].distance_to(path.polyline.points[i + 1]) * path.mm3_per_mm;
+        for (int i = 0; i < path.polyline.size() - 1; i++) volume += unscaled(path.polyline.get_points()[i].distance_to(path.polyline.get_points()[i + 1])) * path.mm3_per_mm;
     };
     virtual void use(const ExtrusionPath3D &path3D) override { std::cout << "error, not supported"; };
     virtual void use(const ExtrusionMultiPath &multipath) override {
@@ -27,7 +27,7 @@ public:
         for (const ExtrusionEntity &path : loop.paths) path.visit(*this);
     }
     virtual void use(const ExtrusionEntityCollection &collection) override {
-        for (const ExtrusionEntity *path : collection.entities) path->visit(*this);
+        for (const ExtrusionEntity *path : collection.entities()) path->visit(*this);
     }
     double compute(const ExtrusionEntity &entity) && {
         entity.visit(*this);
@@ -46,10 +46,12 @@ SCENARIO("extrude_thinwalls") {
             Point::new_scale(-0.3, 10) } };
         ThickPolylines res;
 
-        MedialAxis{ expolygon, scale_(1.1), scale_(0.5), scale_(0.2) }.build(res);
-        Flow periflow{ 1.1, 0.2, 0.4 };
-        ExtrusionEntityCollection gap_fill = thin_variable_width(res, erGapFill, periflow);
-
+        MedialAxis{ expolygon, scale_t(1.1), scale_t(0.5), scale_t(0.2) }.build(res);
+        Flow periflow = Flow::new_from_width(1.1f, 0.4f, 0.2f, 1.f, false);
+        ExtrusionEntityCollection gap_fill;
+        gap_fill.append(thin_variable_width(res, erGapFill, periflow, SCALED_EPSILON*2, true));
+        
+        //Flow gapfill_max_flow = Flow::new_from_spacing(1.f, 0.4f, 0.2f, 1.f, false);
 
         //std::string gcode = gcodegen.get_visitor_gcode();
         THEN("analyse extrusion.") {
@@ -63,8 +65,6 @@ SCENARIO("extrude_thinwalls") {
 
 SCENARIO("thin walls: ")
 {
-
-
     GIVEN("Square")
     {
         Points test_set;
@@ -160,13 +160,14 @@ SCENARIO("thin walls: ")
             }
             THEN("all medial axis segments of a semicircumference have the same orientation (but the 2 end points)") {
                 Lines lines = res[0].lines();
-                double min_angle = 1, max_angle = -1;
+                double min_angle = PI*4, max_angle = -PI*4;
                 //std::cout << "first angle=" << lines[0].ccw(lines[1].b) << "\n";
                 for (int idx = 1; idx < lines.size() - 1; idx++) {
-                    double angle = lines[idx - 1].ccw(lines[idx].b);
+                    assert(lines[idx].a== lines[idx - 1].b);
+                    double angle = lines[idx].a.ccw_angle(lines[idx - 1].a, lines[idx].b);
                     if (std::abs(angle) - EPSILON < 0) angle = 0;
                     //if (angle < 0) std::cout << unscale_(lines[idx - 1].a.x()) << ":" << unscale_(lines[idx - 1].a.y()) << " -> " << unscale_(lines[idx - 1].b.x()) << ":" << unscale_(lines[idx - 1].b.y()) << " -> " << unscale_(lines[idx].b.x()) << ":" << unscale_(lines[idx].b.y()) << "\n";
-                    std::cout << "angle=" << 180 * lines[idx].a.ccw_angle(lines[idx - 1].a, lines[idx].b) / PI << "\n";
+                    std::cout << "angle=" << 180*angle/PI <<  "\n";
                     min_angle = std::min(min_angle, angle);
                     max_angle = std::max(max_angle, angle);
                 }
@@ -303,10 +304,10 @@ SCENARIO("thin walls: ")
         //} };
         WHEN("1 nozzle, 0.2 layer height") {
             const coord_t nozzle_diam = scale_(1);
-            ExPolygon anchor = union_ex(ExPolygons{ tooth }, intersection_ex(ExPolygons{ base_part }, offset_ex(tooth, nozzle_diam / 2)), true)[0];
+            ExPolygon anchor = union_ex(ExPolygons{ tooth }, intersection_ex(ExPolygons{ base_part }, offset_ex(tooth, nozzle_diam / 2)), ApplySafetyOffset::Yes)[0];
             ThickPolylines res;
             //expolygon.medial_axis(scale_(1), scale_(0.5), &res);
-            Slic3r::MedialAxis ma(tooth, nozzle_diam * 2, nozzle_diam/3, scale_(0.2));
+            Slic3r::Geometry::MedialAxis ma(tooth, /*min_width*/nozzle_diam * 2, /*max_width*/nozzle_diam/3, /*height*/scale_(0.2));
             ma.use_bounds(anchor)
                 .use_min_real_width(nozzle_diam)
                 .use_tapers(0.25*nozzle_diam);
@@ -319,16 +320,16 @@ SCENARIO("thin walls: ")
                 }
                 THEN("medial axis has the line width as max width") {
                     double max_width = 0;
-                    for (coordf_t width : res[0].width) max_width = std::max(max_width, width);
+                    for (coordf_t width : res[0].points_width) max_width = std::max(max_width, width);
                     REQUIRE(std::abs(max_width - scale_(1.2)) < SCALED_EPSILON);
                 }
                 //compute the length of the tapers
                 THEN("medial axis has good tapers length") {
                     int l1 = 0;
-                    for (size_t idx = 0; idx < res[0].width.size() - 1 && res[0].width[idx] - nozzle_diam < SCALED_EPSILON; ++idx)
+                    for (size_t idx = 0; idx < res[0].points_width.size() - 1 && res[0].points_width[idx] - nozzle_diam < SCALED_EPSILON; ++idx)
                         l1 += res[0].lines()[idx].length();
                     int l2 = 0;
-                    for (size_t idx = res[0].width.size() - 1; idx > 0 && res[0].width[idx] - nozzle_diam < SCALED_EPSILON; --idx)
+                    for (size_t idx = res[0].points_width.size() - 1; idx > 0 && res[0].points_width[idx] - nozzle_diam < SCALED_EPSILON; --idx)
                         l2 += res[0].lines()[idx - 1].length();
                     REQUIRE(std::abs(l1 - l2) < SCALED_EPSILON);
                     REQUIRE(std::abs(l1 - scale_(0.25 - 0.1)) < SCALED_EPSILON);
@@ -338,10 +339,10 @@ SCENARIO("thin walls: ")
 
         WHEN("1.2 nozzle, 0.6 layer height") {
             const coord_t nozzle_diam = scale_(1.2);
-            ExPolygon anchor = union_ex(ExPolygons{ tooth }, intersection_ex(ExPolygons{ base_part }, offset_ex(tooth, nozzle_diam / 4)), true)[0];
+            ExPolygon anchor = union_ex(ExPolygons{ tooth }, intersection_ex(ExPolygons{ base_part }, offset_ex(tooth, nozzle_diam / 4)), ApplySafetyOffset::Yes)[0];
             ThickPolylines res;
             //expolygon.medial_axis(scale_(1), scale_(0.5), &res);
-            Slic3r::MedialAxis ma(tooth, nozzle_diam * 2, nozzle_diam/3, scale_(0.6));
+            Slic3r::Geometry::MedialAxis ma(tooth, /*min_width*/nozzle_diam * 2, /*max_width*/nozzle_diam/3, /*height*/scale_(0.6));
             ma.use_bounds(anchor)
                 .use_min_real_width(nozzle_diam)
                 .use_tapers(1.0*nozzle_diam);
@@ -354,24 +355,24 @@ SCENARIO("thin walls: ")
                 }
                 THEN("medial axis can'ty have a line width below Flow::new_from_spacing(nozzle_diam).width") {
                     double max_width = 0;
-                    for (coordf_t width : res[0].width) max_width = std::max(max_width, width);
-                    double min_width = Flow::new_from_spacing(float(unscale_(nozzle_diam)), float(unscale_(nozzle_diam)), 0.6f, false).scaled_width();
+                    for (coordf_t width : res[0].points_width) max_width = std::max(max_width, width);
+                    double min_width = Flow::new_from_spacing(float(unscaled(nozzle_diam)), float(unscaled(nozzle_diam)), 0.6f, 1.f, false).scaled_width();
                     REQUIRE(std::abs(max_width - min_width) < SCALED_EPSILON);
                     REQUIRE(std::abs(max_width - nozzle_diam)  > SCALED_EPSILON);
                 }
                 //compute the length of the tapers
                 THEN("medial axis has a 45� taper and a shorter one") {
-                    int l1 = 0;
-                    for (size_t idx = 0; idx < res[0].width.size() - 1 && res[0].width[idx] - scale_(1.2) < SCALED_EPSILON; ++idx)
-                        l1 += res[0].lines()[idx].length();
-                    int l2 = 0;
-                    for (size_t idx = res[0].width.size() - 1; idx > 0 && res[0].width[idx] - scale_(1.2) < SCALED_EPSILON; --idx)
-                        l2 += res[0].lines()[idx - 1].length();
+                    coord_t l1 = 0;
+                    for (size_t idx = 0; idx < res[0].points_width.size() - 1 && res[0].points_width[idx] - scale_(1.2) < SCALED_EPSILON; ++idx)
+                        l1 += coord_t(res[0].lines()[idx].length());
+                    coord_t l2 = 0;
+                    for (size_t idx = res[0].points_width.size() - 1; idx > 0 && res[0].points_width[idx] - scale_(1.2) < SCALED_EPSILON; --idx)
+                        l2 += coord_t(res[0].lines()[idx - 1].length());
                     //here the taper is limited by the 0-width spacing
-                    double min_width = Flow::new_from_spacing(float(unscale_(nozzle_diam)), float(unscale_(nozzle_diam)), 0.6f, false).scaled_width();
+                    double min_width = Flow::new_from_spacing(float(unscaled(nozzle_diam)), float(unscaled(nozzle_diam)), 0.6f, 1.f, false).scaled_width();
                     REQUIRE(std::abs(l1 - l2) < SCALED_EPSILON);
-                    REQUIRE(l1 < scale_(0.6));
-                    REQUIRE(l1  > scale_(0.4));
+                    REQUIRE(l1 < scale_t(0.6));
+                    REQUIRE(l1  > scale_t(0.4));
                 }
             }
         }

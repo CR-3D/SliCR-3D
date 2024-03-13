@@ -84,7 +84,7 @@ namespace Slic3r {
             }
             //get the flow
             float mult_flow = 1;
-            if (params.fill_exactly && idx == 0) {
+            if (params.fill_exactly) {
 
                 // compute the volume to extrude
                 double volume_to_occupy = compute_unscaled_volume_to_fill(&srf_to_fill, params);
@@ -114,8 +114,11 @@ namespace Slic3r {
                 BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << " Ironing process " << idx << " extrude " << extruded_volume << " mm3 for a volume of " << volume_to_occupy << " mm3 : we mult the flow by " << mult_flow;
                 
             }
+#if _DEBUG
+            this->debug_verify_flow_mult = mult_flow;
+#endif
             extrusion_entities_append_paths(
-                eec.set_entities(), std::move(polylines_layer),
+                eec, std::move(polylines_layer),
                 good_role,
                 params.flow.mm3_per_mm() * params.flow_mult * mult_flow,
                 //min-reduced flow width for a better view (it's mostly a gui thing, but some support code can want to mess with it)

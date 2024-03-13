@@ -76,7 +76,7 @@ std::string PrintBase::output_filename(const std::string &format, const std::str
 		cfg.set_key_value("input_filename_base", new ConfigOptionString(filename_base));
     }
     try {
-        uint16_t extruder_initial = config_override->option("initial_extruder") != nullptr && config_override->option("initial_extruder")->type() == coInt ? config_override->option("initial_extruder")->getInt() : 0;
+        uint16_t extruder_initial = config_override->option("initial_extruder") != nullptr && config_override->option("initial_extruder")->type() == coInt ? config_override->option("initial_extruder")->get_int() : 0;
         boost::filesystem::path filepath = format.empty() ?
             cfg.opt_string("input_filename_base") + default_ext :
             this->placeholder_parser().process(format, extruder_initial, &cfg);

@@ -307,10 +307,10 @@ void PhysicalPrinterDialog::update_printers()
             boost::any any_string_type = std::string("");
             auto value_idx = std::find(slugs.begin(), slugs.end(), m_config->opt<ConfigOptionString>("printhost_port")->value);
             if ((val.empty() || (any_string_type.type() == val.type() && boost::any_cast<std::string>(val) == "")) && !slugs.empty() && value_idx == slugs.end()) {
-                change_opt_value(*m_config, "printhost_port", slugs[0]);
-                choice->set_value(slugs[0], false);
+                m_config->option("printhost_port")->set_any(slugs[0]); // change_opt_value(*m_config, "printhost_port", slugs[0]);
+                choice->set_text_value(slugs[0], false);
             } else if (value_idx != slugs.end()) {
-                choice->set_value(m_config->option<ConfigOptionString>("printhost_port")->value, false);
+                choice->set_any_value(m_config->option("printhost_port")->get_any(), false);
             }
             rs->enable();
         }
@@ -325,7 +325,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         if(opt_key == "printhost_client_cert_enabled")
             this->m_show_cert_fields = boost::any_cast<bool>(value);
         if (!this->m_show_cert_fields && !m_config->opt_string("printhost_client_cert").empty()) {
-            change_opt_value(*m_config, "printhost_client_cert", std::string(""));
+            m_config->option("printhost_client_cert")->set_any(std::string("")); //change_opt_value(*m_config, "printhost_client_cert", std::string(""));
             //change_opt_value(*m_config, "printhost_client_cert_password", "");
             m_config->set_deserialize_strict("printhost_client_cert_password", "");
         }
@@ -396,7 +396,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     };
 
     // Set a wider width for a better alignment
-    Option option = m_optgroup->get_option("print_host");
+    Option option    = m_optgroup->create_option_from_def("print_host");
     option.opt.width = Field::def_width_wider();
     Line host_line = m_optgroup->create_single_option_line(option);
     host_line.append_widget(printhost_browse);
@@ -405,11 +405,11 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
 
     m_optgroup->append_single_option_line("printhost_authorization_type");
 
-    option = m_optgroup->get_option("printhost_apikey");
+    option           = m_optgroup->create_option_from_def("printhost_apikey");
     option.opt.width = Field::def_width_wider();
     m_optgroup->append_single_option_line(option);
 
-    option = m_optgroup->get_option("printhost_port");
+    option           = m_optgroup->create_option_from_def("printhost_port");
     option.opt.width = Field::def_width_wider();
     Line port_line = m_optgroup->create_single_option_line(option);
     port_line.append_widget(print_host_printers);
@@ -477,14 +477,14 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     };
     m_optgroup->append_line(clientcert_hint);
 
-    option = m_optgroup->get_option("printhost_client_cert_password");
+    option           = m_optgroup->create_option_from_def("printhost_client_cert_password");
     option.opt.width = Field::def_width_wider();
     m_optgroup->append_single_option_line(option);
 
     const auto ca_file_hint = _u8L("HTTPS CA file is optional. It is only needed if you use HTTPS with a self-signed certificate.");
 
     if (Http::ca_file_supported()) {
-        option = m_optgroup->get_option("printhost_cafile");
+        option           = m_optgroup->create_option_from_def("printhost_cafile");
         option.opt.width = Field::def_width_wider();
         Line cafile_line = m_optgroup->create_single_option_line(option);
 
@@ -536,13 +536,13 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     }
 
     for (const std::string& opt_key : std::vector<std::string>{ "printhost_user", "printhost_password" }) {        
-        option = m_optgroup->get_option(opt_key);
+        option           = m_optgroup->create_option_from_def(opt_key);
         option.opt.width = Field::def_width_wider();
         m_optgroup->append_single_option_line(option);
     }
 
 #ifdef WIN32
-    option = m_optgroup->get_option("printhost_ssl_ignore_revoke");
+    option           = m_optgroup->create_option_from_def("printhost_ssl_ignore_revoke");
     option.opt.width = Field::def_width_wider();
     m_optgroup->append_single_option_line(option);
 #endif
@@ -694,7 +694,7 @@ void PhysicalPrinterDialog::update_host_type(bool printer_change)
     Field* ht = m_optgroup->get_field("host_type");
     Choice* choice = dynamic_cast<Choice*>(ht);
     auto set_to_choice_and_config = [this, choice](PrintHostType type) {
-        choice->set_value(static_cast<int>(type));
+        choice->set_any_value(static_cast<int32_t>(type));
         m_config->set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
     };
     if ((printer_change && all_presets_are_from_mk3_family) || (!had_all_mk3 && all_presets_are_from_mk3_family))
@@ -702,7 +702,7 @@ void PhysicalPrinterDialog::update_host_type(bool printer_change)
     else if ((printer_change && !all_presets_are_from_mk3_family) || (!all_presets_are_from_mk3_family && m_config->option<ConfigOptionEnum<PrintHostType>>("host_type")->value == htPrusaLink))
         set_to_choice_and_config(htOctoPrint);
     else
-        choice->set_value(m_config->option("host_type")->getInt());
+        choice->set_any_value(m_config->option("host_type")->get_int());
     had_all_mk3 = all_presets_are_from_mk3_family;
 }
 

@@ -36,8 +36,12 @@ group:silent_mode_event:Firmware
 		setting:arc_fitting
 		setting:arc_fitting_tolerance
 	end_line
-	setting:gcode_filename_illegal_char
+	line:Formatting
+        setting:gcode_filename_illegal_char
+        setting:gcode_ascii
+	end_line
 group:Cooling fan
+	setting:fan_printer_min_speed
 	line:Speedup time
 		setting:label$:fan_speedup_time
 		setting:label$Only for overhangs:fan_speedup_overhangs
@@ -56,6 +60,7 @@ group:Thumbnails
 	line:Thumbnail options
 		setting:thumbnails_format
 		setting:thumbnails_with_bed
+		setting:thumbnails_tag_format
 		setting:thumbnails_end_file
 	end_line
 group:Advanced

@@ -1,9 +1,12 @@
 
 //#define CATCH_CONFIG_DISABLE
-
-#include <catch2/catch.hpp>
+#include <catch_main.hpp>
 #include <libslic3r/Config.hpp>
+#include <libslic3r/Print.hpp>
 #include <libslic3r/Model.hpp>
+#include <libslic3r/ModelArrange.hpp>
+#include <libslic3r/Arrange.hpp>
+#include <libslic3r/sla/IndexedMesh.hpp>
 #include "test_data.hpp" // get access to init_print, etc
 
 using namespace Slic3r;
@@ -13,12 +16,14 @@ SCENARIO("Model construction") {
     GIVEN("A Slic3r Model") {
         Model model{};
         TriangleMesh sample_mesh = make_cube(20,20,20);
-        sample_mesh.repair();
+        Slic3r::sla::IndexedMesh indexed_mesh(sample_mesh); // for ease of use
+        //sample_mesh.repair();
         
         DynamicPrintConfig &config = Slic3r::DynamicPrintConfig::full_print_config();
         Slic3r::Print print{};
         print.apply(model, config);
         //Slic3r::Test::init_print(print, { sample_mesh }, model, config);
+        print.set_status_callback([](const PrintBase::SlicingStatus &) {});
 
         WHEN("Model object is added") {
             ModelObject* mo = model.add_object();
@@ -35,13 +40,15 @@ SCENARIO("Model construction") {
                 REQUIRE(mo->volumes.front()->is_modifier() == false);
             }
             THEN("Mesh is equivalent to input mesh.") {
-                TriangleMesh trimesh = mo->volumes.front()->mesh();
-                REQUIRE(sample_mesh.vertices() == trimesh.vertices());
+                Slic3r::sla::IndexedMesh trimesh(mo->volumes.front()->mesh());
+                REQUIRE(indexed_mesh.vertices() == trimesh.vertices());
             }
             ModelInstance* inst = mo->add_instance();
             inst->set_rotation(Vec3d(0,0,0));
             inst->set_scaling_factor(Vec3d(1, 1, 1));
-            model.arrange_objects(print.config().min_object_distance());
+            ArrangeParams params;
+            params.min_obj_distance = Slic3r::min_object_distance(print.config());
+            Slic3r::arrange_objects(model, InfiniteBed{Point(scale_t(100),scale_t(100))}, params);
             model.center_instances_around_point(Slic3r::Vec2d(100,100));
             print.auto_assign_extruders(mo);
             //print.add_model_object(mo);

@@ -141,6 +141,11 @@ void s_seam_position_set(string &in set_val, int idx)
 	}
 }
 
+bool s_seam_position_is_enabled()
+{
+    return get_int("perimeters") > 0;
+}
+
 // s_wall_thickness
 // set the perimeter_spacing & external_perimeter_spacing
 // as m * 2 perimeter_spacing + n * 2 * external_perimeter_spacing = o * s_wall_thickness

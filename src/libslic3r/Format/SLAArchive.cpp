@@ -25,15 +25,15 @@ std::unique_ptr<sla::RasterBase> SLAAbstractArchive::create_raster() const
     sla::RasterBase::PixelDim   pxdim;
     std::array<bool, 2>         mirror;
 
-    double w  = this->config().display_width.getFloat();
-    double h  = this->config().display_height.getFloat();
-    auto   pw = size_t(this->config().display_pixels_x.getInt());
-    auto   ph = size_t(this->config().display_pixels_y.getInt());
+    double w  = this->config().display_width.get_float();
+    double h  = this->config().display_height.get_float();
+    auto   pw = size_t(this->config().display_pixels_x.get_int());
+    auto   ph = size_t(this->config().display_pixels_y.get_int());
 
-    mirror[X] = this->config().display_mirror_x.getBool();
-    mirror[Y] = this->config().display_mirror_y.getBool();
+    mirror[X] = this->config().display_mirror_x.get_bool();
+    mirror[Y] = this->config().display_mirror_y.get_bool();
     
-    auto ro = this->config().display_orientation.getInt();
+    auto ro = this->config().display_orientation.get_int();
     sla::RasterBase::Orientation orientation =
         ro == sla::RasterBase::roPortrait ? sla::RasterBase::roPortrait :
                                             sla::RasterBase::roLandscape;
@@ -47,7 +47,7 @@ std::unique_ptr<sla::RasterBase> SLAAbstractArchive::create_raster() const
     pxdim = sla::RasterBase::PixelDim{w / pw, h / ph};
     sla::RasterBase::Trafo tr{orientation, mirror};
 
-    double gamma = this->config().gamma_correction.getFloat();
+    double gamma = this->config().gamma_correction.get_float();
 
     return sla::create_raster_grayscale_aa(res, pxdim, gamma, tr);
 }

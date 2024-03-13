@@ -1113,31 +1113,31 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
     //group_size->append_single_option_line(option);
 
     //line = { L("Size"), "" };
-    group_size->append_single_option_line(group_size->get_option("size"));
+    group_size->append_single_option_line(group_size->create_option_from_def("size"));
     //line.append_option(Option(def, "size"));
 
-    group_size->append_single_option_line(group_size->get_option("size_px"));
+    group_size->append_single_option_line(group_size->create_option_from_def("size_px"));
     //line.append_option(Option(def, "size_px"));
 
     //group_size->append_line(line);
 
-    group_size->append_single_option_line(group_size->get_option("height"));
+    group_size->append_single_option_line(group_size->create_option_from_def("height"));
 
-    group_size->append_single_option_line(group_size->get_option("offset"));
+    group_size->append_single_option_line(group_size->create_option_from_def("offset"));
 
     line = { L("Gap"), "" };
 
-    line.append_option(group_size->get_option("separation_xy"));
+    line.append_option(group_size->create_option_from_def("separation_xy"));
 
-    line.append_option(group_size->get_option("separation_z"));
+    line.append_option(group_size->create_option_from_def("separation_z"));
 
     group_size->append_line(line);
 
-    group_size->append_single_option_line(group_size->get_option("bezel"));
-    group_size->append_single_option_line(group_size->get_option("border"));
+    group_size->append_single_option_line(group_size->create_option_from_def("bezel"));
+    group_size->append_single_option_line(group_size->create_option_from_def("border"));
     
 
-    //group_size->append_single_option_line(group_size->get_option("bump"));
+    //group_size->append_single_option_line(group_size->create_option_from_def("bump"));
 
     group_size->activate([]() {}, wxALIGN_RIGHT);
     group_size->reload_config();
@@ -1156,23 +1156,23 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
     };
     group_colors->title_width = 15;
 
-    group_colors->append_single_option_line(group_colors->get_option("spool_colors"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("spool_colors"));
 
     //line = { L("Separation"), "" };
-    //line.append_option(group_colors->get_option("near_color"));
-    //line.append_option(group_colors->get_option("color_comp"));
+    //line.append_option(group_colors->create_option_from_def("near_color"));
+    //line.append_option(group_colors->create_option_from_def("color_comp"));
     //group_colors->append_line(line);
-    group_colors->append_single_option_line(group_colors->get_option("near_color"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("near_color"));
 
-    group_colors->append_single_option_line(group_colors->get_option("color_comp"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("color_comp"));
 
-    group_colors->append_single_option_line(group_colors->get_option("order_dark"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("order_dark"));
 
-    group_colors->append_single_option_line(group_colors->get_option("original"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("original"));
 
-    group_colors->append_single_option_line(group_colors->get_option("extruders"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("extruders"));
 
-    group_colors->append_single_option_line(group_colors->get_option("background_color"));
+    group_colors->append_single_option_line(group_colors->create_option_from_def("background_color"));
 
     //line = { "", "" };
     //line.full_width = 1;

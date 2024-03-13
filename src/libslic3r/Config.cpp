@@ -54,15 +54,15 @@ std::string toString(OptionCategory opt) {
     case OptionCategory::filoverride: return L("Filament overrides");
     case OptionCategory::customgcode: return L("Custom G-code");
     case OptionCategory::general: return L("General");
-    case OptionCategory::limits: return "Machine limits"; // if not used, no need ot ask for translation
-    case OptionCategory::mmsetup: return "Single Extruder MM Setup";
-    case OptionCategory::firmware: return "Firmware";
-    case OptionCategory::pad: return "Pad";
-    case OptionCategory::padSupp: return "Pad and Support";
+    case OptionCategory::limits: return L("Machine limits"); // if not used, no need ot ask for translation
+    case OptionCategory::mmsetup: return L("Single Extruder MM Setup");
+    case OptionCategory::firmware: return L("Firmware");
+    case OptionCategory::pad: return L("Pad");
+    case OptionCategory::padSupp: return L("Pad and Support");
     case OptionCategory::wipe: return L("Wipe Options");
     case OptionCategory::milling: return L("Milling");
     case OptionCategory::hollowing: return "Hollowing";
-    case OptionCategory::milling_extruders: return "Milling tools";
+    case OptionCategory::milling_extruders: return L("Milling tools");
     case OptionCategory::fuzzy_skin : return L("Fuzzy skin");
     }
     return "error";
@@ -114,7 +114,7 @@ std::string escape_strings_cstyle(const std::vector<std::string> &strs)
         bool should_quote = strs.size() == 1 && str.empty();
         for (size_t i = 0; i < str.size(); ++ i) {
             char c = str[i];
-            if (c == ' ' || c == ';' || c == '\t' || c == '\\' || c == '"' || c == '\r' || c == '\n') {
+            if (c == ' ' || c == ';' || c == ',' || c == '\t' || c == '\\' || c == '"' || c == '\r' || c == '\n') {
                 should_quote = true;
                 break;
             }
@@ -212,7 +212,7 @@ bool unescape_strings_cstyle(const std::string &str, std::vector<std::string> &o
         } else {
             for (; i < str.size(); ++ i) {
                 c = str[i];
-                if (c == ';')
+                if (c == ';' || c == ',')
                     break;
                 buf.push_back(c);
             }
@@ -229,7 +229,7 @@ bool unescape_strings_cstyle(const std::string &str, std::vector<std::string> &o
                 return true;
             c = str[i];
         }
-        if (c != ';')
+        if (c != ';' && c != ',')
             return false;
         if (++ i == str.size()) {
             // Emit one additional empty string.
@@ -320,7 +320,7 @@ ConfigOption* ConfigOptionDef::create_default_option() const
     if (this->default_value)
         return (this->default_value->type() == coEnum) ?
             // Special case: For a DynamicConfig, convert a templated enum to a generic enum.
-            new ConfigOptionEnumGeneric(this->enum_keys_map, this->default_value->getInt()) :
+            new ConfigOptionEnumGeneric(this->enum_keys_map, this->default_value->get_int()) :
             this->default_value->clone();
     return this->create_empty_option();
 }
@@ -565,12 +565,17 @@ bool ConfigBase::set_deserialize_nothrow(const t_config_option_key &opt_key_src,
 {
     t_config_option_key opt_key = opt_key_src;
     std::string         value   = value_src;
+    //note: should be done BEFORE calling set_deserialize
     // Both opt_key and value may be modified by handle_legacy().
     // If the opt_key is no more valid in this version of Slic3r, opt_key is cleared by handle_legacy().
     this->handle_legacy(opt_key, value);
-    if (opt_key.empty())
+    if (opt_key.empty()) {
+        assert(false);
         // Ignore the option.
         return true;
+    }
+    assert(opt_key == opt_key_src);
+    assert(value == value_src);
     return this->set_deserialize_raw(opt_key, value, substitutions_ctxt, append);
 }
 
@@ -601,7 +606,7 @@ void ConfigBase::set_deserialize(const t_config_option_key &opt_key_src, const s
                 if (optdef == nullptr)
                     throw UnknownOptionException(opt_key_src);
             }
-            substitutions_ctxt.substitutions.push_back(ConfigSubstitution{ optdef, value_src, ConfigOptionUniquePtr(optdef->default_value->clone()) });
+            substitutions_ctxt.add(ConfigSubstitution{ optdef, value_src, ConfigOptionUniquePtr(optdef->default_value->clone()) });
         }
     }
 }
@@ -694,12 +699,7 @@ bool ConfigBase::set_deserialize_raw(const t_config_option_key &opt_key_src, con
 
         if (substituted && (substitutions_ctxt.rule == ForwardCompatibilitySubstitutionRule::Enable ||
                             substitutions_ctxt.rule == ForwardCompatibilitySubstitutionRule::EnableSystemSilent)) {
-            // Log the substitution.
-            ConfigSubstitution config_substitution;
-            config_substitution.opt_def   = optdef;
-            config_substitution.old_value = value;
-            config_substitution.new_value = ConfigOptionUniquePtr(opt->clone());
-            substitutions_ctxt.substitutions.emplace_back(std::move(config_substitution));
+            substitutions_ctxt.emplace(optdef, std::string(value), ConfigOptionUniquePtr(opt->clone()));
         }
     }
     //set phony status
@@ -782,11 +782,11 @@ double ConfigBase::get_computed_value(const t_config_option_key &opt_key, int ex
                 const ConfigOption* opt_extruder_id = nullptr;
                 if ((opt_extruder_id = this->option("extruder")) == nullptr)
                     if ((opt_extruder_id = this->option("current_extruder")) == nullptr
-                        || opt_extruder_id->getInt() < 0 || opt_extruder_id->getInt() >= vector_opt->size()) {
+                        || opt_extruder_id->get_int() < 0 || opt_extruder_id->get_int() >= vector_opt->size()) {
                         std::stringstream ss; ss << "ConfigBase::get_abs_value(): " << opt_key << " need to has the extuder id to get the right value, but it's not available";
                         throw ConfigurationError(ss.str());
                     }
-                extruder_id = opt_extruder_id->getInt();
+                extruder_id = opt_extruder_id->get_int();
                 idx = extruder_id;
             }
         } else {
@@ -797,7 +797,7 @@ double ConfigBase::get_computed_value(const t_config_option_key &opt_key, int ex
         }
         if (idx >= 0) {
             if (raw_opt->type() == coFloats || raw_opt->type() == coInts || raw_opt->type() == coBools)
-                return vector_opt->getFloat(idx);
+                return vector_opt->get_float(idx);
             if (raw_opt->type() == coFloatsOrPercents) {
                 const ConfigOptionFloatsOrPercents* opt_fl_per = static_cast<const ConfigOptionFloatsOrPercents*>(raw_opt);
                 if (!opt_fl_per->values[idx].percent)
@@ -937,9 +937,20 @@ ConfigSubstitutions ConfigBase::load(const boost::property_tree::ptree &tree, Fo
     for (const boost::property_tree::ptree::value_type &v : tree) {
         t_config_option_key opt_key = v.first;
         try {
-            this->set_deserialize(opt_key, v.second.get_value<std::string>(), substitutions_ctxt);
+            std::string value = v.second.get_value<std::string>();
+            PrintConfigDef::handle_legacy(opt_key, value, false);
+            if (!opt_key.empty()) {
+                if (!PrintConfigDef::is_defined(opt_key)) {
+                    if (substitutions_ctxt.rule != ForwardCompatibilitySubstitutionRule::Disable) {
+                        substitutions_ctxt.add(ConfigSubstitution(v.first, value));
+                    }
+                } else {
+                    this->set_deserialize(opt_key, value, substitutions_ctxt);
+                }
+            }
         } catch (UnknownOptionException & /* e */) {
             // ignore
+            assert(false);
         } catch (BadOptionValueException & e) {
             if (compatibility_rule == ForwardCompatibilitySubstitutionRule::Disable)
                 throw e;
@@ -947,13 +958,67 @@ ConfigSubstitutions ConfigBase::load(const boost::property_tree::ptree &tree, Fo
             const ConfigDef* def = this->def();
             if (def == nullptr) throw e;
             const ConfigOptionDef* optdef = def->get(opt_key);
-            substitutions_ctxt.substitutions.emplace_back(optdef, v.second.get_value<std::string>(), ConfigOptionUniquePtr(optdef->default_value->clone()));
+            substitutions_ctxt.emplace(optdef, v.second.get_value<std::string>(), ConfigOptionUniquePtr(optdef->default_value->clone()));
         }
     }
-    return std::move(substitutions_ctxt.substitutions);
+    return std::move(substitutions_ctxt).data();
 }
 
 // Load the config keys from the given string.
+std::map<t_config_option_key, std::string> ConfigBase::load_gcode_string_legacy(const char* str)
+{
+    std::map<t_config_option_key, std::string> opt_key_values;
+    if (str == nullptr)
+        return opt_key_values;
+
+    // Walk line by line in reverse until a non-configuration key appears.
+    const char *data_start = str;
+    // boost::nowide::ifstream seems to cook the text data somehow, so less then the 64k of characters may be retrieved.
+    const char *end                 = data_start + strlen(str);
+    for (;;) {
+        // Extract next line.
+        for (--end; end > data_start && (*end == '\r' || *end == '\n'); --end)
+            ;
+        if (end == data_start)
+            break;
+        const char *start = end++;
+        for (; start > data_start && *start != '\r' && *start != '\n'; --start)
+            ;
+        if (start == data_start)
+            break;
+        // Extracted a line from start to end. Extract the key = value pair.
+        if (end - (++start) < 10 || start[0] != ';' || start[1] != ' ')
+            break;
+        const char *key = start + 2;
+        if (!((*key >= 'a' && *key <= 'z') || (*key >= 'A' && *key <= 'Z')))
+            // A key must start with a letter.
+            break;
+        const char *sep = key;
+        for (; sep != end && *sep != '='; ++sep)
+            ;
+        if (sep == end || sep[-1] != ' ' || sep[1] != ' ')
+            break;
+        const char *value = sep + 2;
+        if (value > end)
+            break;
+        const char *key_end = sep - 1;
+        if (key_end - key < 3)
+            break;
+        // The key may contain letters, digits and underscores.
+        for (const char *c = key; c != key_end; ++c)
+            if (!((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z') || (*c >= '0' && *c <= '9') || *c == '_')) {
+                key = nullptr;
+                break;
+            }
+        if (key == nullptr)
+            break;
+        opt_key_values.emplace(std::string(key, key_end), std::string(value, end));
+        end = start;
+    }
+    return opt_key_values;
+}
+
+    
 size_t ConfigBase::load_from_gcode_string_legacy(ConfigBase& config, const char* str, ConfigSubstitutionContext& substitutions)
 {
     if (str == nullptr)
@@ -964,56 +1029,34 @@ size_t ConfigBase::load_from_gcode_string_legacy(ConfigBase& config, const char*
     // boost::nowide::ifstream seems to cook the text data somehow, so less then the 64k of characters may be retrieved.
     const char *end = data_start + strlen(str);
     size_t num_key_value_pairs = 0;
-    for (;;) {
-        // Extract next line.
-        for (--end; end > data_start && (*end == '\r' || *end == '\n'); --end);
-        if (end == data_start)
-            break;
-        const char *start = end ++;
-        for (; start > data_start && *start != '\r' && *start != '\n'; --start);
-        if (start == data_start)
-            break;
-        // Extracted a line from start to end. Extract the key = value pair.
-        if (end - (++ start) < 10 || start[0] != ';' || start[1] != ' ')
-            break;
-        const char *key = start + 2;
-        if (!((*key >= 'a' && *key <= 'z') || (*key >= 'A' && *key <= 'Z')))
-            // A key must start with a letter.
-            break;
-        const char *sep = key;
-        for (; sep != end && *sep != '='; ++ sep) ;
-        if (sep == end || sep[-1] != ' ' || sep[1] != ' ')
-            break;
-        const char *value = sep + 2;
-        if (value > end)
-            break;
-        const char *key_end = sep - 1;
-        if (key_end - key < 3)
-            break;
-        // The key may contain letters, digits and underscores.
-        for (const char *c = key; c != key_end; ++ c)
-            if (!((*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z') || (*c >= '0' && *c <= '9') || *c == '_')) {
-                key = nullptr;
-                break;
-            }
-        if (key == nullptr)
-            break;
+    for (auto [key, value] : load_gcode_string_legacy(str)) {
         try {
-            config.set_deserialize(std::string(key, key_end), std::string(value, end), substitutions);
-            ++num_key_value_pairs;
+            std::string opt_key = key;
+            PrintConfigDef::handle_legacy(opt_key, value, false);
+            if (!opt_key.empty()) {
+                if (!PrintConfigDef::is_defined(opt_key)) {
+                    if (substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable) {
+                        substitutions.add(ConfigSubstitution(key, value));
+                    }
+                } else {
+                    config.set_deserialize(opt_key, value, substitutions);
+                    ++num_key_value_pairs;
+                }
+            }
         }
         catch (UnknownOptionException & /* e */) {
-            // ignore
+            // log & ignore
+            if (substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable)
+                substitutions.add(ConfigSubstitution(key, value));
         } catch (BadOptionValueException & e) {
             if (substitutions.rule == ForwardCompatibilitySubstitutionRule::Disable)
                 throw e;
             // log the error
             const ConfigDef* def = config.def();
             if (def == nullptr) throw e;
-            const ConfigOptionDef* optdef = def->get(std::string(key, key_end));
-            substitutions.substitutions.emplace_back(optdef, std::string(value, end), ConfigOptionUniquePtr(optdef->default_value->clone()));
+            const ConfigOptionDef* optdef = def->get(key);
+            substitutions.emplace(optdef, std::move(value), ConfigOptionUniquePtr(optdef->default_value->clone()));
         }
-        end = start;
     }
 
     return num_key_value_pairs;
@@ -1166,10 +1209,21 @@ ConfigSubstitutions ConfigBase::load_from_gcode_file(const std::string &file, Fo
                 boost::trim(key);
                 boost::trim(value);
                 try {
-                    this->set_deserialize(key, value, substitutions_ctxt);
-                    ++ key_value_pairs;
+                    std::string opt_key = key;
+                    PrintConfigDef::handle_legacy(opt_key, value, false);
+                    if (!opt_key.empty()) {
+                        if (!PrintConfigDef::is_defined(opt_key)) {
+                            if (substitutions_ctxt.rule != ForwardCompatibilitySubstitutionRule::Disable) {
+                                substitutions_ctxt.add(ConfigSubstitution(key, value));
+                            }
+                        } else {
+                            this->set_deserialize(opt_key, value, substitutions_ctxt);
+                            ++key_value_pairs;
+                        }
+                    }
                 } catch (UnknownOptionException & /* e */) {
                     // ignore
+                    assert(false);
                 }
             }
         }
@@ -1192,7 +1246,7 @@ ConfigSubstitutions ConfigBase::load_from_gcode_file(const std::string &file, Fo
 
     if (key_value_pairs < 80)
         throw Slic3r::RuntimeError(format("Suspiciously low number of configuration values extracted from %1%: %2%", file, key_value_pairs));
-    return std::move(substitutions_ctxt.substitutions);
+    return std::move(substitutions_ctxt).data();
 }
 
 void ConfigBase::save(const std::string &file, bool to_prusa) const
@@ -1404,10 +1458,11 @@ bool DynamicConfig::read_cli(int argc, const char* const argv[], t_config_option
             // Just bail out if the configuration value is not understood.
             ConfigSubstitutionContext context(ForwardCompatibilitySubstitutionRule::Disable);
             // Any scalar value of a type different from Bool and String.
-            if (! this->set_deserialize_nothrow(opt_key, value, context, false)) {
-				boost::nowide::cerr << "Invalid value supplied for --" << token.c_str() << std::endl;
-				return false;
-			}
+            // here goes int options, like loglevel.
+            if (!this->set_deserialize_nothrow(opt_key, value, context, false)) {
+                boost::nowide::cerr << "Invalid value supplied for --" << token.c_str() << std::endl;
+                return false;
+            }
         }
     }
     return true;

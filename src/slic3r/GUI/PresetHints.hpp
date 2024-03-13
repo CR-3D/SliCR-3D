@@ -12,7 +12,7 @@ class PresetHints
 {
 public:
     // Produce a textual description of the cooling logic of a currently active filament.
-    static std::string cooling_description(const Preset &preset);
+    static std::string cooling_description(const Preset &preset_filament, const Preset& preset_printer);
     
     // Produce a textual description of the maximum flow achived for the current configuration
     // (the current printer, filament and print settigns).

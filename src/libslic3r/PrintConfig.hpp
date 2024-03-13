@@ -309,8 +309,9 @@ class PrintConfigDef : public ConfigDef
 {
 public:
     PrintConfigDef();
-
-    static void handle_legacy(t_config_option_key& opt_key, std::string& value);
+    
+    static void handle_legacy(t_config_option_key& opt_key, std::string& value, bool remove_unkown_keys = true);
+    static bool is_defined(t_config_option_key& opt_key);
     static std::map<std::string, std::string> to_prusa(t_config_option_key& opt_key, std::string& value, const DynamicConfig& all_conf);
     static std::map<std::string, std::string> from_prusa(t_config_option_key& opt_key, std::string& value, const DynamicConfig& all_conf);
 
@@ -391,7 +392,8 @@ public:
     void                to_prusa(t_config_option_key& opt_key, std::string& value) const override
         { PrintConfigDef::to_prusa(opt_key, value, *this); }
     // utilities to help convert from prusa config.
-    void                convert_from_prusa();
+    // if with_phony, then the phony settigns will be set to phony if needed.
+    void                convert_from_prusa(bool with_phony);
 
     /// <summary>
     /// callback to changed other settings that are linked (like width & spacing)
@@ -692,6 +694,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<InfillPattern>,  brim_ears_pattern))
     ((ConfigOptionBool,                 brim_per_object))
     ((ConfigOptionFloat,                brim_separation))
+    ((ConfigOptionFloatOrPercent,       brim_speed))
     //((ConfigOptionEnum<BrimType>,       brim_type))
     ((ConfigOptionBool,                 clip_multipart_objects))
     ((ConfigOptionBool,                 dont_support_bridges))
@@ -790,6 +793,7 @@ PRINT_CONFIG_CLASS_DEFINE(
 PRINT_CONFIG_CLASS_DEFINE(
     PrintRegionConfig,
 
+    ((ConfigOptionBool,                 avoid_crossing_top))
     ((ConfigOptionFloat,                bridge_angle))
     ((ConfigOptionEnum<InfillPattern>,  bridge_fill_pattern))
     ((ConfigOptionEnum<BridgeType>,     bridge_type))
@@ -803,7 +807,6 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       bridged_infill_margin))
     ((ConfigOptionFloatOrPercent,       bridge_speed))
     ((ConfigOptionFloatOrPercent,       bridge_speed_internal))
-    ((ConfigOptionFloatOrPercent,       brim_speed))
     ((ConfigOptionFloat,                curve_smoothing_precision))
     ((ConfigOptionFloat,                curve_smoothing_cutoff_dist))
     ((ConfigOptionFloat,                curve_smoothing_angle_convex))
@@ -827,8 +830,11 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 only_one_perimeter_first_layer))
     ((ConfigOptionBool,                 only_one_perimeter_top))
     ((ConfigOptionBool,                 only_one_perimeter_top_other_algo))
+    ((ConfigOptionBool,                 fill_aligned_z))
     ((ConfigOptionFloat,                fill_angle))
+    ((ConfigOptionBool,                 fill_angle_cross))
     ((ConfigOptionFloat,                fill_angle_increment))
+    ((ConfigOptionFloats,               fill_angle_template))
     ((ConfigOptionPercent,              fill_density))
     ((ConfigOptionEnum<InfillPattern>,  fill_pattern))
     ((ConfigOptionPercent,              first_layer_flow_ratio))
@@ -897,6 +903,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 perimeter_loop))
     ((ConfigOptionEnum<SeamPosition>,   perimeter_loop_seam))
     ((ConfigOptionPercent,              perimeter_overlap))
+    ((ConfigOptionBool,                 perimeter_reverse))
     ((ConfigOptionFloatOrPercent,       perimeter_speed))
     // Total number of perimeters.
     ((ConfigOptionInt,                  perimeters))
@@ -1000,8 +1007,9 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              extruder_temperature_offset))
     ((ConfigOptionString,              extrusion_axis))
     ((ConfigOptionFloats,              extrusion_multiplier))
-    ((ConfigOptionBool,                fan_percentage))
     ((ConfigOptionFloat,               fan_kickstart))
+    ((ConfigOptionBool,                fan_percentage))
+    ((ConfigOptionInt,                 fan_printer_min_speed))
     ((ConfigOptionBool,                fan_speedup_overhangs))
     ((ConfigOptionFloat,               fan_speedup_time))
     ((ConfigOptionFloats,              filament_cost))
@@ -1037,6 +1045,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              filament_wipe_advanced_pigment))
     ((ConfigOptionFloats,              filament_cooling_final_speed))
     ((ConfigOptionStrings,             filament_ramming_parameters))
+    ((ConfigOptionBool,                gcode_ascii))
     ((ConfigOptionBool,                gcode_comments))
     ((ConfigOptionString,              gcode_filename_illegal_char))
     ((ConfigOptionEnum<GCodeFlavor>,   gcode_flavor))
@@ -1048,7 +1057,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     //      r - regular expression
     //      i - case insensitive
     //      w - whole word
-    ((ConfigOptionStrings,             gcode_substitutions))    ((ConfigOptionString,              layer_gcode))
+    ((ConfigOptionStrings,             gcode_substitutions))
+    ((ConfigOptionString,              layer_gcode))
     ((ConfigOptionString,              feature_gcode))
     ((ConfigOptionFloat,               max_gcode_per_second))
     ((ConfigOptionFloatOrPercent,      max_print_speed))
@@ -1146,6 +1156,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     //((ConfigOptionBools,                cooling))
     ((ConfigOptionFloatOrPercent,       default_acceleration))
     ((ConfigOptionInts,                 disable_fan_first_layers))
+    ((ConfigOptionInts,                 default_fan_speed))
     ((ConfigOptionEnum<DraftShield>,    draft_shield))
     ((ConfigOptionFloat,                duplicate_distance))
     ((ConfigOptionBool,                 enforce_retract_first_layer))
@@ -1155,7 +1166,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat,                extruder_clearance_radius))
     ((ConfigOptionStrings,              extruder_colour))
     ((ConfigOptionPoints,               extruder_offset))
-    ((ConfigOptionBools,                fan_always_on))
+    //((ConfigOptionBools,                fan_always_on))
     ((ConfigOptionFloats,               fan_below_layer_time))
     ((ConfigOptionStrings,              filament_colour))
     ((ConfigOptionStrings,              filament_custom_variables))
@@ -1184,7 +1195,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionStrings,              milling_toolchange_start_gcode))
     //((ConfigOptionPoints,               milling_offset))
     //((ConfigOptionFloats,               milling_z_offset))
-    ((ConfigOptionInts,                 min_fan_speed))
+    //((ConfigOptionInts,                 min_fan_speed)) // now fan_printer_min_speed
     ((ConfigOptionFloatsOrPercents,     min_layer_height))
     ((ConfigOptionFloats,               min_print_speed))
     ((ConfigOptionFloat,                min_skirt_length))
@@ -1232,6 +1243,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionBool,                 thumbnails_custom_color))
     ((ConfigOptionBool,                 thumbnails_end_file))
     ((ConfigOptionEnum<GCodeThumbnailsFormat>, thumbnails_format))
+    ((ConfigOptionBool,                 thumbnails_tag_format))
     ((ConfigOptionBool,                 thumbnails_with_bed))
     ((ConfigOptionPercent,              time_estimation_compensation))
     ((ConfigOptionFloat,                time_cost))
@@ -1478,6 +1490,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionPoints,                       thumbnails))
     ((ConfigOptionString,                       thumbnails_color))
     ((ConfigOptionBool,                         thumbnails_custom_color))
+    ((ConfigOptionBool,                         thumbnails_tag_format))
     ((ConfigOptionBool,                         thumbnails_with_bed))
     ((ConfigOptionBool,                         thumbnails_with_support))
     ((ConfigOptionFloat,                        z_rotate))
@@ -1640,6 +1653,7 @@ public:
     auto                        cend() const { return m_data.cend(); }
     t_config_option_keys        keys() const { return m_data.keys(); }
     bool                        has(const t_config_option_key& opt_key) const { return m_data.has(opt_key); }
+    const ConfigDef*            def() const { return m_data.def(); }
     bool                        operator==(const ModelConfig& other) const { return m_data.equals(other.m_data); }
     bool                        operator!=(const ModelConfig& other) const { return !this->operator==(other); }
     const ConfigOption*         option(const t_config_option_key &opt_key) const { return m_data.option(opt_key); }
@@ -1660,7 +1674,8 @@ public:
 
 
     // utilities to help convert from prusa config.
-    void convert_from_prusa(const DynamicPrintConfig& global_config);
+    // if with_phony, then the phony settigns will be set to phony if needed.
+    void convert_from_prusa(const DynamicPrintConfig& global_config, bool with_phony);
 
 private:
     friend class cereal::access;
@@ -1672,6 +1687,19 @@ private:
     static uint64_t             s_last_timestamp;
 };
 
+
+
+void deserialize_maybe_from_prusa(std::map<t_config_option_key, std::string> settings,
+                                  ModelConfig &                              config,
+                                  const DynamicPrintConfig &                 global_config,
+                                  ConfigSubstitutionContext &                config_substitutions,
+                                  bool                                       with_phony,
+                                  bool                                       check_prusa);
+void deserialize_maybe_from_prusa(std::map<t_config_option_key, std::string> settings,
+                                  DynamicPrintConfig &                       config,
+                                  ConfigSubstitutionContext &                config_substitutions,
+                                  bool                                       with_phony,
+                                  bool                                       check_prusa);
 
 
 } // namespace Slic3r

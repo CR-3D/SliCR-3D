@@ -14,156 +14,238 @@
 
 namespace Slic3r {
 
-#define MIN_BUF_LENGTH  4096
-std::string PresetHints::cooling_description(const Preset &preset)
-{
-    std::string out;
-    int     min_fan_speed = preset.config.opt_int("min_fan_speed", 0);
-    int     max_fan_speed = preset.config.opt_int("max_fan_speed", 0);
-    int     top_fan_speed = preset.config.opt_int("top_fan_speed", 0);
-    int     supp_inter_fan_speed = preset.config.opt_int("support_material_interface_fan_speed", 0);
-    int     bridge_fan_speed = preset.config.opt_int("bridge_fan_speed", 0);
-    int     bridge_internal_fan_speed = preset.config.opt_int("bridge_internal_fan_speed", 0);
-    int     ext_peri_fan_speed = preset.config.opt_int("external_perimeter_fan_speed", 0);
-    int     disable_fan_first_layers = preset.config.opt_int("disable_fan_first_layers", 0);
-    int     full_fan_speed_layer = preset.config.opt_int("full_fan_speed_layer", 0);
-    float   slowdown_below_layer_time = preset.config.opt_float("slowdown_below_layer_time", 0);
-    int     min_print_speed = int(preset.config.opt_float("min_print_speed", 0) + 0.5);
-    int     max_speed_reduc = int(preset.config.opt_float("max_speed_reduction", 0));
-    float   fan_below_layer_time = preset.config.opt_float("fan_below_layer_time", 0);
+using Slic3r::GUI::format_wxstr;
 
-    //for the time being, -1 shoudl eb for disable, but it's 0 from legacy.
-    if (top_fan_speed == 0) top_fan_speed = -1;
-    if (bridge_fan_speed == 0) bridge_fan_speed = -1;
-    if (bridge_internal_fan_speed == 0) bridge_internal_fan_speed = -1;
-    if (ext_peri_fan_speed == 0) ext_peri_fan_speed = -1;
-    if (top_fan_speed == 1) top_fan_speed = 0;
-    if (bridge_fan_speed == 1) bridge_fan_speed = 0;
-    if (bridge_internal_fan_speed == 1) bridge_internal_fan_speed = 0;
-    if (ext_peri_fan_speed == 1) ext_peri_fan_speed = 0;
+void format_simple_fan_speed(wxString &out, int min_speed, int default_speed, wxString &&feature_name, int fan_speed) {
+    if (fan_speed > 0)
+        fan_speed = std::max(fan_speed, min_speed);
+    if (fan_speed >= 0 && fan_speed != default_speed) {
+        if (fan_speed == 0) {
+            out += "\n" + format_wxstr(_L("Over %1% it will be off."), feature_name);
+        } else {
+            out += "\n" + format_wxstr(_L("Over %1% it will be at %2%%%."), feature_name, fan_speed);
+        }
+    }
+}
+void format_double_fan_speed(wxString& out, int min_speed, int default_speed, wxString&& feature_name_1, int fan_speed_1, wxString&& feature_name_2, int fan_speed_2) {
+    if (fan_speed_1 > 0)
+        fan_speed_1 = std::max(fan_speed_1, min_speed);
+    if (fan_speed_2 > 0)
+        fan_speed_2 = std::max(fan_speed_2, min_speed);
+    if (fan_speed_1 >= 0 && fan_speed_1 != default_speed) {
+        if (fan_speed_1 == fan_speed_2 || fan_speed_2 < 0) {
+            if (fan_speed_1 == 0)
+                out += "\n" + format_wxstr(_L("Over %1% and %2% it will be off."), feature_name_1, feature_name_2);
+            else
+                out += "\n" + format_wxstr(_L("Over %1% and %2% it will be fixed to %3%%%."), feature_name_1, feature_name_2, fan_speed_1);
+        } else if (fan_speed_2 == default_speed) {
+            format_simple_fan_speed(out, min_speed, default_speed, std::move(feature_name_1), fan_speed_1);
+        } else {
+            if (fan_speed_1 == 0)
+                out += "\n" + format_wxstr(_L("Over %1% it will be off, and over %2% fixed to %3%%%."), feature_name_1, feature_name_2, fan_speed_2);
+            else if (fan_speed_2 == 0)
+                out += "\n" + format_wxstr(_L("Over %1% it will be fixed to %2%%%, and off over %3%."), feature_name_1, fan_speed_1, feature_name_2);
+            else
+                out += "\n" + format_wxstr(_L("Over %1% it will be fixed to %2%%%, and over %3% to %4%%%."), feature_name_1, fan_speed_1, feature_name_2, fan_speed_2);
+        }
+    } else if (fan_speed_2 >= 0 && fan_speed_2 != default_speed) {
+        format_simple_fan_speed(out, min_speed, default_speed, std::move(feature_name_2), fan_speed_2);
+    }
+}
+
+void format_simple_fan_min_speed(wxString& out, int min_speed, int default_speed, wxString&& feature_name, int fan_speed) {
+    if (fan_speed > 0)
+        fan_speed = std::max(fan_speed, min_speed);
+    if (fan_speed >= 0 && fan_speed != default_speed) {
+        if (fan_speed == 0)
+            out += "\n" + format_wxstr(_L("Over %1% it will be off."), feature_name);
+        else
+            out += "\n" + format_wxstr(_L("Over %1% it will be at least %2%%%."), feature_name, fan_speed);
+    }
+}
+void format_double_fan_min_speed(wxString& out, int min_speed, int default_speed, wxString&& feature_name_1, int fan_speed_1, wxString&& feature_name_2, int fan_speed_2) {
+    if (fan_speed_1 > 0)
+        fan_speed_1 = std::max(fan_speed_1, min_speed);
+    if (fan_speed_2 > 0)
+        fan_speed_2 = std::max(fan_speed_2, min_speed);
+    if (fan_speed_1 >= 0 && fan_speed_1 != default_speed) {
+        if (fan_speed_1 == fan_speed_2 || fan_speed_2 < 0) {
+            if (fan_speed_1 == 0)
+                out += "\n" + format_wxstr(_L("Over %1% and %2% it will be off."), feature_name_1, feature_name_2);
+            else
+                out += "\n" + format_wxstr(_L("Over %1% and %2% it will be at least %3%%%."), feature_name_1, feature_name_2, fan_speed_1);
+        }
+        else if (fan_speed_2 == default_speed) {
+            format_simple_fan_speed(out, min_speed, default_speed, std::move(feature_name_1), fan_speed_1);
+        }
+        else {
+            if (fan_speed_1 == 0)
+                out += "\n" + format_wxstr(_L("Over %1% it will be off, and over %2% at least %3%%%."), feature_name_1, feature_name_2, fan_speed_2);
+            else if (fan_speed_2 == 0)
+                out += "\n" + format_wxstr(_L("Over %1% it will be at least %2%%%, and off over %3%."), feature_name_1, fan_speed_1, feature_name_2);
+            else
+                out += "\n" + format_wxstr(_L("Over %1% it will be at least %2%%%, and over %3% at least %4%%%."), feature_name_1, fan_speed_1, feature_name_2, fan_speed_2);
+        }
+    }
+    else if (fan_speed_2 >= 0 && fan_speed_2 != default_speed) {
+        format_simple_fan_speed(out, min_speed, default_speed, std::move(feature_name_2), fan_speed_2);
+    }
+}
+
+#define MIN_BUF_LENGTH  4096
+std::string PresetHints::cooling_description(const Preset &preset_fil, const Preset& preset_printer)
+{
+    wxString out;
+    // -1 is disable, 0 or 1 is "no fan". (and 1 will be "low fan" in the future)
+    const int    min_fan_speed             = preset_printer.config.get_int("fan_printer_min_speed");
+    const int    default_fan_speed         = preset_fil.config.get_int("default_fan_speed");
+    const int    max_fan_speed             = preset_fil.config.opt_int("max_fan_speed", 0);
+    const int    peri_fan_speed            = preset_fil.config.opt_int("perimeter_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("perimeter_fan_speed");
+    const int    ext_peri_fan_speed        = preset_fil.config.opt_int("external_perimeter_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("external_perimeter_fan_speed");
+    const int    infill_fan_speed          = preset_fil.config.opt_int("infill_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("infill_fan_speed");
+    const int    solid_fan_speed           = preset_fil.config.opt_int("solid_infill_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("solid_infill_fan_speed");
+    const int    top_fan_speed             = preset_fil.config.opt_int("top_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("top_fan_speed");
+    const int    support_fan_speed         = preset_fil.config.opt_int("support_material_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("support_material_fan_speed");
+    const int    supp_inter_fan_speed      = preset_fil.config.opt_int("support_material_interface_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("support_material_interface_fan_speed");
+    const int    bridge_fan_speed          = preset_fil.config.opt_int("bridge_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("bridge_fan_speed");
+    const int    bridge_internal_fan_speed = preset_fil.config.opt_int("bridge_internal_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("bridge_internal_fan_speed");
+    const int    overhangs_fan_speed       = preset_fil.config.opt_int("overhangs_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("overhangs_fan_speed");
+    const int    gap_fill_fan_speed        = preset_fil.config.opt_int("gap_fill_fan_speed", 0) == 1 ? 0 : preset_fil.config.get_int("gap_fill_fan_speed");
+    const int    disable_fan_first_layers  = preset_fil.config.opt_int("disable_fan_first_layers", 0);
+    const int    full_fan_speed_layer      = preset_fil.config.opt_int("full_fan_speed_layer", 0);
+    const float  slowdown_below_layer_time = preset_fil.config.opt_float("slowdown_below_layer_time", 0);
+    const int    min_print_speed           = int(preset_fil.config.opt_float("min_print_speed", 0) + 0.5);
+    const int    max_speed_reduc           = int(preset_fil.config.opt_float("max_speed_reduction", 0));
+    const float  fan_below_layer_time      = preset_fil.config.opt_float("fan_below_layer_time", 0);
 
     //if (preset.config.opt_bool("cooling", 0)) {
-    out = _utf8(L("Fan"));
-    if (preset.config.opt_bool("fan_always_on", 0)) {
-
-        out += " " + (boost::format(_utf8(L("will run at %1%%% by default"))) % min_fan_speed).str() ;
-
-        if (ext_peri_fan_speed >= 0 && ext_peri_fan_speed != min_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over external perimeters"))) % ext_peri_fan_speed).str();
+    if (default_fan_speed < 0)
+        out += _L("By default, there won't be any fan speed command.");
+    else if (default_fan_speed == 0)
+        out += _L("Fan will be turned off by default.");
+    else if(min_fan_speed == 0)
+        out += format_wxstr(_L("Fan will run at %1%%% by default."), std::max(default_fan_speed, min_fan_speed));
+    else
+        out += format_wxstr(_L("Fan will run at %1%%% by default."), std::max(default_fan_speed, min_fan_speed))+" "+format_wxstr(_L("The minimum speed is %1%%%."), min_fan_speed);
+    
+    format_double_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Internal perimeters"), peri_fan_speed, _L("External perimeters"), ext_peri_fan_speed);
+    format_simple_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Sparse infill"), infill_fan_speed);
+    format_simple_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Solid surfaces"), solid_fan_speed);
+    format_simple_fan_speed(out, min_fan_speed, default_fan_speed, _L("Top surfaces"), top_fan_speed);
+    format_double_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Supports"), support_fan_speed, _L("Support interfaces"), supp_inter_fan_speed);
+    format_double_fan_speed(out, min_fan_speed, default_fan_speed, _L("Bridges"), bridge_fan_speed, _L("Internal bridges"), bridge_internal_fan_speed);
+    format_simple_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Perimeter overhangs"), overhangs_fan_speed);
+    format_simple_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Gap fills"), gap_fill_fan_speed);
+    
+    bool has_disable = false;
+    if (disable_fan_first_layers > 1) {
+        out += "\n";
+        out += format_wxstr(_L("Except for the first %1% layers where the fan is disabled"), disable_fan_first_layers);
+        has_disable = true;
+    }
+    else if (disable_fan_first_layers == 1) {
+        out += "\n";
+        out += _L("Except for the first layer where the fan is disabled");
+        has_disable = true;
+    }
+    if (full_fan_speed_layer > disable_fan_first_layers + 1 && disable_fan_first_layers > 0) {
+        out += " ";
+        out += format_wxstr(_L("and will gradually speed-up to the above speeds over %1% layers"), full_fan_speed_layer - disable_fan_first_layers);
+        has_disable = true;
+    }
+    if (full_fan_speed_layer > disable_fan_first_layers + 1 && disable_fan_first_layers > 0) {
+        out += " ";
+        wxString surface_list;
+        if (bridge_fan_speed > 0) {
+            surface_list += ",";
+            surface_list += _L("Bridges");
         }
-        if (top_fan_speed >= 0 && top_fan_speed != min_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over top fill surfaces"))) % top_fan_speed).str();
+        if (bridge_internal_fan_speed > 0) {
+            surface_list += ",";
+            surface_list += _L("Internal bridges");
         }
-        if (supp_inter_fan_speed >= 0 && supp_inter_fan_speed != min_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over support interface surfaces"))) % supp_inter_fan_speed).str();
+        if (supp_inter_fan_speed > 0) {
+            surface_list += ",";
+            surface_list += _L("Support interfaces");
         }
-        if (bridge_fan_speed >= 0 && bridge_fan_speed > min_fan_speed) {
-            if (bridge_internal_fan_speed < 0)
-                out += ", " + (boost::format(_utf8(L("at %1%%% over all bridges"))) % bridge_fan_speed).str();
-            else
-                out += ", " + (boost::format(_utf8(L("at %1%%% over bridges"))) % bridge_fan_speed).str();
+        if (overhangs_fan_speed > 0) {
+            surface_list += ",";
+            surface_list += _L("Perimeter overhangs");
         }
-        if (bridge_internal_fan_speed >= 0){
-            if (bridge_internal_fan_speed > min_fan_speed) {
-                out += ", " + (boost::format(_utf8(L("at %1%%% over infill bridges"))) % bridge_internal_fan_speed).str();
-            } else if (bridge_fan_speed >= 0 && bridge_fan_speed > min_fan_speed) {
-                out += ", " + (boost::format(_utf8(L("at %1%%% over infill bridges"))) % min_fan_speed).str();
-            }
+        if (surface_list.size() > 2) {
+            out += format_wxstr(_L("but for %1% where the speed-up phase is skipped."), surface_list.substr(1));
+            has_disable = true;
         }
-        if (disable_fan_first_layers > 1)
-            out += ", " + (boost::format(_utf8(L("except for the first %1% layers where the fan is disabled"))) % disable_fan_first_layers).str();
-        else if (disable_fan_first_layers == 1)
-            out += ", " + _utf8(L("except for the first layer where the fan is disabled"));
-        if(full_fan_speed_layer > disable_fan_first_layers + 1 && disable_fan_first_layers > 0)
-            out += (boost::format(_utf8(L(" and will gradually speed-up to the above speeds over %1% layers")))  % (full_fan_speed_layer - disable_fan_first_layers)).str();
+    }
+    if(has_disable)
         out += ".";
-    } else
-       out += " " + _utf8(L("will be turned off by default."));
-
 
     if (fan_below_layer_time > 0
         && fan_below_layer_time > slowdown_below_layer_time
         && max_fan_speed > min_fan_speed) {
         
-        out += (boost::format(_utf8(L("\n\nIf estimated layer time is below ~%1%s, but still greater than ~%2%s, "
-            "fan will run at a proportionally increasing speed between %3%%% and %4%%%")))
-            % fan_below_layer_time % slowdown_below_layer_time % min_fan_speed % max_fan_speed).str();
-
-        if (ext_peri_fan_speed > max_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over external perimeters"))) % ext_peri_fan_speed).str();
-        } else if (ext_peri_fan_speed > min_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("between %1%%% %2%%% over external perimeters"))) % ext_peri_fan_speed % max_fan_speed).str();
-        }
-        if (top_fan_speed >= 0) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over top fill surfaces"))) % top_fan_speed).str();
-        }
-        if (supp_inter_fan_speed >= 0) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over support interface surfaces"))) % supp_inter_fan_speed).str();
-        }
-        if (bridge_fan_speed > max_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over bridges"))) % bridge_fan_speed).str();
-        } else if (bridge_fan_speed > min_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("between %1%%% %2%%% over bridges"))) % bridge_fan_speed % max_fan_speed).str();
-        }
-        if (bridge_internal_fan_speed > max_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("at %1%%% over infill bridges"))) % bridge_internal_fan_speed).str();
-        } else if (bridge_internal_fan_speed > min_fan_speed) {
-            out += ", " + (boost::format(_utf8(L("between %1%%% %2%%% over infill bridges"))) % bridge_internal_fan_speed % max_fan_speed).str();
-        }
-        if (disable_fan_first_layers > 1)
-            out += " ; " + ((boost::format(_utf8(L("except for the first %1% layers where the fan is disabled"))) % disable_fan_first_layers).str());
-        else if (disable_fan_first_layers == 1)
-            out += " ; "+ _utf8(L("except for the first layer where the fan is disabled"));
-        if (full_fan_speed_layer > disable_fan_first_layers + 1 && disable_fan_first_layers > 0)
-            out += (boost::format(_utf8(L(" and will gradually speed-up to the above speeds over %1% layers"))) % (full_fan_speed_layer - disable_fan_first_layers)).str();
-        out += ".";
+        out += format_wxstr(_L("\n\nIf estimated layer time is below ~%1%s, but still greater than ~%2%s, "
+            "fan will run at a proportionally increasing speed between %3%%% and %4%%%"),
+            fan_below_layer_time, slowdown_below_layer_time, min_fan_speed, max_fan_speed);
+        out += ".\n";
+        out += format_wxstr(_L("If the fan speed is set, it will proportionally increasing speed between this value and %1%%%."), max_fan_speed);
+        out += "\n";
+        out += format_wxstr(_L("If the fan speed is set and is higher than %1%%%, it won't be changed."), max_fan_speed);
+        out += "\n";
+        out += format_wxstr(_L("Also, the fan speed over %1% won't be touched by this feature."), format_wxstr("%1%, %2%, %3%, %4%", _L("Top surfaces"), _L("Ironings"), _L("Bridges"), _L("Internal bridges")));
     }
 
     if (slowdown_below_layer_time > 0) {
-
-        out += (boost::format(_utf8(L("\n\nIf estimated layer time is below ~%1%s")))
-            % slowdown_below_layer_time).str();
+        out += std::string("\n\n");
+        out += format_wxstr(_L("If estimated layer time is below ~%1%s"), slowdown_below_layer_time);
         if (max_fan_speed > 0 && max_fan_speed > min_fan_speed) {
-            out += " " + (boost::format(_utf8(L("fan will run by default to %1%%%")))
-                % max_fan_speed).str();
+            out += " ";
+            out += format_wxstr(_L("fan will run by default to %1%%%"), max_fan_speed);
 
-            if (disable_fan_first_layers > 1)
-                out += " (" + (boost::format(_utf8(L("except for the first %1% layers where the fan is disabled"))) % disable_fan_first_layers).str();
-            else if (disable_fan_first_layers == 1)
-                out += " (" + _utf8(L("except for the first layer where the fan is disabled"));
+            if (disable_fan_first_layers > 1) {
+                out += " (";
+                out += format_wxstr(_L("except for the first %1% layers where the fan is disabled"), disable_fan_first_layers);
+            } else if (disable_fan_first_layers == 1) {
+                out += " (";
+                out += _L("except for the first layer where the fan is disabled");
+            }
             if (full_fan_speed_layer > disable_fan_first_layers + 1 && disable_fan_first_layers > 0)
-                out += (boost::format(_utf8(L(" and will gradually speed-up to the above speeds over %1% layers"))) % (full_fan_speed_layer - disable_fan_first_layers)).str();
+                out += format_wxstr(_L(" and will gradually speed-up to the above speeds over %1% layers"), full_fan_speed_layer);
             if(disable_fan_first_layers > 0)
                 out += ")";
             out += " and";
         }
             
-        out += " " + (boost::format(_utf8(L("print speed will be reduced "
-            "so that no less than %1%s are spent on that layer"))) % slowdown_below_layer_time).str();
+        out += " ";
+        out += format_wxstr(_L("print speed will be reduced so that no less than %1%s are spent on that layer"), slowdown_below_layer_time);
         if(min_print_speed > 0)
-            if(max_speed_reduc > 0)
-                out += " " + (boost::format(_utf8(L("(however, speed will never be reduced below %1%mm/s or up to %2%%% reduction)")))
-                    % min_print_speed % max_speed_reduc).str();
-            else
-                out += " " + (boost::format(_utf8(L("(however, speed will never be reduced below %1%mm/s)")))
-                    % min_print_speed).str();
+            if (max_speed_reduc > 0) {
+                out += " ";
+                out += format_wxstr(_L("(however, speed will never be reduced below %1%mm/s or up to %2%%% reduction)"), min_print_speed, max_speed_reduc);
+            } else {
+                out += " ";
+                out += format_wxstr(_L("(however, speed will never be reduced below %1%mm/s)"), min_print_speed);
+            }
+    }
+
+    if (fan_below_layer_time > 0 || slowdown_below_layer_time > 0) {
+        out += "\n\n";
+        out += _L("Note: The layer time for the cooling is currently computed with infinite acceleration, and so is very optimistic.");
     }
 
     //tooltip for Depractaed values
-    bridge_fan_speed = preset.config.opt_int("bridge_fan_speed", 0);
-    bridge_internal_fan_speed = preset.config.opt_int("bridge_internal_fan_speed", 0);
-    ext_peri_fan_speed = preset.config.opt_int("external_perimeter_fan_speed", 0);
-    top_fan_speed = preset.config.opt_int("top_fan_speed", 0);
-    if (top_fan_speed == 0)
-        out += "\n\n!!! 0 for the Top fan speed is Deprecated, please set it to -1 to disable it !!!";
-    if (ext_peri_fan_speed == 0)
-        out += "\n\n!!! 0 for the External perimeters fan speed is Deprecated, please set it to -1 to disable it !!!";
-    if (bridge_fan_speed == 0)
-        out += "\n\n!!! 0 for the Bridge fan speed is Deprecated, please set it to -1 to disable it !!!";
-    if (bridge_internal_fan_speed == 0)
-        out += "\n\n!!! 0 for the Infill bridge fan speed is Deprecated, please set it to -1 to disable it !!!";
+    if (preset_fil.config.opt_int("top_fan_speed", 0) == 1)
+        out += "\n\n" + _L("! 1 for the Top fan speed is Deprecated, please set it to 0 to stop the fan!");
+    if (preset_fil.config.opt_int("top_fan_speed", 0) == 1)
+        out += "\n\n" + _L("! 1 for the Top fan speed is Deprecated, please set it to 0 to stop the fan!");
+    if (preset_fil.config.opt_int("external_perimeter_fan_speed", 0) == 1)
+        out += "\n\n" + _L("! 1 for the External perimeters fan speed is Deprecated, please set it to 0 to stop the fan!");
+    if (preset_fil.config.opt_int("bridge_fan_speed", 0) == 1)
+        out += "\n\n" + _L("! 1 for the Bridge fan speed is Deprecated, please set it to 0 to stop the fan!");
+    if (preset_fil.config.opt_int("bridge_internal_fan_speed", 0) == 1)
+        out += "\n\n" + _L("! 1 for the Infill bridge fan speed is Deprecated, please set it to 0 to stop the fan!");
 
-    return out;
+    return out.ToStdString();
 }
 
 static const ConfigOptionFloatOrPercent& first_positive(const ConfigOptionFloatOrPercent *v1, const ConfigOptionFloatOrPercent &v2, const ConfigOptionFloatOrPercent &v3)

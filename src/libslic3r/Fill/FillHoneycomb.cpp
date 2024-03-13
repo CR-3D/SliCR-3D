@@ -15,13 +15,16 @@ void FillHoneycomb::_fill_surface_single(
     ExPolygon                        expolygon,
     Polylines                       &polylines_out) const
 {
+    double my_spacing = this->get_spacing();
+    if(params.max_sparse_infill_spacing > 0)
+        my_spacing = params.max_sparse_infill_spacing;
     // cache hexagons math
-    CacheID cache_id(params.density, this->get_spacing());
+    CacheID cache_id(params.density, my_spacing);
     Cache::iterator it_m = FillHoneycomb::cache.find(cache_id);
     if (it_m == FillHoneycomb::cache.end()) {
         it_m = FillHoneycomb::cache.insert(it_m, std::pair<CacheID, CacheData>(cache_id, CacheData()));
         CacheData &m = it_m->second;
-        coord_t min_spacing = coord_t(scale_(this->get_spacing()));
+        coord_t min_spacing = scale_t(my_spacing);
         m.distance          = coord_t(double(min_spacing) / params.density);
         m.hex_side          = coord_t(double(m.distance) / (sqrt(3)/2));
         m.hex_width = m.distance * 2; // $m->{hex_width} == $m->{hex_side} * sqrt(3);

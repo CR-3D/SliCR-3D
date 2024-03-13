@@ -77,6 +77,7 @@ private:
     // X,Y,Z,E,F
     float                           m_current_pos[5];
     size_t                          m_current_extruder;
+    std::vector<std::string>        m_extruder_names;
     ExtrusionRole                   m_current_extrusion_role;
     bool                            m_retracted;
     bool                            m_use_relative_e_distances;
@@ -183,6 +184,7 @@ private:
 
     bool process_line(const char *line, const char *line_end, GCodeLine &buf);
     void output_gcode_line(size_t line_idx);
+    void parse_activate_extruder(const std::string&);
 
     // Go back from the current circular_buffer_pos and lower the feedtrate to decrease the slope of the extrusion rate changes.
     // Then go forward and adjust the feedrate to decrease the slope of the extrusion rate changes.

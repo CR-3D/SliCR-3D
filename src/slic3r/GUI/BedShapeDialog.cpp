@@ -42,7 +42,7 @@ void BedShape::append_option_line(ConfigOptionsGroupShp optgroup, Parameter para
     t_config_option_key key;
     switch (param) {
     case Parameter::RectSize:
-        def.type = coPoints;
+        def.type = coPoint;
         def.set_default_value(new ConfigOptionPoints{ Vec2d(200, 200) });
         def.min = 0;
         def.max = 100000;
@@ -51,7 +51,7 @@ void BedShape::append_option_line(ConfigOptionsGroupShp optgroup, Parameter para
         key = "rect_size";
         break;
     case Parameter::RectOrigin:
-        def.type = coPoints;
+        def.type = coPoint;
         def.set_default_value(new ConfigOptionPoints{ Vec2d(0, 0) });
         def.min = -100000;
         def.max = 100000;
@@ -120,12 +120,14 @@ void BedShape::apply_optgroup_values(ConfigOptionsGroupShp optgroup)
 {
     switch (m_build_volume.type()) {
     case BuildVolume::Type::Circle:
-        optgroup->set_value("diameter", double_to_string(2. * unscaled<double>(m_build_volume.circle().radius)));
+        optgroup->set_value("diameter", 2. * unscaled<double>(m_build_volume.circle().radius));
         break;
     default:
         // rectangle, convex, concave...
-        optgroup->set_value("rect_size"     , new ConfigOptionPoints{ to_2d(m_build_volume.bounding_volume().size()) });
-        optgroup->set_value("rect_origin"   , new ConfigOptionPoints{ - to_2d(m_build_volume.bounding_volume().min) });
+        optgroup->set_value("rect_size", Vec2d(m_build_volume.bounding_volume().size().x(),
+                                               m_build_volume.bounding_volume().size().y()));
+        optgroup->set_value("rect_origin", Vec2d(-m_build_volume.bounding_volume().min.x(),
+                                                 -m_build_volume.bounding_volume().min.y()));
     }
 }
 

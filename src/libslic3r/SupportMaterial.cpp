@@ -658,7 +658,7 @@ void PrintObjectSupportMaterial::generate(PrintObject &object)
             size_t this_layer_id_interface  = layer_id_interface;
             if (this_layer_contacts_only) {
                 // Find a supporting layer for its interface ID.
-                for (auto it = object.support_layers().rbegin(); it != object.support_layers().rend(); ++ it)
+                for (auto it = object.edit_support_layers().rbegin(); it != object.edit_support_layers().rend(); ++ it)
                     if (const SupportLayer &other_layer = **it; std::abs(other_layer.print_z - top_contact_bottom_z) < EPSILON) {
                         // other_layer supports this top contact layer. Assign a different support interface direction to this layer
                         // from the layer that supports it.
@@ -702,7 +702,7 @@ void PrintObjectSupportMaterial::generate(PrintObject &object)
 #endif /* SLIC3R_DEBUG */
 
     // Generate the actual toolpaths and save them into each layer.
-    this->generate_toolpaths(object.support_layers(), raft_layers, bottom_contacts, top_contacts, intermediate_layers, interface_layers, base_interface_layers);
+    this->generate_toolpaths(object.edit_support_layers(), raft_layers, bottom_contacts, top_contacts, intermediate_layers, interface_layers, base_interface_layers);
 
 #ifdef SLIC3R_DEBUG
     {
@@ -1291,6 +1291,7 @@ namespace SupportMaterialInternal {
                     return true;
             } else {
                 assert(! ee->is_loop());
+                // TODO: a bit dangerous, is there possible to have a bridge infill with mixed role?
                 if (is_bridge(ee->role()))
                     return true;
             }
@@ -3566,8 +3567,7 @@ struct MyLayerExtruded
             *m_polygons_to_extrude = union_safety_offset(*m_polygons_to_extrude);
         }
         // 2) Merge the extrusions.
-        this->extrusions.set_entities().insert(this->extrusions.entities().end(), other.extrusions.entities().begin(), other.extrusions.entities().end());
-        other.extrusions.set_entities().clear();
+        this->extrusions.append_move_from(other.extrusions);
         // 3) Merge the infill polygons.
         Slic3r::polygons_append(this->layer->polygons, std::move(other.layer->polygons));
         this->layer->polygons = union_safety_offset(this->layer->polygons);
@@ -3817,7 +3817,7 @@ void LoopInterfaceProcessor::generate(MyLayerExtruded &top_contact_layer, const 
 
     // Transform loops into ExtrusionPath objects.
     extrusion_entities_append_paths(
-        top_contact_layer.extrusions.set_entities(),
+        top_contact_layer.extrusions,
         std::move(loop_lines),
         erSupportMaterialInterface, flow.mm3_per_mm(), flow.width(), flow.height());
 }
@@ -4106,7 +4106,7 @@ void modulate_extrusion_by_overlapping_layers(
     // If there are any non-consumed fragments, add them separately.
     //FIXME this shall not happen, if the Clipper works as expected and all paths split to fragments could be re-connected.
     for (auto it_fragment = path_fragments.begin(); it_fragment != path_fragments.end(); ++ it_fragment)
-        extrusion_entities_append_paths(extrusions_in_out.set_entities(), std::move(it_fragment->polylines), extrusion_role, it_fragment->mm3_per_mm, it_fragment->width, it_fragment->height);
+        extrusion_entities_append_paths(extrusions_in_out, std::move(it_fragment->polylines), extrusion_role, it_fragment->mm3_per_mm, it_fragment->width, it_fragment->height);
 }
 
 void PrintObjectSupportMaterial::generate_toolpaths(
@@ -4121,10 +4121,6 @@ void PrintObjectSupportMaterial::generate_toolpaths(
     // loop_interface_processor with a given circle radius.
     LoopInterfaceProcessor loop_interface_processor(1.5 * m_support_params.support_material_interface_flow.scaled_width());
     loop_interface_processor.n_contact_loops = this->has_contact_loops() ? 1 : 0;
-
-    //std::vector<float>      angles { m_support_params.base_angle };
-    //if (m_object_config->support_material_pattern.value == smpRectilinearGrid)
-    //    angles.push_back(m_support_params.interface_angle);
 
     BoundingBox bbox_object(Point(-scale_(1.), -scale_(1.0)), Point(scale_(1.), scale_(1.)));
 
@@ -4277,7 +4273,7 @@ void PrintObjectSupportMaterial::generate_toolpaths(
     filler_first_layer_ptr->ratio_fill_inside = 0.2f;
     tbb::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),
         [this, &support_layers, &bottom_contacts, &top_contacts, &intermediate_layers, &interface_layers, &base_interface_layers, &layer_caches, &loop_interface_processor, 
-            &bbox_object, /*&angles,*/ link_max_length_factor, &filler_first_layer_ptr, &raft_top_interface_idx, &raft_angle_interface]
+            &bbox_object, link_max_length_factor, &filler_first_layer_ptr, &raft_top_interface_idx, &raft_angle_interface]
             (const tbb::blocked_range<size_t>& range) {
         // Indices of the 1st layer in their respective container at the support layer height.
         size_t idx_layer_bottom_contact   = size_t(-1);
@@ -4285,7 +4281,6 @@ void PrintObjectSupportMaterial::generate_toolpaths(
         size_t idx_layer_intermediate     = size_t(-1);
         size_t idx_layer_interface        = size_t(-1);
         size_t idx_layer_base_interface   = size_t(-1);
-        const InfillPattern fill_type_first_layer    = ipRectiWithPerimeter;
         std::unique_ptr<Fill> filler_interface       = std::unique_ptr<Fill>(Fill::new_from_type(m_support_params.contact_fill_pattern));
         std::unique_ptr<Fill> filler_intermediate_interface = std::unique_ptr<Fill>(Fill::new_from_type(ipRectilinear));
         // Filler for the base interface (to be used for soluble interface / non soluble base, to produce non soluble interface layer below soluble interface layer).
@@ -4319,7 +4314,9 @@ void PrintObjectSupportMaterial::generate_toolpaths(
 
             //compute if the support has to switch its angle
             float suppport_angle = m_support_params.base_angle;
-            if (m_support_params.base_angle_height > 0 && (int(support_layer.print_z / m_support_params.base_angle_height)) % 2 == 1) {
+            if (m_object_config->support_material_pattern.value == smpRectilinearGrid && support_layer_id % 2 == 1) {
+                suppport_angle = m_support_params.interface_angle;
+            } else if (m_support_params.base_angle_height > 0 && (int(support_layer.print_z / m_support_params.base_angle_height)) % 2 == 1) {
                 suppport_angle += float(M_PI) / 2;
             }
 
@@ -4406,7 +4403,7 @@ void PrintObjectSupportMaterial::generate_toolpaths(
                 float supp_density = m_support_params.interface_density;
                 coordf_t filler_spacing;
                 //if first layer and solid first layer : draw concentric with 100% density
-                if (support_layer.id() == 0) {
+                if (support_layer.id() == 0 && layer_ex.layer->bottom_z <= 0) {
                     filler = filler_first_layer_ptr.get();
                     supp_density = float(this->m_object_config->raft_first_layer_density.get_abs_value(1.));
                     interface_flow = m_support_params.first_layer_flow;
@@ -4420,7 +4417,7 @@ void PrintObjectSupportMaterial::generate_toolpaths(
                     } else {
                         filler->angle = interface_as_base ?
                             // If zero interface layers are configured, use the same angle as for the base layers.
-                            suppport_angle : //angles[support_layer_id % angles.size()] :
+                            suppport_angle :
                             // Use interface angle for the interface layers.
                             m_support_params.interface_angle + interface_angle_delta;
                         supp_density = interface_as_base ? m_support_params.support_density : m_support_params.interface_density;
@@ -4485,7 +4482,6 @@ void PrintObjectSupportMaterial::generate_toolpaths(
                     // its pattern to the other layers
                     filler_spacing = flow.spacing();
                 } else{
-                    //filler->angle = angles[support_layer_id % angles.size()];
                     filler->angle = suppport_angle;
                     filler->link_max_length = coord_t(scale_(filler_spacing * link_max_length_factor / m_support_params.support_density));
                 }

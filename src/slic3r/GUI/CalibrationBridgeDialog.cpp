@@ -101,6 +101,16 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     } else {
         z_scale = 1;
     }
+    
+    // it's rotated but not around the good origin: correct that
+    double init_z_rotate_angle = Geometry::deg2rad(plat->config()->opt_float("init_z_rotate"));
+    Matrix3d rot_matrix = Eigen::Quaterniond(Eigen::AngleAxisd(init_z_rotate_angle, Vec3d{0,0,1})).toRotationMatrix();
+    auto     translate_from_rotation = [&rot_matrix, &model, &objs_idx](int idx, Vec3d &&translation) {
+            ModelVolume *vol = model.objects[objs_idx[idx]]->volumes[model.objects[objs_idx[idx]]->volumes.size()-1];
+            Geometry::Transformation trsf = vol->get_transformation();
+            trsf.set_offset(rot_matrix * translation - translation + trsf.get_offset());
+            vol->set_transformation(trsf);
+        };
 
     //add sub-part after scale
     const ConfigOptionPercent* bridge_flow_ratio = print_config->option<ConfigOptionPercent>(setting_to_test);
@@ -109,11 +119,12 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     for (size_t i = 0; i < nb_items; i++) {
         int step_num = (start + (add ? 1 : -1) * i * step);
         if (step_num < 180 && step_num > 20 && step_num%5 == 0) {
-            add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bridge_flow" / ("f" + std::to_string(step_num) + ".amf")).string(), Vec3d{ -10,0, zshift + 4.6 * z_scale }, Vec3d{ 1,1,z_scale });
+            add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bridge_flow" / ("f" + std::to_string(step_num) + ".amf")).string(), Vec3d{ -10, 0, zshift + 4.6 * z_scale }, Vec3d{ 1,1,z_scale });
+            translate_from_rotation(i, Vec3d{ -10, 0, zshift + 4.6 * z_scale });
         }
     }
     /// --- translate ---;
-    bool has_to_arrange = false;
+    bool has_to_arrange = init_z_rotate_angle != 0;
     const float brim_width = std::max(print_config->option<ConfigOptionFloat>("brim_width")->value, nozzle_diameter * 5.);
     const ConfigOptionFloat* extruder_clearance_radius = print_config->option<ConfigOptionFloat>("extruder_clearance_radius");
     const ConfigOptionPoints* bed_shape = printer_config->option<ConfigOptionPoints>("bed_shape");
@@ -133,7 +144,7 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     DynamicPrintConfig new_print_config = *print_config; //make a copy
     new_print_config.set_key_value("complete_objects", new ConfigOptionBool(true));
     //if skirt, use only one
-    if (print_config->option<ConfigOptionInt>("skirts")->getInt() > 0 && print_config->option<ConfigOptionInt>("skirt_height")->getInt() > 0) {
+    if (print_config->option<ConfigOptionInt>("skirts")->get_int() > 0 && print_config->option<ConfigOptionInt>("skirt_height")->get_int() > 0) {
         new_print_config.set_key_value("complete_objects_one_skirt", new ConfigOptionBool(true));
     }
 

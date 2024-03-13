@@ -297,32 +297,48 @@ uint32_t GCodeWriter::get_acceleration() const
 }
 
 std::string GCodeWriter::write_acceleration(){
-    if (m_current_acceleration == m_last_acceleration || m_current_acceleration == 0)
+    bool need_write_travel_accel = (FLAVOR_IS(gcfMarlinFirmware) || FLAVOR_IS(gcfRepRap)) &&
+                                   m_current_travel_acceleration != m_last_travel_acceleration;
+    bool need_write_main_accel = m_current_acceleration != m_last_acceleration &&
+                                 m_current_acceleration != 0;
+    if (!need_write_main_accel && !need_write_travel_accel)
         return "";
 
     m_last_acceleration = m_current_acceleration;
+    m_last_travel_acceleration = m_current_travel_acceleration;
 
     std::ostringstream gcode;
 	//try to set only printing acceleration, travel should be untouched if possible
     if (FLAVOR_IS(gcfRepetier)) {
         // M201: Set max printing acceleration
-        gcode << "M201 X" << m_current_acceleration << " Y" << m_current_acceleration;
+        if (m_current_acceleration > 0)
+            gcode << "M201 X" << m_current_acceleration << " Y" << m_current_acceleration;
     } else if(FLAVOR_IS(gcfLerdge) || FLAVOR_IS(gcfSprinter)){
         // M204: Set printing acceleration
         // This is new MarlinFirmware with separated print/retraction/travel acceleration.
         // Use M204 P, we don't want to override travel acc by M204 S (which is deprecated anyway).
-        gcode << "M204 P" << m_current_acceleration;
+        if (m_current_acceleration > 0)
+            gcode << "M204 P" << m_current_acceleration;
     } else if (FLAVOR_IS(gcfMarlinFirmware) || FLAVOR_IS(gcfRepRap)) {
         // M204: Set printing & travel acceleration
-        gcode << "M204 P" << m_current_acceleration << " T" << (m_current_travel_acceleration > 0 ? m_current_travel_acceleration : m_current_acceleration);
+        if (m_current_acceleration > 0)
+            gcode << "M204 P" << m_current_acceleration << " T" << (m_current_travel_acceleration > 0 ? m_current_travel_acceleration : m_current_acceleration);
+        else if(m_current_travel_acceleration > 0)
+            gcode << "M204 T" << m_current_travel_acceleration;
     } else { // gcfMarlinLegacy
         // M204: Set default acceleration
-        gcode << "M204 S" << m_current_acceleration;
+        if (m_current_acceleration > 0)
+            gcode << "M204 S" << m_current_acceleration;
     }
-    if (this->config.gcode_comments) gcode << " ; adjust acceleration";
-    gcode << "\n";
-    
-    return gcode.str();
+    //if at least something, add comment and line return
+    if (gcode.tellp() != std::streampos(0)) {
+        if (this->config.gcode_comments)
+            gcode << " ; adjust acceleration";
+        gcode << "\n";
+        return gcode.str();
+    }
+    assert(gcode.str().empty());
+    return "";
 }
 
 std::string GCodeWriter::reset_e(bool force)
@@ -428,7 +444,7 @@ std::string GCodeWriter::set_speed(const double speed, const std::string &commen
     const double F = speed * 60;
     m_current_speed = speed;
     assert(F > 0.);
-    assert(F < 100000.);
+    assert(F < 10000000.);
 //    GCodeG1Formatter w;
 //    w.emit_f(F);
 //    w.emit_comment(this->config.gcode_comments, comment);
@@ -551,7 +567,15 @@ std::string GCodeWriter::_travel_to_z(double z, const std::string &comment)
     gcode <<   " F" << F_NUM(speed * 60.0);
     COMMENT(comment);
     gcode << "\n";
-    return gcode.str();
+    // replace 'Z-0' by ' Z0'
+    std::string str = gcode.str();
+    if (auto it = str.find("Z-0 "); it != std::string::npos) {
+        str.replace(it, 2, "Z");
+    }
+    if (auto it = str.find("Z-0\n"); it != std::string::npos) {
+        str.replace(it, 2, "Z");
+    }
+    return str;
 }
 
 bool GCodeWriter::will_move_z(double z) const
@@ -560,7 +584,7 @@ bool GCodeWriter::will_move_z(double z) const
         we don't perform an actual Z move. */
     if (m_lifted > 0) {
         double nominal_z = m_pos.z() - m_lifted;
-        if (z >= nominal_z + EPSILON && z <= m_pos.z() - EPSILON)
+        if (z >= nominal_z - EPSILON && z <= m_pos.z() + EPSILON)
             return false;
     }
     return true;
@@ -625,26 +649,37 @@ std::string GCodeWriter::extrude_to_xyz(const Vec3d &point, double dE, const std
             gcode <<    " " << m_extrusion_axis << E_NUM(m_tool->E());
     COMMENT(comment);
     gcode << "\n";
-    return gcode.str();
+    // replace 'Z-0' by ' Z0'
+    std::string str = gcode.str();
+    if (auto it = str.find("Z-0 "); it != std::string::npos) {
+        str.replace(it, 2, "Z");
+    }
+    if (auto it = str.find("Z-0\n"); it != std::string::npos) {
+        str.replace(it, 2, "Z");
+    }
+    return str;
 }
 
 std::string GCodeWriter::retract(bool before_wipe)
 {
     double factor = before_wipe ? m_tool->retract_before_wipe() : 1.;
-    assert(factor >= 0. && factor <= 1. + EPSILON);
+    assert((factor >= 0. || before_wipe) && factor <= 1. + EPSILON);
+    // if before_wipe but no retract_before_wipe, then no retract
+    if (factor == 0)
+        return "";
     //check for override
     if (config_region && config_region->print_retract_length >= 0) {
         return this->_retract(
             factor * config_region->print_retract_length,
             factor * m_tool->retract_restart_extra(),
-            NAN,
+            std::nullopt,
             "retract"
         );
     }
     return this->_retract(
         factor * m_tool->retract_length(),
         factor * m_tool->retract_restart_extra(),
-        NAN,
+        std::nullopt,
         "retract"
     );
 }
@@ -655,13 +690,13 @@ std::string GCodeWriter::retract_for_toolchange(bool before_wipe)
     assert(factor >= 0. && factor <= 1. + EPSILON);
     return this->_retract(
         factor * m_tool->retract_length_toolchange(),
-        NAN,
+        std::nullopt,
         factor * m_tool->retract_restart_extra_toolchange(),
         "retract for toolchange"
     );
 }
 
-std::string GCodeWriter::_retract(double length, double restart_extra, double restart_extra_toolchange, const std::string &comment)
+std::string GCodeWriter::_retract(double length, std::optional<double> restart_extra, std::optional<double> restart_extra_toolchange, const std::string &comment)
 {
     std::ostringstream gcode;
     
@@ -675,9 +710,17 @@ std::string GCodeWriter::_retract(double length, double restart_extra, double re
     if (this->config.use_volumetric_e) {
         double d = m_tool->filament_diameter();
         double area = d * d * PI/4;
+        assert(length * area < std::numeric_limits<int32_t>::max());
+        assert(length * area > 0);
+        assert(!restart_extra || *restart_extra * area < std::numeric_limits<int32_t>::max());
+        assert(!restart_extra || *restart_extra * area > -std::numeric_limits<int32_t>::max());
+        assert(!restart_extra_toolchange || *restart_extra_toolchange * area < std::numeric_limits<int32_t>::max());
+        assert(!restart_extra_toolchange || *restart_extra_toolchange * area > -std::numeric_limits<int32_t>::max());
         length = length * area;
-        restart_extra = restart_extra * area;
-        restart_extra_toolchange = restart_extra_toolchange * area;
+        if(restart_extra)
+            restart_extra = *restart_extra * area;
+        if(restart_extra_toolchange)
+            restart_extra_toolchange = *restart_extra_toolchange * area;
     }
     
     double dE = m_tool->retract(length, restart_extra, restart_extra_toolchange);

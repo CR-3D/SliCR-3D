@@ -1039,7 +1039,7 @@ wxString get_string_from_enum(const std::string& opt_key, const DynamicPrintConf
 {
     const ConfigOptionDef& def = config.def()->options.at(opt_key);
     const std::vector<std::string>& names = def.enum_labels.empty() ? def.enum_values : def.enum_labels;
-    int val = config.option(opt_key)->getInt();
+    int val = config.option(opt_key)->get_int();
 
     // if it doesn't use all list declared in PrintConfig.hpp.
     // So we should "convert" val to the correct one
@@ -1119,7 +1119,7 @@ static wxString get_string_value(std::string opt_key, const DynamicPrintConfig& 
         return _L("Undef");
     }
     case coPercent:
-        return from_u8((boost::format("%1%%%") % int(config.optptr(opt_key)->getFloat())).str());
+        return from_u8((boost::format("%1%%%") % int(config.optptr(opt_key)->get_float())).str());
     case coPercents: {
         if (is_nullable) {
             auto values = config.opt<ConfigOptionPercentsNullable>(opt_key);
@@ -1437,7 +1437,7 @@ FullCompareDialog::FullCompareDialog(const wxString& option_name, const wxString
 
 static PresetCollection* get_preset_collection(Preset::Type type, PresetBundle* preset_bundle = nullptr) {
     if (!preset_bundle)
-        preset_bundle = wxGetApp().preset_bundle;
+        preset_bundle = wxGetApp().preset_bundle.get();
     return  type == Preset::Type::TYPE_FFF_PRINT        ? &preset_bundle->fff_prints :
             type == Preset::Type::TYPE_SLA_PRINT        ? &preset_bundle->sla_prints :
             type == Preset::Type::TYPE_FFF_FILAMENT     ? &preset_bundle->filaments :

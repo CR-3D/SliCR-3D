@@ -78,7 +78,7 @@ SLAPrint::Steps::Steps(SLAPrint *print)
     : m_print{print}
     , m_rng{std::random_device{}()}
     , objcount{m_print->m_objects.size()}
-    , ilhd{m_print->m_material_config.initial_layer_height.getFloat()}
+    , ilhd{m_print->m_material_config.initial_layer_height.get_float()}
     , ilh{float(ilhd)}
     , ilhs{scaled(ilhd)}
     , objectstep_scale{(max_objstatus - min_objstatus) / (objcount * 100.0)}
@@ -88,11 +88,11 @@ void SLAPrint::Steps::apply_printer_corrections(SLAPrintObject &po, SliceOrigin 
 {
     if (o == soSupport && !po.m_supportdata) return;
 
-    auto faded_lyrs = size_t(po.m_config.faded_layers.getInt());
-    double min_w = m_print->m_printer_config.elephant_foot_min_width.getFloat() / 2.;
-    double start_efc = m_print->m_printer_config.first_layer_size_compensation.getFloat();
+    auto faded_lyrs = size_t(po.m_config.faded_layers.get_int());
+    double min_w = m_print->m_printer_config.elephant_foot_min_width.get_float() / 2.;
+    double start_efc = m_print->m_printer_config.first_layer_size_compensation.get_float();
 
-    double doffs = m_print->m_printer_config.absolute_correction.getFloat();
+    double doffs = m_print->m_printer_config.absolute_correction.get_float();
     coord_t clpr_offs = scaled(doffs);
 
     faded_lyrs = std::min(po.m_slice_index.size(), faded_lyrs);
@@ -123,16 +123,16 @@ void SLAPrint::Steps::hollow_model(SLAPrintObject &po)
 {
     po.m_hollowing_data.reset();
 
-    if (! po.m_config.hollowing_enable.getBool()) {
+    if (! po.m_config.hollowing_enable.get_bool()) {
         BOOST_LOG_TRIVIAL(info) << "Skipping hollowing step!";
         return;
     }
 
     BOOST_LOG_TRIVIAL(info) << "Performing hollowing step!";
 
-    double thickness = po.m_config.hollowing_min_thickness.getFloat();
-    double quality  = po.m_config.hollowing_quality.getFloat();
-    double closing_d = po.m_config.hollowing_closing_distance.getFloat();
+    double thickness = po.m_config.hollowing_min_thickness.get_float();
+    double quality  = po.m_config.hollowing_quality.get_float();
+    double closing_d = po.m_config.hollowing_closing_distance.get_float();
     sla::HollowingConfig hlwcfg{thickness, quality, closing_d};
 
     sla::InteriorPtr interior = generate_interior(po.transformed_mesh(), hlwcfg);
@@ -490,7 +490,7 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
 
     // We need to prepare the slice index...
 
-    double  lhd  = m_print->m_objects.front()->m_config.layer_height.getFloat();
+    double  lhd  = m_print->m_objects.front()->m_config.layer_height.get_float();
     float   lh   = float(lhd);
     coord_t lhs  = scaled(lhd);
     auto && bb3d = mesh.bounding_box();
@@ -567,7 +567,7 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
     // We apply the printer correction offset here.
     apply_printer_corrections(po, soModel);
 
-    if(po.m_config.supports_enable.getBool() || po.m_config.pad_enable.getBool())
+    if(po.m_config.supports_enable.get_bool() || po.m_config.pad_enable.get_bool())
     {
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
     }
@@ -578,7 +578,7 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
 void SLAPrint::Steps::support_points(SLAPrintObject &po)
 {
     // If supports are disabled, we can skip the model scan.
-    if(!po.m_config.supports_enable.getBool()) return;
+    if(!po.m_config.supports_enable.get_bool()) return;
 
     if (!po.m_supportdata)
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
@@ -681,7 +681,7 @@ void SLAPrint::Steps::support_tree(SLAPrintObject &po)
 
     po.m_supportdata->create_support_tree(ctl);
 
-    if (!po.m_config.supports_enable.getBool()) return;
+    if (!po.m_config.supports_enable.get_bool()) return;
 
     throw_if_canceled();
 
@@ -706,7 +706,7 @@ void SLAPrint::Steps::generate_pad(SLAPrintObject &po) {
     // and before the supports had been sliced. (or the slicing has to be
     // repeated)
 
-    if(po.m_config.pad_enable.getBool()) {
+    if(po.m_config.pad_enable.get_bool()) {
         // Get the distilled pad configuration from the config
         sla::PadConfig pcfg = make_pad_cfg(po.m_config);
 
@@ -714,13 +714,13 @@ void SLAPrint::Steps::generate_pad(SLAPrintObject &po) {
         double   pad_h             = pcfg.full_height();
         const TriangleMesh &trmesh = po.transformed_mesh();
 
-        if (!po.m_config.supports_enable.getBool() || pcfg.embed_object) {
+        if (!po.m_config.supports_enable.get_bool() || pcfg.embed_object) {
             // No support (thus no elevation) or zero elevation mode
             // we sometimes call it "builtin pad" is enabled so we will
             // get a sample from the bottom of the mesh and use it for pad
             // creation.
             sla::pad_blueprint(trmesh.its, bp, float(pad_h),
-                               float(po.m_config.layer_height.getFloat()),
+                               float(po.m_config.layer_height.get_float()),
                                [this](){ throw_if_canceled(); });
         }
 
@@ -748,7 +748,7 @@ void SLAPrint::Steps::slice_supports(SLAPrintObject &po) {
     if(sd) sd->support_slices.clear();
 
     // Don't bother if no supports and no pad is present.
-    if (!po.m_config.supports_enable.getBool() && !po.m_config.pad_enable.getBool())
+    if (!po.m_config.supports_enable.get_bool() && !po.m_config.pad_enable.get_bool())
         return;
 
     if(sd && sd->support_tree_ptr) {
@@ -887,18 +887,18 @@ void SLAPrint::Steps::merge_slices_and_eval_stats() {
 
     print_statistics.clear();
 
-    const double area_fill = printer_config.area_fill.getFloat()*0.01;// 0.5 (50%);
-    const double fast_tilt = printer_config.fast_tilt_time.getFloat();// 5.0;
-    const double slow_tilt = printer_config.slow_tilt_time.getFloat();// 8.0;
-    const double hv_tilt   = printer_config.high_viscosity_tilt_time.getFloat();// 10.0;
+    const double area_fill = printer_config.area_fill.get_float()*0.01;// 0.5 (50%);
+    const double fast_tilt = printer_config.fast_tilt_time.get_float();// 5.0;
+    const double slow_tilt = printer_config.slow_tilt_time.get_float();// 8.0;
+    const double hv_tilt   = printer_config.high_viscosity_tilt_time.get_float();// 10.0;
 
-    const double init_exp_time = material_config.initial_exposure_time.getFloat();
-    const double exp_time      = material_config.exposure_time.getFloat();
+    const double init_exp_time = material_config.initial_exposure_time.get_float();
+    const double exp_time      = material_config.exposure_time.get_float();
 
-    const int fade_layers_cnt = m_print->m_default_object_config.faded_layers.getInt();// 10 // [3;20]
+    const int fade_layers_cnt = m_print->m_default_object_config.faded_layers.get_int();// 10 // [3;20]
 
-    const auto width          = scaled<double>(printer_config.display_width.getFloat());
-    const auto height         = scaled<double>(printer_config.display_height.getFloat());
+    const auto width          = scaled<double>(printer_config.display_width.get_float());
+    const auto height         = scaled<double>(printer_config.display_height.get_float());
     const double display_area = width*height;
 
     double supports_volume(0.0);

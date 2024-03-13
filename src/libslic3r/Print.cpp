@@ -52,7 +52,7 @@ void Print::clear()
 }
 
 // Called by Print::apply().
-// This method only accepts PrintConfig option keys.
+// This method only accepts PrintConfig option keys. Not PrintObjectConfig or PrintRegionConfig, go to PrintObject for these
 bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* new_config */, const std::vector<t_config_option_key> &opt_keys)
 {
     if (opt_keys.empty())
@@ -64,19 +64,22 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "avoid_crossing_perimeters",
         "avoid_crossing_perimeters_max_detour",
         "avoid_crossing_not_first_layer",
+        "avoid_crossing_top",
         "bed_shape",
         "bed_temperature",
-        "chamber_temperature",
         "before_layer_gcode",
         "between_objects_gcode",
         "bridge_acceleration",
         "bridge_internal_acceleration",
         "bridge_fan_speed",
         "bridge_internal_fan_speed",
+        "brim_acceleration",
+        "chamber_temperature",
         "colorprint_heights",
         "complete_objects_sort",
         "cooling",
         "default_acceleration",
+        "default_fan_speed",
         "deretract_speed",
         "disable_fan_first_layers",
         "duplicate_distance",
@@ -94,12 +97,12 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "extruder_fan_offset"
         "extruder_temperature_offset",
         "extrusion_multiplier",
-        "fan_always_on",
         "fan_below_layer_time",
         "fan_kickstart",
         "fan_speedup_overhangs",
         "fan_speedup_time",
         "fan_percentage",
+        "fan_printer_min_speed",
         "filament_colour",
         "filament_custom_variables",
         "filament_diameter",
@@ -120,6 +123,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "gap_fill_fan_speed",
         "gap_fill_flow_match_perimeter",
         "gap_fill_speed",
+        "gcode_ascii",
         "gcode_comments",
         "gcode_filename_illegal_char",
         "gcode_label_objects",
@@ -134,7 +138,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "max_print_height",
         "max_print_speed",
         "max_volumetric_speed",
-        "min_fan_speed",
         "min_length",
         "min_print_speed",
         "milling_toolchange_end_gcode",
@@ -187,6 +190,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "thumbnails_custom_color",
         "thumbnails_end_file",
         "thumbnails_format",
+        "thumbnails_tag_format",
         "thumbnails_with_bed",
         "time_estimation_compensation",
         "time_cost",
@@ -228,16 +232,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         } else if (steps_ignore.find(opt_key) != steps_ignore.end()) {
             // These steps have no influence on the G-code whatsoever. Just ignore them.
         } else if (
-               opt_key == "brim_inside_holes"
-            || opt_key == "brim_width"
-            || opt_key == "brim_width_interior"
-            || opt_key == "brim_ears"
-            || opt_key == "brim_ears_detection_length"
-            || opt_key == "brim_ears_max_angle"
-            || opt_key == "brim_ears_pattern"
-            || opt_key == "brim_per_object"
-            || opt_key == "brim_separation"
-            || opt_key == "complete_objects_one_skirt"
+            opt_key == "complete_objects_one_skirt"
             || opt_key == "draft_shield"
             || opt_key == "min_skirt_length"
             || opt_key == "ooze_prevention"
@@ -1270,6 +1265,14 @@ void Print::process()
             );
         }
     }
+    
+#if _DEBUG
+    for (PrintObject* obj : m_objects) {
+        for (auto &l : obj->m_layers) {
+            for (auto &reg : l->regions()) { reg->perimeters.visit(LoopAssertVisitor{}); }
+        }
+    }
+#endif
 
     m_timestamp_last_change = std::time(0);
     BOOST_LOG_TRIVIAL(info) << "Slicing process finished." << log_memory_info();
@@ -1606,9 +1609,8 @@ void Print::_make_wipe_tower()
         if (idx_begin != size_t(-1)) {
             // Find the position in m_objects.first()->support_layers to insert these new support layers.
             double wipe_tower_new_layer_print_z_first = m_wipe_tower_data.tool_ordering.layer_tools()[idx_begin].print_z;
-            SupportLayerPtrs::const_iterator it_layer = m_objects.front()->support_layers().begin();
-            SupportLayerPtrs::const_iterator it_end   = m_objects.front()->support_layers().end();
-            for (; it_layer != it_end && (*it_layer)->print_z - EPSILON < wipe_tower_new_layer_print_z_first; ++ it_layer);
+            SupportLayerPtrs::const_iterator it_layer = m_objects.front()->edit_support_layers().begin();
+            for (; it_layer != m_objects.front()->edit_support_layers().end() && (*it_layer)->print_z - EPSILON < wipe_tower_new_layer_print_z_first; ++ it_layer);
             // Find the stopper of the sequence of wipe tower layers, which do not have a counterpart in an object or a support layer.
             for (size_t i = idx_begin; i < idx_end; ++ i) {
                 LayerTools &lt = const_cast<LayerTools&>(m_wipe_tower_data.tool_ordering.layer_tools()[i]);

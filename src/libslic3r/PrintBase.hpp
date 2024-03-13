@@ -463,8 +463,16 @@ public:
                 m_status_callback(SlicingStatus(percent, message, flags));
             else
                 m_status_callback(SlicingStatus(percent, message, args, flags));
+        } else {
+            printf("%d => ", percent);
+            if(args.empty())
+                printf(message.c_str());
+            else if (args.size()==1)
+                printf(message.c_str(), args.front().c_str());
+            else if (args.size()==2)
+                printf(message.c_str(), args.front().c_str(), args.back().c_str());
+            printf("\n");
         }
-        else printf("%d => %s\n", percent, message.c_str());
     }
 
     typedef std::function<void()>  cancel_callback_type;

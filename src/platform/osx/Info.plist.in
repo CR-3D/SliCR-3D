@@ -48,7 +48,7 @@
         <string>OBJ</string>
       </array>
       <key>CFBundleTypeIconFile</key>
-      <string>@SLIC3R_BUILD_ID@.icns</string>
+      <string>@SLIC3R_APP_KEY@.icns</string>
       <key>CFBundleTypeName</key>
       <string>STL</string>
       <key>CFBundleTypeRole</key>
@@ -65,7 +65,7 @@
         <string>AMF</string>
       </array>
       <key>CFBundleTypeIconFile</key>
-      <string>@SLIC3R_BUILD_ID@.icns</string>
+      <string>@SLIC3R_APP_KEY@.icns</string>
       <key>CFBundleTypeName</key>
       <string>AMF</string>
       <key>CFBundleTypeRole</key>
@@ -82,7 +82,7 @@
         <string>3MF</string>
       </array>
       <key>CFBundleTypeIconFile</key>
-      <string>@SLIC3R_BUILD_ID@.icns</string>
+      <string>@SLIC3R_APP_KEY@.icns</string>
       <key>CFBundleTypeName</key>
       <string>3MF</string>
       <key>CFBundleTypeRole</key>

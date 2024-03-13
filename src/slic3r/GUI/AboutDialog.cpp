@@ -132,6 +132,14 @@ void CopyrightsDialog::fill_entries()
                             , "Ultimaker"                                   , "https://github.com/Ultimaker/CuraEngine" },
         { "Arc Welder"
                             , "Brad Hochgesang"                             , "https://github.com/FormerLurker/ArcWelderLib/" },
+        { "AngelScript"
+                            , "Andreas Jönsson"                             , "https://www.angelcode.com/angelscript/" },
+        { "JSON for Modern C++"
+                            , "Niels Lohmann"                               , "https://github.com/nlohmann/json" },
+        { "Bambu Studio"
+                            , "bambulab"                                    , "https://bambulab.com/en/download/studio" },
+        { "Orca Slicer"
+                            , "SoftFever"                                   , "https://github.com/SoftFever/OrcaSlicer" },
     };
 }
 

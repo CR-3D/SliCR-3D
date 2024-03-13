@@ -6,6 +6,7 @@
 #include "GUI_App.hpp"
 #include "wxExtensions.hpp"
 #include "Plater.hpp"
+#include "ScriptExecutor.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Model.hpp"
 

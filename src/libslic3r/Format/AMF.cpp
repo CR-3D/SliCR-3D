@@ -734,8 +734,8 @@ void AMFParserContext::endElement(const char * /* name */)
             ConfigBase::load_from_gcode_string_legacy(*m_config, std::move(m_value[1].c_str()), *m_config_substitutions);
         }
         else if (strncmp(m_value[0].c_str(), "slic3r.", 7) == 0) {
-            const char *opt_key = m_value[0].c_str() + 7;
-            if (print_config_def.options.find(opt_key) != print_config_def.options.end()) {
+            const char *key = m_value[0].c_str() + 7;
+            if (print_config_def.options.find(key) != print_config_def.options.end()) {
                 ModelConfig *config = nullptr;
                 if (m_path.size() == 3) {
                     if (m_path[1] == NODE_TYPE_MATERIAL && m_material)
@@ -749,9 +749,19 @@ void AMFParserContext::endElement(const char * /* name */)
                     auto it  = --m_object->layer_config_ranges.end();
                     config = &it->second;
                 }
-                if (config)
-                    config->set_deserialize(opt_key, m_value[1], *m_config_substitutions);
-            } else if (m_path.size() == 3 && m_path[1] == NODE_TYPE_OBJECT && m_object && strcmp(opt_key, "layer_height_profile") == 0) {
+                if (config) {
+                    std::string opt_key = key;
+                    std::string value = m_value[1];
+                    PrintConfigDef::handle_legacy(opt_key, value, true);
+                    if (opt_key.empty()) {
+                        if (m_config_substitutions->rule != ForwardCompatibilitySubstitutionRule::Disable) {
+                            m_config_substitutions->emplace(std::string(key), std::move(value));
+                        }
+                    } else {
+                        config->set_deserialize(opt_key, value, *m_config_substitutions);
+                    }
+                }
+            } else if (m_path.size() == 3 && m_path[1] == NODE_TYPE_OBJECT && m_object && strcmp(key, "layer_height_profile") == 0) {
                 // Parse object's layer height profile, a semicolon separated list of floats.
                 char *p = m_value[1].data();
                 std::vector<coordf_t> data;
@@ -766,7 +776,7 @@ void AMFParserContext::endElement(const char * /* name */)
                 }
                 m_object->layer_height_profile.set(std::move(data));
             }
-            else if (m_path.size() == 3 && m_path[1] == NODE_TYPE_OBJECT && m_object && strcmp(opt_key, "sla_support_points") == 0) {
+            else if (m_path.size() == 3 && m_path[1] == NODE_TYPE_OBJECT && m_object && strcmp(key, "sla_support_points") == 0) {
                 // Parse object's layer height profile, a semicolon separated list of floats.
                 unsigned char coord_idx = 0;
                 Eigen::Matrix<float, 5, 1, Eigen::DontAlign> point(Eigen::Matrix<float, 5, 1, Eigen::DontAlign>::Zero());
@@ -788,7 +798,7 @@ void AMFParserContext::endElement(const char * /* name */)
                 m_object->sla_points_status = sla::PointsStatus::UserModified;
             }
             else if (m_path.size() == 5 && m_path[1] == NODE_TYPE_OBJECT && m_path[3] == NODE_TYPE_RANGE && 
-                     m_object && strcmp(opt_key, "layer_height_range") == 0) {
+                     m_object && strcmp(key, "layer_height_range") == 0) {
                 // Parse object's layer_height_range, a semicolon separated doubles.
                 char* p = m_value[1].data();
                 char* end = strchr(p, ';');
@@ -798,38 +808,38 @@ void AMFParserContext::endElement(const char * /* name */)
                 m_object->layer_config_ranges[range];
             }
             else if (m_path.size() == 5 && m_path[3] == NODE_TYPE_VOLUME && m_volume) {
-                if (strcmp(opt_key, "modifier") == 0) {
+                if (strcmp(key, "modifier") == 0) {
                     // Is this volume a modifier volume?
                     // "modifier" flag comes first in the XML file, so it may be later overwritten by the "type" flag.
 					m_volume->set_type((atoi(m_value[1].c_str()) == 1) ? ModelVolumeType::PARAMETER_MODIFIER : ModelVolumeType::MODEL_PART);
-                } else if (strcmp(opt_key, "volume_type") == 0) {
+                } else if (strcmp(key, "volume_type") == 0) {
                     m_volume->set_type(ModelVolume::type_from_string(m_value[1]));
                 }
-                else if (strcmp(opt_key, "matrix") == 0) {
+                else if (strcmp(key, "matrix") == 0) {
                     m_volume_transform = Slic3r::Geometry::transform3d_from_string(m_value[1]);
                 }
-                else if (strcmp(opt_key, "source_file") == 0) {
+                else if (strcmp(key, "source_file") == 0) {
                     m_volume->source.input_file = m_value[1];
                 }
-                else if (strcmp(opt_key, "source_object_id") == 0) {
+                else if (strcmp(key, "source_object_id") == 0) {
                     m_volume->source.object_idx = ::atoi(m_value[1].c_str());
                 }
-                else if (strcmp(opt_key, "source_volume_id") == 0) {
+                else if (strcmp(key, "source_volume_id") == 0) {
                     m_volume->source.volume_idx = ::atoi(m_value[1].c_str());
                 }
-                else if (strcmp(opt_key, "source_offset_x") == 0) {
+                else if (strcmp(key, "source_offset_x") == 0) {
                     m_volume->source.mesh_offset(0) = ::atof(m_value[1].c_str());
                 }
-                else if (strcmp(opt_key, "source_offset_y") == 0) {
+                else if (strcmp(key, "source_offset_y") == 0) {
                     m_volume->source.mesh_offset(1) = ::atof(m_value[1].c_str());
                 }
-                else if (strcmp(opt_key, "source_offset_z") == 0) {
+                else if (strcmp(key, "source_offset_z") == 0) {
                     m_volume->source.mesh_offset(2) = ::atof(m_value[1].c_str());
                 }
-                else if (strcmp(opt_key, "source_in_inches") == 0) {
+                else if (strcmp(key, "source_in_inches") == 0) {
                     m_volume->source.is_converted_from_inches = m_value[1] == "1";
                 }
-                else if (strcmp(opt_key, "source_in_meters") == 0) {
+                else if (strcmp(key, "source_in_meters") == 0) {
                     m_volume->source.is_converted_from_meters = m_value[1] == "1";
                 }
             }

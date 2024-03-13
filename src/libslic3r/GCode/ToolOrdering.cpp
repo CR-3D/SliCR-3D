@@ -62,11 +62,15 @@ uint16_t LayerTools::extruder(const ExtrusionEntityCollection &extrusions, const
 	assert(region.config().infill_extruder.value > 0);
 	assert(region.config().solid_infill_extruder.value > 0);
 	// 1 based extruder ID.
-	uint16_t extruder = ((this->extruder_override == 0) ?
-	    (is_infill(extrusions.role()) ?
-	    	(is_solid_infill(extrusions.entities().front()->role()) ? region.config().solid_infill_extruder : region.config().infill_extruder) :
-			region.config().perimeter_extruder.value) :
-		this->extruder_override);
+    uint16_t extruder = this->extruder_override;
+    if (this->extruder_override == 0)
+        if (HasRoleVisitor::search(extrusions, HasInfillVisitor{}))
+            if (HasRoleVisitor::search(extrusions, HasSolidInfillVisitor{}))
+                extruder = region.config().solid_infill_extruder;
+            else
+                extruder = region.config().infill_extruder;
+        else
+            extruder = region.config().perimeter_extruder.value;
 	return (extruder == 0) ? 0 : extruder - 1;
 }
 
@@ -248,11 +252,10 @@ void ToolOrdering::collect_extruders(const PrintObject &object, const std::vecto
             for (const ExtrusionEntity *ee : layerm->fills.entities()) {
                 // fill represents infill extrusions of a single island.
                 const auto *fill = dynamic_cast<const ExtrusionEntityCollection*>(ee);
-                //FIXME: if first role is gapfill, please search deeper for another role
-                ExtrusionRole role = fill->entities().empty() ? erNone : fill->entities().front()->role();
-                if (is_solid_infill(role))
+                // we search as deep as available, in case there is some gapfill role
+                if (HasRoleVisitor::search(fill->entities(), HasSolidInfillVisitor{}))
                     has_solid_infill = true;
-                else if (role != erNone)
+                else if (HasRoleVisitor::search(fill->entities(), HasInfillVisitor{}))
                     has_infill = true;
 
                 if (m_print_config_ptr) {

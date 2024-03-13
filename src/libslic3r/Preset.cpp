@@ -468,6 +468,7 @@ static std::vector<std::string> s_Preset_print_options {
         "allow_empty_layers",
         "avoid_crossing_perimeters", 
         "avoid_crossing_not_first_layer",
+        "avoid_crossing_top",
         "thin_perimeters", "thin_perimeters_all",
         "overhangs_speed",
         "overhangs_speed_enforce",
@@ -475,6 +476,7 @@ static std::vector<std::string> s_Preset_print_options {
         "overhangs_width_speed", 
         "overhangs_reverse",
         "overhangs_reverse_threshold",
+        "perimeter_reverse",
         "seam_position",
         "seam_angle_cost",
         "seam_notch_all",
@@ -506,8 +508,11 @@ static std::vector<std::string> s_Preset_print_options {
         "ironing_speed",
         "ironing_spacing",
         "ironing_angle",
+        "fill_aligned_z",
         "fill_angle",
+        "fill_angle_cross",
         "fill_angle_increment",
+        "fill_angle_template",
         "bridge_angle",
         "solid_infill_below_area",
         "only_retract_when_crossing_perimeters", "enforce_retract_first_layer",
@@ -745,10 +750,11 @@ static std::vector<std::string> s_Preset_filament_options {
         "filament_dip_insertion_speed",
         "filament_dip_extraction_speed",  //skinnydip params end
         "temperature", "first_layer_temperature", "bed_temperature", "first_layer_bed_temperature", 
-        // cooling
-        "fan_always_on", 
-        "min_fan_speed",
-        "max_fan_speed", 
+        // "cooling",
+        // "fan_always_on", (now default_fan_speed)
+        // "min_fan_speed", (now fan_printer_min_speed)
+        "default_fan_speed",
+        "max_fan_speed",
         "bridge_fan_speed",
         "bridge_internal_fan_speed",
         "external_perimeter_fan_speed",
@@ -805,6 +811,8 @@ static std::vector<std::string> s_Preset_printer_options {
     "fan_speedup_overhangs",
     "fan_speedup_time",
     "fan_percentage",
+    "fan_printer_min_speed",
+    "gcode_ascii",
     "gcode_filename_illegal_char",
     "gcode_flavor",
     "gcode_precision_xyz",
@@ -845,6 +853,7 @@ static std::vector<std::string> s_Preset_printer_options {
     "thumbnails_custom_color",
     "thumbnails_end_file",
     "thumbnails_format",
+    "thumbnails_tag_format",
     "thumbnails_with_bed",
     "wipe_advanced",
     "wipe_advanced_nozzle_melted_volume",
@@ -956,6 +965,7 @@ static std::vector<std::string> s_Preset_sla_printer_options {
     "thumbnails_color",
     "thumbnails_custom_color",
     "thumbnails_with_bed",
+    "thumbnails_tag_format",
     "thumbnails_with_support",
 };
 
@@ -1060,7 +1070,7 @@ void PresetCollection::load_presets(
                     preset.config.apply(std::move(config));
                     Preset::normalize(preset.config);
                     // Report configuration fields, which are misplaced into a wrong group.
-                    std::string incorrect_keys = Preset::remove_invalid_keys(config, default_preset.config);
+                    std::string incorrect_keys = Preset::remove_invalid_keys(preset.config, default_preset.config);
                     if (! incorrect_keys.empty())
                         BOOST_LOG_TRIVIAL(error) << "Error in a preset file: The preset \"" <<
                             preset.file << "\" contains the following incorrect keys: " << incorrect_keys << ", which were removed";
@@ -1734,6 +1744,20 @@ std::string Preset::type_name(Type t) {
     case Preset::TYPE_PRINTER:      return "printer";
     default:                        return "invalid";
     }
+}
+
+Preset::Type Preset::type_from_name(std::string name) { 
+    if ("print" == name)
+        return Preset::TYPE_FFF_PRINT;
+    if ("filament" == name)
+        return Preset::TYPE_FFF_FILAMENT;
+    if ("sla_print" == name)
+        return Preset::TYPE_SLA_PRINT;
+    if ("sla_material" == name)
+        return Preset::TYPE_SLA_MATERIAL;
+    if ("printer" == name)
+        return Preset::TYPE_PRINTER;
+    return Preset::TYPE_INVALID;
 }
 
 std::string PresetCollection::section_name() const

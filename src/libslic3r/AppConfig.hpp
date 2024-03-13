@@ -27,6 +27,25 @@ public:
 		Highlight,
 	};
 
+	enum HardwareType : uint8_t
+	{
+		//first 4 bits for cpu
+		hHasCpu = uint8_t(0x0F),
+		hCpuIntel = 1,
+		hCpuAmd = 2,
+		hCpuApple = 3,
+		hCpuArmGeneric = 4,
+		hCpuOther = 5,
+		//last 4 bits for gpu
+		hHasGpu = uint8_t(0xF0),
+		hGpuIntel = 1 << 4,
+		hGpuAmd = 2 << 4,
+		hGpuApple = 3 << 4,
+		hGpuArmGeneric = 4 << 4,
+		hGpuOther = 5 << 4,
+		hGpuNvidia = 6 << 4,
+	};
+
 	struct ConfigFileInfo {
 		bool correct_checksum{ false };
 		bool contains_null{ false };
@@ -207,11 +226,15 @@ public:
     LayoutEntry              get_ui_layout();
     std::vector<LayoutEntry> get_ui_layouts() { return m_ui_layout; }
 
-    //tags
+    // Tags
     std::vector<Tag>         tags() { return m_tags; }
 
     // splashscreen
     std::string              splashscreen(bool is_editor);
+
+    // Hardware
+    HardwareType			 hardware() { return m_hardware; }
+    void					 set_hardware_type(HardwareType hard);
 
 	// Returns true if the user's data directory comes from before Slic3r 1.40.0 (no updating)
 	bool 				legacy_datadir() const { return m_legacy_datadir; }
@@ -298,6 +321,8 @@ private:
 	std::vector<Tag>                                            m_tags;
 	//splashscreen
 	std::pair<std::string,std::string>                          m_default_splashscreen;
+	// hardware type
+	HardwareType												m_hardware;
 };
 
 } // namespace Slic3r

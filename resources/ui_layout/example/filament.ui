@@ -1,97 +1,97 @@
 
 page:Filament:spool
 group:filament_spool_weight_event:Filament
-	setting:filament_colour
-	setting:filament_diameter
-	setting:extrusion_multiplier
-	setting:filament_density
-	setting:filament_cost
-	setting:filament_spool_weight
+	setting:id$0:filament_colour
+	setting:id$0:filament_diameter
+	setting:id$0:extrusion_multiplier
+	setting:id$0:filament_density
+	setting:id$0:filament_cost
+	setting:id$0:filament_spool_weight
 group:Temperature °C
 	line:Extruder
-		setting:first_layer_temperature
-		setting:temperature
+		setting:id$0:first_layer_temperature
+		setting:id$0:temperature
 	end_line
 	line:Bed
-		setting:first_layer_bed_temperature
-		setting:label:Other layers:bed_temperature
+		setting:id$0:first_layer_bed_temperature
+		setting:id$0:label:Other layers:bed_temperature
 	end_line
-	setting:chamber_temperature
+	setting:id$0:chamber_temperature
 group:Filament properties
-	setting:width$7:filament_type
-	setting:filament_soluble
-	setting:filament_shrink
-	setting:filament_max_overlap
+	setting:id$0:width$7:filament_type
+	setting:id$0:filament_soluble
+	setting:id$0:filament_shrink
+	setting:id$0:filament_max_overlap
 group:Print speed override
-	setting:filament_max_speed
-	setting:filament_max_volumetric_speed
+	setting:id$0:filament_max_speed
+	setting:id$0:filament_max_volumetric_speed
 	volumetric_speed_description
 
 page:Cooling:time
 group:Fan speed - default
-	setting:label$Run the fan at default speed when possible:fan_always_on
+	setting:id$0:label$Run the fan at default speed when possible:fan_always_on
 	line:Disable fan for the first
-		setting:width$5:label$_:sidetext_width$7:disable_fan_first_layers
-		setting:width$5:label_width$12:full_fan_speed_layer
+		setting:id$0:width$5:label$_:sidetext_width$7:disable_fan_first_layers
+		setting:id$0:width$5:label_width$12:full_fan_speed_layer
 	end_line
-	setting:min_fan_speed
+	setting:id$0:min_fan_speed
 	line:Perimeter fan speed
-		setting:label_width$12:label$Internal:perimeter_fan_speed
-		setting:label_width$12:label$External:external_perimeter_fan_speed
+		setting:id$0:label_width$12:label$Internal:perimeter_fan_speed
+		setting:id$0:label_width$12:label$External:external_perimeter_fan_speed
 	line:Internal Infill fan speed
-		setting:label_width$12:label$Sparse:infill_fan_speed
+		setting:id$0:label_width$12:label$Sparse:infill_fan_speed
 	line:Solid Infill fan speed
-		setting:label_width$12:label$Solid:solid_infill_fan_speed
-		setting:label_width$12:label$Top solid:top_fan_speed
+		setting:id$0:label_width$12:label$Solid:solid_infill_fan_speed
+		setting:id$0:label_width$12:label$Top solid:top_fan_speed
 	line:Support Material fan speed
-		setting:label_width$12:label$Default:support_material_fan_speed
-		setting:label_width$12:label$Interface:support_material_interface_fan_speed
+		setting:id$0:label_width$12:label$Default:support_material_fan_speed
+		setting:id$0:label_width$12:label$Interface:support_material_interface_fan_speed
 	line:Bridges fan speed
-		setting:label_width$12:label$Bridges:bridge_fan_speed
-		setting:label_width$12:label$Internal bridges:bridge_internal_fan_speed
+		setting:id$0:label_width$12:label$Bridges:bridge_fan_speed
+		setting:id$0:label_width$12:label$Internal bridges:bridge_internal_fan_speed
 	line:Overhangs Perimeter fan speed
-		setting:label_width$12:label$Overhangs:overhangs_fan_speed
+		setting:id$0:label_width$12:label$Overhangs:overhangs_fan_speed
 	line:Gap fill fan speed
-		setting:label_width$12:label$Gap fill:gap_fill_fan_speed
+		setting:id$0:label_width$12:label$Gap fill:gap_fill_fan_speed
 group:Short layer time - began to increase base fan speed
-	setting:fan_below_layer_time
-	setting:label$Max fan speed:max_fan_speed
+	setting:id$0:fan_below_layer_time
+	setting:id$0:label$Max fan speed:max_fan_speed
 group:Very short layer time - began to decrease extrusion rate
-	setting:label$Layer time goal:slowdown_below_layer_time
-	setting:width$4:max_speed_reduction
-	setting:width$4:min_print_speed
+	setting:id$0:label$Layer time goal:slowdown_below_layer_time
+	setting:id$0:width$4:max_speed_reduction
+	setting:id$0:width$4:min_print_speed
 group:Behavior
 	cooling_description
 
 page:Multimaterial:funnel
 group:Multimaterial toolchange temperature 
-	setting:filament_enable_toolchange_temp
-	setting:filament_toolchange_temp 
-	setting:filament_use_fast_skinnydip
-	setting:filament_enable_toolchange_part_fan
-	setting:filament_toolchange_part_fan_speed
+	setting:id$0:filament_enable_toolchange_temp
+	setting:id$0:filament_toolchange_temp 
+	setting:id$0:filament_use_fast_skinnydip
+	setting:id$0:filament_enable_toolchange_part_fan
+	setting:id$0:filament_toolchange_part_fan_speed
 group:Multimaterial toolchange string reduction
-	setting:filament_use_skinnydip 
-	setting:filament_skinnydip_distance
-	setting:filament_melt_zone_pause 
-	setting:filament_cooling_zone_pause
-	setting:filament_dip_insertion_speed
-	setting:filament_dip_extraction_speed
+	setting:id$0:filament_use_skinnydip 
+	setting:id$0:filament_skinnydip_distance
+	setting:id$0:filament_melt_zone_pause 
+	setting:id$0:filament_cooling_zone_pause
+	setting:id$0:filament_dip_insertion_speed
+	setting:id$0:filament_dip_extraction_speed
 group:Wipe tower parameters
-	setting:filament_minimal_purge_on_wipe_tower
-	setting:filament_max_wipe_tower_speed
+	setting:id$0:filament_minimal_purge_on_wipe_tower
+	setting:id$0:filament_max_wipe_tower_speed
 group:Toolchange parameters with single extruder MM printers
-	setting:filament_loading_speed_start
-	setting:filament_loading_speed
-	setting:filament_unloading_speed_start
-	setting:filament_unloading_speed
-	setting:filament_load_time
-	setting:filament_unload_time
-	setting:filament_toolchange_delay
-	setting:filament_cooling_moves
-	setting:filament_cooling_initial_speed
-	setting:filament_cooling_final_speed
-	setting:filament_wipe_advanced_pigment
+	setting:id$0:filament_loading_speed_start
+	setting:id$0:filament_loading_speed
+	setting:id$0:filament_unloading_speed_start
+	setting:id$0:filament_unloading_speed
+	setting:id$0:filament_load_time
+	setting:id$0:filament_unload_time
+	setting:id$0:filament_toolchange_delay
+	setting:id$0:filament_cooling_moves
+	setting:id$0:filament_cooling_initial_speed
+	setting:id$0:filament_cooling_final_speed
+	setting:id$0:filament_wipe_advanced_pigment
 	filament_ramming_parameters
 
 
@@ -99,20 +99,20 @@ filament_overrides_page
 
 page:Custom G-code:cog
 group:no_title:validate_gcode:Start G-code
-	setting:full_width:height$35:start_filament_gcode
+	setting:id$0:full_width:height$35:start_filament_gcode
 group:no_title:validate_gcode:End G-code
-	setting:full_width:height$35:end_filament_gcode
+	setting:id$0:full_width:height$35:end_filament_gcode
 
 page:Notes:note.png
 group:label_width$0:Notes
-	setting:full_width:height$25:filament_notes
+	setting:id$0:full_width:height$25:filament_notes
 group:label_width$0:Custom variables
-	setting:full_width:height$15:filament_custom_variables
+	setting:id$0:full_width:height$15:filament_custom_variables
 
 page:Dependencies:wrench.png
 	group:Profile dependencies
-	setting:compatible_printers
-	setting:full_width:color:compatible_printers_condition
-	setting:compatible_prints
-	setting:full_width:color:compatible_prints_condition
+	setting:id$0:compatible_printers
+	setting:id$0:full_width:color:compatible_printers_condition
+	setting:id$0:compatible_prints
+	setting:id$0:full_width:color:compatible_prints_condition
 	parent_preset_description

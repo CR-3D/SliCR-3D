@@ -37,11 +37,6 @@ group:Quality
 		setting:label$_:ensure_vertical_shell_thickness
 		setting:solid_over_perimeters
 	end_line
-	line:Avoid crossing perimeters
-		setting:label$_:avoid_crossing_perimeters
-		setting:label_width$12:label$Not on first layer:avoid_crossing_not_first_layer
-		setting:sidetext_width$15:avoid_crossing_perimeters_max_detour
-	end_line
 	line:Overlapping external perimeter
 		setting:label$_:thin_perimeters
 		setting:label_width$12:label$Also for all perimeters:thin_perimeters_all
@@ -51,6 +46,15 @@ group:Quality
 		setting:width$5:thin_walls_min_width
 		setting:width$5:thin_walls_overlap
 		setting:thin_walls_merge
+	end_line
+group:Avoid crossing perimeters
+	line:Activate
+		setting:label$_:avoid_crossing_perimeters
+		setting:sidetext_width$15:avoid_crossing_perimeters_max_detour
+	end_line
+	line:Modifiers
+		setting:label_width$12:label$Not on first layer:avoid_crossing_not_first_layer
+        setting:avoid_crossing_top
 	end_line
 group:label_width$12:Overhangs
 	line:threshold for
@@ -62,6 +66,7 @@ group:label_width$12:Overhangs
 	line:Extrusion direction
 		setting:sidetext_width$2:overhangs_reverse
 		setting:label_width$12:width$5:overhangs_reverse_threshold
+		setting:label$All perimeters:sidetext_width$2:perimeter_reverse
 	end_line
 group:sidetext_width$5:Advanced
 	setting:width$25:no_perimeter_unsupported_algo
@@ -165,6 +170,7 @@ group:title_width$0:Infill
 		setting:tags$Advanced$Expert$Prusa:label_left:label_width$6:label$Sparse:width$8:sidetext_width$1:fill_density
 		setting:tags$Advanced$Expert$Prusa:label_width$0:label$_:fill_pattern
 		setting:label$_:width$18:infill_connection
+        setting:label$Aligned:fill_aligned_z
 	end_line
 	line:_
 		setting:label$Connection length:label_width$25:sidetext_width$7:width$12:infill_anchor_max
@@ -193,14 +199,19 @@ group:Reducing printing time
 		setting:tags$Advanced$Expert$SuSi:sidetext_width$0:label$_:infill_dense
 		setting:width$20:infill_dense_algo
 	end_line
-group:sidetext_width$5:Advanced
-	setting:solid_infill_every_layers
-	setting:solid_infill_below_area
+group:sidetext_width$5:Infill angle
 	line:Angle
 		setting:label_width$8:width$5:fill_angle
 		setting:label_width$6:width$5:bridge_angle
-		setting:label_width$6:width$5:label$increment:fill_angle_increment
 	end_line
+	line:Modifiers
+		setting:label_width$6:width$5:label$increment:fill_angle_increment
+		setting:width$5:fill_angle_cross
+	vector_line:fill_angle_template
+#	setting:fill_angle_template
+group:sidetext_width$5:Advanced
+	setting:solid_infill_every_layers
+	setting:solid_infill_below_area
 	line:Anchor solid infill by X mm
 		setting:label_width$8:width$5:external_infill_margin
 		setting:label_width$6:width$5:bridged_infill_margin
@@ -380,10 +391,10 @@ group:label_width$9:sidetext_width$8:Acceleration control (advanced)
 		setting:width$4:ironing_acceleration
 	line:Travel acceleration
 		setting:width$4:travel_acceleration
-		setting:width$4:travel_deceleration_use_target
+		setting:label_width$22:travel_deceleration_use_target
 	line:First layer acceleration
 		setting:width$4:first_layer_acceleration
-		setting:label_width$35:width$4:first_layer_acceleration_over_raft
+		setting:label_width$22:width$4:first_layer_acceleration_over_raft
 	end_line
 
 page:Width & Flow:width
@@ -399,22 +410,22 @@ group:Extrusion width
 	line:perimeter
 		setting:sidetext_width$10:label$width:perimeter_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:perimeter_extrusion_spacing
-        setting:sidetext_width$10:label_width$15:label$odd layers:perimeter_extrusion_change_odd_layers
+        setting:sidetext_width$10:label_width$15:label$even layers:perimeter_extrusion_change_odd_layers
 	end_line
 	line:external perimeter
 		setting:sidetext_width$10:label$width:external_perimeter_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$width&spacing combo:external_perimeter_extrusion_spacing
-		setting:sidetext_width$10:label_width$15:label$odd layers:external_perimeter_extrusion_change_odd_layers
+		setting:sidetext_width$10:label_width$15:label$even layers:external_perimeter_extrusion_change_odd_layers
 	end_line
 	line:infill
 		setting:sidetext_width$10:label$width:infill_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:infill_extrusion_spacing
-		setting:sidetext_width$10:label_width$15:label$odd layers:infill_extrusion_change_odd_layers
+		setting:sidetext_width$10:label_width$15:label$even layers:infill_extrusion_change_odd_layers
 	end_line
 	line:solid infill
 		setting:sidetext_width$10:label$width:solid_infill_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:solid_infill_extrusion_spacing
-		setting:sidetext_width$10:label_width$15:label$odd layers:solid_infill_extrusion_change_odd_layers
+		setting:sidetext_width$10:label_width$15:label$even layers:solid_infill_extrusion_change_odd_layers
 	end_line
 	line:top infill
 		setting:sidetext_width$10:label$width:top_infill_extrusion_width

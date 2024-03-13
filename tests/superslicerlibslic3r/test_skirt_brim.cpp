@@ -1,12 +1,14 @@
 
 //#define CATCH_CONFIG_DISABLE
-
-#include <catch2/catch.hpp>
+#include <catch_main.hpp>
 #include "test_data.hpp"
 #include <libslic3r/GCodeReader.hpp>
 
 using namespace Slic3r::Test;
 using namespace Slic3r;
+
+constexpr char* SKIRT_TAG = "Skirt";
+constexpr char* BRIM_TAG = "Brim";
 
 SCENARIO("skirt test by merill", "") {
 
@@ -36,25 +38,25 @@ SCENARIO("skirt test by merill", "") {
             auto parser{ Slic3r::GCodeReader() };
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &layers_with_brim, &config](Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
-                if (line.extruding(self) && line.comment().find("brim") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(BRIM_TAG) != std::string::npos) {
                     layers_with_brim[self.z()] = 1;
                 }
             });
             clean_file(gcode_filepath, "gcode");
 
             THEN("one skrit generated") {
-                REQUIRE(print.skirt().entities.size() == 1);
+                REQUIRE(print.skirt().entities().size() == 1);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->skirt().entities.size() == 0);
+                    REQUIRE(obj->skirt().entities().size() == 0);
                 }
             }
             THEN("brim is not generated") {
-                REQUIRE(print.brim().entities.size() == 0);
+                REQUIRE(print.brim().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->brim().entities.size() == 0);
+                    REQUIRE(obj->brim().entities().size() == 0);
                 }
                 REQUIRE(layers_with_brim.size() == 0);
             }
@@ -79,25 +81,25 @@ SCENARIO("skirt test by merill", "") {
             auto parser{ Slic3r::GCodeReader() };
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &layers_with_brim, &config](Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
-                if (line.extruding(self) && line.comment().find("brim") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(BRIM_TAG) != std::string::npos) {
                     layers_with_brim[self.z()] = 1;
                 }
             });
             clean_file(gcode_filepath, "gcode");
 
             THEN("one skirt generated") {
-                REQUIRE(print.skirt().entities.size() == 1);
+                REQUIRE(print.skirt().entities().size() == 1);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->skirt().entities.size() == 0);
+                    REQUIRE(obj->skirt().entities().size() == 0);
                 }
             }
             THEN("brim generated") {
-                REQUIRE(print.brim().entities.size() > 0);
+                REQUIRE(print.brim().entities().size() > 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->brim().entities.size() == 0);
+                    REQUIRE(obj->brim().entities().size() == 0);
                 }
                 REQUIRE(layers_with_brim.size() == 1);
             }
@@ -122,25 +124,25 @@ SCENARIO("skirt test by merill", "") {
             auto parser{ Slic3r::GCodeReader() };
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &layers_with_brim, &config](Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
-                if (line.extruding(self) && line.comment().find("brim") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(BRIM_TAG) != std::string::npos) {
                     layers_with_brim[self.z()] = 1;
                 }
             });
             clean_file(gcode_filepath, "gcode");
 
             THEN("no skirt generated") {
-                REQUIRE(print.skirt().entities.size() == 0);
+                REQUIRE(print.skirt().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->skirt().entities.size() == 0);
+                    REQUIRE(obj->skirt().entities().size() == 0);
                 }
             }
             THEN("brim generated") {
-                REQUIRE(print.brim().entities.size() > 0);
+                REQUIRE(print.brim().entities().size() > 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->brim().entities.size() == 0);
+                    REQUIRE(obj->brim().entities().size() == 0);
                 }
                 REQUIRE(layers_with_brim.size() == 1);
             }
@@ -158,7 +160,8 @@ SCENARIO("skirt test by merill", "") {
         config.set_deserialize("fill_density", "0");
         config.set_deserialize("perimeters", "1");
         config.set_deserialize("complete_objects", "1");
-        config.set_key_value("gcode_comments", new ConfigOptionBool(true));
+        config.set_deserialize("brim_per_object", "1");
+        config.set_deserialize("gcode_comments", "1");
 
         WHEN("skirt with 3 layers is requested") {
             config.set_deserialize("skirts", "1");
@@ -176,23 +179,23 @@ SCENARIO("skirt test by merill", "") {
             auto parser{ Slic3r::GCodeReader() };
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &layers_with_brim, &config](Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
-                if (line.extruding(self) && line.comment().find("brim") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(BRIM_TAG) != std::string::npos) {
                     layers_with_brim[self.z()] = 1;
                 }
             });
             THEN("one skirt per object") {
-                REQUIRE(print.skirt().entities.size() == 0);
+                REQUIRE(print.skirt().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->skirt().entities.size() == 1);
+                    REQUIRE(obj->skirt().entities().size() == 1);
                 }
             }
             THEN("brim is not generated") {
-                REQUIRE(print.brim().entities.size() == 0);
+                REQUIRE(print.brim().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->brim().entities.size() == 0);
+                    REQUIRE(obj->brim().entities().size() == 0);
                 }
                 REQUIRE(layers_with_brim.size() == 0);
             }
@@ -217,25 +220,25 @@ SCENARIO("skirt test by merill", "") {
             auto parser{ Slic3r::GCodeReader() };
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &layers_with_brim, &config](Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
-                if (line.extruding(self) && line.comment().find("brim") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(BRIM_TAG) != std::string::npos) {
                     layers_with_brim[self.z()] = 1;
                 }
             });
             clean_file(gcode_filepath, "gcode");
 
             THEN("one skirt per object") {
-                REQUIRE(print.skirt().entities.size() == 0);
+                REQUIRE(print.skirt().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->skirt().entities.size() == 1);
+                    REQUIRE(obj->skirt().entities().size() == 1);
                 }
             }
             THEN("brim generated") {
-                REQUIRE(print.brim().entities.size() == 0);
+                REQUIRE(print.brim().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->brim().entities.size() > 0);
+                    REQUIRE(obj->brim().entities().size() > 0);
                 }
                 REQUIRE(layers_with_brim.size() == 1);
             }
@@ -260,25 +263,25 @@ SCENARIO("skirt test by merill", "") {
             auto parser{ Slic3r::GCodeReader() };
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &layers_with_brim, &config](Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
-                if (line.extruding(self) && line.comment().find("brim") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(BRIM_TAG) != std::string::npos) {
                     layers_with_brim[self.z()] = 1;
                 }
             });
             clean_file(gcode_filepath, "gcode");
 
             THEN("no skrit") {
-                REQUIRE(print.skirt().entities.size() == 0);
+                REQUIRE(print.skirt().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->skirt().entities.size() == 0);
+                    REQUIRE(obj->skirt().entities().size() == 0);
                 }
             }
             THEN("brim generated") {
-                REQUIRE(print.brim().entities.size() == 0);
+                REQUIRE(print.brim().entities().size() == 0);
                 for (auto obj : print.objects()) {
-                    REQUIRE(obj->brim().entities.size() > 0);
+                    REQUIRE(obj->brim().entities().size() > 0);
                 }
                 REQUIRE(layers_with_brim.size() == 1);
             }
@@ -295,7 +298,7 @@ SCENARIO("Original Slic3r Skirt/Brim tests", "[!mayfail]") {
         config.set_deserialize("skirt_height", "2");
         config.set_deserialize("perimeters", "1");
         config.set_deserialize("support_material_speed", "99");
-        config.set_key_value("gcode_comments", new ConfigOptionBool(true));
+        config.set_deserialize("gcode_comments", "1");
 
         // avoid altering speeds unexpectedly
         config.set_deserialize("cooling", "0");
@@ -312,7 +315,7 @@ SCENARIO("Original Slic3r Skirt/Brim tests", "[!mayfail]") {
             auto parser {Slic3r::GCodeReader()};
             parser.parse_file(gcode_filepath, [&layers_with_skirt, &config] (Slic3r::GCodeReader& self, const Slic3r::GCodeReader::GCodeLine& line)
             {
-                if (line.extruding(self) && line.comment().find("skirt") != std::string::npos) {
+                if (line.extruding(self) && line.comment().find(SKIRT_TAG) != std::string::npos) {
                     layers_with_skirt[self.z()] = 1;
                 }
                 //if (self.z() > 0) {
@@ -350,7 +353,7 @@ SCENARIO("Original Slic3r Skirt/Brim tests", "[!mayfail]") {
                 Print print{};
                 Slic3r::Test::init_print(print, { TestMesh::cube_20x20x20 }, model, &config, false);
                 print.process();
-                REQUIRE(print.brim().entities.size()>0);
+                REQUIRE(print.brim().entities().size()>0);
             }
         }
 

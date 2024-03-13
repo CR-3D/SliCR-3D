@@ -117,9 +117,7 @@ private:
     bool            m_app_conf_exists{ false };
     EAppMode        m_app_mode{ EAppMode::Editor };
     bool            m_is_recreating_gui{ false };
-#ifdef __linux__
     bool            m_opengl_initialized{ false };
-#endif
 
     wxColour        m_color_label_modified;
     wxColour        m_color_label_sys;
@@ -169,7 +167,6 @@ public:
     bool            initialized() const { return m_initialized; }
 
     explicit GUI_App(EAppMode mode = EAppMode::Editor);
-    ~GUI_App() override;
 
     EAppMode get_app_mode() const { return m_app_mode; }
     bool is_editor() const { return m_app_mode == EAppMode::Editor; }
@@ -333,15 +330,15 @@ public:
     // Parameters extracted from the command line to be passed to GUI after initialization.
     GUI_InitParams* init_params { nullptr };
 
-    AppConfig*      app_config{ nullptr };
-    PresetBundle*   preset_bundle{ nullptr };
-    PresetUpdater*  preset_updater{ nullptr };
+    std::unique_ptr<AppConfig> app_config;
+    std::unique_ptr<PresetBundle> preset_bundle;
+    std::unique_ptr<PresetUpdater> preset_updater;
     MainFrame*      mainframe{ nullptr };
     Plater*         plater_{ nullptr };
     std::mutex      not_modal_dialog_mutex;
     wxDialog*       not_modal_dialog = nullptr;
 
-	PresetUpdater*  get_preset_updater() { return preset_updater; }
+	PresetUpdater*  get_preset_updater() { return preset_updater.get(); }
 
     wxBookCtrlBase* tab_panel() const ;
     int             extruders_cnt() const;

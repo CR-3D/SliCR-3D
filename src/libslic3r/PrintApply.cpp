@@ -92,7 +92,7 @@ static inline void layer_height_ranges_copy_configs(t_layer_config_ranges &lr_ds
         assert(std::abs(kvp_dst.first.first  - kvp_src.first.first ) <= EPSILON);
         assert(std::abs(kvp_dst.first.second - kvp_src.first.second) <= EPSILON);
         // Layer heights are allowed do differ in case the layer height table is being overriden by the smooth profile.
-        // assert(std::abs(kvp_dst.second.option("layer_height")->getFloat() - kvp_src.second.option("layer_height")->getFloat()) <= EPSILON);
+        // assert(std::abs(kvp_dst.second.option("layer_height")->get_float() - kvp_src.second.option("layer_height")->get_float()) <= EPSILON);
         kvp_dst.second = kvp_src.second;
     }
 }
@@ -159,7 +159,7 @@ static bool layer_height_ranges_equal(const t_layer_config_ranges &lr1, const t_
         const auto &kvp2 = *it2 ++;
         if (std::abs(kvp1.first.first  - kvp2.first.first ) > EPSILON ||
             std::abs(kvp1.first.second - kvp2.first.second) > EPSILON ||
-            (check_layer_height && std::abs(kvp1.second.option("layer_height")->getFloat() - kvp2.second.option("layer_height")->getFloat()) > EPSILON))
+            (check_layer_height && std::abs(kvp1.second.option("layer_height")->get_float() - kvp2.second.option("layer_height")->get_float()) > EPSILON))
             return false;
     }
     return true;

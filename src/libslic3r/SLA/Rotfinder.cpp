@@ -195,8 +195,8 @@ XYRotation from_transform3f(const Transform3f &tr)
 
 inline bool is_on_floor(const SLAPrintObjectConfig &cfg)
 {
-    auto opt_elevation = cfg.support_object_elevation.getFloat();
-    auto opt_padaround = cfg.pad_around_object.getBool();
+    auto opt_elevation = cfg.support_object_elevation.get_float();
+    auto opt_padaround = cfg.pad_around_object.get_bool();
 
     return opt_elevation < EPSILON || opt_padaround;
 }

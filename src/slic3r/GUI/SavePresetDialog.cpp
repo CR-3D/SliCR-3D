@@ -124,7 +124,7 @@ void SavePresetDialog::Item::update()
     }
 
     if (m_valid_type == Valid && existing && (existing->is_external)) {
-        info_line = _L("Cannot overwrite an external profile.");
+        info_line = _L("Cannot overwrite an external profile. Please choose another name.");
         m_valid_type = NoValid;
     }
 

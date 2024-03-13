@@ -52,6 +52,7 @@ group:Thumbnails
 	line:Options
 		setting:thumbnails_with_bed
 		setting:thumbnails_with_support
+		setting:thumbnails_tag_format
 	end_line
 group:Print Host upload
 	build_printhost

@@ -80,12 +80,12 @@ void ArrangeJob::clear_input()
 
 void add_brim(arrangement::ArrangePolygon &ap, const ModelConfigObject &config, const Plater* plater)
 {
-    if (plater->config()->option("brim_per_object")->getBool()) {
+    if (plater->config()->option("brim_per_object")->get_bool()) {
         // object-brim increase the size of the object
         // Should be using the "inflation" field but it's non-functional right now.
-        coord_t diff = scale_(plater->config()->option("brim_width")->getFloat() - plater->config()->option("extruder_clearance_radius")->getFloat() / 2);
+        coord_t diff = scale_(plater->config()->option("brim_width")->get_float() - plater->config()->option("extruder_clearance_radius")->get_float() / 2);
         if (config.option("brim_width"))
-            diff = scale_(config.option("brim_width")->getFloat() - plater->config()->option("extruder_clearance_radius")->getFloat() / 2);
+            diff = scale_(config.option("brim_width")->get_float() - plater->config()->option("extruder_clearance_radius")->get_float() / 2);
         if (diff > 0) {
             ExPolygons brimmed = offset_ex(ap.poly, diff);
             assert(brimmed.size() == 1);

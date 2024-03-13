@@ -2,7 +2,6 @@
 //#define CATCH_CONFIG_DISABLE
 //#include <catch2/catch.hpp>
 #include <catch_main.hpp>
-//#include <catch2/catch.hpp>
 
 #include <string>
 #include "test_data.hpp"
@@ -33,18 +32,17 @@ SCENARIO("test auto generation") {
         //config.set_deserialize("infill_dense_algo", "50");
         //config.set_deserialize("extruder_clearance_radius", "10");
         WHEN("little surface") {
-            ExPolygon polygon_to_cover;
-            polygon_to_cover.contour = get_polygon_scale({ {0,0}, {10,0}, {10,10}, {0,10} });
+            ExPolygon expolygon_to_cover;
+            expolygon_to_cover.contour = get_polygon_scale({ {0,0}, {10,0}, {10,10}, {0,10} });
             ExPolygon growing_area;
             growing_area.contour = get_polygon_scale({ {0,0}, {40,0}, {0,40} });
-            ExPolygons allowedPoints;
-            allowedPoints.emplace_back();
-            //diff_ex(offset_ex(growing_area, scale_(1)), offset_ex(layerm->fill_no_overlap_expolygons, double(-layerm->flow(frInfill).scaled_width())));
-            allowedPoints.back().contour = get_polygon_scale({ {0,0}, {40,0}, {0,40} });
+            //ExPolygons allowedPoints;
+            //allowedPoints.emplace_back();
+            //allowedPoints.back().contour = get_polygon_scale({ {0,0}, {40,0}, {0,40} });
             coord_t offset = scale_(2);
             float coverage = 1.f;
 
-            ExPolygons solution = dense_fill_fit_to_size(polygon_to_cover, allowedPoints, growing_area, offset, coverage);
+            ExPolygons solution = dense_fill_fit_to_size(expolygon_to_cover, growing_area, offset, coverage);
             THEN("little support") {
                 double area_result = 0;
                 for (ExPolygon& p : solution)

@@ -1,7 +1,5 @@
 
-#define CATCH_CONFIG_DISABLE
-
-#include <catch2/catch.hpp>
+#include <catch_main.hpp>
 
 #include <libslic3r/Point.hpp>
 #include <libslic3r/BoundingBox.hpp>
@@ -15,7 +13,7 @@ using namespace Slic3r;
 
 TEST_CASE("Polygon::contains works properly", ""){
    // this test was failing on Windows (GH #1950)
-    Polygon polygon{ Points{
+    Slic3r::Polygon polygon( Points{
         Point{207802834,-57084522},
         Point{196528149,-37556190},
         Point{173626821,-25420928},
@@ -26,7 +24,7 @@ TEST_CASE("Polygon::contains works properly", ""){
         Point{82156517,-57084523},
         Point{129714478,-84542120},
         Point{160244873,-84542120}
-    } };
+    } );
     Point point{ 95706562, -57294774 };
     REQUIRE(polygon.contains(point));
 }
@@ -43,8 +41,8 @@ SCENARIO("Intersections of line segments"){
     }
 
     GIVEN("Scaled coordinates"){
-        Line line1{ Point{73.6310778185108 / 0.0000001, 371.74239268924 / 0.0000001}, Point{73.6310778185108 / 0.0000001, 501.74239268924 / 0.0000001} };
-        Line line2{ Point{75 / 0.0000001, 437.9853 / 0.0000001}, Point{62.7484 / 0.0000001, 440.4223 / 0.0000001} };
+        Line line1{ Point::new_scale(73.6310778185108, 371.74239268924), Point::new_scale(73.6310778185108, 501.74239268924) };
+        Line line2{ Point::new_scale(75, 437.9853), Point::new_scale(62.7484, 440.4223) };
         THEN("There is still an intersection"){
             Point point;
             REQUIRE(line1.intersection(line2,&point));
@@ -130,7 +128,7 @@ SCENARIO("polygon_is_convex works"){
 
 
 TEST_CASE("Creating a polyline generates the obvious lines"){
-    auto polyline = Polyline();
+    auto polyline = Slic3r::Polyline();
     polyline.points = std::vector<Point>({Point{0, 0}, Point{10, 0}, Point{20, 0}});
     REQUIRE(polyline.lines().at(0).a == Point{0,0});
     REQUIRE(polyline.lines().at(0).b == Point{10,0});
@@ -139,7 +137,7 @@ TEST_CASE("Creating a polyline generates the obvious lines"){
 }
 
 TEST_CASE("Splitting a Polygon generates a polyline correctly"){
-    auto polygon = Polygon(std::vector<Point>({Point{0, 0}, Point{10, 0}, Point{5, 5}}));
+    auto polygon = Slic3r::Polygon(std::vector<Point>({Point{0, 0}, Point{10, 0}, Point{5, 5}}));
     auto split = polygon.split_at_index(1);
     REQUIRE(split.points[0]==Point{10,0});
     REQUIRE(split.points[1]==Point{5,5});
@@ -157,9 +155,9 @@ TEST_CASE("Bounding boxes are scaled appropriately"){
 
 
 TEST_CASE("Offseting a line generates a polygon correctly"){
-    Polyline tmp({ Point{10,10}, Point{20,10} });
-    Polygon area = offset(tmp,5).at(0);
-    REQUIRE(area.area() == Polygon(std::vector<Point>({Point{10,5},Point{20,5},Point{20,15},Point{10,15}})).area());
+    Slic3r::Polyline tmp(Points{{10,10},{20,10} });
+    Slic3r::Polygon area = offset(tmp,5).at(0);
+    REQUIRE(area.area() == Slic3r::Polygon(std::vector<Point>({Point{10,5},Point{20,5},Point{20,15},Point{10,15}})).area());
 }
 
 SCENARIO("Circle Fit, TaubinFit with Newton's method") {
@@ -170,29 +168,29 @@ SCENARIO("Circle Fit, TaubinFit with Newton's method") {
 
         WHEN("Circle fit is called on the entire array") {
             Vec2d result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample);
+            result_center = Geometry::circle_center_taubin_newton(sample);
             THEN("A center point of -6,0 is returned.") {
-                REQUIRE(result_center == expected_center);
+                REQUIRE((result_center - expected_center).norm() < EPSILON);
             }
         }
         WHEN("Circle fit is called on the first four points") {
             Vec2d result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample.cbegin(), sample.cbegin()+4);
+            result_center = Geometry::circle_center_taubin_newton(sample.cbegin(), sample.cbegin()+4);
             THEN("A center point of -6,0 is returned.") {
-                REQUIRE(result_center == expected_center);
+                REQUIRE((result_center - expected_center).norm() < EPSILON);
             }
         }
         WHEN("Circle fit is called on the middle four points") {
             Vec2d result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample.cbegin()+2, sample.cbegin()+6);
+            result_center = Geometry::circle_center_taubin_newton(sample.cbegin()+2, sample.cbegin()+6);
             THEN("A center point of -6,0 is returned.") {
-                REQUIRE(result_center == expected_center);
+                REQUIRE((result_center - expected_center).norm() < EPSILON);
             }
         }
     }
     GIVEN("A vector of Pointfs arranged in a half-circle with approximately the same distance R from some point") {
         Vec2d expected_center(-3, 9);
-        Pointfs sample {Vec2d{6.0, 0}, Vec2d{5.1961524, 3}, Vec2d{3 ,5.1961524},
+        Vec2ds sample {Vec2d{6.0, 0}, Vec2d{5.1961524, 3}, Vec2d{3 ,5.1961524},
                         Vec2d{0, 6.0}, 
                         Vec2d{3, 5.1961524}, Vec2d{-5.1961524, 3}, Vec2d{-6.0, 0}};
 
@@ -201,23 +199,23 @@ SCENARIO("Circle Fit, TaubinFit with Newton's method") {
 
         WHEN("Circle fit is called on the entire array") {
             Vec2d result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample);
+            result_center = Geometry::circle_center_taubin_newton(sample);
             THEN("A center point of 3,9 is returned.") {
-                REQUIRE(result_center == expected_center);
+                REQUIRE((result_center - expected_center).norm() < EPSILON);
             }
         }
         WHEN("Circle fit is called on the first four points") {
             Vec2d result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample.cbegin(), sample.cbegin()+4);
+            result_center = Geometry::circle_center_taubin_newton(sample.cbegin(), sample.cbegin()+4);
             THEN("A center point of 3,9 is returned.") {
-                REQUIRE(result_center == expected_center);
+                REQUIRE((result_center - expected_center).norm() < EPSILON);
             }
         }
         WHEN("Circle fit is called on the middle four points") {
             Vec2d result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample.cbegin()+2, sample.cbegin()+6);
+            result_center = Geometry::circle_center_taubin_newton(sample.cbegin()+2, sample.cbegin()+6);
             THEN("A center point of 3,9 is returned.") {
-                REQUIRE(result_center == expected_center);
+                REQUIRE((result_center - expected_center).norm() < EPSILON);
             }
         }
     }
@@ -232,21 +230,21 @@ SCENARIO("Circle Fit, TaubinFit with Newton's method") {
 
         WHEN("Circle fit is called on the entire array") {
             Point result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample);
+            result_center = Geometry::circle_center_taubin_newton(sample);
             THEN("A center point of scaled 3,9 is returned.") {
                 REQUIRE(result_center.coincides_with_epsilon(expected_center));
             }
         }
         WHEN("Circle fit is called on the first four points") {
             Point result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample.cbegin(), sample.cbegin()+4);
+            result_center = Geometry::circle_center_taubin_newton(sample.cbegin(), sample.cbegin()+4);
             THEN("A center point of scaled 3,9 is returned.") {
                 REQUIRE(result_center.coincides_with_epsilon(expected_center));
             }
         }
         WHEN("Circle fit is called on the middle four points") {
             Point result_center(0,0);
-            result_center = Geometry::circle_taubin_newton(sample.cbegin()+2, sample.cbegin()+6);
+            result_center = Geometry::circle_center_taubin_newton(sample.cbegin()+2, sample.cbegin()+6);
             THEN("A center point of scaled 3,9 is returned.") {
                 REQUIRE(result_center.coincides_with_epsilon(expected_center));
             }
@@ -285,7 +283,7 @@ SCENARIO("Line distances"){
 
 SCENARIO("Polygon convex/concave detection"){
     GIVEN(("A Square with dimension 100")){
-        Polygon square/*new_scale*/{ std::vector<Point>{
+        Slic3r::Polygon square/*new_scale*/{ std::vector<Point>{
             Point{100,100},
             Point{200,100},
             Point{200,200},
@@ -301,7 +299,7 @@ SCENARIO("Polygon convex/concave detection"){
         }
     }
     GIVEN("A Square with an extra colinearvertex"){
-        Polygon square /*new_scale*/{ std::vector<Point>{
+        Slic3r::Polygon square /*new_scale*/{ std::vector<Point>{
             Point{150,100},
             Point{200,100},
             Point{200,200},
@@ -313,7 +311,7 @@ SCENARIO("Polygon convex/concave detection"){
         }
     }
     GIVEN("A Square with an extra collinear vertex in different order"){
-        Polygon square = Polygon /*new_scale*/{ std::vector<Point>{
+        Slic3r::Polygon square /*new_scale*/{ std::vector<Point>{
             Point{200,200},
             Point{100,200},
             Point{100,100},
@@ -326,7 +324,7 @@ SCENARIO("Polygon convex/concave detection"){
     }
 
     GIVEN("A triangle"){
-        Polygon triangle{ std::vector<Point>{
+        Slic3r::Polygon triangle{ std::vector<Point>{
             Point{16000170,26257364},
             Point{714223,461012},
             Point{31286371,461008}
@@ -338,7 +336,7 @@ SCENARIO("Polygon convex/concave detection"){
     }
 
     GIVEN("A triangle with an extra collinear point"){
-        Polygon triangle{ std::vector<Point>{
+        Slic3r::Polygon triangle{ std::vector<Point>{
             Point{16000170,26257364},
             Point{714223,461012},
             Point{20000000,461012},
@@ -352,7 +350,7 @@ SCENARIO("Polygon convex/concave detection"){
     GIVEN("A polygon with concave vertices with angles of specifically 4/3pi"){
         // Two concave vertices of this polygon have angle = PI*4/3, so this test fails
         // if epsilon is not used.
-        Polygon polygon{ std::vector<Point>{
+        Slic3r::Polygon polygon{ std::vector<Point>{
             Point{60246458,14802768},Point{64477191,12360001},
             Point{63727343,11060995},Point{64086449,10853608},
             Point{66393722,14850069},Point{66034704,15057334},
@@ -370,7 +368,7 @@ SCENARIO("Polygon convex/concave detection"){
 }
 
 TEST_CASE("Triangle Simplification does not result in less than 3 points"){
-    Polygon triangle{ std::vector<Point>{
+    Slic3r::Polygon triangle{ std::vector<Point>{
         Point{16000170,26257364}, Point{714223,461012}, Point{31286371,461008}
     } };
     REQUIRE(triangle.simplify(250000).at(0).points.size() == 3);

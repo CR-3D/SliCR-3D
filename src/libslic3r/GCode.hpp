@@ -187,7 +187,7 @@ public:
     // For Perl bindings, to be used exclusively by unit tests.
     unsigned int    layer_count() const { return m_layer_count; }
     void            set_layer_count(unsigned int value) { m_layer_count = value; }
-    void            apply_print_config(const PrintConfig &print_config);
+    void            apply_print_configs(const Print &print);
 
     // append full config to the given string
     static void append_full_config(const Print& print, std::string& str);
@@ -214,6 +214,7 @@ private:
         // It is being set to null inside process_layers(), because the find-replace process
         // is being called on a secondary thread to improve performance.
         void set_find_replace(GCodeFindReplace *find_replace, bool enabled) { m_find_replace_backup = find_replace; m_find_replace = enabled ? find_replace : nullptr; }
+        void set_only_ascii(bool only_ascii) { m_only_ascii = only_ascii; }
         void find_replace_enable() { m_find_replace = m_find_replace_backup; }
         void find_replace_supress() { m_find_replace = nullptr; }
 
@@ -239,14 +240,15 @@ private:
         FILE             *f { nullptr };
         // Find-replace post-processor to be called before GCodePostProcessor.
         GCodeFindReplace *m_find_replace { nullptr };
+        bool              m_only_ascii;
         // If suppressed, the backoup holds m_find_replace.
         GCodeFindReplace *m_find_replace_backup { nullptr };
         GCodeProcessor   &m_processor;
         GCode            &m_gcodegen;
     };
     void            _do_export(Print &print, GCodeOutputStream &file, ThumbnailsGeneratorCallback thumbnail_cb);
-
-    void            _init_multiextruders(const Print& print, GCodeOutputStream& file, GCodeWriter& writer, const ToolOrdering& tool_ordering, const std::string& custom_gcode);
+    void            _move_to_print_object(std::string& gcode_out, const Print& print, size_t finished_objects, uint16_t initial_extruder_id);
+    void            _init_multiextruders(const Print& print, std::string& gcode_out, GCodeWriter& writer, const ToolOrdering& tool_ordering, const std::string& custom_gcode);
 
     static std::vector<LayerToPrint>                                   collect_layers_to_print(const PrintObject &object, Print::StatusMonitor &status_monitor);
     static std::vector<std::pair<coordf_t, std::vector<LayerToPrint>>> collect_layers_to_print(const Print &print, Print::StatusMonitor &status_monitor);
@@ -273,6 +275,7 @@ private:
         const ToolOrdering                                                  &tool_ordering,
         const std::vector<const PrintInstance*>                             &print_object_instances_ordering,
         const std::vector<std::pair<coordf_t, std::vector<LayerToPrint>>>   &layers_to_print,
+        std::string                                                         &preamble,
         GCodeOutputStream                                                   &output_stream);
     // Process all layers of a single object instance (sequential mode) with a parallel pipeline:
     // Generate G-code, run the filters (vase mode, cooling buffer), run the G-code analyser
@@ -283,6 +286,7 @@ private:
         const ToolOrdering                      &tool_ordering,
         std::vector<LayerToPrint>                layers_to_print,
         const size_t                             single_object_idx,
+        std::string                             &preamble,
         GCodeOutputStream                       &output_stream);
 
     void            set_last_pos(const Point &pos) { m_last_pos = pos; m_last_pos_defined = true; }
@@ -382,7 +386,7 @@ private:
     std::string     extrude_perimeters(const Print &print, const std::vector<ObjectByExtruder::Island::Region> &by_region);
     std::string     extrude_infill(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region, bool is_infill_first);
     std::string     extrude_ironing(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region);
-    std::string     extrude_support(const ExtrusionEntityCollection &support_fills);
+    std::string     extrude_support(const ExtrusionEntitiesPtr &support_fills);
 
     Polyline        travel_to(std::string& gcode, const Point &point, ExtrusionRole role);
     void            write_travel_to(std::string& gcode, const Polyline& travel, std::string comment);
@@ -491,6 +495,7 @@ private:
     std::string m_gcode_label_objects_start;
     std::string m_gcode_label_objects_end;
     void _add_object_change_labels(std::string &gcode);
+    std::map<std::string, std::string> raw_str_to_objectid_str;
 
     bool m_silent_time_estimator_enabled;
 
@@ -500,6 +505,8 @@ private:
     //some post-processing on the file, with their data class
     std::unique_ptr<FanMover> m_fan_mover;
 
+    std::function<void()> m_throw_if_canceled = [](){};
+
     std::string _extrude(const ExtrusionPath &path, const std::string &description, double speed = -1);
     void _extrude_line(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string& comment);
     void _extrude_line_cut_corner(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string& comment, Point& last_pos, const double path_width);
@@ -507,8 +514,8 @@ private:
     double_t    _compute_speed_mm_per_sec(const ExtrusionPath& path, double speed = -1);
     std::string _after_extrude(const ExtrusionPath &path);
     void print_machine_envelope(GCodeOutputStream &file, const Print &print);
-    void _print_first_layer_bed_temperature(GCodeOutputStream &file, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
-    void _print_first_layer_extruder_temperatures(GCodeOutputStream &file, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
+    void _print_first_layer_bed_temperature(std::string &out, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
+    void _print_first_layer_extruder_temperatures(std::string &out, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
     // On the first printing layer. This flag triggers first layer speeds.
     bool                                on_first_layer() const { return m_layer != nullptr && m_layer->id() == 0; }
     // To control print speed of 1st object layer over raft interface.

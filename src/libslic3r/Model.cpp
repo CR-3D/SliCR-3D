@@ -167,7 +167,7 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
     CustomGCode::update_custom_gcode_per_print_z_from_config(model.custom_gcode_per_print_z, config);
     CustomGCode::check_mode_for_custom_gcode_per_print_z(model.custom_gcode_per_print_z);
 
-    sort_remove_duplicates(config_substitutions->substitutions);
+    config_substitutions->sort_and_remove_duplicates();
     return model;
 }
 
@@ -752,7 +752,7 @@ bool ModelObject::equals(const ModelObject& rhs) {
 //    return new ModelObject(parent, *this, true);
 //}
 
-ModelVolume* ModelObject::add_volume(const TriangleMesh &mesh, bool centered /*= true*/)
+ModelVolume* ModelObject::add_volume(const TriangleMesh &mesh, ModelVolumeType type /*= ModelVolumeType::MODEL_PART*/, bool centered /*= true*/)
 {
     ModelVolume* v = new ModelVolume(this, mesh);
     this->volumes.push_back(v);
@@ -1752,9 +1752,9 @@ int ModelVolume::extruder_id() const
     int extruder_id = -1;
     if (this->is_model_part()) {
         const ConfigOption *opt = this->config.option("extruder");
-        if ((opt == nullptr) || (opt->getInt() == 0))
+        if ((opt == nullptr) || (opt->get_int() == 0))
             opt = this->object->config.option("extruder");
-        extruder_id = (opt == nullptr) ? 0 : opt->getInt();
+        extruder_id = (opt == nullptr) ? 0 : opt->get_int();
     }
     return extruder_id;
 }
@@ -1773,8 +1773,10 @@ void ModelVolume::center_geometry_after_creation(bool update_source_offset)
     Vec3d shift = this->mesh().bounding_box().center();
     if (!shift.isApprox(Vec3d::Zero()))
     {
-    	if (m_mesh)
+    	if (m_mesh) {
         	const_cast<TriangleMesh*>(m_mesh.get())->translate(-(float)shift(0), -(float)shift(1), -(float)shift(2));
+            const_cast<TriangleMesh*>(m_mesh.get())->set_init_shift(shift);
+        }
         if (m_convex_hull)
 			const_cast<TriangleMesh*>(m_convex_hull.get())->translate(-(float)shift(0), -(float)shift(1), -(float)shift(2));
         translate(shift);

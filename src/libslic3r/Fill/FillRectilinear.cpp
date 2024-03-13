@@ -761,7 +761,7 @@ FillRectilinear::init_spacing(coordf_t spacing, const FillParams& params)
     //remove this code path becaus it's only really useful for squares at 45° and it override a setting
     // define flow spacing according to requested density
     //if (params.full_infill() && !params.dont_adjust) {
-    //    this->spacing = unscaled(this->_adjust_solid_spacing(bounding_box.size()(0), _line_spacing_for_density(params.density)));
+    //    this->spacing = unscaled(this->_adjust_solid_spacing(bounding_box.size()(0), _line_spacing_for_density(params)));
     //}
 }
 
@@ -2932,7 +2932,7 @@ bool FillRectilinear::fill_surface_by_lines(const Surface *surface, const FillPa
     rotate_vector.first += angleBase;
 
     assert(params.density > 0.0001f);
-    coord_t line_spacing = _line_spacing_for_density(params.density);
+    coord_t line_spacing = _line_spacing_for_density(params);
 
     // On the polygons of poly_with_offset, the infill lines will be connected.
     ExPolygonWithOffset poly_with_offset(
@@ -2983,6 +2983,9 @@ bool FillRectilinear::fill_surface_by_lines(const Surface *surface, const FillPa
 
     // Intersect a set of equally spaced vertical lines with expolygon.
     std::vector<SegmentedIntersectionLine> segs = _vert_lines_for_polygon(poly_with_offset, bounding_box, params, line_spacing);
+
+    if (segs.empty())
+        return false;
 
     slice_region_by_vertical_lines(this, segs, poly_with_offset);
 
@@ -3138,7 +3141,7 @@ bool FillRectilinear::fill_surface_by_multilines(const Surface *surface, FillPar
 
     Polylines fill_lines;
     coord_t line_width = scale_t(this->get_spacing());
-    coord_t line_spacing = scale_t(this->get_spacing() / params.density);
+    coord_t line_spacing = _line_spacing_for_density(params);
     std::pair<float, Point> rotate_vector = this->_infill_direction(surface);
     for (const SweepParams& sweep : sweep_params) {
         // Rotate polygons so that we can work with vertical lines here
@@ -3209,7 +3212,7 @@ Polylines FillStars::fill_surface(const Surface *surface, const FillParams &para
     Polylines polylines_out;
     if (!this->fill_surface_by_multilines(
         surface, params,
-        { { 0.f, 0.f }, { float(M_PI / 3.), 0.f }, { float(2. * M_PI / 3.), float((3. / 2.) * this->get_spacing() / params.density) } },
+        { { 0.f, 0.f }, { float(M_PI / 3.), 0.f }, { float(2. * M_PI / 3.), float((3. / 2.) * unscaled(_line_spacing_for_density(params))) } },
         polylines_out))
         BOOST_LOG_TRIVIAL(error) << "FillStars::fill_surface() failed to fill a region.";
     return polylines_out;
@@ -3236,7 +3239,7 @@ Polylines FillSupportBase::fill_surface(const Surface *surface, const FillParams
     ExPolygonWithOffset poly_with_offset(surface->expolygon, - rotate_vector.first, scale_t(this->overlap - 0.5 * this->get_spacing()));
     if (poly_with_offset.n_contours > 0) {
         Polylines fill_lines;
-        coord_t line_spacing = scale_t(this->get_spacing() / params.density);
+        coord_t line_spacing = _line_spacing_for_density(params);
         // Create infill lines, keep them vertical.
         make_fill_lines(poly_with_offset, rotate_vector.second.rotated(- rotate_vector.first), 0, 0, line_spacing, 0, fill_lines, params);
         // Both the poly_with_offset and polylines_out are rotated, so the infill lines are strictly vertical.
@@ -3271,14 +3274,14 @@ float FillScatteredRectilinear::_layer_angle(size_t idx) const
     return randomFloatFromSeed((uint32_t) idx) * (float) M_PI;
 }
 
-coord_t FillScatteredRectilinear::_line_spacing_for_density(float density) const
+coord_t FillScatteredRectilinear::_line_spacing_for_density(const FillParams& params) const
 {
     /* The density argument is ignored, we first generate lines at 100% density, then prune some generated lines
      * later to achieve the target density
      */
-    (void) density;
-
-    return coord_t(scale_(this->get_spacing()) / 1.0);
+    if(params.max_sparse_infill_spacing > 0)
+        return scale_t(params.max_sparse_infill_spacing);
+    return scale_t(this->get_spacing());
 }
 
 Polylines FillScatteredRectilinear::fill_surface(const Surface *surface, const FillParams &params) const
@@ -3488,35 +3491,6 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
     }
     ExPolygons unextruded_areas;
     if (!polylines_rectilinear.empty()) {
-        double flow_mult_exact_volume = 1;
-        //check if not over-extruding
-        if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly) {
-            // compute the path of the nozzle -> extruded volume
-            double length_tot = 0;
-            int nb_lines = 0;
-            for (const Polyline &pline : polylines_rectilinear) {
-                Lines lines = pline.lines();
-                for (auto line = lines.begin(); line != lines.end(); ++line) {
-                    length_tot += unscaled(line->length());
-                    nb_lines++;
-                }
-            }
-            //compute flow to remove spacing_ratio from the equation
-            double extruded_volume = 0;
-            if (params.flow.spacing_ratio() < 1.f && !params.flow.bridge()) {
-                // the spacing is larger than usual. get the flow from the current spacing
-                Flow test_flow = Flow::new_from_spacing(params.flow.spacing(), params.flow.nozzle_diameter(), params.flow.height(), 1, params.flow.bridge());
-                extruded_volume = test_flow.mm3_per_mm() * length_tot;
-            } else
-                extruded_volume = params.flow.mm3_per_mm() * length_tot;
-            // compute real volume
-            double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
-            if (extruded_volume != 0 && polyline_volume != 0) flow_mult_exact_volume = polyline_volume / extruded_volume;
-            //failsafe, it can happen
-            if (flow_mult_exact_volume > 1.3) flow_mult_exact_volume = 1.3;
-            if (flow_mult_exact_volume < 0.8) flow_mult_exact_volume = 0.8;
-            BOOST_LOG_TRIVIAL(info) << "Infill (without gapfil) process extrude " << extruded_volume << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by " << flow_mult_exact_volume;
-        }
 
         //Create extrusions
         ExtrusionEntityCollection *eec = new ExtrusionEntityCollection();
@@ -3528,11 +3502,12 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
             eec->set_can_sort_reverse(!this->no_sort(), !this->no_sort());
 
         extrusion_entities_append_paths(
-            eec->set_entities(), polylines_rectilinear,
+            *eec, polylines_rectilinear,
             good_role,
-            params.flow.mm3_per_mm() * params.flow_mult * flow_mult_exact_volume,
-            params.flow.width() * params.flow_mult * float(flow_mult_exact_volume),
-            params.flow.height());
+            params.flow.mm3_per_mm() * params.flow_mult,
+            params.flow.width() * params.flow_mult,
+            params.flow.height(),
+            !is_monotonic());
 
         coll_nosort->append(ExtrusionEntitiesPtr{ eec });
 
@@ -3556,6 +3531,32 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
         params2.role = good_role;
 
         do_gap_fill(intersection_ex(gapfill_areas, no_overlap_expolygons), params2, coll_nosort->set_entities());
+    }
+
+    
+    // check volume coverage
+    {
+        double flow_mult_exact_volume = 1;
+        // check if not over-extruding
+        if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly) {
+            // compute the path of the nozzle -> extruded volume
+            double extruded_volume = ExtrusionVolume{}.get(*coll_nosort);
+            // compute flow to remove spacing_ratio from the equation
+            // compute real volume to fill
+            double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
+            if (extruded_volume != 0 && polyline_volume != 0)
+                flow_mult_exact_volume = polyline_volume / extruded_volume;
+            // failsafe, it can happen
+            if (flow_mult_exact_volume > 1.3)
+                flow_mult_exact_volume = 1.3;
+            if (flow_mult_exact_volume < 0.8)
+                flow_mult_exact_volume = 0.8;
+            BOOST_LOG_TRIVIAL(info) << "rectilinear/monotonic Infill (with gapfil) process extrude " << extruded_volume
+                                    << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by "
+                                    << flow_mult_exact_volume;
+            //apply to extrusions
+            ExtrusionModifyFlow{flow_mult_exact_volume}.set(*coll_nosort);
+        }
     }
 
     // === end ===

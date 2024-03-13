@@ -1,6 +1,7 @@
 #include "FanMover.hpp"
 
 #include "GCodeReader.hpp"
+#include "LocalesUtils.hpp"
 
 #include <iomanip>
 /*
@@ -33,8 +34,7 @@ const std::string& FanMover::process_gcode(const std::string& gcode, bool flush)
 
     if (flush) {
         while (!m_buffer.empty()) {
-            m_process_output += m_buffer.front().raw + "\n";
-            remove_from_buffer(m_buffer.begin());
+            write_buffer_data();
         }
     }
 
@@ -66,16 +66,12 @@ float get_axis_value(const std::string& line, char axis)
 
 void change_axis_value(std::string& line, char axis, const float new_value, const int decimal_digits)
 {
-
-    std::ostringstream ss;
-    ss << std::fixed << std::setprecision(decimal_digits) << new_value;
-
     char match[3] = " X";
     match[1] = axis;
 
     size_t pos = line.find(match) + 2;
     size_t end = std::min(line.find(' ', pos + 1), line.find(';', pos + 1));
-    line = line.replace(pos, end - pos, ss.str());
+    line = line.replace(pos, end - pos, to_string_nozero(new_value, decimal_digits));
 }
 
 int16_t get_fan_speed(const std::string &line, GCodeFlavor flavor) {
@@ -95,12 +91,18 @@ int16_t get_fan_speed(const std::string &line, GCodeFlavor flavor) {
 
 }
 
-void FanMover::_put_in_middle_G1(std::list<BufferData>::iterator item_to_split, float nb_sec_since_itemtosplit_start, BufferData &&line_to_write) {
+void FanMover::_put_in_middle_G1(std::list<BufferData>::iterator item_to_split, float nb_sec_since_itemtosplit_start, BufferData &&line_to_write, float max_time) {
     assert(item_to_split != m_buffer.end());
-    if (nb_sec_since_itemtosplit_start > item_to_split->time * 0.9) {
+    // if the fan is at the end of the g1 and the diff is less than 10% of the delay, then don't bother
+    if (nb_sec_since_itemtosplit_start > item_to_split->time * 0.9 && (item_to_split->time - nb_sec_since_itemtosplit_start) < max_time * 0.1) {
         // doesn't really need to be split, print it after
         m_buffer.insert(next(item_to_split), line_to_write);
-    } else if (nb_sec_since_itemtosplit_start < item_to_split->time * 0.1) {
+    } else 
+        // does it need to be split?
+        // if it's almost at the start of the g1, and the time "lost" is less than 10%
+        if (nb_sec_since_itemtosplit_start < item_to_split->time * 0.1 && nb_sec_since_itemtosplit_start < max_time * 0.1 &&
+        // and the previous isn't a fan value
+        (item_to_split == m_buffer.begin() || std::prev(item_to_split)->fan_speed < 0)) {
         // doesn't really need to be split, print it before
         //will also print before if line_to_split.time == 0
         m_buffer.insert(item_to_split, line_to_write);
@@ -212,8 +214,11 @@ void FanMover::_remove_slow_fan(int16_t min_speed, float past_sec) {
 }
 
 std::string FanMover::_set_fan(int16_t speed) {
-    const Tool* tool = m_writer.get_tool(m_currrent_extruder < 20 ? m_currrent_extruder : 0);
-    return GCodeWriter::set_fan(m_writer.config.gcode_flavor.value, m_writer.config.gcode_comments.value, speed, tool ? tool->fan_offset() : 0, m_writer.config.fan_percentage.value);
+    const Tool* tool = m_writer.get_tool(m_current_extruder < 20 ? m_current_extruder : 0);
+    std::string str = GCodeWriter::set_fan(m_writer.config.gcode_flavor.value, m_writer.config.gcode_comments.value, speed, tool ? tool->fan_offset() : 0, m_writer.config.fan_percentage.value);
+    if(!str.empty() && str.back() == '\n')
+        return str.substr(0,str.size()-1);
+    return str;
 }
 
 
@@ -249,10 +254,48 @@ void FanMover::_process_T(const std::string_view command)
 
             // T-1 is a valid gcode line for RepRap Firmwares (used to deselects all tools) see https://github.com/prusa3d/PrusaSlicer/issues/5677
             if ((flavor != gcfRepRap && flavor != gcfSprinter) || eid != -1)
-                m_currrent_extruder = static_cast<uint16_t>(0);
+                m_current_extruder = static_cast<uint16_t>(0);
         } else {
-            m_currrent_extruder = static_cast<uint16_t>(eid);
+            m_current_extruder = static_cast<uint16_t>(eid);
         }
+    }
+}
+
+
+void FanMover::_process_ACTIVATE_EXTRUDER(const std::string_view cmd)
+{
+    if (size_t cmd_end = cmd.find("ACTIVATE_EXTRUDER"); cmd_end != std::string::npos) {
+        bool   error              = false;
+        size_t extruder_pos_start = cmd.find("EXTRUDER", cmd_end + std::string_view("ACTIVATE_EXTRUDER").size()) + std::string_view("EXTRUDER").size();
+        assert(cmd[extruder_pos_start - 1] == 'R');
+        if (extruder_pos_start != std::string::npos) {
+            //remove next char until '-' or [0-9]
+            while (extruder_pos_start < cmd.size() && (cmd[extruder_pos_start] == ' ' || cmd[extruder_pos_start] == '=' || cmd[extruder_pos_start] == '\t'))
+                ++extruder_pos_start;
+            size_t extruder_pos_end = extruder_pos_start + 1;
+            while (extruder_pos_end < cmd.size() && cmd[extruder_pos_end] != ' ' && cmd[extruder_pos_end] != '\t' && cmd[extruder_pos_end] != '\r' && cmd[extruder_pos_end] != '\n')
+                ++extruder_pos_end;
+            std::string_view extruder_name = cmd.substr(extruder_pos_start, extruder_pos_end-extruder_pos_start);
+            // we have a "name". It may be whatever or "extruder" + X
+            for (const Extruder &extruder : m_writer.extruders()) {
+                if (m_writer.config.tool_name.values[extruder.id()] == extruder_name) {
+                    m_current_extruder = static_cast<uint16_t>(extruder.id());
+                    return;
+                }
+            }
+            std::string extruder_str("extruder");
+            if (extruder_str == extruder_name) {
+                m_current_extruder = static_cast<uint16_t>(0);
+                return;
+            }
+            for (const Extruder &extruder : m_writer.extruders()) {
+                if (extruder_str + std::to_string(extruder.id()) == extruder_name) {
+                    m_current_extruder = static_cast<uint16_t>(extruder.id());
+                    return;
+                }
+            }
+        }
+        BOOST_LOG_TRIVIAL(error) << "invalid ACTIVATE_EXTRUDER gcode command: '" << cmd << "', ignored by the fam mover post-process.";
     }
 }
 
@@ -267,6 +310,9 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
         if (line.has_f())
             m_current_speed = line.f() / 60.0f;
         switch (::toupper(cmd[0])) {
+        case 'A':
+            _process_ACTIVATE_EXTRUDER(line.raw());
+                break;
         case 'T':
         case 't':
             _process_T(cmd);
@@ -282,6 +328,15 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
                     dist = std::sqrt(dist);
                     time = dist / m_current_speed;
                 }
+            } else if (::atoi(&cmd[1]) == 2 || ::atoi(&cmd[1]) == 3) {
+                // TODO: compute real dist
+                double distx = line.dist_X(reader);
+                double disty = line.dist_Y(reader);
+                double dist = distx * distx + disty * disty;
+                if (dist > 0) {
+                    dist = std::sqrt(dist);
+                    time = dist / m_current_speed;
+                }
             }
             break;
         }
@@ -291,11 +346,18 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
             if (fan_speed >= 0) {
                 const auto fan_baseline = (m_writer.config.fan_percentage.value ? 100.0 : 255.0);
                 fan_speed = 100 * fan_speed / fan_baseline;
-                //speed change: stop kickstart reverting if any
-                m_current_kickstart.time = -1;
                 if (!m_is_custom_gcode) {
                     // if slow down => put in the queue. if not =>
-                    if (m_back_buffer_fan_speed < fan_speed) {
+                    if (m_current_kickstart.time > 0) {
+                        assert(m_back_buffer_fan_speed == m_current_kickstart.fan_speed);
+                    }
+                    if (m_back_buffer_fan_speed >= fan_speed) {
+                        if (m_current_kickstart.time > 0) {
+                            // stop kiskstart, and slow down
+                            m_current_kickstart.time = -1;
+                            //this fan speed will be printed, to make and end to the kickstart
+                        }
+                    } else {
                         if (nb_seconds_delay > 0 && (!only_overhangs || current_role == ExtrusionRole::erOverhangPerimeter)) {
                             //don't put this command in the queue
                             time = -1;
@@ -327,7 +389,7 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
                                     time_count -= it->time;
                                     if (time_count< 0) {
                                         //found something that is lower than us
-                                        _put_in_middle_G1(it, it->time + time_count, BufferData(std::string(line.raw()), 0, fan_speed, true));
+                                        _put_in_middle_G1(it, it->time + time_count, BufferData(std::string(line.raw()), 0, fan_speed, true), nb_seconds_delay);
                                         //found, stop
                                         break;
                                     }
@@ -433,17 +495,27 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
         }
         if (line.has(Axis::E)) {
             new_data.e = reader.e();
-            if (relative_e)
+            if (relative_e) {
                 new_data.de = line.e();
-            else
+                // GCode reader doesn't know it's relative extrusion, we have to do it ourself.
+                //assert(new_data.e == 0);
+                new_data.e = 0;
+            } else
                 new_data.de = line.dist_E(reader);
         }
+        assert(new_data.dx == 0 || reader.x() == new_data.x);
+        assert(new_data.dx == 0 || std::abs(reader.x() + new_data.dx - line.x()) < 0.00001f);
+        assert(new_data.dy == 0 || reader.y() == new_data.y);
+        assert(new_data.dy == 0 || std::abs(reader.y() + new_data.dy - line.y()) < 0.00001f);
+        assert(new_data.de == 0 || (relative_e?0:reader.e()) == new_data.e);
+        assert(new_data.de == 0 || std::abs((relative_e?0.f:reader.e()) + new_data.de - line.e()) < 0.00001f);
+        //assert(new_data.de == 0 ||(relative_e?0.f:reader.e()) + new_data.de == line.e());
 
         if (m_current_kickstart.time > 0 && time > 0) {
             m_current_kickstart.time -= time;
             if (m_current_kickstart.time < 0) {
                 //prev is possible because we just do a emplace_back.
-                _put_in_middle_G1(prev(m_buffer.end()), time + m_current_kickstart.time, BufferData{ m_current_kickstart.raw, 0, m_current_kickstart.fan_speed, true });
+                _put_in_middle_G1(prev(m_buffer.end()), time + m_current_kickstart.time, BufferData{ m_current_kickstart.raw, 0, m_current_kickstart.fan_speed, true }, kickstart);
             }
         }
     }/* else {
@@ -472,28 +544,34 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
     //if buffer too big, flush it.
     if (time >= 0) {
         while (!m_buffer.empty() && (need_flush || m_buffer_time_size - m_buffer.front().time > nb_seconds_delay - EPSILON) ){
-            BufferData& frontdata = m_buffer.front();
-            if (frontdata.fan_speed < 0 || frontdata.fan_speed != m_front_buffer_fan_speed || frontdata.is_kickstart) {
-                if (frontdata.is_kickstart && frontdata.fan_speed < m_front_buffer_fan_speed) {
-                    //you have to slow down! not kickstart! rewrite the fan speed.
-                    m_process_output += _set_fan(frontdata.fan_speed);//m_writer.set_fan(frontdata.fan_speed,true); //FIXME extruder id (or use the gcode writer, but then you have to disable the multi-thread thing
-                        
-                    m_front_buffer_fan_speed = frontdata.fan_speed;
-                } else {
-                    m_process_output += frontdata.raw + "\n";
-                    if (frontdata.fan_speed >= 0) {
-                        //note that this is the only place where the fan_speed is set and we print from the buffer, as if the fan_speed >= 0 => time == 0
-                        //and as this flush all time == 0 lines from the back of the queue...
-                        m_front_buffer_fan_speed = frontdata.fan_speed;
-                    }
-                }
-            }
-            remove_from_buffer(m_buffer.begin());
+            write_buffer_data();
         }
     }
+#if _DEBUG
     double sum = 0;
     for (auto& data : m_buffer) sum += data.time;
     assert( std::abs(m_buffer_time_size - sum) < 0.01);
+#endif
+}
+
+void FanMover::write_buffer_data()
+{
+    BufferData &frontdata = m_buffer.front();
+    if (frontdata.fan_speed < 0 || frontdata.fan_speed != m_front_buffer_fan_speed || frontdata.is_kickstart) {
+        if (frontdata.is_kickstart && frontdata.fan_speed < m_front_buffer_fan_speed) {
+            // you have to slow down! not kickstart! rewrite the fan speed.
+            m_process_output += _set_fan(frontdata.fan_speed) + "\n";
+            m_front_buffer_fan_speed = frontdata.fan_speed;
+        } else {
+            m_process_output += frontdata.raw + "\n";
+            if (frontdata.fan_speed >= 0 || frontdata.is_kickstart) {
+                // note that this is the only place where the fan_speed is set and we print from the buffer, as if the
+                // fan_speed >= 0 => time == 0 and as this flush all time == 0 lines from the back of the queue...
+                m_front_buffer_fan_speed = frontdata.is_kickstart ? 100 : frontdata.fan_speed;
+            }
+        }
+    }
+    remove_from_buffer(m_buffer.begin());
 }
 
 } // namespace Slic3r

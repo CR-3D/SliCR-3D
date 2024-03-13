@@ -232,7 +232,7 @@ SliceParams get_slice_params(const DynamicPrintConfig &cfg)
     if (!opt_layerh || !opt_init_layerh)
         throw MissingProfileError("Invalid SL1 / SL1S file");
 
-    return SliceParams{opt_layerh->getFloat(), opt_init_layerh->getFloat()};
+    return SliceParams{opt_layerh->get_float(), opt_init_layerh->get_float()};
 }
 
 std::vector<ExPolygons> extract_slices_from_sla_archive(
@@ -400,7 +400,7 @@ void fill_iniconf(ConfMap &m, const SLAPrint &print)
     double used_material = (stats.objects_used_material +
                             stats.support_used_material) / 1000;
     
-    int num_fade = print.default_object_config().faded_layers.getInt();
+    int num_fade = print.default_object_config().faded_layers.get_int();
     num_fade = num_fade >= 0 ? num_fade : 0;
     
     m["usedMaterial"] = std::to_string(used_material);

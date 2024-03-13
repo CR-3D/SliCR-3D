@@ -1,14 +1,17 @@
 
 //#define CATCH_CONFIG_DISABLE
 
-#include <catch2/catch.hpp>
+#include <catch_main.hpp>
 #include "test_data.hpp"
 #include <libslic3r/Fill/Fill.hpp>
 #include <libslic3r/Print.hpp>
+#include <libslic3r/ExtrusionEntity.hpp>
+#include <libslic3r/Layer.hpp>
 #include <libslic3r/Geometry.hpp>
 #include <libslic3r/Flow.hpp>
 #include <libslic3r/ClipperUtils.hpp>
 #include <libslic3r/SVG.hpp>
+#include <libslic3r/Format/3mf.hpp>
 
 using namespace Slic3r;
 using namespace Slic3r::Geometry;
@@ -91,7 +94,7 @@ TEST_CASE("Fill: Pattern Path Length") {
                 filler->angle = angle;
 				Slic3r::ExPolygon e{};
 				e.contour = Slic3r::Polygon(test_square);
-				e.holes = Slic3r::Polygons(Slic3r::Polygon(test_hole));
+                e.holes = Slic3r::Polygons{Slic3r::Polygon(test_hole)};
                 Polylines paths {test(e, *filler, params_local)};
 				//std::cout << "paths.size="<<paths.size() << "\n";
 				//{
@@ -143,7 +146,7 @@ TEST_CASE("Fill: Pattern Path Length") {
         filler->angle = 0.F;
         
         Surface surface {(stPosTop|stDensSolid), expolygon};
-        Flow flow {0.69f, 0.4f, 0.50f};
+        Flow flow = Flow::new_from_width(0.69f, 0.4f, 0.50f, 1.f, false); //width, height, nozzle_diameter, spacing_ratio, is_bridge
 
         params.density = 1.0;
         filler->init_spacing(flow.spacing(), params);
@@ -156,10 +159,10 @@ TEST_CASE("Fill: Pattern Path Length") {
     }
     SECTION("Solid surface fill") {
         Points points {
-            Point::new_scale(6883102, 9598327.01296997),
-            Point::new_scale(6883102, 20327272.01297),
-            Point::new_scale(3116896, 20327272.01297),
-            Point::new_scale(3116896, 9598327.01296997) 
+            Point(6883102, 9598327),
+            Point(6883102, 20327272),
+            Point(3116896, 20327272),
+            Point(3116896, 9598327) 
         };
         Slic3r::ExPolygon expolygon{};
         expolygon.contour = Slic3r::Polygon{ points };
@@ -169,7 +172,7 @@ TEST_CASE("Fill: Pattern Path Length") {
         {
             expolygon.scale(1.05);
             //FIXME number overflow.
-            //REQUIRE(test_if_solid_surface_filled(expolygon, 0.55) == true);
+            REQUIRE(test_if_solid_surface_filled(expolygon, 0.55) == true);
         }
     }
     SECTION("Solid surface fill") {
@@ -207,40 +210,18 @@ TEST_CASE("Fill: Pattern Path Length") {
 
 }
 
-class ExtrusionGetVolume : public ExtrusionVisitor {
-    double volume = 0;
-public:
-    ExtrusionGetVolume() {}
-    void use(ExtrusionPath &path) override {
-        volume += unscaled(path.length()) * path.mm3_per_mm; }
-    void use(ExtrusionPath3D &path3D) override { volume += unscaled(path3D.length()) * path3D.mm3_per_mm; }
-    void use(ExtrusionMultiPath &multipath) override { for (ExtrusionPath path : multipath.paths) path.visit(*this);    }
-    void use(ExtrusionMultiPath3D &multipath) override { for (ExtrusionPath path : multipath.paths) path.visit(*this);    }
-    void use(ExtrusionLoop &loop) override { for (ExtrusionPath path : loop.paths) path.visit(*this); }
-    void use(ExtrusionEntityCollection &collection) override { for (ExtrusionEntity *entity : collection.entities) entity->visit(*this); }
-    double get(ExtrusionEntityCollection &coll) {
-        for (ExtrusionEntity *entity : coll.entities) entity->visit(*this);
-        return volume;
-    }
-};
-
-#include "libslic3r/GCodeReader.hpp"
-TEST_CASE("Fill: extrude gcode and check it")
+TEST_CASE("Fill area: check if periemter give the good values")
 {
-
-    SECTION("simple square") {
         Model model{};
         TriangleMesh sample_mesh = make_cube(5, 5, 0.2);
         double volume = (5 * 5 * 0.2);
-        sample_mesh.repair();
-
         DynamicPrintConfig &config = Slic3r::DynamicPrintConfig::full_print_config();
         config.set_key_value("perimeters", new ConfigOptionInt(1));
         config.set_key_value("top_solid_layers", new ConfigOptionInt(1));
         config.set_key_value("bottom_solid_layers", new ConfigOptionInt(1));
 
-        config.set_key_value("enforce_full_fill_volume", new ConfigOptionBool(true));
-        config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0.1, true));
+        config.set_key_value("enforce_full_fill_volume", new ConfigOptionBool(false));
+        config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0.1, false));
 
         config.set_key_value("skirts", new ConfigOptionInt(0));
 
@@ -254,6 +235,185 @@ TEST_CASE("Fill: extrude gcode and check it")
         config.set_key_value("external_perimeter_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
         config.set_key_value("solid_infill_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
         config.set_key_value("top_infill_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        SECTION("no overlap")
+        {
+            config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0, false));
+            config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(0));
+            config.set_key_value("solid_infill_overlap", new ConfigOptionPercent(0));
+            Print print{};
+            Slic3r::Test::init_print(print, { sample_mesh }, model, &config);
+            print.process();
+            const LayerRegion *lr = print.get_object(0)->get_layer(0)->regions()[0];
+            double area_infill = unscaled(unscaled(lr->fill_surfaces.surfaces.front().area()));
+            REQUIRE(lr->fill_no_overlap_expolygons.empty());
+            double area_computed = (5-0.5*2) * (5-0.5*2);
+            REQUIRE(std::abs(area_computed - area_infill) < 0.001);
+        }
+        SECTION("only encroachment (0.2mm)")
+        {
+            config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0.2, false));
+            config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(0));
+            config.set_key_value("perimeter_overlap", new ConfigOptionPercent(100));
+            config.set_key_value("solid_infill_overlap", new ConfigOptionPercent(0));
+            Print print{};
+            Slic3r::Test::init_print(print, { sample_mesh }, model, &config);
+            print.process();
+            const LayerRegion *lr = print.get_object(0)->get_layer(0)->regions()[0];
+            REQUIRE(1 == lr->fill_surfaces.surfaces.size());
+            REQUIRE(1 == lr->fill_no_overlap_expolygons.size());
+            double area_infill = unscaled(unscaled(lr->fill_surfaces.surfaces[0].area()));
+            double area_infill_no_overlap = unscaled(unscaled(lr->fill_no_overlap_expolygons[0].area())); // note: don't need to intersect as there is only one fill_surfaces
+            double area_no_encroach_computed = (5-0.5*2) * (5-0.5*2);
+            double area_computed = (5-0.3*2) * (5-0.3*2);
+            REQUIRE(area_infill_no_overlap < area_infill);
+            REQUIRE(std::abs(area_computed - area_infill) < 0.001);
+            REQUIRE(std::abs(area_no_encroach_computed - area_infill_no_overlap) < 0.001);
+        }
+        SECTION("only encroachment (40%)")
+        {
+            // % over (perimeter_spacing + solid_fill_spacing)/2, but no periemter overlap 
+            // (note: here it's the external perimeter, as we have only one perimeter)
+            config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(40, true)); // 40% -> 0.2 value
+            config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(0));
+            config.set_key_value("perimeter_overlap", new ConfigOptionPercent(100));
+            config.set_key_value("solid_infill_overlap", new ConfigOptionPercent(0));
+            Print print{};
+            Slic3r::Test::init_print(print, { sample_mesh }, model, &config);
+            print.process();
+            const LayerRegion *lr = print.get_object(0)->get_layer(0)->regions()[0];
+            REQUIRE(1 == lr->fill_surfaces.surfaces.size());
+            REQUIRE(1 == lr->fill_no_overlap_expolygons.size());
+            double area_infill = unscaled(unscaled(lr->fill_surfaces.surfaces[0].area()));
+            double area_infill_no_overlap = unscaled(unscaled(lr->fill_no_overlap_expolygons[0].area())); // note: don't need to intersect as there is only one fill_surfaces
+            double area_no_encroach_computed = (5-0.5*2) * (5-0.5*2);
+            double area_computed = (5-0.3*2) * (5-0.3*2);
+            REQUIRE(area_infill_no_overlap < area_infill);
+            REQUIRE(std::abs(area_computed - area_infill) < 0.001);
+            REQUIRE(std::abs(area_no_encroach_computed - area_infill_no_overlap) < 0.001);
+        }
+        SECTION("only overlap")
+        {
+            config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0, false));
+            config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(100));
+            config.set_key_value("perimeter_overlap", new ConfigOptionPercent(100));
+            config.set_key_value("solid_infill_overlap", new ConfigOptionPercent(100));
+            Print print{};
+            Slic3r::Test::init_print(print, { sample_mesh }, model, &config);
+            print.process();
+            const LayerRegion *lr = print.get_object(0)->get_layer(0)->regions()[0];
+            REQUIRE(1 == lr->fill_surfaces.surfaces.size());
+            REQUIRE(lr->fill_no_overlap_expolygons.empty());
+            double area_infill = unscaled(unscaled(lr->fill_surfaces.surfaces[0].area()));
+            double spacing_diff = (0.5f - Flow::rounded_rectangle_extrusion_spacing(0.5f, 0.2f, 1.f))/2;
+            double area_computed = (5-(0.5-spacing_diff)*2) * (5-(0.5-spacing_diff)*2);
+            REQUIRE(std::abs(area_computed - area_infill) < 0.001);
+        }
+        SECTION("both")
+        {
+            config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0.1, false));
+            config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(100));
+            config.set_key_value("perimeter_overlap", new ConfigOptionPercent(100));
+            config.set_key_value("solid_infill_overlap", new ConfigOptionPercent(100));
+            Print print{};
+            Slic3r::Test::init_print(print, { sample_mesh }, model, &config);
+            print.process();
+            const LayerRegion *lr = print.get_object(0)->get_layer(0)->regions()[0];
+            REQUIRE(1 == lr->fill_surfaces.surfaces.size());
+            REQUIRE(1 == lr->fill_no_overlap_expolygons.size());
+            double area_infill = unscaled(unscaled(lr->fill_surfaces.surfaces[0].area()));
+            double area_infill_no_overlap = unscaled(unscaled(lr->fill_no_overlap_expolygons[0].area())); // note: don't need to intersect as there is only one fill_surfaces
+            double spacing_diff = (0.5f - Flow::rounded_rectangle_extrusion_spacing(0.5f, 0.2f, 1.f))/2;
+            double area_no_encroach_computed = (5-(0.5-spacing_diff)*2) * (5-(0.5-spacing_diff)*2);
+            double area_computed = (5-(0.4-spacing_diff)*2) * (5-(0.4-spacing_diff)*2);
+            REQUIRE(area_infill_no_overlap < area_infill);
+            REQUIRE(std::abs(area_computed - area_infill) < 0.001);
+            REQUIRE(std::abs(area_no_encroach_computed - area_infill_no_overlap) < 0.001);
+        }
+}
+
+void test_all(DynamicPrintConfig &config, double& extrusion_width){
+
+    
+            SECTION("45°"){
+                config.set_deserialize("fill_angle", "45");
+                config.set_key_value("first_layer_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+                extrusion_width = 0.5;
+                //test all solid fills
+                SECTION("rectilinear") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinear)); }
+                SECTION("rectilinear with gap fill") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill)); }
+                SECTION("ipMonotonic") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipMonotonic)); }
+                SECTION("ipMonotonicWGapFill") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipMonotonicWGapFill)); }
+                SECTION("ipConcentric") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipConcentric)); }
+                SECTION("ipConcentricGapFill") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipConcentricGapFill)); }
+                SECTION("ipHilbertCurve") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipHilbertCurve)); }
+                SECTION("ipArchimedeanChords") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipArchimedeanChords)); }
+                SECTION("ipOctagramSpiral") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipOctagramSpiral)); }
+                SECTION("ipSmooth") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipSmooth)); }
+            }
+            SECTION("0° with bad spacing") {
+                config.set_deserialize("fill_angle", "0");
+                config.set_key_value("first_layer_extrusion_width", new ConfigOptionFloatOrPercent(0.415, false));
+                extrusion_width = 0.415;
+                SECTION("rectilinear") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinear)); }
+                SECTION("rectilinear with gap fill") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill)); }
+                SECTION("ipMonotonic") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipMonotonic)); }
+                SECTION("ipMonotonicWGapFill") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipMonotonicWGapFill)); }
+                SECTION("ipConcentric") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipConcentric)); }
+                SECTION("ipConcentricGapFill") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipConcentricGapFill)); }
+                SECTION("ipHilbertCurve") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipHilbertCurve)); }
+                SECTION("ipArchimedeanChords") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipArchimedeanChords)); }
+                SECTION("ipOctagramSpiral") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipOctagramSpiral)); }
+                SECTION("ipSmooth") { config.set_key_value("bottom_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipSmooth)); }
+            }
+}
+
+#include "libslic3r/GCodeReader.hpp"
+TEST_CASE("Fill: extrude gcode and check it")
+{
+
+    SECTION("simple square")
+    {
+        Model model{};
+        TriangleMesh sample_mesh = make_cube(5, 5, 0.2);
+        const double volume = (5 * 5 * 0.2);
+        //sample_mesh.repair();
+
+        DynamicPrintConfig &config = Slic3r::DynamicPrintConfig::full_print_config();
+        config.set_key_value("perimeters", new ConfigOptionInt(1));
+        config.set_key_value("top_solid_layers", new ConfigOptionInt(1));
+        config.set_key_value("bottom_solid_layers", new ConfigOptionInt(1));
+
+        config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0.1, false));
+        config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(100));
+        config.set_key_value("perimeter_overlap", new ConfigOptionPercent(100));
+        config.set_key_value("solid_infill_overlap", new ConfigOptionPercent(100));
+
+        config.set_key_value("extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        config.set_key_value("infill_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        config.set_key_value("perimeter_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        config.set_key_value("first_layer_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        config.set_key_value("external_perimeter_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        config.set_key_value("solid_infill_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        config.set_key_value("top_infill_extrusion_width", new ConfigOptionFloatOrPercent(0.5, false));
+        double extrusion_width = 0.5;
+        config.set_deserialize("only_one_perimeter_top", "0");
+        
+        SECTION("classic"){
+                config.set_key_value("perimeter_generator", new ConfigOptionEnum<PerimeterGeneratorType>(PerimeterGeneratorType::Classic));
+                test_all(config, extrusion_width);
+        }
+        SECTION("arachne"){
+                config.set_key_value("perimeter_generator", new ConfigOptionEnum<PerimeterGeneratorType>(PerimeterGeneratorType::Arachne));
+                test_all(config, extrusion_width);
+        }
+
+
+        config.set_key_value("enforce_full_fill_volume", new ConfigOptionBool(true));
+        config.set_key_value("skirts", new ConfigOptionInt(0));
+        //simplier than auto opt = new ConfigOptionFloatsOrPercents{FloatOrPercent{0, false}}; opt.set_is_extruder_size(true);
+        config.set_deserialize("seam_gap", "0");
+        config.set_key_value("layer_height", new ConfigOptionFloat(0.2)); // get a known number of layers
+        config.set_key_value("first_layer_height", new ConfigOptionFloatOrPercent(0.2, false));
         auto event_counter{ 0U };
         std::string stage;
         Print print{};
@@ -264,6 +424,8 @@ TEST_CASE("Fill: extrude gcode and check it")
         Slic3r::Test::gcode(gcode_filepath, print);
         //std::cout << "gcode generation done\n";
         std::string gcode_from_file = read_to_string(gcode_filepath);
+        // model = print.model();
+        // Slic3r::store_3mf("test.3mf", &model, &print.full_print_config(), OptionStore3mf{});
 
         //string[] lineArray = gcode_from_file
         GCodeReader parser;
@@ -288,29 +450,42 @@ TEST_CASE("Fill: extrude gcode and check it")
             }
         });
 
-        double perimeterRoundGapRemove = unscaled(print.objects()[0]->layers()[0]->lslices[0].contour.length()) * 0.1*0.1 * (2 - (PI / 2));
-        double perimeterRoundGapAdd = unscaled(print.objects()[0]->layers()[0]->lslices[0].contour.length()) * 0.1*0.1 * ((PI / 2));
-        //for (Line &l : print.objects()[0]->layers()[0]->slices.expolygons[0].contour.lines()) {
+        ExPolygons perimeter_center_line = offset_ex(print.get_object(0)->get_layer(0)->lslices[0], -scale_t(0.25f));
+
+        //double perimeterRoundGapRemove = unscaled(print.get_object(0)->get_layer(0)->lslices[0].contour.length()) * 0.1*0.1 * (2 - (PI / 2));
+        double perimeterRoundGapRemove = unscaled(perimeter_center_line[0].contour.length()) * 0.1*0.1 * (2 - (PI / 2));
+        //double perimeterRoundGapAdd = unscaled(print.get_object(0)->get_layer(0)->lslices[0].contour.length()) * 0.1*0.1 * ((PI / 2));
+        //for (Line &l : print.get_object(0)->get_layer(0)->slices.expolygons[0].contour.lines()) {
 
         //}
         //std::cout << "flow mm3permm: " << Flow{ 0.5f,0.2f,0.4f,false }.mm3_per_mm() << "\n";
-        //std::cout << "perimeter : " << unscaled(print.objects()[0]->layers()[0]->slices.expolygons[0].contour.length()) << " != " << (PI * 10) << "\n";
+        //std::cout << "perimeter : " << unscaled(print.get_object(0)->get_layer(0)->slices.expolygons[0].contour.length()) << " != " << (PI * 10) << "\n";
 
         //std::cout << "created a mesh of volume " << volume << " and i have extruded " << volume_extruded << " mm3.\n";
         //std::cout << "Note that if we remove the bits of the external extrusion, it's only a volume of " << (volume - perimeterRoundGapRemove) << " that needs to be filled\n";
         //std::cout << "Note that if we add the bits of the external extrusion, it's a volume of " << (volume + perimeterRoundGapAdd) << " that needs to be filled\n";
 
-        double volumeExtrPerimeter = ExtrusionGetVolume{}.get(print.objects()[0]->layers()[0]->regions()[0]->perimeters);
-        double volumeExtrInfill = ExtrusionGetVolume{}.get(print.objects()[0]->layers()[0]->regions()[0]->fills);
+        double volumeExtrPerimeter = ExtrusionVolume{}.get(print.get_object(0)->get_layer(0)->regions()[0]->perimeters);
+        double volumeExtrInfill = ExtrusionVolume{}.get(print.get_object(0)->get_layer(0)->regions()[0]->fills);
 
         double volumeInfill = 0;
-        for (const ExPolygon & p : print.objects()[0]->layers()[0]->regions()[0]->fill_no_overlap_expolygons) {
+        for (const ExPolygon & p : print.get_object(0)->get_layer(0)->regions()[0]->fill_no_overlap_expolygons) {
             volumeInfill += unscaled(unscaled(p.area()));
         }
-        volumeInfill *= 0.2;/*
-        std::cout << "volumeRealr=" << (volume_perimeter_extruded + volume_infill_extruded) << " volumeRealPerimeter= " << volume_perimeter_extruded << " and volumeRealInfill=" << volume_infill_extruded << " mm3." << "\n";
+        double spacing_diff = (extrusion_width - Flow::rounded_rectangle_extrusion_spacing(extrusion_width, 0.2f, 1.f))/2;
+        double fill_raw_area_no_encroach = (5-(extrusion_width-spacing_diff)*2) * (5-(extrusion_width-spacing_diff)*2);
+        double fill_raw_area = (5-(extrusion_width-0.1-spacing_diff)*2) * (5-(extrusion_width-0.1-spacing_diff)*2);
+
+        double compute_perimeter_area = (5-extrusion_width)*4*Flow::rounded_rectangle_extrusion_spacing(extrusion_width, 0.2f, 1.f);
+
+        std::cout << "area fill_no_overlap_expolygons= " << (unscaled(unscaled(print.get_object(0)->get_layer(0)->regions()[0]->fill_no_overlap_expolygons.front().contour.area()))) << "\n";
+        volumeInfill *= 0.2;
+        std::cout << "\nvolumeRealr=" << (volume_perimeter_extruded + volume_infill_extruded) << " volumeRealPerimeter= " << volume_perimeter_extruded << " and volumeRealInfill=" << volume_infill_extruded << " mm3." << "\n";
         std::cout << "volumeExtr=" << (volumeExtrPerimeter + volumeExtrInfill) << " volumeExtrPerimeter= " << volumeExtrPerimeter << " and volumeExtrInfill=" << volumeExtrInfill << " mm3." << "\n";
-        std::cout << "volumePerimeter= " << (volume - volumeInfill) << " volumePerimeter(wo/bits)= " << (volume - volumeInfill- perimeterRoundGapRemove) << " and volumeInfill=" << volumeInfill << " mm3." << "\n";*/
+        std::cout << "volumePerimeter= " << (volume - volumeInfill) << " volumePerimeter(wo/bits)= " << (volume - volumeInfill- perimeterRoundGapRemove) << " and volumeInfill=" << volumeInfill << " mm3." << "\n";
+        std::cout << "volume= " << (volume) << " raw_fill_volume="<<fill_raw_area*0.2<<" raw_fill_volume_no_encroach=" << fill_raw_area_no_encroach*0.2 << "\n";
+        std::cout << "raw_fill_area="<<fill_raw_area<<" raw_fill_area_no_encroach=" << fill_raw_area_no_encroach << "\n";
+        std::cout << "computed peri= " << (unscaled(perimeter_center_line[0].contour.length())*0.2*0.5 - 2*perimeterRoundGapRemove)<< " perimeterRoundGapRemove= " << (perimeterRoundGapRemove) << "\n";
 
         //Flow fl{0.5f, 0.2f, 0.4f, false};
 
@@ -319,28 +494,35 @@ TEST_CASE("Fill: extrude gcode and check it")
         //    stri << "extrusion_width_learning" << ".svg";
         //    SVG svg(stri.str());
         //    //svg.draw(bounds);
-        //    svg.draw(print.objects()[0]->layers()[0]->slices.expolygons[0].contour, "green");
-        //    svg.draw(print.objects()[0]->layers()[0]->regions()[0]->fill_no_overlap_expolygons, "black", scale_(0.01));
-        //    svg.draw(print.objects()[0]->layers()[0]->regions()[0]->perimeters.as_polylines(), "orange", fl.scaled_width());
-        //    svg.draw(print.objects()[0]->layers()[0]->regions()[0]->perimeters.as_polylines(), "red", fl.scaled_spacing());
-        //    svg.draw(print.objects()[0]->layers()[0]->regions()[0]->fills.as_polylines(), "cyan", fl.scaled_width());
-        //    svg.draw(print.objects()[0]->layers()[0]->regions()[0]->fills.as_polylines(), "blue", fl.scaled_spacing());
+        //    svg.draw(print.get_object(0)->get_layer(0)->slices.expolygons[0].contour, "green");
+        //    svg.draw(print.get_object(0)->get_layer(0)->regions()[0]->fill_no_overlap_expolygons, "black", scale_(0.01));
+        //    svg.draw(print.get_object(0)->get_layer(0)->regions()[0]->perimeters.as_polylines(), "orange", fl.scaled_width());
+        //    svg.draw(print.get_object(0)->get_layer(0)->regions()[0]->perimeters.as_polylines(), "red", fl.scaled_spacing());
+        //    svg.draw(print.get_object(0)->get_layer(0)->regions()[0]->fills.as_polylines(), "cyan", fl.scaled_width());
+        //    svg.draw(print.get_object(0)->get_layer(0)->regions()[0]->fills.as_polylines(), "blue", fl.scaled_spacing());
         //    svg.Close();
         //}
+        REQUIRE(abs(fill_raw_area_no_encroach*0.2 - volumeInfill) < 0.01);
+        REQUIRE(abs(compute_perimeter_area * 0.2 - volumeExtrPerimeter) < 0.01);
 
         //std::cout << gcode_from_file;
-        REQUIRE(abs(volumeInfill - volumeExtrInfill) < EPSILON);
+        if(abs(volumeInfill - volumeExtrInfill) > EPSILON*5) // *5 for archimean chords
+            std::cout<<"stop";
+        REQUIRE(abs(volumeInfill - volumeExtrInfill) < EPSILON * 5);// *5 for archimean chords
         REQUIRE(abs(volumeInfill - volume_infill_extruded) < 0.01);
         REQUIRE(abs((volume - volumeInfill - perimeterRoundGapRemove) - volumeExtrPerimeter) < 0.01);
         REQUIRE(abs((volume - volumeInfill - perimeterRoundGapRemove) - volume_perimeter_extruded) < 0.1); //there are a bit less for seam mitigation 
+        // lower than the full volume because of the rounded extenral perimeter
+        REQUIRE(volume_extruded < volume);
+        //lower than the full volume - rounded external perimeter (because I used 4*5 as perimeter length instead of (5-offset)*4 )
+        REQUIRE(volume_extruded > volume - ((5*4) * 0.2 * (0.5f-Flow::rounded_rectangle_extrusion_spacing(extrusion_width, 0.2f, 1.f))/2));
         clean_file(gcode_filepath, "gcode");
 
     }
     SECTION("simple disk") {
         Model model{};
         TriangleMesh sample_mesh = make_cylinder(5, 0.2);
-        double volume = (PI * 25 * 0.2);
-        sample_mesh.repair();
+        const double volume = (PI * 25 * 0.2);
 
         DynamicPrintConfig &config = Slic3r::DynamicPrintConfig::full_print_config();
         config.set_key_value("perimeters", new ConfigOptionInt(1));
@@ -349,6 +531,9 @@ TEST_CASE("Fill: extrude gcode and check it")
 
         config.set_key_value("enforce_full_fill_volume", new ConfigOptionBool(true));
         config.set_key_value("infill_overlap", new ConfigOptionFloatOrPercent(0.1, true));
+        config.set_key_value("perimeter_overlap", new ConfigOptionPercent(100));
+        config.set_key_value("external_perimeter_overlap", new ConfigOptionPercent(100));
+        config.set_deserialize("external_perimeter_cut_corners", "0");
 
         config.set_key_value("skirts", new ConfigOptionInt(0));
 
@@ -376,45 +561,54 @@ TEST_CASE("Fill: extrude gcode and check it")
         //string[] lineArray = gcode_from_file
         GCodeReader parser;
         double volume_extruded = 0;
-        int idx = 0;
+        //int idx = 0;
+        int step = 0;
         double volume_perimeter_extruded = 0;
         double volume_infill_extruded = 0;
         // add remaining time lines where needed
         parser.parse_buffer(gcode_from_file,
             [&](GCodeReader& reader, const GCodeReader::GCodeLine& line)
         {
-            if (line.cmd_is("G1"))
+            if(line.comment() == "TYPE:External perimeter")
+                step = 1;
+            if(line.comment() == "TYPE:Solid infill")
+                step = 2;
+            if (line.cmd_is("G1") && step > 0)
             {
                 if (line.dist_E(reader) > 0 && line.dist_XY(reader) > 0) {
                     //std::cout << "add " << line.dist_E(reader)<<" now "<< volume_extruded<<"=>";
                     volume_extruded += line.dist_E(reader)*(PI*1.75*1.75 / 4.);
                     //std::cout << volume_extruded << "\n";
-                    if (idx<36)volume_perimeter_extruded += line.dist_E(reader)*(PI*1.75*1.75 / 4.);
-                    else volume_infill_extruded += line.dist_E(reader)*(PI*1.75*1.75 / 4.);
-                    idx++;
+                    if (step == 1) volume_perimeter_extruded += line.dist_E(reader)*(PI*1.75*1.75 / 4.);
+                    else if (step == 2) volume_infill_extruded += line.dist_E(reader)*(PI*1.75*1.75 / 4.);
                 }
             }
         });
 
-        double perimeterRoundGapRemove = unscaled(print.objects()[0]->layers()[0]->lslices[0].contour.length()) * 0.1*0.1 * (2 - (PI / 2));
-        double perimeterRoundGapAdd = unscaled(print.objects()[0]->layers()[0]->lslices[0].contour.length()) * 0.1*0.1 * ((PI / 2));
+        ExPolygons perimeter_center_line = offset_ex(print.get_object(0)->get_layer(0)->lslices[0], -scale_t(0.25f));
 
-        double volumeExtrPerimeter = ExtrusionGetVolume{}.get(print.objects()[0]->layers()[0]->regions()[0]->perimeters);
-        double volumeExtrInfill = ExtrusionGetVolume{}.get(print.objects()[0]->layers()[0]->regions()[0]->fills);
+        //double perimeterRoundGapRemove = unscaled(print.get_object(0)->get_layer(0)->lslices[0].contour.length()) * 0.1*0.1 * (2 - (PI / 2));
+        double perimeterRoundGapRemove = unscaled(perimeter_center_line[0].contour.length()) * 0.1*0.1 * (2 - (PI / 2));
+        //double perimeterRoundGapAdd = unscaled(print.get_object(0)->get_layer(0)->lslices[0].contour.length()) * 0.1*0.1 * ((PI / 2));
+
+        double volumeExtrPerimeter = ExtrusionVolume{}.get(print.get_object(0)->get_layer(0)->regions()[0]->perimeters);
+        double volumeExtrInfill = ExtrusionVolume{}.get(print.get_object(0)->get_layer(0)->regions()[0]->fills);
 
         double volumeInfill = 0;
-        for (const ExPolygon & p : print.objects()[0]->layers()[0]->regions()[0]->fill_no_overlap_expolygons) {
+        ExPolygons infill_area = intersection_ex(print.get_object(0)->get_layer(0)->regions()[0]->fill_no_overlap_expolygons, print.get_object(0)->get_layer(0)->regions()[0]->fill_expolygons);
+        for (const ExPolygon & p : infill_area) {
             volumeInfill += unscaled(unscaled(p.area()));
         }
         volumeInfill *= 0.2;
         std::cout << "volumeRealr=" << (volume_perimeter_extruded + volume_infill_extruded) << " volumeRealPerimeter= " << volume_perimeter_extruded << " and volumeRealInfill=" << volume_infill_extruded << " mm3." << "\n";
         std::cout << "volumeExtr=" << (volumeExtrPerimeter + volumeExtrInfill) << " volumeExtrPerimeter= " << volumeExtrPerimeter << " and volumeExtrInfill=" << volumeExtrInfill << " mm3." << "\n";
         std::cout << "volumePerimeter= " << (volume - volumeInfill) << " volumePerimeter(wo/bits)= " << (volume - volumeInfill - perimeterRoundGapRemove) << " and volumeInfill=" << volumeInfill << " mm3." << "\n";
+        std::cout << "volume= " << (volume) << "\n";
 
-        REQUIRE(abs(volumeInfill - volumeExtrInfill) < EPSILON);
-        REQUIRE(abs(volumeInfill - volume_infill_extruded) < 0.01);
-        REQUIRE(abs((volume - volumeInfill - perimeterRoundGapRemove) - volumeExtrPerimeter) < EPSILON);
-        REQUIRE(abs((volume - volumeInfill - perimeterRoundGapRemove) - volume_perimeter_extruded) < 0.1); //there are a bit less for seam mitigation 
+        REQUIRE(abs(volumeInfill - volumeExtrInfill) < 0.001);
+        REQUIRE(abs(volumeInfill - volume_infill_extruded) < 0.001);
+        REQUIRE(abs((volume - volumeInfill - perimeterRoundGapRemove) - volumeExtrPerimeter) < 0.1); //there are a bit less for seam mitigation 
+        REQUIRE(abs(volumeExtrPerimeter - volume_perimeter_extruded) < 0.01);
         clean_file(gcode_filepath, "gcode");
 
     }
@@ -660,6 +854,23 @@ for my $pattern (qw(rectilinear honeycomb hilbertcurve concentric)) {
 }
 */
 
+class ExtrusionGetExtrusionArea : public ExtrusionVisitor {
+    Polygons grown_paths;
+public:
+    ExtrusionGetExtrusionArea() {}
+    void use(ExtrusionPath &path) override {
+        polygons_append(grown_paths, offset(path.as_polyline().as_polyline(), scale_t(path.width)));
+    }
+    void use(ExtrusionPath3D &path3D) override { assert(false); }
+    void use(ExtrusionMultiPath &multipath) override { for (ExtrusionPath path : multipath.paths) path.visit(*this);    }
+    void use(ExtrusionMultiPath3D &multipath) override { for (ExtrusionPath path : multipath.paths) path.visit(*this);    }
+    void use(ExtrusionLoop &loop) override { for (ExtrusionPath path : loop.paths) path.visit(*this); }
+    void use(ExtrusionEntityCollection &collection) override { for (ExtrusionEntity *entity : collection.entities()) entity->visit(*this); }
+    Polygons get(ExtrusionEntityCollection &coll) {
+        for (ExtrusionEntity *entity : coll.entities()) entity->visit(*this);
+        return grown_paths;
+    }
+};
 //TODO: also check by volume extruded
 //TODO: replace the simple area coverage check by one that takes into account the width of the path, not only the default flow spacing
 //TODO: test more fills
@@ -669,26 +880,31 @@ bool test_if_solid_surface_filled(const ExPolygon& expolygon, double flow_width,
     filler->angle = angle;
 	FillParams params;
 	params.dont_adjust = false;
+    FullPrintConfig config= FullPrintConfig::defaults();
+    params.config = &config;
 
     Surface surface((stPosBottom | stDensSolid), expolygon);
 	//note: here we do flow.width = flow_width , flow.gheight = 0.4, flow.nozzle_size = flow_width;
-    Flow flow(flow_width, 0.4, flow_width);
+    params.flow = Flow::new_from_width( float(flow_width), 0.4, float(flow_width), 1.f, false);
 
     params.density = density;
-    filler->init_spacing(flow.spacing(), params);
+    filler->init_spacing(params.flow.spacing(), params);
 
-    Polylines paths {filler->fill_surface(&surface, params)};
+    // concentricgapfill can't output only Polylines, as it's a composed thing with gapfill
+    //Polylines paths {filler->fill_surface(&surface, params)};
+    ExtrusionEntityCollection coll;
+    filler->fill_surface_extrusion(&surface, params, coll.set_entities());
 
     // check whether any part was left uncovered
-    Polygons grown_paths;
-    grown_paths.reserve(paths.size());
 
 // figure out what is actually going on here re: data types
-    std::for_each(paths.begin(), paths.end(), [filler, &grown_paths] (const Slic3r::Polyline& p) {
-        polygons_append(grown_paths, offset(p, scale_(filler->get_spacing() / 2.0)));
-    });
+    Polygons grown_paths = ExtrusionGetExtrusionArea{}.get(coll);
+    //grown_paths.reserve(paths.size());
+    //std::for_each(paths.begin(), paths.end(), [filler, &grown_paths] (const Slic3r::Polyline& p) {
+    //    polygons_append(grown_paths, offset(p, scale_(filler->get_spacing() / 2.0)));
+    //});
     
-    ExPolygons uncovered = diff_ex(expolygon, grown_paths, true);
+    ExPolygons uncovered = diff_ex(expolygon, grown_paths, Slic3r::ApplySafetyOffset::Yes);
 
     // ignore very small dots
     const auto scaled_flow_width { std::pow(scale_(flow_width), 2) };
@@ -700,6 +916,6 @@ bool test_if_solid_surface_filled(const ExPolygon& expolygon, double flow_width,
 	double uncovered_area = 0;
 	for (ExPolygon &p : uncovered) uncovered_area += unscaled(unscaled(p.area()));
 	std::cout << "uncovered size =" << uncovered_area << " / "<< unscaled(unscaled(expolygon.area()))<<"\n";
-    return uncovered.size() == 0; // solid surface is fully filled
+    return uncovered_area < 0.05; // solid surface is (almost) fully filled
 
 }

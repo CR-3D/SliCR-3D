@@ -3,6 +3,7 @@
 #include "format.hpp"
 #include "I18N.hpp"
 
+#include "libslic3r/AppConfig.hpp"
 #include "libslic3r/LocalesUtils.hpp"
 
 #include <string>
@@ -99,139 +100,6 @@ const std::string& shortkey_alt_prefix()
 	return str;
 }
 
-// opt_index = 0, by the reason of zero-index in ConfigOptionVector by default (in case only one element)
-void change_opt_value(DynamicConfig& config, const t_config_option_key& opt_key, const boost::any& value, int opt_index /*= 0*/)
-{
-	try{
-
-        if (config.def()->get(opt_key)->type == coBools && config.def()->get(opt_key)->nullable) {
-            ConfigOptionBoolsNullable* vec_new = new ConfigOptionBoolsNullable{ boost::any_cast<unsigned char>(value) };
-            config.option<ConfigOptionBoolsNullable>(opt_key)->set_at(vec_new, opt_index, 0);
-            return;
-        }
-
-        const ConfigOptionDef *opt_def = config.def()->get(opt_key);
-		switch (opt_def->type) {
-		case coFloatOrPercent:{
-			std::string str = boost::any_cast<std::string>(value);
-			bool percent = false;
-			if (str.back() == '%') {
-				str.pop_back();
-				percent = true;
-			}
-            double val = std::stod(str); // locale-dependent (on purpose - the input is the actual content of the field)
-			config.set_key_value(opt_key, new ConfigOptionFloatOrPercent(val, percent));
-			break;}
-		case coFloatsOrPercents: {
-			std::string str = boost::any_cast<std::string>(value);
-			bool percent = false;
-			if (str.back() == '%') {
-				str.pop_back();
-				percent = true;
-			}
-			double val = stod(str);
-			ConfigOptionFloatsOrPercents* vec_new = new ConfigOptionFloatsOrPercents{ boost::any_cast<FloatOrPercent>(FloatOrPercent{val, percent}) };
-			config.option<ConfigOptionFloatsOrPercents>(opt_key)->set_at(vec_new, opt_index, opt_index);
-			break; }
-		case coPercent:
-			config.set_key_value(opt_key, new ConfigOptionPercent(boost::any_cast<double>(value)));
-			break;
-		case coFloat:{
-			//config.set_key_value(opt_key, new ConfigOptionFloat(boost::any_cast<double>(value)));
-			double& val_dbl = config.opt_float(opt_key);
-			val_dbl = boost::any_cast<double>(value);
-			break;
-		}
-		case coPoint: {
-			config.set_key_value(opt_key, new ConfigOptionPoint(boost::any_cast<Vec2d>(value)));
-			break;
-		}
-		case coPercents:{
-			ConfigOptionPercents* vec_new = new ConfigOptionPercents{ boost::any_cast<double>(value) };
-			config.option<ConfigOptionPercents>(opt_key)->set_at(vec_new, opt_index, opt_index);
-			break;
-		}
-		case coFloats:{
-			ConfigOptionFloats* vec_new = new ConfigOptionFloats{ boost::any_cast<double>(value) };
-			config.option<ConfigOptionFloats>(opt_key)->set_at(vec_new, opt_index, opt_index);
- 			break;
-		}
-		case coString: {
-			//config.set_key_value(opt_key, new ConfigOptionString(boost::any_cast<std::string>(value)));
-			std::string& val_str = config.opt_string(opt_key);
-			val_str = boost::any_cast<std::string>(value);
-			break;
-		}
-		case coStrings:{
-			if (opt_key == "compatible_prints" || opt_key == "compatible_printers" || opt_key == "gcode_substitutions") {
-				config.option<ConfigOptionStrings>(opt_key)->values = 
-					boost::any_cast<std::vector<std::string>>(value);
-			}
-			else if (config.def()->get(opt_key)->gui_flags.compare("serialized") == 0) {
-				std::string str = boost::any_cast<std::string>(value);
-                std::vector<std::string> values {};
-                if (!str.empty()) {
-				    if (str.back() == ';') str.pop_back();
-				    // Split a string to multiple strings by a semi - colon.This is the old way of storing multi - string values.
-				    // Currently used for the post_process config value only.
-				    boost::split(values, str, boost::is_any_of(";"));
-				    if (values.size() == 1 && values[0] == "")
-					    values.resize(0);
-                }
-				config.option<ConfigOptionStrings>(opt_key)->values = values;
-			}
-			else{
-				ConfigOptionStrings* vec_new = new ConfigOptionStrings{ boost::any_cast<std::string>(value) };
-				config.option<ConfigOptionStrings>(opt_key)->set_at(vec_new, opt_index, 0);
-			}
-			}
-			break;
-		case coBool:
-			config.set_key_value(opt_key, new ConfigOptionBool(boost::any_cast<bool>(value)));
-			break;
-		case coBools:{
-			ConfigOptionBools* vec_new = new ConfigOptionBools{ boost::any_cast<unsigned char>(value) != 0 };
-			config.option<ConfigOptionBools>(opt_key)->set_at(vec_new, opt_index, 0);
-			break;}
-		case coInt:{
-			//config.set_key_value(opt_key, new ConfigOptionInt(boost::any_cast<int>(value)));
-			int& val_int = config.opt_int(opt_key);
-			val_int = boost::any_cast<int>(value);
-			}
-			break;
-		case coInts:{
-			ConfigOptionInts* vec_new = new ConfigOptionInts{ boost::any_cast<int>(value) };
-			config.option<ConfigOptionInts>(opt_key)->set_at(vec_new, opt_index, 0);
-			}
-			break;
-		case coEnum:{
-			ConfigOption* opt = opt_def->default_value.get()->clone();
-			opt->setInt(boost::any_cast<int32_t>(value)); // we transport an int convertion of the enum in the boost anycast.
-			BOOST_LOG_TRIVIAL(debug) << "Set enum "<< opt_key << " as int " << boost::any_cast<int>(value) << "  into enum " << opt->serialize();
-			config.set_key_value(opt_key, opt);
-			}
-			break;
-        case coPoints:{
-			if (opt_key == "bed_shape") {
-				config.option<ConfigOptionPoints>(opt_key)->values = boost::any_cast<std::vector<Vec2d>>(value);
-				break;
-			}
-			ConfigOptionPoints* vec_new = new ConfigOptionPoints{ boost::any_cast<Vec2d>(value) };
-			config.option<ConfigOptionPoints>(opt_key)->set_at(vec_new, opt_index, 0);
-			}
-			break;
-		case coNone:
-			break;
-		default:
-			break;
-		}
-	}
-	catch (const std::exception &e)
-	{
-		wxLogError(format_wxstr("Internal error when changing value for %1%: %2%", opt_key, e.what()));
-	}
-}
-
 void show_error(wxWindow* parent, const wxString& message, bool monospaced_font)
 {
 	ErrorDialog msg(parent, message, monospaced_font);
@@ -283,20 +151,29 @@ static wxString bold_string(const wxString& str)
 static void add_config_substitutions(const ConfigSubstitutions& conf_substitutions, wxString& changes)
 {
 	changes += "<table>";
+    size_t nb_entries_changes = 0;
+    size_t nb_entries_unknown = 0;
 	for (const ConfigSubstitution& conf_substitution : conf_substitutions) {
 		wxString new_val;
 		const ConfigOptionDef* def = conf_substitution.opt_def;
-		if (!def)
-			continue;
+        if (!def) {
+            nb_entries_unknown++;
+            continue;
+        }
+        nb_entries_changes++;
 		switch (def->type) {
 		case coEnum:
 		{
 			const std::vector<std::string>& labels = def->enum_labels;
 			const std::vector<std::string>& values = def->enum_values;
-			int val = conf_substitution.new_value->getInt();
+			int val = conf_substitution.new_value->get_int();
 
 			bool is_infill = def->opt_key == "top_fill_pattern"	   ||
 							 def->opt_key == "bottom_fill_pattern" ||
+							 def->opt_key == "solid_fill_pattern" ||
+							 def->opt_key == "bridge_fill_pattern" ||
+							 def->opt_key == "support_material_interface_pattern" ||
+							 def->opt_key == "brim_ears_pattern" ||
 							 def->opt_key == "fill_pattern";
 
 			// Each infill doesn't use all list of infill declared in PrintConfig.hpp.
@@ -321,12 +198,12 @@ static void add_config_substitutions(const ConfigSubstitutions& conf_substitutio
 			break;
 		}
 		case coBool:
-			new_val = conf_substitution.new_value->getBool() ? "true" : "false";
+			new_val = conf_substitution.new_value->get_bool() ? "true" : "false";
 			break;
 		case coBools:
 			if (conf_substitution.new_value->nullable())
 				for (const char v : static_cast<const ConfigOptionBoolsNullable*>(conf_substitution.new_value.get())->values)
-					new_val += std::string(v == ConfigOptionBoolsNullable::nil_value() ? "nil" : v ? "true" : "false") + ", ";
+					new_val += std::string(v == ConfigOptionBoolsNullable::NIL_VALUE() ? "nil" : v ? "true" : "false") + ", ";
 			else
 				for (const char v : static_cast<const ConfigOptionBools*>(conf_substitution.new_value.get())->values)
 					new_val += std::string(v ? "true" : "false") + ", ";
@@ -341,7 +218,25 @@ static void add_config_substitutions(const ConfigSubstitutions& conf_substitutio
 				   format_wxstr(_L("%1% was substituted with %2%"), bold_string(conf_substitution.old_value), bold(new_val)) + 
 				   "</td></tr>";
 	}
-	changes += "</table>";
+    assert(nb_entries_changes + nb_entries_unknown > 0);
+    if(nb_entries_changes > 0)
+		changes += "</table>";
+    if (get_app_config()->get("show_unknown_setting") == "1") {
+        if (nb_entries_unknown > 0) {
+            changes += format_wxstr(_L("The following key-values are ignored, as the key doesn't have any substitution in this "
+                          "version of %1%:"), SLIC3R_APP_NAME);
+            changes += "<table>";
+        }
+        for (const ConfigSubstitution &conf_substitution : conf_substitutions) {
+            if (!conf_substitution.opt_def) {
+                changes += format_wxstr("<tr><td>%1%</td><td>(%2%)</td></tr>",
+                                        format_wxstr(_L("Unknow setting: <b>%1%</b>"), conf_substitution.old_name),
+                                        format_wxstr(_L("value: %1%"), bold_string(conf_substitution.old_value)));
+            }
+        }
+        if (nb_entries_unknown > 0)
+            changes += "</table>";
+    }
 }
 
 static wxString substitution_message(const wxString& changes)
@@ -352,9 +247,43 @@ static wxString substitution_message(const wxString& changes)
 		_L("Review the substitutions and adjust them if needed.");
 }
 
-void show_substitutions_info(const PresetsConfigSubstitutions& presets_config_substitutions) 
+size_t  check_count(const PresetsConfigSubstitutions &presets_config_substitutions) {
+    size_t nb_entries_changes = 0;
+    size_t nb_entries_unknown = 0;
+    for (const PresetConfigSubstitutions &substitution : presets_config_substitutions) {
+        for (const ConfigSubstitution &conf_substitution : substitution.substitutions) {
+            if (conf_substitution.opt_def)
+                nb_entries_changes++;
+            else
+                nb_entries_unknown++;
+        }
+    }
+    if (get_app_config()->get("show_unknown_setting") != "1")
+        nb_entries_unknown = 0;
+    return nb_entries_changes + nb_entries_unknown;
+}
+
+size_t  check_count(const ConfigSubstitutions &substitutions) {
+    size_t nb_entries_changes = 0;
+    size_t nb_entries_unknown = 0;
+    for (const ConfigSubstitution &conf_substitution : substitutions) {
+        if (conf_substitution.opt_def)
+            nb_entries_changes++;
+        else
+            nb_entries_unknown++;
+    }
+    if (get_app_config()->get("show_unknown_setting") != "1")
+        nb_entries_unknown = 0;
+    return nb_entries_changes + nb_entries_unknown;
+}
+
+void show_substitutions_info(const PresetsConfigSubstitutions &presets_config_substitutions)
 {
-	wxString changes;
+    wxString changes;
+
+    // check count
+    if (check_count(presets_config_substitutions) == 0)
+        return;
 
 	auto preset_type_name = [](Preset::Type type) {
 		switch (type) {
@@ -382,6 +311,10 @@ void show_substitutions_info(const PresetsConfigSubstitutions& presets_config_su
 
 void show_substitutions_info(const ConfigSubstitutions& config_substitutions, const std::string& filename)
 {
+    // check count
+    if (check_count(config_substitutions) == 0)
+        return;
+
 	wxString changes = "\n";
 	add_config_substitutions(config_substitutions, changes);
 
@@ -464,7 +397,7 @@ void combochecklist_set_flags(wxComboCtrl* comboCtrl, unsigned int flags)
 
 AppConfig* get_app_config()
 {
-    return wxGetApp().app_config;
+    return wxGetApp().app_config.get();
 }
 
 wxString from_u8(const std::string &str)

@@ -107,14 +107,14 @@ namespace Slic3r {
         return status;
     }
 
-std::vector<std::reference_wrapper<const PrintRegion>> PrintObject::all_regions() const
+    std::vector<std::reference_wrapper<const PrintRegion>> PrintObject::all_regions() const
     {
-    std::vector<std::reference_wrapper<const PrintRegion>> out;
-    out.reserve(m_shared_regions->all_regions.size());
-    for (const std::unique_ptr<Slic3r::PrintRegion> &region : m_shared_regions->all_regions)
-        out.emplace_back(*region.get());
-    return out;
-            }
+        std::vector<std::reference_wrapper<const PrintRegion>> out;
+        out.reserve(m_shared_regions->all_regions.size());
+        for (const std::unique_ptr<Slic3r::PrintRegion> &region : m_shared_regions->all_regions)
+            out.emplace_back(*region.get());
+        return out;
+    }
 
 
 
@@ -541,7 +541,43 @@ std::vector<std::reference_wrapper<const PrintRegion>> PrintObject::all_regions(
         } // for each layer
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 
+
+        //compute m_max_sparse_spacing for fill_aligned_z
+        _compute_max_sparse_spacing();
+
         this->set_done(posPrepareInfill);
+    }
+
+    void PrintObject::_compute_max_sparse_spacing()
+    {
+        m_max_sparse_spacing = 0;
+        std::atomic_int64_t max_sparse_spacing;
+        //tbb::parallel_for(
+        //    tbb::blocked_range<size_t>(0, m_layers.size()),
+        //    [this, &max_sparse_spacing](const tbb::blocked_range<size_t>& range) {
+        //for (size_t layer_idx = range.begin(); layer_idx < range.end(); ++layer_idx) {
+        for (size_t layer_idx = 0; layer_idx < m_layers.size(); ++layer_idx) {
+            m_print->throw_if_canceled();
+            const Layer *layer = m_layers[layer_idx];
+            for (const LayerRegion *layerm : layer->regions()) {
+                // check if region has sparse infill.
+                for (const Surface &surface : layerm->fill_surfaces.surfaces) {
+                    if (surface.has_fill_sparse()) {
+                        coord_t spacing = layerm->region().flow(*this, frInfill, layer->height, layer->id()).scaled_spacing();
+                        // update atomic to max
+                        int64_t prev_value = max_sparse_spacing.load();
+                        std::cout<<"will update "<<max_sparse_spacing.load()<<"=="<<prev_value<<" to "<<spacing<<"\n";
+                        while (prev_value < int64_t(spacing) &&
+                               !max_sparse_spacing.compare_exchange_weak(prev_value, int64_t(spacing))) {
+                            std::cout<<"can't update "<<max_sparse_spacing<<"\n";
+                        }
+                        std::cout<<"it ahs been updated to "<<max_sparse_spacing.load()<<" from "<<prev_value<<" -> "<<spacing<<"\n";
+                    }
+                }
+            }
+        }
+        //});     
+        m_max_sparse_spacing = max_sparse_spacing.load();
     }
 
     void PrintObject::infill()
@@ -776,15 +812,14 @@ FillLightning::GeneratorPtr PrintObject::prepare_lightning_infill_data()
         m_support_layers.clear();
     }
 
-SupportLayer* PrintObject::add_support_layer(int id, int interface_id, coordf_t height, coordf_t print_z)
+    void PrintObject::add_support_layer(int id, int interface_id, coordf_t height, coordf_t print_z)
     {
-    m_support_layers.emplace_back(new SupportLayer(id, interface_id, this, height, print_z, -1));
-        return m_support_layers.back();
+        m_support_layers.emplace_back(new SupportLayer(id, interface_id, this, height, print_z, -1));
     }
 
-SupportLayerPtrs::iterator PrintObject::insert_support_layer(SupportLayerPtrs::const_iterator pos, size_t id, size_t interface_id, coordf_t height, coordf_t print_z, coordf_t slice_z)
+    SupportLayerPtrs::iterator PrintObject::insert_support_layer(SupportLayerPtrs::const_iterator pos, size_t id, size_t interface_id, coordf_t height, coordf_t print_z, coordf_t slice_z)
     {
-    return m_support_layers.insert(pos, new SupportLayer(id, interface_id, this, height, print_z, slice_z));
+        return m_support_layers.insert(pos, new SupportLayer(id, interface_id, this, height, print_z, slice_z));
     }
 
     // Called by Print::apply().
@@ -817,6 +852,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "perimeter_extrusion_change_odd_layers"
                 || opt_key == "perimeter_extrusion_spacing"
                 || opt_key == "perimeter_extrusion_width"
+                || opt_key == "perimeter_reverse"
                 || opt_key == "infill_overlap"
                 || opt_key == "thin_perimeters"
                 || opt_key == "thin_perimeters_all"
@@ -956,8 +992,11 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "bridge_fill_pattern"
                 || opt_key == "solid_fill_pattern"
                 || opt_key == "enforce_full_fill_volume"
+                || opt_key == "fill_aligned_z"
                 || opt_key == "fill_angle"
+                || opt_key == "fill_angle_cross"
                 || opt_key == "fill_angle_increment"
+                || opt_key == "fill_angle_template"
                 || opt_key == "fill_top_flow_ratio"
                 || opt_key == "fill_smooth_width"
                 || opt_key == "fill_smooth_distribution"
@@ -1049,7 +1088,8 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "min_bead_width") {
                 steps.emplace_back(posSlice);
             } else if (
-                opt_key == "bridge_speed"
+                opt_key == "avoid_crossing_top"
+                || opt_key == "bridge_speed"
                 || opt_key == "bridge_speed_internal"
                 || opt_key == "external_perimeter_speed"
                 || opt_key == "external_perimeters_vase"
@@ -1083,8 +1123,6 @@ bool PrintObject::invalidate_state_by_config_options(
                 invalidated |= m_print->invalidate_step(psGCodeExport);
             } else if (
                 opt_key == "brim_inside_holes"
-                || opt_key == "brim_width"
-                || opt_key == "brim_width_interior"
                 || opt_key == "brim_ears"
                 || opt_key == "brim_ears_detection_length"
                 || opt_key == "brim_ears_max_angle"
@@ -1092,6 +1130,14 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "brim_per_object"
                 || opt_key == "brim_separation") {
                 invalidated |= m_print->invalidate_step(psSkirtBrim);
+                // Brim is printed below supports, support invalidates brim and skirt.
+                steps.emplace_back(posSupportMaterial);
+            } else if (
+                opt_key == "brim_width"
+                || opt_key == "brim_width_interior") {
+                invalidated |= m_print->invalidate_step(psSkirtBrim);
+                // these two may change the ordering of first layer perimeters
+                steps.emplace_back(posPerimeters);
                 // Brim is printed below supports, support invalidates brim and skirt.
                 steps.emplace_back(posSupportMaterial);
             } else {
@@ -1295,7 +1341,7 @@ bool PrintObject::invalidate_state_by_config_options(
 
         for (const PrintRegion* region : this->m_print->print_regions_mutable()) {
             //count how many surface there are on each one
-            if (region->config().infill_dense.getBool() && region->config().fill_density < 40) {
+            if (region->config().infill_dense.get_bool() && region->config().fill_density < 40) {
                 std::vector<LayerRegion*> layeridx2lregion;
                 std::vector<Surfaces> new_surfaces; //surface store, as you can't modify them when working in //
                 // store the LayerRegion on which we are working
@@ -2296,9 +2342,11 @@ bool PrintObject::invalidate_state_by_config_options(
                 if (layer_it == m_layers.begin())
                     continue;
 
-            Layer       *layer       = *layer_it;
-            LayerRegion *layerm      = layer->m_regions[region_id];
-            Flow         bridge_flow = layerm->bridging_flow(frSolidInfill);
+                Layer       *layer       = *layer_it;
+                LayerRegion *layerm      = layer->m_regions[region_id];
+                const Flow         bridge_flow = layerm->bridging_flow(frSolidInfill);
+                const float        bridge_height = std::max(float(layer->height + EPSILON), bridge_flow.height());
+                const coord_t      bridge_width = bridge_flow.scaled_width();
 
                 // extract the stInternalSolid surfaces that might be transformed into bridges
                 Polygons internal_solid;
@@ -2312,7 +2360,7 @@ bool PrintObject::invalidate_state_by_config_options(
                     Polygons to_bridge_pp = internal_solid;
 
                     // iterate through lower layers spanned by bridge_flow
-                    double bottom_z = layer->print_z - bridge_flow.height() - EPSILON;
+                    double bottom_z = layer->print_z - (bridge_flow.height()+0.1) - EPSILON;
                     //TODO take into account sparse ratio! double protrude_by = bridge_flow.height - layer->height;
                     for (int i = int(layer_it - m_layers.begin()) - 1; i >= 0; --i) {
                         const Layer* lower_layer = m_layers[i];
@@ -2339,7 +2387,7 @@ bool PrintObject::invalidate_state_by_config_options(
                     {
                         to_bridge.clear();
                         //choose between two offsets the one that split the less the surface.
-                        float min_width = float(bridge_flow.scaled_width()) * 3.f;
+                        float min_width = float(bridge_width) * 3.f;
                         // opening : offset2-+
                         ExPolygons to_bridgeOK = opening_ex(to_bridge_pp, min_width, min_width);
                         for (ExPolygon& expolys_to_check_for_thin : union_ex(to_bridge_pp)) {
@@ -2348,7 +2396,7 @@ bool PrintObject::invalidate_state_by_config_options(
                             ExPolygons not_bridge = diff_ex(ExPolygons{ expolys_to_check_for_thin }, collapsed);
                             int try1_count = bridge.size() + not_bridge.size();
                             if (try1_count > 1) {
-                                min_width = float(bridge_flow.scaled_width()) * 1.5f;
+                                min_width = float(bridge_width) * 1.5f;
                                 collapsed = offset2_ex(ExPolygons{ expolys_to_check_for_thin }, -min_width, +min_width * 1.5f);
                                 ExPolygons bridge2 = intersection_ex(collapsed, ExPolygons{ expolys_to_check_for_thin });
                                 not_bridge = diff_ex(ExPolygons{ expolys_to_check_for_thin }, collapsed);
@@ -2541,10 +2589,11 @@ static constexpr const std::initializer_list<const std::string_view> keys_extrud
         if (it->first != key_extruder)
             if (ConfigOption* my_opt = out.option(it->first, false); my_opt != nullptr) {
                 if (one_of(it->first, keys_extruders)) {
+                    assert(dynamic_cast<ConfigOptionInt*>(my_opt));
                     // Ignore "default" extruders.
                     int extruder = static_cast<const ConfigOptionInt*>(it->second.get())->value;
                     if (extruder > 0)
-                        my_opt->setInt(extruder);
+                        static_cast<ConfigOptionInt *>(my_opt)->value = (extruder);
                 } else
                     my_opt->set(it->second.get());
             }

@@ -92,6 +92,17 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
     The 0.3 constant is the same as the delta calculated in add_part below, this should probably be calculated per the model object
     */
     float zshift = -(zscale / 2) + ((first_layer_height + layer_height) / 2) + 0.3;
+    
+    // it's rotated but not around the good origin: correct that
+    double init_z_rotate_angle = Geometry::deg2rad(plat->config()->opt_float("init_z_rotate"));
+    Matrix3d rot_matrix = Eigen::Quaterniond(Eigen::AngleAxisd(init_z_rotate_angle, Vec3d{0,0,1})).toRotationMatrix();
+    auto     translate_from_rotation = [&rot_matrix, &model, &objs_idx](int idx, Vec3d &&translation) {
+            ModelVolume *vol = model.objects[objs_idx[idx]]->volumes[model.objects[objs_idx[idx]]->volumes.size()-1];
+            Geometry::Transformation trsf = vol->get_transformation();
+            trsf.set_offset(rot_matrix * translation - translation + trsf.get_offset());
+            vol->set_transformation(trsf);
+        };
+    
     if (delta == 10.f && start == 80.f) {
         add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m20.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
         add_part(model.objects[objs_idx[1]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m10.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number });
@@ -106,11 +117,13 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
         add_part(model.objects[objs_idx[4]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "_0.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
     }
     for (size_t i = 0; i < 5; i++) {
+        translate_from_rotation(i, Vec3d{ 10 * xyScale,0,zshift });
         add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "O.amf").string(), Vec3d{ 0,0,zscale/2.f + 0.5 }, Vec3d{xyScale , xyScale, layer_height / 0.2}); // base: 0.2mm height
     }
 
+    
     /// --- translate ---;
-    bool has_to_arrange = false;
+    bool has_to_arrange = init_z_rotate_angle != 0;
     const ConfigOptionFloat* extruder_clearance_radius = print_config->option<ConfigOptionFloat>("extruder_clearance_radius");
     const ConfigOptionPoints* bed_shape = printerConfig->option<ConfigOptionPoints>("bed_shape");
     const double brim_width = nozzle_diameter * 3.5;
@@ -132,7 +145,7 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
     DynamicPrintConfig new_print_config = *print_config; //make a copy
     new_print_config.set_key_value("complete_objects", new ConfigOptionBool(true));
     //if skirt, use only one
-    if (print_config->option<ConfigOptionInt>("skirts")->getInt() > 0 && print_config->option<ConfigOptionInt>("skirt_height")->getInt() > 0) {
+    if (print_config->option<ConfigOptionInt>("skirts")->get_int() > 0 && print_config->option<ConfigOptionInt>("skirt_height")->get_int() > 0) {
         new_print_config.set_key_value("complete_objects_one_skirt", new ConfigOptionBool(true));
     }
 

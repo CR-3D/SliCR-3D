@@ -286,7 +286,7 @@ public:
     Model*                  get_model() { return m_model; }
     const Model*            get_model() const { return m_model; }
 
-    ModelVolume*            add_volume(const TriangleMesh &mesh, bool centered = true);
+    ModelVolume*            add_volume(const TriangleMesh &mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART, bool centered = true);
     ModelVolume*            add_volume(TriangleMesh &&mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART, bool centered = true);
     ModelVolume*            add_volume(const ModelVolume &volume, ModelVolumeType type = ModelVolumeType::INVALID, bool centered = true);
     ModelVolume*            add_volume(const ModelVolume &volume, TriangleMesh &&mesh, bool centered = true);
@@ -353,6 +353,7 @@ public:
     /// It operates on the total size by duplicating the object according to all the instances.
     /// \param size Sizef3 the size vector
     void scale_to_fit(const Vec3d &size);
+    /// Rotate the model along its internal position (does not take its position into account)
     void rotate(double angle, Axis axis);
     void rotate(double angle, const Vec3d& axis);
     void mirror(Axis axis);

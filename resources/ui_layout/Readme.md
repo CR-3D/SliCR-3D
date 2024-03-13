@@ -206,6 +206,8 @@ These functions can only be called in a `set` or `reset` function. If you need t
 ### others
   * void **ask_for_refresh**()
     ask for a OPTNAME_set() after the current OPTNAME_get(), to be able to set settings.
+  * bool **is_enabled**(string setting_key)
+    Experimental. Ask if this setting is currently enabled. Dangerous, as it will be true if it's not constructed. 
 
 ### to get/set the value of a custom variable
 The first argument is the index of the tab setting: 0 for print settings, 1 for filament settings and 2 for printer settings.

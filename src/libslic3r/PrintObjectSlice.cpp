@@ -729,7 +729,7 @@ ExPolygons PrintObject::_shrink_contour_holes(double contour_delta, double not_c
                     if (convex_delta_adapted != 0) {
                         Polygon hole_as_contour = hole;
                         hole_as_contour.make_counter_clockwise();
-                        for (ExPolygon& newHole : offset_ex(ExPolygon{ hole_as_contour }, convex_delta_adapted)) {
+                        for (ExPolygon& newHole : offset_ex(ExPolygon{ hole_as_contour }, -convex_delta_adapted)) {
                             holes.push_back(std::move(newHole));
                         }
                     } else {
@@ -744,7 +744,7 @@ ExPolygons PrintObject::_shrink_contour_holes(double contour_delta, double not_c
                 if (not_convex_delta != 0) {
                     Polygon hole_as_contour = hole;
                     hole_as_contour.make_counter_clockwise();
-                    for (ExPolygon& newHole : offset_ex(ExPolygon{ hole_as_contour }, not_convex_delta)) {
+                    for (ExPolygon& newHole : offset_ex(ExPolygon{ hole_as_contour }, -not_convex_delta)) {
                         holes.push_back(std::move(newHole));
                     }
                 } else {

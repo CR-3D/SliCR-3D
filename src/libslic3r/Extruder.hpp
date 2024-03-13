@@ -1,6 +1,8 @@
 #ifndef slic3r_Extruder_hpp_
 #define slic3r_Extruder_hpp_
 
+#include <optional>
+
 #include "libslic3r.h"
 #include "Point.hpp"
 
@@ -25,7 +27,7 @@ public:
     uint16_t id() const { return m_id; }
 
     virtual double extrude(double dE);
-    virtual double retract(double length, double restart_extra, double restart_extra_from_toolchange);
+    virtual double retract(double length, std::optional<double> restart_extra, std::optional<double> restart_extra_from_toolchange);
     virtual double need_unretract();
     virtual double unretract();
     virtual void   reset_retract();

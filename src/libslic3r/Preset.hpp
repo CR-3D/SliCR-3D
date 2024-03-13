@@ -107,7 +107,7 @@ struct PresetWithVendorProfile {
 // because Preset and the ConfigWizard hold pointers to VendorProfiles.
 // XXX: maybe set is enough (cf. changes in Wizard)
 typedef std::map<std::string, VendorProfile> VendorMap;
-
+class _BBS_3MF_Importer;
 class Preset
 {
 public:
@@ -126,11 +126,23 @@ public:
         TYPE_SLA_MATERIAL = TYPE_SLA | TYPE_MATERIAL,
         TYPE_TECHNOLOGY = TYPE_FFF | TYPE_SLA,
 
+        TYPE_FREQUENT     = 1 << 5,
+        TYPE_FREQUENT_FFF = TYPE_FFF | TYPE_FREQUENT,
+        TYPE_FREQUENT_SLA = TYPE_SLA | TYPE_FREQUENT,
         // This type is here to support PresetConfigSubstitutions for physical printers, however it does not belong to the Preset class,
         // PhysicalPrinter class is used instead.
-        TYPE_PHYSICAL_PRINTER = 1 << 5,
+        TYPE_PHYSICAL_PRINTER = 1 << 6,
     };
+    static inline PrinterTechnology get_tech(Type type)
+    {
+        if ((type & TYPE_FFF) == TYPE_FFF)
+            return PrinterTechnology::ptFFF;
+        if ((type & TYPE_FFF) == TYPE_SLA)
+            return PrinterTechnology::ptSLA;
+        return PrinterTechnology::ptUnknown;
+    }
     static std::string type_name(Type t);
+    static Type        type_from_name(std::string name);
 
     Type                type        = TYPE_INVALID;
 
@@ -257,6 +269,7 @@ protected:
 
     friend class        PresetCollection;
     friend class        PresetBundle;
+    friend class        _BBS_3MF_Importer;
 };
 
 bool is_compatible_with_print  (const PresetWithVendorProfile &preset, const PresetWithVendorProfile &active_print, const PresetWithVendorProfile &active_printer);

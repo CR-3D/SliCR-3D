@@ -15,7 +15,7 @@ FillConcentric::init_spacing(coordf_t spacing, const FillParams &params)
 {
     Fill::init_spacing(spacing, params);
     if (params.density > 0.9999f && !params.dont_adjust) {
-        this->spacing_priv = unscaled(this->_adjust_solid_spacing(bounding_box.size()(0), _line_spacing_for_density(params.density)));
+        this->spacing_priv = unscaled(this->_adjust_solid_spacing(bounding_box.size()(0), _line_spacing_for_density(params)));
     }
 }
 
@@ -30,7 +30,7 @@ FillConcentric::_fill_surface_single(
     // no rotation is supported for this infill pattern
     BoundingBox bounding_box = expolygon.contour.bounding_box();
     
-    coord_t distance = _line_spacing_for_density(params.density);
+    coord_t distance = _line_spacing_for_density(params);
     if (params.density > 0.9999f && !params.dont_adjust) {
         //it's == Slic3r::FillConcentric::_adjust_solid_spacing(bounding_box.size()(0), _line_spacing_for_density(params.density)) because of the init_spacing()
         distance = scale_t(this->get_spacing());
@@ -93,6 +93,8 @@ FillConcentricWGapFill::fill_surface_extrusion(
     const FillParams &params,
     ExtrusionEntitiesPtr &out) const {
 
+    ExtrusionEntitiesPtr out_to_check;
+
     double min_gapfill_area = double(params.flow.scaled_width()) * double(params.flow.scaled_width());
     if (params.config != nullptr) min_gapfill_area = scale_d(params.config->gap_fill_min_area.get_abs_value(params.flow.width())) * double(params.flow.scaled_width());
     // Perform offset. //FIXME: can miss gapfill outside of this first perimeter
@@ -113,7 +115,7 @@ FillConcentricWGapFill::fill_surface_extrusion(
         // no rotation is supported for this infill pattern
         BoundingBox bounding_box = expolygon.contour.bounding_box();
 
-        coord_t distance = _line_spacing_for_density(params.density);
+        coord_t distance = _line_spacing_for_density(params);
         if (params.density > 0.9999f && !params.dont_adjust) {
             distance = scale_t(this->get_spacing());
         }
@@ -258,7 +260,7 @@ FillConcentricWGapFill::fill_surface_extrusion(
                             leaf_coll->append(ExtrusionEntityCollection{});
                             leaf_count.sortable = static_cast<ExtrusionEntityCollection*>(leaf_coll->set_entities().back());
                             ExtrusionEntityCollection new_coll_nosort{ false, false };
-                            new_coll_nosort.set_entities().push_back(elt);
+                            new_coll_nosort.append(ExtrusionEntitiesPtr{elt});
                             leaf_count.sortable->append(std::move(new_coll_nosort));
                         }
                         if (leaf_count.sortable) {
@@ -386,7 +388,7 @@ FillConcentricWGapFill::fill_surface_extrusion(
 
 
         if (!root_collection_nosort->entities().empty())
-            out.push_back(root_collection_nosort);
+            out_to_check.push_back(root_collection_nosort);
         else delete root_collection_nosort;
     }
 
@@ -405,9 +407,39 @@ FillConcentricWGapFill::fill_surface_extrusion(
         FillParams params2{ params };
         params2.role = erGapFill;
 
-        do_gap_fill(intersection_ex(gapfill_areas, no_overlap_expolygons), params2, out);
+        do_gap_fill(intersection_ex(gapfill_areas, no_overlap_expolygons), params2, out_to_check);
     }
 
+    // check volume coverage
+    {
+        double flow_mult_exact_volume = 1;
+        // check if not over-extruding
+        if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly) {
+            // compute the path of the nozzle -> extruded volume
+            double length_tot = 0;
+            int    nb_lines   = 0;
+            ExtrusionVolume get_volume;
+            for (ExtrusionEntity *ee : out_to_check) ee->visit(get_volume);
+            // compute flow to remove spacing_ratio from the equation
+            // compute real volume to fill
+            double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
+            if (get_volume.volume != 0 && polyline_volume != 0)
+                flow_mult_exact_volume = polyline_volume / get_volume.volume;
+            // failsafe, it can happen
+            if (flow_mult_exact_volume > 1.3)
+                flow_mult_exact_volume = 1.3;
+            if (flow_mult_exact_volume < 0.8)
+                flow_mult_exact_volume = 0.8;
+            BOOST_LOG_TRIVIAL(info) << "concentric Infill (with gapfil) process extrude " << get_volume.volume
+                                    << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by "
+                                    << flow_mult_exact_volume;
+            //apply to extrusions
+            ExtrusionModifyFlow modifier(flow_mult_exact_volume);
+            for (ExtrusionEntity *ee : out_to_check) ee->visit(modifier);
+        }
+    }
+
+    out.insert(out.end(), out_to_check.begin(), out_to_check.end());
 }
 
 void FillConcentric::_fill_surface_single(const FillParams              &params,

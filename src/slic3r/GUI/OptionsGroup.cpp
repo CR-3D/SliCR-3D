@@ -49,9 +49,6 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
     case ConfigOptionDef::GUIType::legend: // StaticText
         m_fields.emplace(id, StaticText::Create<StaticText>(this->ctrl_parent(), opt, id));
         break;
-    case ConfigOptionDef::GUIType::one_string:
-        m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
-        break;
     default:
         switch (opt.type) {
             case coFloatOrPercent:
@@ -64,12 +61,22 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
 			case coStrings:
                 m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
                 break;
+            case coBools:
+                if (id.find('#') == std::string::npos) {
+                    // string field with vector serialization
+                    m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                    break;
+                }
 			case coBool:
-			case coBools:
                 m_fields.emplace(id, CheckBox::Create<CheckBox>(this->ctrl_parent(), opt, id));
 				break;
+            case coInts:
+                if (id.find('#') == std::string::npos) {
+                    // string field with vector serialization
+                    m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                    break;
+                }
 			case coInt:
-			case coInts:
                 m_fields.emplace(id, SpinCtrl::Create<SpinCtrl>(this->ctrl_parent(), opt, id));
 				break;
             case coEnum:
@@ -434,7 +441,7 @@ void OptionsGroup::activate_line(Line& line)
                 sizer_tmp->Add(opt.side_widget(this->ctrl_parent())/*!.target<wxWindow>()*/, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 1);    //! requires verification
             }
 
-            if (opt.opt_id != option_set.back().opt_id) //! istead of (opt != option_set.back())
+            if (opt.opt_id != option_set.back().opt_id) //! instead of (opt != option_set.back())
             m_options_mode.back()[opt.opt.mode].push_back(sizer_tmp->GetItemCount());
                 sizer_tmp->AddSpacer(6);
         }
@@ -603,6 +610,15 @@ void OptionsGroup::update_script_presets(bool init) {
         }
     }
 }
+bool ConfigOptionsGroup::has_option_def(const std::string &opt_key)
+{
+    return this->m_options.find(opt_key) != this->m_options.end();
+}
+const Option *ConfigOptionsGroup::get_option_def(const std::string &opt_key)
+{
+    auto it = this->m_options.find(opt_key);
+    return it == m_options.end() ? nullptr : &it->second;
+}
 
 bool ConfigOptionsGroup::has_option(const std::string& opt_key, int opt_index /*= -1*/)
 {
@@ -614,17 +630,17 @@ bool ConfigOptionsGroup::has_option(const std::string& opt_key, int opt_index /*
     return m_opt_map.find(opt_id) != m_opt_map.end();
 }
 
-Option ConfigOptionsGroup::get_option(const std::string& opt_key, int opt_index /*= -1*/)
+Option ConfigOptionsGroup::create_option_from_def(const std::string &opt_key, int opt_index /*= -1*/)
 {
-	if (!m_config->has(opt_key)) {
-		std::cerr << "No " << opt_key << " in ConfigOptionsGroup config.\n";
-	}
+    if (!m_config->has(opt_key)) {
+        std::cerr << "No " << opt_key << " in ConfigOptionsGroup config.\n";
+    }
 
-	std::string opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
-	std::pair<std::string, int> pair(opt_key, opt_index);
-	m_opt_map.emplace(opt_id, pair);
+    std::string                 opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
+    std::pair<std::string, int> pair(opt_key, opt_index);
+    m_opt_map.emplace(opt_id, pair);
 
-	return Option(*m_config->def()->get(opt_key), opt_id);
+    return Option(*m_config->def()->get(opt_key), opt_id);
 }
 
 void ConfigOptionsGroup::register_to_search(const std::string& opt_key, const ConfigOptionDef& option_def, int opt_index /*= -1*/, bool reset)
@@ -649,7 +665,7 @@ void ConfigOptionsGroup::on_change_OG(const t_config_option_key& opt_id, const b
 		const std::string  &opt_key   = itOption.first;
 		int 			    opt_index = itOption.second;
 
-		this->change_opt_value(opt_key, value, opt_index == -1 ? 0 : opt_index);
+		this->change_opt_value(opt_key, value, opt_index);
 	}
 
 	OptionsGroup::on_change_OG(opt_id, value);
@@ -717,8 +733,8 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
                     if (initial_conf.has(dep_key) && edited_conf.has(dep_key)) {
                         ConfigOption* conf_opt = initial_conf.option(dep_key)->clone();
                         // update the field
-                        tab->set_value(dep_key, get_config_value(initial_conf, dep_key));
-                        tab->on_value_change(dep_key, conf_opt->getAny());
+                        tab->set_value(dep_key, initial_conf.option(dep_key)->get_any());
+                        tab->on_value_change(dep_key, conf_opt->get_any());
                     }
                 }
             }
@@ -731,14 +747,14 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
     } else if (it_opt_map == m_opt_map.end() ||
 		    // This option doesn't have corresponded field
              is_option_without_field(opt_key) ) {
-        value = get_config_value(config, opt_key);
+        value = config.option(opt_key)->get_any();
         this->change_opt_value(opt_key, value);
         return;
     } else {
 		auto opt_id = it_opt_map->first;
 		std::string opt_short_key = m_opt_map.at(opt_id).first;
 		int opt_index = m_opt_map.at(opt_id).second;
-		value = get_config_value(config, opt_short_key, opt_index);
+        value = config.option(opt_short_key)->get_any(opt_index);
 	}
 
     if(set_value(opt_key, value))
@@ -763,7 +779,7 @@ void ConfigOptionsGroup::reload_config()
 		// index in the vector option, zero for scalars
 		int 			   opt_index = kvp.second.second;
 		const ConfigOptionDef &option = m_options.at(opt_id).opt;
-		this->set_value(opt_id, config_value(opt_key, opt_index, option.gui_flags == "serialized"));
+        this->set_value(opt_id, m_config->option(opt_key)->get_any(opt_index));
 	}
     update_script_presets();
 }
@@ -955,163 +971,6 @@ void ConfigOptionsGroup::refresh()
         custom_ctrl->Refresh();
 }
 
-boost::any ConfigOptionsGroup::config_value(const std::string& opt_key, int opt_index, bool deserialize) {
-
-	if (deserialize) {
-		// Want to edit a vector value(currently only multi - strings) in a single edit box.
-		// Aggregate the strings the old way.
-		// Currently used for the post_process config value only.
-		if (opt_index != -1)
-			throw Slic3r::OutOfRange("Can't deserialize option indexed value");
-// 		return join(';', m_config->get(opt_key)});
-		return get_config_value(*m_config, opt_key);
-	}
-	else {
-//		return opt_index == -1 ? m_config->get(opt_key) : m_config->get_at(opt_key, opt_index);
-		return get_config_value(*m_config, opt_key, opt_index);
-	}
-}
-
-boost::any ConfigOptionsGroup::get_config_value(const DynamicConfig& config, const std::string& opt_key, int opt_index /*= -1*/)
-{
-	size_t idx = opt_index == -1 ? 0 : opt_index;
-
-	boost::any ret;
-	wxString text_value = wxString("");
-	const ConfigOptionDef* opt = config.def()->get(opt_key);
-
-    if (opt->nullable)
-    {
-        switch (opt->type)
-        {
-        case coPercents:
-        case coFloats: {
-            if (config.option(opt_key)->is_nil())
-                ret = _(L("N/A"));
-            else {
-                double val = opt->type == coFloats ?
-                            config.option<ConfigOptionFloatsNullable>(opt_key)->get_at(idx) :
-                            config.option<ConfigOptionPercentsNullable>(opt_key)->get_at(idx);
-                ret = double_to_string(val, opt->precision); }
-            }
-            break;
-        case coFloatsOrPercents: {
-            if (config.option(opt_key)->is_nil())
-                ret = _(L("N/A"));
-            else {
-                FloatOrPercent float_percent = config.option<ConfigOptionFloatsOrPercentsNullable>(opt_key)->get_at(idx);
-				text_value = double_to_string(float_percent.value, opt->precision);
-				if (float_percent.percent)
-					text_value += "%";
-				ret = text_value;
-			}
-            }
-            break;
-        case coBools:
-            ret = config.option<ConfigOptionBoolsNullable>(opt_key)->values[idx];
-            break;
-        case coInts:
-            ret = config.option<ConfigOptionIntsNullable>(opt_key)->get_at(idx);
-            break;
-        case coPoints:
-        default:
-            break;
-        }
-        return ret;
-    }
-
-	switch (opt->type) {
-	case coFloatOrPercent:{
-		const auto &value = *config.option<ConfigOptionFloatOrPercent>(opt_key);
-
-        text_value = double_to_string(value.value, opt->precision);
-		if (value.percent)
-			text_value += "%";
-
-		ret = text_value;
-		break;
-	}
-	case coFloatsOrPercents:{
-		const ConfigOptionFloatsOrPercents &value = *config.option<ConfigOptionFloatsOrPercents>(opt_key);
-
-        text_value = double_to_string(value.get_at(idx).value, opt->precision);
-		if (value.get_at(idx).percent)
-			text_value += "%";
-
-		ret = text_value;
-		break;
-	}
-	case coPercent:{
-		double val = config.option<ConfigOptionPercent>(opt_key)->value;
-        text_value = double_to_string(val, opt->precision);
-		ret = text_value;
-	}
-		break;
-	case coPercents:
-	case coFloats:
-	case coFloat:{
-		double val = opt->type == coFloats ?
-					config.opt_float(opt_key, idx) :
-						opt->type == coFloat ? config.opt_float(opt_key) :
-						config.option<ConfigOptionPercents>(opt_key)->get_at(idx);
-		ret = double_to_string(val, opt->precision);
-		}
-		break;
-	case coString:
-		ret = from_u8(config.opt_string(opt_key));
-		break;
-	case coStrings:
-		if (opt_key == "compatible_printers" || opt_key == "compatible_prints" || opt_key == "gcode_substitutions") {
-			ret = config.option<ConfigOptionStrings>(opt_key)->values;
-			break;
-		}
-		if (opt_key == "filament_ramming_parameters") {
-			ret = config.opt_string(opt_key, static_cast<unsigned int>(idx));
-			break;
-		}
-		if (config.option<ConfigOptionStrings>(opt_key)->values.empty())
-			ret = text_value;
-		else if (opt->gui_flags == "serialized") {
-			std::vector<std::string> values = config.option<ConfigOptionStrings>(opt_key)->values;
-			if (!values.empty() && !values[0].empty())
-				for (auto el : values)
-					text_value += el + ";";
-			ret = text_value;
-		}
-		else
-			ret = from_u8(config.opt_string(opt_key, static_cast<unsigned int>(idx)));
-		break;
-	case coBool:
-		ret = config.opt_bool(opt_key);
-		break;
-	case coBools:
-		ret = config.opt_bool(opt_key, idx);
-		break;
-	case coInt:
-		ret = config.opt_int(opt_key);
-		break;
-	case coInts:
-		ret = config.opt_int(opt_key, idx);
-		break;
-	case coEnum:
-        ret = config.option(opt_key)->getInt();
-		break;
-    case coPoint:
-        ret = config.option<ConfigOptionPoint>(opt_key)->value;
-        break;
-	case coPoints:
-		if (opt_key == "bed_shape")
-			ret = config.option<ConfigOptionPoints>(opt_key)->values;
-		else
-			ret = config.option<ConfigOptionPoints>(opt_key)->get_at(idx);
-		break;
-	case coNone:
-	default:
-		break;
-	}
-	return ret;
-}
-
 Field* ConfigOptionsGroup::get_fieldc(const t_config_option_key& opt_key, int opt_index)
 {
 	Field* field = get_field(opt_key);
@@ -1146,7 +1005,7 @@ std::pair<OG_CustomCtrl*, bool*> ConfigOptionsGroup::get_custom_ctrl_with_blinki
 void ConfigOptionsGroup::change_opt_value(const t_config_option_key& opt_key, const boost::any& value, int opt_index /*= 0*/)
 
 {
-	Slic3r::GUI::change_opt_value(const_cast<DynamicConfig&>(*m_config), opt_key, value, opt_index);
+    const_cast<DynamicConfig&>(*m_config).option(opt_key)->set_any(value, opt_index);
 	if (m_modelconfig)
 		m_modelconfig->touch();
 }

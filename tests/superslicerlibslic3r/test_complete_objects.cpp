@@ -1,7 +1,6 @@
 
-#define CATCH_CONFIG_DISABLE
-#include <catch2/catch.hpp>
-//#include <catch_main.hpp>
+//#define CATCH_CONFIG_DISABLE
+#include <catch_main.hpp>
 
 #include <string>
 #include "test_data.hpp"
@@ -38,7 +37,7 @@ std::unique_ptr<Print> init_print_with_dist(DynamicPrintConfig &config, float di
 
     if (distance <= 0) {
         print->apply(model, config);
-        arrange_objects(model, InfiniteBed{}, ArrangeParams{ scaled(/*min_object_distance(config)) });/*/ PrintConfig::min_object_distance(&print->config(), 999999)) });
+        arrange_objects(model, InfiniteBed{}, ArrangeParams{ scale_t(10)/*min_object_distance(config)) }); PrintConfig::min_object_distance(&print->config(), 999999))/*/ });
         model.center_instances_around_point(Slic3r::Vec2d(100, 100));
     }
 
@@ -51,15 +50,16 @@ std::unique_ptr<Print> init_print_with_dist(DynamicPrintConfig &config, float di
 
 SCENARIO("Complete objects separatly") {
     GIVEN("20mm cubes and extruder_clearance_radius to 10") {
+        ConfigSubstitutionContext subst(ForwardCompatibilitySubstitutionRule::Disable);
         DynamicPrintConfig& config = Slic3r::DynamicPrintConfig::full_print_config();
         config.set_key_value("fill_density", new ConfigOptionPercent(0));
-        config.set_deserialize("nozzle_diameter", "0.4");
-        config.set_deserialize("layer_height", "0.3");
-        config.set_deserialize("extruder_clearance_height", "50");
-        config.set_deserialize("extruder_clearance_radius", "10");
-        config.set_deserialize("skirts", "0");
-        config.set_deserialize("skirt_height", "0");
-        config.set_deserialize("brim_width", "0");
+        config.set_deserialize("nozzle_diameter", "0.4", subst);
+        config.set_deserialize("layer_height", "0.3", subst);
+        config.set_deserialize("extruder_clearance_height", "50", subst);
+        config.set_deserialize("extruder_clearance_radius", "10", subst);
+        config.set_deserialize("skirts", "0", subst);
+        config.set_deserialize("skirt_height", "0", subst);
+        config.set_deserialize("brim_width", "0", subst);
 
         std::pair<PrintBase::PrintValidationError, std::string>  result;
 
@@ -93,7 +93,7 @@ SCENARIO("Complete objects separatly") {
         }
         WHEN("with a 10 mm brim, so the dist should be 40mm ") {
             config.set_key_value("complete_objects", new ConfigOptionBool(true));
-            config.set_deserialize("brim_width", "10");
+            config.set_deserialize("brim_width", "10", subst);
             THEN("(too near)") {
                 result = init_print_with_dist(config, 39.9)->validate();
                 REQUIRE(result.first == PrintBase::PrintValidationError::pveWrongPosition);
@@ -106,10 +106,10 @@ SCENARIO("Complete objects separatly") {
         }
         WHEN("with a 10 mm dist short skirt, so the dist should be 40mm +extrusionwidth") {
             config.set_key_value("complete_objects", new ConfigOptionBool(true));
-            config.set_deserialize("skirts", "1");
-            config.set_deserialize("skirt_height", "1");
-            config.set_deserialize("skirt_distance", "10");
-            config.set_deserialize("complete_objects_one_skirt", "0");
+            config.set_deserialize("skirts", "1", subst);
+            config.set_deserialize("skirt_height", "1", subst);
+            config.set_deserialize("skirt_distance", "10", subst);
+            config.set_deserialize("complete_objects_one_skirt", "0", subst);
             
             THEN("(too near)") {
                 result = init_print_with_dist(config, 40)->validate();
@@ -125,15 +125,16 @@ SCENARIO("Complete objects separatly") {
 }
 SCENARIO("Arrange is good enough") {
     GIVEN("20mm cubes and extruder_clearance_radius to 10") {
+        ConfigSubstitutionContext subst(ForwardCompatibilitySubstitutionRule::Disable);
         DynamicPrintConfig& config = Slic3r::DynamicPrintConfig::full_print_config();
         config.set_key_value("fill_density", new ConfigOptionPercent(0));
-        config.set_deserialize("nozzle_diameter", "0.4");
-        config.set_deserialize("layer_height", "0.3");
-        config.set_deserialize("extruder_clearance_height", "50");
-        config.set_deserialize("extruder_clearance_radius", "10");
-        config.set_deserialize("skirts", "0");
-        config.set_deserialize("skirt_height", "0");
-        config.set_deserialize("brim_width", "0");
+        config.set_deserialize("nozzle_diameter", "0.4", subst);
+        config.set_deserialize("layer_height", "0.3", subst);
+        config.set_deserialize("extruder_clearance_height", "50", subst);
+        config.set_deserialize("extruder_clearance_radius", "10", subst);
+        config.set_deserialize("skirts", "0", subst);
+        config.set_deserialize("skirt_height", "0", subst);
+        config.set_deserialize("brim_width", "0", subst);
 
         std::pair<PrintBase::PrintValidationError, std::string>  result;
 
@@ -148,16 +149,16 @@ SCENARIO("Arrange is good enough") {
         }
         WHEN("complete objects whith brim") {
             config.set_key_value("complete_objects", new ConfigOptionBool(true));
-            config.set_deserialize("brim_width", "10");
+            config.set_deserialize("brim_width", "10", subst);
             result = init_print_with_dist(config, -1)->validate();
             REQUIRE(result.second == "");
         }
         WHEN("complete objects whith skirt") {
             config.set_key_value("complete_objects", new ConfigOptionBool(true));
-            config.set_deserialize("skirts", "1");
-            config.set_deserialize("skirt_height", "1");
-            config.set_deserialize("skirt_distance", "10");
-            config.set_deserialize("complete_objects_one_skirt", "0");
+            config.set_deserialize("skirts", "1", subst);
+            config.set_deserialize("skirt_height", "1", subst);
+            config.set_deserialize("skirt_distance", "10", subst);
+            config.set_deserialize("complete_objects_one_skirt", "0", subst);
             result = init_print_with_dist(config, -1)->validate();
             REQUIRE(result.second == "");
         }

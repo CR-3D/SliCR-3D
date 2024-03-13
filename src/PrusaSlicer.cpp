@@ -142,7 +142,10 @@ int CLI::run(int argc, char **argv)
         if (! config_substitutions.empty()) {
             boost::nowide::cout << "The following configuration values were substituted when loading \" << file << \":\n";
             for (const ConfigSubstitution &subst : config_substitutions)
-                boost::nowide::cout << "\tkey = \"" << subst.opt_def->opt_key << "\"\t loaded = \"" << subst.old_value << "\tsubstituted = \"" << subst.new_value->serialize() << "\"\n";
+                if(subst.opt_def)
+                    boost::nowide::cout << "\tkey = \"" << subst.opt_def->opt_key << "\"\t loaded = \"" << subst.old_value << "\tsubstituted = \"" << subst.new_value->serialize() << "\"\n";
+                else
+                    boost::nowide::cout << "\tkey = \"" << subst.old_name << "\"\t can't be loaded (value = \"" << subst.old_value <<"\")\n";
         }
         config.normalize_fdm();
         PrinterTechnology other_printer_technology = get_printer_technology(config);
@@ -192,10 +195,13 @@ int CLI::run(int argc, char **argv)
                     boost::nowide::cerr << "Mixing configurations for FFF and SLA technologies" << std::endl;
                     return 1;
                 }
-                if (! config_substitutions.substitutions.empty()) {
+                if (! config_substitutions.empty()) {
                     boost::nowide::cout << "The following configuration values were substituted when loading \" << file << \":\n";
-                    for (const ConfigSubstitution& subst : config_substitutions.substitutions)
-                        boost::nowide::cout << "\tkey = \"" << subst.opt_def->opt_key << "\"\t loaded = \"" << subst.old_value << "\tsubstituted = \"" << subst.new_value->serialize() << "\"\n";
+                    for (const ConfigSubstitution& subst : config_substitutions.get())
+                        if(subst.opt_def)
+                            boost::nowide::cout << "\tkey = \"" << subst.opt_def->opt_key << "\"\t loaded = \"" << subst.old_value << "\tsubstituted = \"" << subst.new_value->serialize() << "\"\n";
+                        else
+                            boost::nowide::cout << "\tkey = \"" << subst.old_name << "\"\t can't be loaded (value = \"" << subst.old_value <<"\")\n";
                 }
                 // config is applied to m_print_config before the current m_config values.
                 config += std::move(m_print_config);
@@ -237,8 +243,8 @@ int CLI::run(int argc, char **argv)
         
         // The default bed shape should reflect the default display parameters
         // and not the fff defaults.
-        double w = sla_print_config.display_width.getFloat();
-        double h = sla_print_config.display_height.getFloat();
+        double w = sla_print_config.display_width.get_float();
+        double h = sla_print_config.display_height.get_float();
         sla_print_config.bed_shape.values = { Vec2d(0, 0), Vec2d(w, 0), Vec2d(w, h), Vec2d(0, h) };
         
         sla_print_config.apply(m_print_config, true);

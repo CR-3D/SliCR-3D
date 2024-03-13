@@ -243,6 +243,7 @@ public:
         // end skinnydip
         float               ramming_line_width_multiplicator = 1.f;
         float               ramming_step_multiplicator = 1.f;
+        float               max_speed = std::numeric_limits<float>::max();
         float               max_e_speed = std::numeric_limits<float>::max();
         std::vector<float>  ramming_speed;
         float               nozzle_diameter;

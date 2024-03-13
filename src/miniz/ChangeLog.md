@@ -1,5 +1,11 @@
 ## Changelog
 
+## Babumslicer: 
+ - search for BBS 
+ - m_is_utf8 for mz_zip_archive_file_stat (filled by mz_zip_file_stat_internal)
+ - mz_zip_writer_add_file_ex, like mz_zip_writer_add_file but with extra params for mz_zip_writer_add_cfile
+ - mz_zip_reader_get_extra
+
 ### 2.1.0
 
  - More instances of memcpy instead of cast and use memcpy per default

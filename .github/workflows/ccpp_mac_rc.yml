@@ -9,64 +9,27 @@ on:
 jobs:
   build:
 
-    runs-on: macos-11
+    runs-on: macos-12
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        ref: 'rc'
+    - uses: actions/checkout@v3
     - name: build deps & slicer
       run: ./BuildMacOS.sh
     - name: copy zstd
-      run: cp /usr/local/opt/zstd/lib/libzstd.1.dylib ./build/pack/SuperSlicer/SuperSlicer.app/Contents/MacOS/libzstd.1.dylib
+      run: cp /usr/local/opt/zstd/lib/libzstd.1.dylib ./build/pack/${{ github.event.repository.name }}/${{ github.event.repository.name }}.app/Contents/MacOS/libzstd.1.dylib
     - name: relink zstd
-      run: install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib  @executable_path/libzstd.1.dylib ./build/pack/SuperSlicer/SuperSlicer.app/Contents/MacOS/SuperSlicer
-    - name: Codesign executable conf
-      env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_P12 }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_PASSWD }}
-          MACOS_APP: ${{ secrets.MAC_APP_PWD }}
-      run: |
-        echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-        security create-keychain -p temp_password build.keychain
-        security default-keychain -s build.keychain
-        security unlock-keychain -p temp_password build.keychain
-        security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
-    - name: verify certificate presence
-      run: security find-identity -v
-    - name: register codesign
-      run: |
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temp_password build.keychain
-    - name: run codesign on exe
-      run: |
-        /usr/bin/codesign --options=runtime --force -s "Developer ID Application: Remi Durand (LDTLFRHP3G)" ./build/pack/SuperSlicer/SuperSlicer.app/Contents/MacOS/SuperSlicer -v
-        codesign -vvv --deep --strict ./build/pack/SuperSlicer/SuperSlicer.app/Contents/MacOS/SuperSlicer
-        codesign -dvv ./build/pack/SuperSlicer/SuperSlicer.app/Contents/MacOS/SuperSlicer
+      run: install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib  @executable_path/libzstd.1.dylib ./build/pack/${{ github.event.repository.name }}/${{ github.event.repository.name }}.app/Contents/MacOS/${{ github.event.repository.name }}
     - name: create the dmg
       run: |
-        hdiutil create -ov -fs HFS+ -volname SuperSlicer -srcfolder "build/pack/SuperSlicer" temp.dmg
-        hdiutil convert temp.dmg -format UDZO -o SuperSlicer.dmg
-    - name: run codesign on the dmg
-      run: |
-        /usr/bin/codesign -s "Developer ID Application: Remi Durand (LDTLFRHP3G)" SuperSlicer.dmg -v
-        codesign -vvv --deep --strict SuperSlicer.dmg
-        codesign -dvv SuperSlicer.dmg
-    - name: notarize the dmg
-      run: |
-        xcrun altool --notarize-app -f SuperSlicer.dmg --primary-bundle-id org.slic3r.superslicer -u mail@remidurand.fr -p $MACOS_APP
-        spctl -a -t open --context context:primary-signature -v SuperSlicer.dmg
-    - name: run codesign on app
-      run: |
-        /usr/bin/codesign --force -s "Developer ID Application: Remi Durand (LDTLFRHP3G)" ./build/pack/SuperSlicer/SuperSlicer.app -v
-        codesign -vvv --deep --strict ./build/pack/SuperSlicer/SuperSlicer.app
-        codesign -dvv ./build/pack/SuperSlicer/SuperSlicer.app
+        hdiutil create -ov -fs HFS+ -volname ${{ github.event.repository.name }} -srcfolder "build/pack/${{ github.event.repository.name }}" temp.dmg
+        hdiutil convert temp.dmg -format UDZO -o ${{ github.event.repository.name }}.dmg
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_macos.app
-        path: build/pack/SuperSlicer/SuperSlicer.app
+        path: build/pack/${{ github.event.repository.name }}/${{ github.event.repository.name }}.app
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_macos.dmg
-        path: build/SuperSlicer.dmg
+        path: ${{ github.event.repository.name }}.dmg

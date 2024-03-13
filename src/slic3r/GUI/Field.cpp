@@ -76,6 +76,34 @@ wxString get_points_string(const std::vector<Vec2d>& values)
     return ret_str;
 }
 
+std::pair<bool, bool> get_strings_points(const wxString &str, double min, double max, std::vector<Vec2d> &out_values)
+{
+    bool              invalid_val      = false;
+    bool              out_of_range_val = false;
+    wxStringTokenizer points(str, ",");
+    while (points.HasMoreTokens()) {
+        wxString          token = points.GetNextToken();
+        double            x, y;
+        wxStringTokenizer point(token, "x");
+        if (point.HasMoreTokens()) {
+            wxString x_str = point.GetNextToken();
+            if (x_str.ToDouble(&x) && point.HasMoreTokens()) {
+                wxString y_str = point.GetNextToken();
+                if (y_str.ToDouble(&y) && !point.HasMoreTokens()) {
+                    if (min <= x && x <= max && min <= y && y <= max) {
+                        out_values.push_back(Vec2d(x, y));
+                        continue;
+                    }
+                    out_of_range_val = true;
+                    break;
+                }
+            }
+        }
+        invalid_val = true;
+        break;
+    }
+    return {invalid_val, out_of_range_val};
+}
 
 Field::~Field()
 {
@@ -110,6 +138,8 @@ void Field::PostInitialize()
 		auto tag_pos = m_opt_id.find("#");
 		if (tag_pos != std::string::npos)
 			m_opt_idx = stoi(m_opt_id.substr(tag_pos + 1, m_opt_id.size()));
+        else
+            m_opt_idx = -1; // no index, ie full vector in serialized form
 		break;
 	}
 	default:
@@ -326,122 +356,378 @@ void RichTooltipTimer::Notify() {
     }
 }
 
-bool Field::is_matched(const std::string& string, const std::string& pattern)
+bool Field::is_matched(const std::string &string, const std::string &pattern)
 {
 	std::regex regex_pattern(pattern, std::regex_constants::icase); // use ::icase to make the matching case insensitive like /i in perl
 	return std::regex_match(string, regex_pattern);
 }
 
-static wxString na_value() { return _(L("N/A")); }
+static wxString na_value() { return _L("N/A"); }
 
-//TODO move value verification on another methos that won't be called at each value.get()
-void Field::get_value_by_opt_type(wxString& str, const bool check_value/* = true*/)
+// return the string to set, and bool if there is a nil value
+std::pair<wxString, bool> any_to_wxstring(const boost::any &value, const ConfigOptionDef &opt, const int opt_idx)
 {
+    wxString text_value;
+    bool     has_nil = false;
+    auto deserialize = [&text_value, &value, &opt, &has_nil](ConfigOptionVectorBase &&writer, bool check_nil = true) {
+        writer.set_any(value, -1);
+        text_value = writer.serialize();
+        if (check_nil && opt.nullable)
+            has_nil = (text_value.Replace(NIL_STR_VALUE, na_value()) > 0);
+        //replace ',' by ';'
+        text_value.Replace(",", ";");
+        if (!is_decimal_separator_point()) {
+            // adjust to locale: '.' -> ','
+            //',' are the decimal separator, transform from '.' from serialization (which happens in C locale)
+            text_value.Replace(".", ",");
+        }
+    };
+    // first, easy convert-to one-string
+    switch (opt.type) {
+    case coFloats: {
+        if (opt_idx < 0) {
+            deserialize(ConfigOptionFloats{});
+            break;
+        }
+    }
+    case coPercents: {
+        if (opt_idx < 0) {
+            deserialize(ConfigOptionPercents{});
+            break;
+        }
+        if (opt.nullable && ConfigOptionFloatsNullable::is_nil(value)) {
+            text_value = na_value();
+            has_nil    = true;
+            break;
+        }
+    }
+    case coFloat:
+    case coPercent: {
+        text_value = double_to_string(boost::any_cast<double>(value), opt.precision);
+        break;
+    }
+    case coStrings: {
+        if (opt_idx < 0) {
+            // custom for strings, as we don't need the serialized form, the normal one with ';' in-between is enough
+            // (use '\n' for multi-line opt)
+            ConfigOptionStrings reader;
+            reader.set_any(value, opt_idx);
+            std::string good_str;
+            for (std::string &s : reader.values) {
+                //ensure the separator isn't inside, not escaped.
+                if (s.find((opt.multiline ? '\n' : ';')) != std::string::npos) {
+                    if (opt.multiline) {
+                        //if multiline, all \n are escaped (again)
+                        boost::replace_all(s, "\\n", "\\\\n");
+                        boost::replace_all(s, "\n", "\\n");
+                    }
+                    // all ";" are escaped
+                    boost::replace_all(s, ";","\\;");
+                }
+                good_str.append(s).append((opt.multiline ? "\n" : ";"));
+            }
+            if (!good_str.empty())
+                good_str.pop_back();
+            text_value = good_str;
+            break;
+        }
+        // can't be nullable
+    }
+    case coString: {
+        text_value = boost::any_cast<std::string>(value);
+        break;
+    }
+    case coFloatsOrPercents: {
+        if (opt_idx < 0) {
+            deserialize(ConfigOptionFloatsOrPercents{});
+            break;
+        }
+        if (opt.nullable && ConfigOptionFloatsOrPercentsNullable::is_nil(value)) {
+            text_value = na_value();
+            has_nil    = true;
+            break;
+        }
+    }
+    case coFloatOrPercent: {
+        FloatOrPercent fl_or_per = boost::any_cast<FloatOrPercent>(value);
+        text_value               = double_to_string(fl_or_per.value);
+        if (fl_or_per.percent)
+            text_value.append("%");
+        break;
+    }
+    case coBools: {
+        if (opt_idx < 0) {
+            deserialize(ConfigOptionBools{});
+        } else {
+            if (opt.nullable && boost::any_cast<uint8_t>(value) == ConfigOptionBoolsNullable::NIL_VALUE()) {
+                text_value = na_value();
+                has_nil    = true;
+                break;
+            }
+            text_value = boost::any_cast<uint8_t>(value) != 0 ? "true" : "false";
+        }
+        break;
+    }
+    case coBool: {
+        if (opt.is_script)
+            text_value = boost::any_cast<uint8_t>(value) != 0 ? "true" : "false";
+        else
+            text_value = boost::any_cast<bool>(value) ? "true" : "false";
+    }
+    case coInts: {
+        if (opt_idx < 0) {
+            deserialize(ConfigOptionInts{});
+            break;
+        }
+        if (opt.nullable && boost::any_cast<int32_t>(value) == ConfigOptionIntsNullable::NIL_VALUE()) {
+            text_value = na_value();
+            has_nil    = true;
+            break;
+        }
+    }
+    case coInt: {
+        text_value = wxString::Format(_T("%i"), int(boost::any_cast<int>(value)));
+        break;
+    }
+    case coPoints:
+        if (opt_idx < 0) {
+            deserialize(ConfigOptionPoints{});
+            assert(text_value == get_points_string(boost::any_cast<std::vector<Vec2d>>(value)));
+            break;
+        }
+    case coPoint: {
+        text_value = get_points_string({boost::any_cast<Vec2d>(value)});
+        break;
+    }
+    }
+    return {text_value, has_nil};
+}
+
+// return true if the field isn't the same as before
+bool TextField::get_vector_value(const wxString &str, ConfigOptionVectorBase &reader)
+{
+    std::string vector_str = str.ToStdString();
+    if (str.size() > 2 && str.at(0) == '[' && str.at(str.size() - 1) == ']') {
+        // validate data inside
+        // first, remove all spaces
+        vector_str = str.SubString(1, str.size() - 1).ToStdString();
+    }
+    // FIXME: also remove other unwanted chars only "[0-9].-,;" should remain
+    boost::erase_all(vector_str, " ");
+    bool is_decimal_sep_point = is_decimal_separator_point();
+    if (!is_decimal_sep_point) {
+        //',' are the decimal separator, transform to '.' for deserialization (which happens in C locale)
+        boost::replace_all(vector_str, ",", ".");
+    }
+    boost::replace_all(vector_str, ";", ",");
+    try {
+        reader.deserialize(vector_str);
+    } catch (std::exception) {}
+    std::string good_str = reader.serialize();
+    // replace ',' by ';'
+    boost::replace_all(good_str, ",", ";");
+    if (!is_decimal_sep_point) {
+        // adjust to locale: '.' -> ','
+        //',' are the decimal separator, transform from '.' from serialization (which happens in C locale)
+        boost::replace_all(good_str, ".", ",");
+    }
+    return (str.ToStdString() != good_str);
+}
+
+//TODO move value verification on another methods that won't be called at each value.get()
+void TextField::get_value_by_opt_type(wxString &str, const bool check_value /* = true*/)
+{
+    bool need_update = false;
+    // convert nil values to serializable ones
+    if (m_opt.nullable && (m_opt.type != coString && m_opt.type != coStrings)) {
+        need_update = str.Replace(na_value(), NIL_STR_VALUE);
+    }
+
+    // val is needed at the end of this function, for "max_volumetric_speed" || "gap_fill_speed" (bad practice)
     double val = 0;
-	switch (m_opt.type) {
-	case coInt:
-		m_value = wxAtoi(str);
-        val = wxAtoi(str);
-		break;
-	case coPercent:
-	case coPercents:
-	case coFloats:
-	case coFloat:{
-		if (m_opt.type == coPercent && !str.IsEmpty() &&  str.Last() == '%')
-			str.RemoveLast();
-		else if (!str.IsEmpty() && str.Last() == '%')
-        {
+    switch (m_opt.type) {
+    case coInts: // not used yet
+        if (m_opt_idx < 0) {
+            ConfigOptionInts reader;
+            need_update = get_vector_value(str, reader);
+            m_value     = reader.values;
+            break;
+        } // else: one int on m_opt_idx, done below
+    case coInt: {
+        m_value = wxAtoi(str);
+        val     = wxAtoi(str);
+        break;
+    }
+    case coBools: // not used
+        if (m_opt_idx < 0) {
+            ConfigOptionBools reader;
+            need_update = get_vector_value(str, reader);
+            m_value     = reader.values;
+            break;
+        } // else: one bool on m_opt_idx, done below
+    case coBool: {
+        wxString lower = str;
+        lower.LowerCase();
+        if (m_opt.is_script || m_opt.type == coBools) {
+            m_value = (lower == "true" || lower == "1") ? uint8_t(1) : uint8_t(0);
+        } else {
+            m_value = lower == "true" || lower == "1";
+        }
+        break;
+    }
+    case coPercents: //% are optional & copercents uses cofloats deserialize anyway
+    case coFloats:
+        if (m_opt_idx < 0) {
+            ConfigOptionFloats reader;
+            need_update = get_vector_value(str, reader);
+            m_value     = reader.values;
+            break;
+        }
+    case coPercent:
+    case coFloat: {
+        if (m_opt.type == coPercent && !str.IsEmpty() && str.Last() == '%')
+            str.RemoveLast();
+        else if (!str.IsEmpty() && str.Last() == '%') {
             if (!check_value) {
                 m_value.clear();
                 break;
             }
 
-			wxString label = m_opt.full_label.empty() ? _(m_opt.label) : _(m_opt.full_label);
+            wxString label = m_opt.full_label.empty() ? _(m_opt.label) : _(m_opt.full_label);
             show_error(m_parent, from_u8((boost::format(_utf8(L("%s doesn't support percentage"))) % label).str()));
-			set_value(double_to_string(m_opt.min, m_opt.precision), true);
-			m_value = double(m_opt.min);
-			break;
-		}
+            set_text_value(double_to_string(m_opt.min, m_opt.precision).ToStdString(), true);
+            m_value = double(m_opt.min);
+            break;
+        }
 
-        bool is_na_value = m_opt.nullable && str == na_value();
+        bool is_na_value = m_opt.nullable && str == NIL_STR_VALUE;
 
-        const char dec_sep = is_decimal_separator_point() ? '.' : ',';
+        const char dec_sep     = is_decimal_separator_point() ? '.' : ',';
         const char dec_sep_alt = dec_sep == '.' ? ',' : '.';
-        // Replace the first incorrect separator in decimal number, 
+        // Replace the first incorrect separator in decimal number,
         // if this value doesn't "N/A" value in some language
         // see https://github.com/prusa3d/PrusaSlicer/issues/6921
         if (!is_na_value && str.Replace(dec_sep_alt, dec_sep, false) != 0)
-            set_value(str, false);
+            set_text_value(str.ToStdString(), false);
 
         if (str == dec_sep)
             val = 0.0;
-        else
-        {
-            if (is_na_value)
-                val = ConfigOptionFloatsNullable::nil_value();
-            else if (!str.ToDouble(&val))
-            {
+        else {
+            if (is_na_value) {
+                val     = NAN;
+                m_value = ConfigOptionFloatsNullable::create_nil();
+                break;
+            } else if (!str.ToDouble(&val)) {
                 if (!check_value) {
                     m_value.clear();
                     break;
                 }
+                val = m_opt.min == INT_MIN ? std::max(0., m_opt.max) : m_opt.min;
                 show_error(m_parent, _(L("Invalid numeric input.")));
-                set_value(double_to_string(val, m_opt.precision), true);
+                set_text_value(double_to_string(val, m_opt.precision).ToStdString(), true);
             }
-            if (m_opt.min > val || val > m_opt.max)
-            {
+            if (m_opt.min > val || val > m_opt.max) {
                 if (!check_value) {
                     m_value.clear();
                     break;
                 }
                 if (m_opt_id == "extrusion_multiplier") {
                     if (m_value.empty() || boost::any_cast<double>(m_value) != val) {
-                        wxString msg_text = format_wxstr(_L("Input value is out of range\n"
-                            "Are you sure that %s is a correct value and that you want to continue?"), str);
-//                        wxMessageDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id, wxICON_WARNING | wxYES | wxNO);
-                        WarningDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id, wxYES | wxNO);
+                        wxString msg_text =
+                            format_wxstr(_L("Input value is out of range\n"
+                                            "Are you sure that %s is a correct value and that you want to continue?"),
+                                         str);
+                        //                        wxMessageDialog dialog(m_parent, msg_text, _L("Parameter
+                        //                        validation") + ": " + m_opt_id, wxICON_WARNING | wxYES | wxNO);
+                        WarningDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id,
+                                             wxYES | wxNO);
                         if (dialog.ShowModal() == wxID_NO) {
                             if (m_value.empty()) {
-                                if (m_opt.min > val) val = m_opt.min;
-                                if (val > m_opt.max) val = m_opt.max;
-                            }
-                            else
+                                if (m_opt.min > val)
+                                    val = m_opt.min;
+                                if (val > m_opt.max)
+                                    val = m_opt.max;
+                            } else
                                 val = boost::any_cast<double>(m_value);
-                            set_value(double_to_string(val, m_opt.precision), true);
+                            set_text_value(double_to_string(val, m_opt.precision).ToStdString(), true);
                         }
                     }
-                }
-                else {
+                } else {
                     show_error(m_parent, _L("Input value is out of range"));
-                    if (m_opt.min > val) val = m_opt.min;
-                    if (val > m_opt.max) val = m_opt.max;
-                    set_value(double_to_string(val, m_opt.precision), true);
+                    if (m_opt.min > val)
+                        val = m_opt.min;
+                    if (val > m_opt.max)
+                        val = m_opt.max;
+                    set_text_value(double_to_string(val, m_opt.precision).ToStdString(), true);
                 }
             }
         }
         m_value = val;
-		break; }
-	case coString:
-	case coStrings:
-        m_value = std::string(str.ToUTF8().data());
         break;
+    }
+    case coStrings:
+        if (m_opt_idx < 0) {
+            //don't remove spaces and things like that
+            //don't use reader.deserialize(str.ToStdString()); as the current string isn't escaped.
+            std::string              str_to_split = str.ToStdString();
+            std::vector<std::string> strings;
+            // ensure no in-string ';' to not mess up the split
+            boost::replace_all(str_to_split, "\\;", "@$@");
+            //split
+            boost::split(strings, str_to_split, boost::is_any_of("\n;"));
+            //restore extra ';' and '\n'
+            for (std::string &line : strings) {
+                boost::replace_all(line, "@$@", ";");
+                if (this->m_opt.multiline) {
+                    boost::replace_all(line, "\\n", "\n");
+                    boost::replace_all(line, "\\\n", "\\n");
+                }
+            }
+            // recreate field string
+            std::string good_str;
+            for (std::string s : strings) {
+                boost::replace_all(s, ";", "\\;");
+                if (this->m_opt.multiline) {
+                    boost::replace_all(s, "\\n", "\n");
+                    boost::replace_all(s, "\\\n", "\\n");
+                }
+                good_str += s + (this->m_opt.multiline ? "\n" : ";");
+            }
+            if (!good_str.empty())
+                good_str.pop_back();
+            need_update = (str.ToStdString() != good_str); // mostly true, even when not needed
+            m_value     = strings;
+            break;
+        }
+    case coString: m_value = std::string(str.ToUTF8().data()); break;
     case coFloatsOrPercents:
+        if (m_opt_idx < 0) { // not used yet
+            ConfigOptionFloatsOrPercents reader;
+            need_update = get_vector_value(str, reader);
+            m_value     = reader.values;
+            break;
+        }
     case coFloatOrPercent: {
+        bool is_percent = false;
         if (!str.IsEmpty()) {
             if ("infill_overlap" == m_opt_id && m_last_validated_value != str) {
                 bool bad = false;
                 if (str.Last() != '%') {
+                    is_percent = false;
                     if (str.ToDouble(&val)) {
-                        const DynamicPrintConfig& printer_config = wxGetApp().preset_bundle->printers.get_edited_preset().config;
-                            const std::vector<double>& nozzle_diameters = printer_config.option<ConfigOptionFloats>("nozzle_diameter")->values;
-                            double nozzle_diameter = 0;
-                            for (double diameter : nozzle_diameters)
-                                nozzle_diameter = std::max(nozzle_diameter, diameter);
+                        const DynamicPrintConfig &printer_config =
+                            wxGetApp().preset_bundle->printers.get_edited_preset().config;
+                        const std::vector<double> &nozzle_diameters =
+                            printer_config.option<ConfigOptionFloats>("nozzle_diameter")->values;
+                        double nozzle_diameter = 0;
+                        for (double diameter : nozzle_diameters)
+                            nozzle_diameter = std::max(nozzle_diameter, diameter);
                         if (val > nozzle_diameter / 2) {
                             bad = true;
                         }
                     }
                 } else {
+                    is_percent = true;
                     if (str.substr(0, str.size() - 1).ToCDouble(&val)) {
                         if (val >= 50) {
                             bad = true;
@@ -449,65 +735,76 @@ void Field::get_value_by_opt_type(wxString& str, const bool check_value/* = true
                     }
                 }
                 if (bad && check_value) {
-                    const wxString msg_text = from_u8(_u8L("The infill / perimeter encroachment can't be higher than half of the perimeter width.\n"
-                        "Are you sure to use this value?"));
-                    wxMessageDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id, wxICON_WARNING | wxYES | wxNO);
-                    auto ret = dialog.ShowModal();
+                    const wxString msg_text = from_u8(
+                        _u8L("The infill / perimeter encroachment can't be higher than half of the perimeter width.\n"
+                             "Are you sure to use this value?"));
+                    wxMessageDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id,
+                                           wxICON_WARNING | wxYES | wxNO);
+                    auto            ret = dialog.ShowModal();
                     if (ret == wxID_NO) {
-                        str = from_u8("49%");
+                        str                    = from_u8("49%");
                         m_last_validated_value = str;
-                        set_value(str, false);
+                        set_text_value(str.ToStdString(), false);
                         str = m_last_validated_value;
                     }
                     m_last_validated_value = str;
                 }
-            }
-            else if (str.Last() != '%') {
-                const char dec_sep = is_decimal_separator_point() ? '.' : ',';
+            } else if (str.Last() != '%') {
+                is_percent             = false;
+                const char dec_sep     = is_decimal_separator_point() ? '.' : ',';
                 const char dec_sep_alt = dec_sep == '.' ? ',' : '.';
                 // Replace the first incorrect separator in decimal number.
                 if (str.Replace(dec_sep_alt, dec_sep, false) != 0)
-                    set_value(str, false);
+                    set_text_value(str.ToStdString(), false);
 
                 // remove space and "mm" substring, if any exists
                 str.Replace(" ", "", true);
                 str.Replace("m", "", true);
 
-                if (m_opt.nullable && str == na_value()) {
-                    val = ConfigOptionFloatsNullable::nil_value();
-                    str = "nan";
+                if (m_opt.nullable && str == NIL_STR_VALUE) {
+                    m_value = ConfigOptionFloatsOrPercentsNullable::create_nil();
+                    break;
                 } else if (!str.ToDouble(&val)) {
                     if (!check_value) {
                         m_value.clear();
                         break;
                     }
                     show_error(m_parent, _(L("Invalid numeric input.")));
-                    set_value(double_to_string(val, m_opt.precision), true);
+                    set_any_value(FloatOrPercent{val, is_percent}, true);
                 } else {
-
-                    //at least check min, as we can want a 0 min
-                    if (m_opt.min > val)
-                    {
+                    //convert m_value into str to compare
+                    FloatOrPercent val_from_m_value = m_value.empty() ? FloatOrPercent{0, false} :
+                                                                        boost::any_cast<FloatOrPercent>(m_value);
+                    wxString       str_from_m_value = double_to_string(val_from_m_value.value, m_opt.precision);
+                    if (val_from_m_value.percent)
+                        str_from_m_value += '%';
+                    
+                    // at least check min, as we can want a 0 min
+                    if (m_opt.min > val) {
                         if (!check_value) {
                             m_value.clear();
                             break;
                         }
                         show_error(m_parent, _(L("Input value is out of range")));
-                        if (m_opt.min > val) val = m_opt.min;
-                        set_value(double_to_string(val, m_opt.precision), true);
-                    } else if (m_value.empty() || into_u8(str) != boost::any_cast<std::string>(m_value)) {
+                        if (m_opt.min > val)
+                            val = m_opt.min;
+                        set_any_value(FloatOrPercent{val, is_percent}, true);
+                    } else if (m_value.empty() || str != str_from_m_value) {
+                        // empty of not equal -> need check
                         bool not_ok = (m_opt.sidetext.rfind("mm/s") != std::string::npos && val > m_opt.max);
                         if (!not_ok && m_opt.max_literal.value != 0 && val != 0) {
                             if (m_opt.max_literal.percent) {
-                                const DynamicPrintConfig& printer_config = wxGetApp().preset_bundle->printers.get_edited_preset().config;
-                                const std::vector<double>& nozzle_diameters = printer_config.option<ConfigOptionFloats>("nozzle_diameter")->values;
+                                const DynamicPrintConfig &printer_config =
+                                    wxGetApp().preset_bundle->printers.get_edited_preset().config;
+                                const std::vector<double> &nozzle_diameters =
+                                    printer_config.option<ConfigOptionFloats>("nozzle_diameter")->values;
                                 double nozzle_diameter = 0;
                                 for (double diameter : nozzle_diameters)
                                     nozzle_diameter = std::max(nozzle_diameter, diameter);
                                 if (m_opt.max_literal.value > 0)
                                     not_ok = val > nozzle_diameter * m_opt.max_literal.value;
                                 else
-                                    not_ok = val < nozzle_diameter* (-m_opt.max_literal.value);
+                                    not_ok = val < nozzle_diameter * (-m_opt.max_literal.value);
                             } else {
                                 if (m_opt.max_literal.value > 0)
                                     not_ok = val > m_opt.max_literal.value;
@@ -521,101 +818,98 @@ void Field::get_value_by_opt_type(wxString& str, const bool check_value/* = true
                                 break;
                             }
 
-                            bool infill_anchors = m_opt.opt_key == "infill_anchor" || m_opt.opt_key == "infill_anchor_max";
+                            bool infill_anchors = m_opt.opt_key == "infill_anchor" ||
+                                                  m_opt.opt_key == "infill_anchor_max";
 
-                            const std::string sidetext = m_opt.sidetext.rfind("mm/s") != std::string::npos ? "mm/s" : "mm";
-                            const wxString stVal = double_to_string(val, m_opt.precision);
-                            const wxString msg_text = from_u8((boost::format(_u8L("Do you mean %s%% instead of %s %s?\n"
-                                "Select YES if you want to change this value to %s%%, \n"
-                                "or NO if you are sure that %s %s is a correct value.")) % stVal % stVal % sidetext % stVal % stVal % sidetext).str());
-                            WarningDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id, wxYES | wxNO);
+                            const std::string sidetext = m_opt.sidetext.rfind("mm/s") != std::string::npos ? "mm/s" :
+                                                                                                             "mm";
+                            const wxString    stVal    = double_to_string(val, m_opt.precision);
+                            const wxString    msg_text = from_u8(
+                                (boost::format(_u8L("Do you mean %s%% instead of %s %s?\n"
+                                                    "Select YES if you want to change this value to %s%%, \n"
+                                                    "or NO if you are sure that %s %s is a correct value.")) %
+                                 stVal % stVal % sidetext % stVal % stVal % sidetext)
+                                    .str());
+                            WarningDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id,
+                                                 wxYES | wxNO);
                             if ((!infill_anchors || val > 100) && dialog.ShowModal() == wxID_YES) {
                                 str += "%";
+                                is_percent             = true;
                                 m_last_validated_value = str;
-                                set_value(str, false/*true*/);
+                                set_any_value(FloatOrPercent{val, is_percent}, false /*true*/);
                                 str = m_last_validated_value;
                             } else
-                                set_value(stVal, false); // it's no needed but can be helpful, when inputted value contained "," instead of "."
+                                set_any_value(FloatOrPercent{val, is_percent}, false); // it's no needed but can be helpful, when inputted value
+                                                         // contained "," instead of "."
                             m_last_validated_value = str;
                         }
                     }
                 }
             } else {
                 str.ToDouble(&val);
+                is_percent = true;
             }
         }
 
-        m_value = into_u8(str);
+        m_value = FloatOrPercent{val, is_percent};
         break;
     }
     case coPoints: {
         std::vector<Vec2d> out_values;
         str.Replace(" ", wxEmptyString, true);
         if (!str.IsEmpty()) {
-            bool invalid_val = false;
-            bool out_of_range_val = false;
-            wxStringTokenizer points(str, ",");
-            while (points.HasMoreTokens()) {
-                wxString token = points.GetNextToken();
-                double x, y;
-                wxStringTokenizer point(token, "x");
-                if (point.HasMoreTokens()) {
-                    wxString x_str = point.GetNextToken();
-                    if (x_str.ToDouble(&x) && point.HasMoreTokens()) {
-                        wxString y_str = point.GetNextToken();
-                        if (y_str.ToDouble(&y) && !point.HasMoreTokens()) {
-                            if (m_opt.min <= x && x <= m_opt.max && m_opt.min <= y && y <= m_opt.max) {
-                                out_values.push_back(Vec2d(x, y));
-                                continue;
-                            }
-                            out_of_range_val = true;
-                            break;
-                        }
-                    }
-                }
-                invalid_val = true;
-                break;
-            }
+            auto [/*bool*/ invalid_val, /*bool*/ out_of_range_val] = get_strings_points(str, m_opt.min, m_opt.max,
+                                                                                        out_values);
 
             if (out_of_range_val) {
                 wxString text_value;
                 if (!m_value.empty())
                     text_value = get_points_string(boost::any_cast<std::vector<Vec2d>>(m_value));
-                set_value(text_value, true);
+                set_text_value(text_value.ToStdString(), true);
                 show_error(m_parent, _L("Input value is out of range"));
-            }
-            else if (invalid_val) {
+            } else if (invalid_val) {
                 wxString text_value;
                 if (!m_value.empty())
                     text_value = get_points_string(boost::any_cast<std::vector<Vec2d>>(m_value));
-                set_value(text_value, true);
-                show_error(m_parent, format_wxstr(_L("Invalid input format. Expected vector of dimensions in the following format: \"%1%\""),"XxY, XxY, ..." ));
+                set_text_value(text_value.ToStdString(), true);
+                show_error(m_parent, format_wxstr(_L("Invalid input format. Expected vector of dimensions in the "
+                                                     "following format: \"%1%\""),
+                                                  "XxY, XxY, ..."));
             }
         }
 
         m_value = out_values;
-        break; }
+        break;
+    }
 
-	default:
-		break;
-	}
+    default: break;
+    }
 
     if (!Field::warn_zero_gapfillspeed && ("max_volumetric_speed" == m_opt_id || "gap_fill_speed" == m_opt_id)) {
-        bool show_warning = false;
-        const DynamicPrintConfig& print_config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
+        bool                      show_warning = false;
+        const DynamicPrintConfig &print_config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
         if ("max_volumetric_speed" == m_opt_id && val > 0)
             show_warning = print_config.option<ConfigOptionFloatOrPercent>("gap_fill_speed")->value == 0;
         if ("gap_fill_speed" == m_opt_id && val == 0)
             show_warning = true;
         if (show_warning) {
-            const wxString msg_text = from_u8(_u8L("Auto Speed will try to maintain a constant flow rate accross all print moves."
-                "\nIt is not recommended to include gap moves to the Auto Speed calculation(by setting this value to 0)."
-                "\nVery thin gap extrusions will often not max out the flow rate of your printer."
-                "\nAs a result, this will cause Auto Speed to lower the speeds of all other print moves to match the low flow rate of these thin gaps."));
-            wxMessageDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id, wxICON_WARNING | wxOK);
+            const wxString msg_text = from_u8(
+                _u8L("Auto Speed will try to maintain a constant flow rate accross all print moves."
+                     "\nIt is not recommended to include gap moves to the Auto Speed calculation(by setting this "
+                     "value to 0)."
+                     "\nVery thin gap extrusions will often not max out the flow rate of your printer."
+                     "\nAs a result, this will cause Auto Speed to lower the speeds of all other print moves to "
+                     "match the low flow rate of these thin gaps."));
+            wxMessageDialog dialog(m_parent, msg_text, _L("Parameter validation") + ": " + m_opt_id,
+                                   wxICON_WARNING | wxOK);
             dialog.ShowModal();
             Field::warn_zero_gapfillspeed = true;
         }
+    }
+
+    if (need_update) {
+        wxString new_str = any_to_wxstring(m_value, m_opt, m_opt_idx).first;
+        set_text_value(new_str.ToStdString());
     }
 }
 
@@ -648,60 +942,16 @@ void TextCtrl::BUILD() {
 
 	wxString text_value = wxString("");
 
-	switch (m_opt.type) {
-    case coFloatOrPercent:
-    {
-        text_value = double_to_string(m_opt.default_value->getFloat(), m_opt.precision);
-        if (m_opt.get_default_value<ConfigOptionFloatOrPercent>()->percent)
-            text_value += "%";
-        break;
-    }
-	case coPercent:
-	{
-		text_value = double_to_string(m_opt.default_value->getFloat(), m_opt.precision);
-		text_value += "%";
-		break;
-	}
-	case coPercents:
-	case coFloats:
-	case coFloat:
-	{
-		double val = m_opt.type == coFloats ?
-			m_opt.get_default_value<ConfigOptionFloats>()->get_at(m_opt_idx) :
-			m_opt.type == coFloat ?
-				m_opt.default_value->getFloat() :
-				m_opt.get_default_value<ConfigOptionPercents>()->get_at(m_opt_idx);
-		text_value = double_to_string(val, m_opt.precision);
-		break;
-	}
-    case coFloatsOrPercents:
-    {
-        const ConfigOptionFloatsOrPercents* cofop = m_opt.get_default_value<ConfigOptionFloatsOrPercents>();
-        text_value = double_to_string(cofop->get_at(m_opt_idx).value, m_opt.precision);
-        if (cofop->get_at(m_opt_idx).percent)
-            text_value += "%";
-        break;
-    }
-	case coString:
-		text_value = m_opt.get_default_value<ConfigOptionString>()->value;
-		break;
-	case coStrings:
-	{
-		const ConfigOptionStrings *vec = m_opt.get_default_value<ConfigOptionStrings>();
-		if (vec == nullptr || vec->empty()) break; //for the case of empty default value
-		text_value = vec->get_at(m_opt_idx);
-		break;
-	}
-    case coPoint:
-        text_value = get_points_string({ m_opt.get_default_value<ConfigOptionPoint>()->value });
-        break;
-    case coPoints:
-        text_value = get_points_string(m_opt.get_default_value<ConfigOptionPoints>()->values);
-        break;
-	default:
-		break;
-	}
+    boost::any anyval = m_opt.default_value->get_any(m_opt_idx);
+    text_value = any_to_wxstring(m_opt.default_value->get_any(m_opt_idx), m_opt, m_opt_idx).first;
+    if (text_value == na_value()) {
+        // current value is nil, get the not-nil default value of the default option.
+        assert(m_opt.default_value->is_vector());
+        m_last_meaningful_value = any_to_wxstring(static_cast<const ConfigOptionVectorBase*>(m_opt.default_value.get())->get_default_value(), m_opt, m_opt_idx).first;
+    } else {
     m_last_meaningful_value = text_value;
+    }
+    assert(m_last_meaningful_value != na_value());
 
     long style = m_opt.multiline ? wxTE_MULTILINE : wxTE_PROCESS_ENTER;
 #ifdef _WIN32
@@ -770,7 +1020,15 @@ void TextCtrl::BUILD() {
     window = dynamic_cast<wxWindow*>(temp);
 
     this->set_tooltip(text_value);
-}	
+}
+
+
+void TextCtrl::set_text_value(const std::string &value, bool change_event)
+{
+    m_disable_change_event = !change_event;
+    dynamic_cast<wxTextCtrl *>(window)->SetValue(value);
+    m_disable_change_event = false;
+}
 
 bool TextCtrl::value_was_changed()
 {
@@ -784,22 +1042,75 @@ bool TextCtrl::value_was_changed()
     get_value_by_opt_type(ret_str);
 
     switch (m_opt.type) {
+    case coInts:
+        if (m_opt_idx < 0) {
+            return boost::any_cast<std::vector<int>>(m_value) != boost::any_cast<std::vector<int>>(val);
+        }
+        if (m_opt.nullable) {
+            uint8_t new_val = boost::any_cast<uint8_t>(m_value);
+            uint8_t old_val = boost::any_cast<uint8_t>(val);
+            if (new_val == ConfigOptionInts::NIL_VALUE() && old_val == ConfigOptionInts::NIL_VALUE())
+                return false;
+        }
     case coInt:
         return boost::any_cast<int>(m_value) != boost::any_cast<int>(val);
-    case coPercent:
     case coPercents:
     case coFloats:
-    case coFloat: {
-        if (m_opt.nullable && std::isnan(boost::any_cast<double>(m_value)) &&
-                              std::isnan(boost::any_cast<double>(val)))
+        if (m_opt_idx < 0) {
+            return boost::any_cast<std::vector<double>>(m_value) != boost::any_cast<std::vector<double>>(val);
+        }
+        if (m_opt.nullable) {
+            double new_val = boost::any_cast<double>(m_value);
+            double old_val = boost::any_cast<double>(val);
+            if ((std::isnan(new_val) || ConfigOptionFloats::is_nil(m_value)) &&
+                (std::isnan(old_val) || ConfigOptionFloats::is_nil(val)))
             return false;
+        }
+    case coPercent:
+    case coFloat: {
         return boost::any_cast<double>(m_value) != boost::any_cast<double>(val);
     }
-    case coString:
     case coStrings:
-    case coFloatOrPercent:
-    case coFloatsOrPercents:
+        if (m_opt_idx < 0) {
+            return boost::any_cast<std::vector<std::string>>(m_value) !=
+                   boost::any_cast<std::vector<std::string>>(val);
+        }
+    case coString:
         return boost::any_cast<std::string>(m_value) != boost::any_cast<std::string>(val);
+    case coFloatsOrPercents:
+        if (m_opt_idx < 0) {
+            return boost::any_cast<std::vector<FloatOrPercent>>(m_value) !=
+                   boost::any_cast<std::vector<FloatOrPercent>>(val);
+        }
+        if (m_opt.nullable) {
+            if (ConfigOptionFloatsOrPercents::is_nil(m_value) &&ConfigOptionFloatsOrPercents::is_nil(val))
+                return false;
+        }
+    case coFloatOrPercent:
+        return boost::any_cast<FloatOrPercent>(m_value) != boost::any_cast<FloatOrPercent>(val);
+    case coPoints:
+        if (m_opt_idx < 0) {
+            return boost::any_cast<std::vector<Vec2d>>(m_value) != boost::any_cast<std::vector<Vec2d>>(val);
+        }
+    case coPoint:
+        return boost::any_cast<Vec2d>(m_value) != boost::any_cast<Vec2d>(val);
+    case coBools:
+        if (m_opt_idx < 0) {
+            return boost::any_cast<std::vector<uint8_t>>(m_value) != boost::any_cast<std::vector<uint8_t>>(val);
+        } else {
+            if (m_opt.nullable) {
+                uint8_t new_val = boost::any_cast<uint8_t>(m_value);
+                uint8_t old_val = boost::any_cast<uint8_t>(val);
+                if (new_val == ConfigOptionBools::NIL_VALUE() && old_val == ConfigOptionBools::NIL_VALUE())
+                    return false;
+            }
+            return boost::any_cast<uint8_t>(m_value) != boost::any_cast<uint8_t>(val);
+        }
+    case coBool:
+        if(m_opt.is_script)
+            return boost::any_cast<uint8_t>(m_value) != boost::any_cast<uint8_t>(val);
+        else
+            return boost::any_cast<bool>(m_value) != boost::any_cast<bool>(val);
     default:
         return true;
     }
@@ -813,18 +1124,29 @@ void TextCtrl::propagate_value()
         on_kill_focus();
 	else if (value_was_changed())
         on_change_field();
+    //update m_last_meaningful_value ?
+    if (!m_value.empty() && dynamic_cast<wxTextCtrl *>(window)->GetValue() != na_value())
+        m_last_meaningful_value = dynamic_cast<wxTextCtrl *>(window)->GetValue();
 }
 
-void TextCtrl::set_value(const boost::any& value, bool change_event/* = false*/) {
+void TextCtrl::set_any_value(const boost::any& value, bool change_event/* = false*/) {
+    //can be:
+    //case coFloat:
+    //case coFloats:
+    //case coPercent:
+    //case coPercents:
+    //case coFloatOrPercent:
+    //case coFloatsOrPercents:
+    //case coString:
+    //case coStrings:
+    // coBools (if all)
+    // coInts (if all)
+    // coPoints (if all)
+    auto [/*wxString*/text_value, /*bool*/ has_nil] = any_to_wxstring(value, m_opt, m_opt_idx);
+    if (!has_nil)
+        m_last_meaningful_value = text_value;
     m_disable_change_event = !change_event;
-    if (m_opt.nullable) {
-        const bool m_is_na_val = boost::any_cast<wxString>(value) == na_value();
-        if (!m_is_na_val)
-            m_last_meaningful_value = value;
-        dynamic_cast<wxTextCtrl*>(window)->SetValue(m_is_na_val ? na_value() : boost::any_cast<wxString>(value));
-    }
-    else
-        dynamic_cast<wxTextCtrl*>(window)->SetValue(boost::any_cast<wxString>(value));
+    dynamic_cast<wxTextCtrl *>(window)->SetValue(text_value);
     m_disable_change_event = false;
 
     if (!change_event) {
@@ -839,7 +1161,7 @@ void TextCtrl::set_value(const boost::any& value, bool change_event/* = false*/)
 
 void TextCtrl::set_last_meaningful_value()
 {
-    dynamic_cast<wxTextCtrl*>(window)->SetValue(boost::any_cast<wxString>(m_last_meaningful_value));
+    dynamic_cast<wxTextCtrl*>(window)->SetValue(m_last_meaningful_value);
     propagate_value();
 }
 
@@ -897,12 +1219,10 @@ void CheckBox::BUILD() {
     if (m_opt.height >= 0) size.SetHeight(m_opt.height * m_em_unit);
     if (m_opt.width >= 0) size.SetWidth(m_opt.width * m_em_unit);
 
-    bool check_value = m_opt.type == coBool ?
-        m_opt.default_value->getBool() : m_opt.type == coBools ?
-        m_opt.get_default_value<ConfigOptionBools>()->get_at(m_opt_idx) :
-        false;
+    bool check_value = m_opt.type == coBool || m_opt.type == coBools ? m_opt.default_value->get_bool(m_opt_idx) :
+                                                                       false;
 
-    m_last_meaningful_value = static_cast<unsigned char>(check_value);
+    m_last_meaningful_value = static_cast<uint8_t>(check_value);
 
 #ifdef __WXGTK2__
     //gtk2 can't resize checkboxes, so we are using togglable buttons instead
@@ -939,7 +1259,7 @@ void CheckBox::BUILD() {
 
     //set value (need the window for the set_value)
     if (m_opt.is_script && !m_opt.default_script_value.empty())
-        set_value(m_opt.default_script_value, false);
+        set_any_value(m_opt.default_script_value, false);
     else
         set_widget_value(check_value);
 
@@ -968,13 +1288,15 @@ void CheckBox::set_widget_value(bool new_val)
 #endif
 }
 
-void CheckBox::set_value(const boost::any& value, bool change_event)
+void CheckBox::set_any_value(const boost::any &value, bool change_event)
 {
+    //can be coBool and coBools (with idx)
     m_disable_change_event = !change_event;
-    if (m_opt.nullable) {
-        m_is_na_val = boost::any_cast<unsigned char>(value) == ConfigOptionBoolsNullable::nil_value();
+    assert(m_opt.type == coBool || (m_opt.type == coBools && m_opt_idx >= 0));
+    if (m_opt.type == coBools && m_opt.nullable) {
+        m_is_na_val = boost::any_cast<uint8_t>(value) == ConfigOptionBoolsNullable::NIL_VALUE();
         if (!m_is_na_val)
-            m_last_meaningful_value = value;
+            m_last_meaningful_value = boost::any_cast<uint8_t>(value);
         set_widget_value(m_is_na_val ? false : boost::any_cast<unsigned char>(value) != 0);
     } else if (m_opt.is_script) {
         uint8_t val = boost::any_cast<uint8_t>(value);
@@ -982,8 +1304,12 @@ void CheckBox::set_value(const boost::any& value, bool change_event)
             dynamic_cast<wxCheckBox*>(window)->Set3StateValue(wxCheckBoxState::wxCHK_UNDETERMINED);
         else
             set_widget_value(val != 0);
-    } else
+    } else if (m_opt.type == coBools) {
+        set_widget_value(boost::any_cast<uint8_t>(value) != 0);
+    } else {
+        assert(m_opt.type == coBool);
         set_widget_value(boost::any_cast<bool>(value));
+    }
     m_disable_change_event = false;
 }
 
@@ -991,7 +1317,7 @@ void CheckBox::set_last_meaningful_value()
 {
     if (m_opt.nullable) {
         m_is_na_val = false;
-        set_widget_value(boost::any_cast<unsigned char>(m_last_meaningful_value) != 0);
+        set_widget_value(m_last_meaningful_value != 0);
         on_change_field();
     }
 }
@@ -1023,7 +1349,7 @@ boost::any& CheckBox::get_value()
 	if (m_opt.type == coBool)
 		m_value = static_cast<bool>(value);
 	else
-		m_value = m_is_na_val ? ConfigOptionBoolsNullable::nil_value() : static_cast<unsigned char>(value);
+		m_value = m_is_na_val ? ConfigOptionBoolsNullable::NIL_VALUE() : static_cast<unsigned char>(value);
  	return m_value;
 }
 
@@ -1055,7 +1381,7 @@ void SpinCtrl::BUILD() {
 
 	switch (m_opt.type) {
 	case coInt:
-		default_value = m_opt.default_value->getInt();
+		default_value = m_opt.default_value->get_int();
 		text_value = wxString::Format(_T("%i"), default_value);
 		break;
 	case coInts:
@@ -1315,8 +1641,8 @@ void Choice::propagate_value()
         switch (m_opt.type) {
         case coFloatOrPercent:
         {
-            std::string old_val = !m_value.empty() ? boost::any_cast<std::string>(m_value) : "";
-            if (old_val == boost::any_cast<std::string>(get_value()))
+            FloatOrPercent old_val = !m_value.empty() ? boost::any_cast<FloatOrPercent>(m_value) : FloatOrPercent{};
+            if (old_val == boost::any_cast<FloatOrPercent>(get_value()))
                 return;
             break;
         }
@@ -1357,17 +1683,17 @@ void Choice::set_selection()
     choice_ctrl* field = dynamic_cast<choice_ctrl*>(window);
 	switch (m_opt.type) {
 	case coEnum:{
-        field->SetSelection(m_opt.default_value->getInt());
+        field->SetSelection(m_opt.default_value->get_int());
 		break;
 	}
 	case coFloat:
 	case coPercent:	{
-		double val = m_opt.default_value->getFloat();
+		double val = m_opt.default_value->get_float();
 		text_value = val - int(val) == 0 ? wxString::Format(_T("%i"), int(val)) : wxNumberFormatter::ToString(val, 1);
 		break;
 	}
 	case coInt:{
-		text_value = wxString::Format(_T("%i"), int(m_opt.default_value->getInt()));
+		text_value = wxString::Format(_T("%i"), int(m_opt.default_value->get_int()));
 		break;
 	}
 	case coStrings:{
@@ -1375,7 +1701,7 @@ void Choice::set_selection()
 		break;
 	}
 	case coFloatOrPercent: {
-		text_value = double_to_string(m_opt.default_value->getFloat(), m_opt.precision);
+		text_value = double_to_string(m_opt.default_value->get_float(), m_opt.precision);
 		if (m_opt.get_default_value<ConfigOptionFloatOrPercent>()->percent)
 			text_value += "%";
 		break;
@@ -1394,7 +1720,7 @@ void Choice::set_selection()
 	}
 }
 
-void Choice::set_value(const std::string& value, bool change_event)  //! Redundant?
+void Choice::set_text_value(const std::string &value, bool change_event) //! Redundant?
 {
 	m_disable_change_event = !change_event;
 
@@ -1439,8 +1765,16 @@ int32_t Choice::idx_from_enum_value(int32_t val) {
         return 0;
 }
 
-void Choice::set_value(const boost::any& value, bool change_event)
+void Choice::set_any_value(const boost::any &value, bool change_event)
 {
+    // can be
+    // GUIType::select_open
+    // GUIType::f_enum_open:
+    // GUIType::i_enum_open:
+    // coEnum
+    assert(m_opt.type == coEnum || m_opt.gui_type == ConfigOptionDef::GUIType::select_open ||
+           m_opt.gui_type == ConfigOptionDef::GUIType::f_enum_open ||
+           m_opt.gui_type == ConfigOptionDef::GUIType::i_enum_open);
 	m_disable_change_event = !change_event;
 
     choice_ctrl* field = dynamic_cast<choice_ctrl*>(window);
@@ -1452,11 +1786,8 @@ void Choice::set_value(const boost::any& value, bool change_event)
 	case coFloatOrPercent:
 	case coString:
 	case coStrings: {
-		wxString text_value;
-		if (m_opt.type == coInt)
-			text_value = wxString::Format(_T("%i"), int(boost::any_cast<int>(value)));
-		else
-			text_value = boost::any_cast<wxString>(value);
+        auto [/*wxString*/ text_value, /*bool*/ has_nil] = any_to_wxstring(value, m_opt, m_opt_idx);
+
         size_t idx = 0;
         const std::vector<std::string>& enums = m_opt.enum_values.empty() ? m_opt.enum_labels : m_opt.enum_values;
 		for (auto el : enums)
@@ -1474,6 +1805,7 @@ void Choice::set_value(const boost::any& value, bool change_event)
         else
 			field->SetSelection(idx);
 
+        // merill note: i don't like hacks like that. makes the code spagetti
         if (!m_value.empty() && m_opt.opt_key == "fill_density") {
             // If m_value was changed before, then update m_value here too to avoid case 
             // when control's value is already changed from the ConfigManipulation::update_print_fff_config(),
@@ -1529,7 +1861,7 @@ void Choice::convert_to_enum_value(int32_t ret_enum) {
         m_value = value;
     }
     else
-        m_value = m_opt.default_value.get()->getInt();
+        m_value = m_opt.default_value->get_int();
 }
 
 //Please don't use that on Enum fields it will just break everything
@@ -1579,9 +1911,10 @@ boost::any& Choice::get_value()
             (ret_str != m_opt.enum_values[ret_enum] && ret_str != _(m_opt.enum_labels[ret_enum])))
 			// modifies ret_string!
             get_value_by_opt_type(ret_str);
-        else if (m_opt.type == coFloatOrPercent)
-            m_value = m_opt.enum_values[ret_enum];
-        else if (m_opt.type == coInt)
+        else if (m_opt.type == coFloatOrPercent) {
+            m_value = FloatOrPercent{string_to_double_decimal_point(m_opt.enum_values[ret_enum]),
+                                     (m_opt.enum_values[ret_enum].find('%') != std::string::npos)};
+        } else if (m_opt.type == coInt)
             m_value = atoi(m_opt.enum_values[ret_enum].c_str());
         else
             m_value = string_to_double_decimal_point(m_opt.enum_values[ret_enum]);
@@ -1704,10 +2037,11 @@ void ColourPicker::set_undef_value(wxColourPickerCtrl* field)
     btn->SetBitmapLabel(bmp);
 }
 
-void ColourPicker::set_value(const boost::any& value, bool change_event)
+void ColourPicker::set_any_value(const boost::any &value, bool change_event)
 {
+    // can be ConfigOptionDef::GUIType::color
     m_disable_change_event = !change_event;
-    const wxString clr_str(boost::any_cast<wxString>(value));
+    const wxString clr_str(boost::any_cast<std::string>(value));
     auto field = dynamic_cast<wxColourPickerCtrl*>(window);
 
     wxColour clr(clr_str);
@@ -1767,10 +2101,10 @@ void PointCtrl::BUILD()
     const wxSize field_size(4 * m_em_unit, -1);
 
     Vec2d default_pt;
-    if(m_opt.type==coPoint)
+    if (m_opt.type == coPoint)
         default_pt = m_opt.get_default_value<ConfigOptionPoint>()->value;
     else // coPoints
-        default_pt = m_opt.get_default_value<ConfigOptionPoints>()->values.at(0);
+        default_pt = m_opt.get_default_value<ConfigOptionPoints>()->get_at(0);
 	double val = default_pt(0);
 	wxString X = val - int(val) == 0 ? wxString::Format(_T("%i"), int(val)) : wxNumberFormatter::ToString(val, 2, wxNumberFormatter::Style_None);
 	val = default_pt(1);
@@ -1866,7 +2200,7 @@ void PointCtrl::propagate_value(wxTextCtrl* win)
         on_change_field();
 }
 
-void PointCtrl::set_value(const Vec2d& value, bool change_event)
+void PointCtrl::set_vec2d_value(const Vec2d& value, bool change_event)
 {
 	m_disable_change_event = !change_event;
 
@@ -1878,22 +2212,12 @@ void PointCtrl::set_value(const Vec2d& value, bool change_event)
 	m_disable_change_event = false;
 }
 
-void PointCtrl::set_value(const boost::any& value, bool change_event)
+void PointCtrl::set_any_value(const boost::any &value, bool change_event)
 {
-	Vec2d pt(Vec2d::Zero());
-	const Vec2d *ptf = boost::any_cast<Vec2d>(&value);
-	if (!ptf)
-	{
-        if (m_opt.type == coPoint) {
-            pt = boost::any_cast<ConfigOptionPoint*>(value)->value;
-        } else { // coPoints
-            ConfigOptionPoints* pts = boost::any_cast<ConfigOptionPoints*>(value);
-            pt = pts->values.at(0);
-        }
-	}
-	else
-		pt = *ptf;
-	set_value(pt, change_event);
+    // can be coPoint and coPoints (with idx)
+    assert(m_opt.type == coPoint || (m_opt.type == coPoints && m_opt_idx >= 0));
+    Vec2d pt = boost::any_cast<Vec2d>(value);
+	set_vec2d_value(pt, change_event);
 }
 
 boost::any& PointCtrl::get_value()
@@ -1902,7 +2226,7 @@ boost::any& PointCtrl::get_value()
 	if (!x_textctrl->GetValue().ToDouble(&x) ||
 		!y_textctrl->GetValue().ToDouble(&y))
 	{
-		set_value(m_value.empty() ? Vec2d(0.0, 0.0) : m_value, true);
+        set_any_value(m_value.empty() ? Vec2d(0.0, 0.0) : m_value, true);
         show_error(m_parent, _L("Invalid numeric input."));
 	}
 	else
@@ -1913,7 +2237,7 @@ boost::any& PointCtrl::get_value()
 		if (x > m_opt.max) x = m_opt.max;
 		if (m_opt.min > y) y = m_opt.min;
 		if (y > m_opt.max) y = m_opt.max;
-		set_value(Vec2d(x, y), true);
+		set_vec2d_value(Vec2d(x, y), true);
 
 		show_error(m_parent, _L("Input value is out of range"));
 	}
@@ -2005,22 +2329,35 @@ void SliderCtrl::BUILD()
 	m_sizer = dynamic_cast<wxSizer*>(temp);
 }
 
-void SliderCtrl::set_value(const boost::any& value, bool change_event)
+void SliderCtrl::set_any_value(const boost::any &value, bool change_event)
 {
+    // only with ConfigOptionDef::GUIType::slider: & coFloat or coInt
+    assert(m_opt.gui_type == ConfigOptionDef::GUIType::slider && (m_opt.type == coFloat || m_opt.type == coInt));
 	m_disable_change_event = !change_event;
-
-	m_slider->SetValue(boost::any_cast<int>(value)*m_scale);
-	int val = boost::any_cast<int>(get_value());
-	m_textctrl->SetLabel(wxString::Format("%d", val));
+    if (m_opt.type == coFloat) {
+        m_slider->SetValue(boost::any_cast<double>(value) * m_scale);
+        double val = boost::any_cast<double>(get_value());
+        m_textctrl->SetLabel(wxString::Format("%d", val));
+    } else if (m_opt.type == coInt) {
+        m_slider->SetValue(boost::any_cast<int32_t>(value) * m_scale);
+        int32_t val = boost::any_cast<int32_t>(get_value());
+        m_textctrl->SetLabel(wxString::Format("%d", val));
+    }
 
 	m_disable_change_event = false;
 }
 
-boost::any& SliderCtrl::get_value()
+boost::any &SliderCtrl::get_value()
 {
-// 	int ret_val;
-// 	x_textctrl->GetValue().ToDouble(&val);
-	return m_value = int(m_slider->GetValue()/m_scale);
+    // 	int ret_val;
+    // 	x_textctrl->GetValue().ToDouble(&val);
+    if (m_opt.type == coFloat) {
+        return m_value = double(m_slider->GetValue() / m_scale);
+    } else if (m_opt.type == coInt) {
+        return m_value = int32_t(m_slider->GetValue() / m_scale);
+    }
+    assert(false);
+    return m_value;
 }
 
 

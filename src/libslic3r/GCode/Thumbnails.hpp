@@ -13,6 +13,8 @@
 
 namespace Slic3r::GCodeThumbnails {
 
+constexpr std::string_view EMPTY_TAG = "thumbnail";
+
 struct CompressedImageBuffer
 {
     void       *data { nullptr };
@@ -24,7 +26,13 @@ struct CompressedImageBuffer
 std::unique_ptr<CompressedImageBuffer> compress_thumbnail(const ThumbnailData &data, GCodeThumbnailsFormat format);
 
 template<typename WriteToOutput, typename ThrowIfCanceledCallback>
-inline void export_thumbnails_to_file(ThumbnailsGeneratorCallback &thumbnail_cb, const std::vector<Vec2d> &sizes, bool with_bed, GCodeThumbnailsFormat format, WriteToOutput output, ThrowIfCanceledCallback throw_if_canceled)
+inline void export_thumbnails_to_file(ThumbnailsGeneratorCallback &thumbnail_cb,
+                                      const std::vector<Vec2d> &   sizes,
+                                      bool                         with_bed,
+                                      GCodeThumbnailsFormat        format,
+                                      bool                         with_tag_format,
+                                      WriteToOutput                output,
+                                      ThrowIfCanceledCallback      throw_if_canceled)
 {
     // Write thumbnails using base64 encoding
     if (thumbnail_cb != nullptr) {
@@ -43,7 +51,10 @@ inline void export_thumbnails_to_file(ThumbnailsGeneratorCallback &thumbnail_cb,
                 auto compressed = compress_thumbnail(data, format);
                 if (compressed->data && compressed->size) {
                     if (format == GCodeThumbnailsFormat::BIQU) {
-                        output((boost::format("\n;\n; %s begin %dx%d %d\n") % compressed->tag() % data.width % data.height % (compressed->size - 1)).str().c_str());
+                        // BIQU firmware need to have nothing before the thumbnail
+                        //output((boost::format("\n;\n; %s begin %dx%d %d\n") 
+                        //    % (with_tag_format ? compressed->tag() : EMPTY_TAG)
+                        //    % data.width % data.height % (compressed->size - 1)).str().c_str());
                         //print size in hex
                         std::stringstream ss;
                         ss << std::setfill('0') << std::hex;
@@ -60,7 +71,9 @@ inline void export_thumbnails_to_file(ThumbnailsGeneratorCallback &thumbnail_cb,
                         encoded.resize(boost::beast::detail::base64::encoded_size(compressed->size));
                         encoded.resize(boost::beast::detail::base64::encode((void*)encoded.data(), (const void*)compressed->data, compressed->size));
 
-                        output((boost::format("\n;\n; %s begin %dx%d %d\n") % compressed->tag() % data.width % data.height % encoded.size()).str().c_str());
+                        output((boost::format("\n;\n; %s begin %dx%d %d\n") 
+                            % (with_tag_format ? compressed->tag() : EMPTY_TAG)
+                            % data.width % data.height % encoded.size()).str().c_str());
                         while (encoded.size() > max_row_length) {
                             output((boost::format("; %s\n") % encoded.substr(0, max_row_length)).str().c_str());
                             encoded = encoded.substr(max_row_length);
@@ -69,7 +82,7 @@ inline void export_thumbnails_to_file(ThumbnailsGeneratorCallback &thumbnail_cb,
                         if (encoded.size() > 0)
                             output((boost::format("; %s\n") % encoded).str().c_str());
                     }
-                    output((boost::format("; %s end\n;\n") % compressed->tag()).str().c_str());
+                    output((boost::format("; %s end\n;\n") % (with_tag_format ? compressed->tag() : EMPTY_TAG)).str().c_str());
                 }
                 throw_if_canceled();
             }

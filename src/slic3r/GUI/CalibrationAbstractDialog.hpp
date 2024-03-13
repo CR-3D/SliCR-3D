@@ -29,7 +29,7 @@ protected:
     virtual void create_buttons(wxStdDialogButtonSizer*) = 0;
     void on_dpi_changed(const wxRect& suggested_rect) override;
     void close_me(wxCommandEvent& event_args);
-    ModelObject* add_part(ModelObject* model_object, std::string input_file, Vec3d move, Vec3d scale = Vec3d{ 1,1,1 });
+    void add_part(ModelObject* model_object, std::string input_file, Vec3d move, Vec3d scale = Vec3d{ 1,1,1 }, bool rotate = true);
 
     wxHtmlWindow* html_viewer;
     MainFrame* main_frame;
