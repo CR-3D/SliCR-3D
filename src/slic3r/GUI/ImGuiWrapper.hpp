@@ -125,6 +125,11 @@ public:
     void set_requires_extra_frame() { m_requires_extra_frame = true; }
     void reset_requires_extra_frame() { m_requires_extra_frame = false; }
 
+    static ImVec4 to_ImVec4(const wxColour &color);
+
+    static wxColour from_ImVec4(const ImVec4 &color);
+
+
     static const ImVec4 COL_GREY_DARK;
     static const ImVec4 COL_GREY_LIGHT;
     //static const ImVec4 get_COL_DARK;

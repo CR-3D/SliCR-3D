@@ -1451,6 +1451,16 @@ void ImGuiWrapper::destroy_font()
     }
 }
 
+ImVec4 ImGuiWrapper::to_ImVec4(const wxColour &color) { 
+return {color.r(), color.g(), color.b(), color.a()}; 
+}
+
+wxColour ImGuiWrapper::from_ImVec4(const ImVec4 &color) 
+{ 
+return {color.x, color.y, color.z, color.w}; 
+}
+
+
 const char* ImGuiWrapper::clipboard_get(void* user_data)
 {
     ImGuiWrapper *self = reinterpret_cast<ImGuiWrapper*>(user_data);

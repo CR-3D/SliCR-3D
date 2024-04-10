@@ -6917,6 +6917,16 @@ std::vector<std::string> Plater::get_colors_for_color_print(const GCodeProcessor
     return colors;
 }
 
+BuildVolume_Type Plater::get_build_volume_type() const { return p->bed.get_build_volume_type(); }
+void Plater::import_sl1_archive()
+{
+    auto &w = get_ui_job_worker();
+    if (w.is_idle() && p->m_sla_import_dlg->ShowModal() == wxID_OK) {
+        p->take_snapshot(_u8L("Import SLA archive"));
+        replace_job(w, std::make_unique<SLAImportJob>(p->m_sla_import_dlg));
+    }
+}
+
 wxString Plater::get_project_filename(const wxString& extension) const
 {
     return p->get_project_filename(extension);

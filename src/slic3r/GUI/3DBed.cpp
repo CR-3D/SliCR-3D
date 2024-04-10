@@ -32,6 +32,49 @@ static const std::array<float, 4> PICKING_MODEL_COLOR = { 0.0f, 0.0f, 0.0f, 1.0f
 namespace Slic3r {
 namespace GUI {
 
+bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z)
+{
+    if (poly.empty())
+        return false;
+
+    const std::vector<Vec2f> triangles = triangulate_expolygon_2f(poly, NORMALS_UP);
+    if (triangles.empty() || triangles.size() % 3 != 0)
+        return false;
+
+    GLModel::Geometry init_data;
+    init_data.format = { GLModel::Geometry::EPrimitiveType::Triangles, GLModel::Geometry::EVertexLayout::P3T2 };
+    init_data.reserve_vertices(triangles.size());
+    init_data.reserve_indices(triangles.size() / 3);
+
+    Vec2f min = triangles.front();
+    Vec2f max = min;
+    for (const Vec2f &v : triangles) {
+        min = min.cwiseMin(v).eval();
+        max = max.cwiseMax(v).eval();
+    }
+
+    const Vec2f size = max - min;
+    if (size.x() <= 0.0f || size.y() <= 0.0f)
+        return false;
+
+    Vec2f inv_size = size.cwiseInverse();
+    inv_size.y() *= -1.0f;
+
+    // vertices + indices
+    unsigned int vertices_counter = 0;
+    for (const Vec2f &v : triangles) {
+        const Vec3f p = {v.x(), v.y(), z};
+        init_data.add_vertex(p, (Vec2f)(v - min).cwiseProduct(inv_size).eval());
+        ++vertices_counter;
+        if (vertices_counter % 3 == 0)
+            init_data.add_triangle(vertices_counter - 3, vertices_counter - 2, vertices_counter - 1);
+    }
+
+    model.init_from(std::move(init_data));
+
+    return true;
+}
+
 bool GeometryBuffer::set_from_triangles(const std::vector<Vec2f> &triangles, float z)
 {
     if (triangles.empty()) {

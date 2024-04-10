@@ -161,6 +161,19 @@ private:
     std::vector<stl_normal> m_normals;
 };
 
+struct PickingModel
+{
+    GLModel                        model;
+    std::unique_ptr<MeshRaycaster> mesh_raycaster;
+
+    void reset()
+    {
+        model.reset();
+        mesh_raycaster.reset();
+    }
+};
+
+
     
 } // namespace GUI
 } // namespace Slic3r

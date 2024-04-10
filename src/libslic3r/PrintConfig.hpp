@@ -108,6 +108,23 @@ enum class FuzzySkinType {
     All,
 };
 
+// BBS
+enum BedType {
+    btDefault = 0,
+    btPC,
+    btEP,
+    btPEI,
+    btPTE,
+    btCount
+};
+
+enum class PrintSequence {
+    ByLayer,
+    ByObject,
+    ByDefault,
+    Count,
+};
+
 enum InfillPattern : uint8_t{
     ipRectilinear, ipAlignedRectilinear, ipGrid, ipTriangles, ipStars, ipCubic, ipLine,
     ipConcentric, ipConcentricGapFill,

@@ -133,6 +133,7 @@ namespace Slic3r {
         float max_print_height;
         SettingsIds settings_ids;
         size_t extruders_count;
+        bool toolpath_outside;
         std::vector<std::string> extruder_colors;
         std::vector<std::string> filament_colors;
         std::vector<float> filament_diameters;

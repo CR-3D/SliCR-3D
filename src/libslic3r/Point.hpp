@@ -44,6 +44,7 @@ using Vec4i32 = Eigen::Matrix<int32_t,  4, 1, Eigen::DontAlign>;
 // Vector types with a double coordinate base type.
 using Vec2f   = Eigen::Matrix<float,    2, 1, Eigen::DontAlign>;
 using Vec3f   = Eigen::Matrix<float,    3, 1, Eigen::DontAlign>;
+using Vec4f   = Eigen::Matrix<float,    4, 1, Eigen::DontAlign>;
 using Vec2d   = Eigen::Matrix<double,   2, 1, Eigen::DontAlign>;
 using Vec3d   = Eigen::Matrix<double,   3, 1, Eigen::DontAlign>;
 

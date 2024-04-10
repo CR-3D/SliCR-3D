@@ -42,12 +42,13 @@ public:
     // Export selections (current print, current filaments, current printer) into config.ini
     void            export_selections(AppConfig &config);
 
+    PresetCollection            prints;
     PresetCollection            fff_prints;
     PresetCollection            sla_prints;
     PresetCollection            filaments;
     PresetCollection            sla_materials;
-	PresetCollection& 			prints(PrinterTechnology pt)       { return pt == ptFFF ? this->fff_prints : this->sla_prints; }
-	const PresetCollection& 	prints(PrinterTechnology pt) const { return pt == ptFFF ? this->fff_prints : this->sla_prints; }
+    //PresetCollection& 			prints(PrinterTechnology pt)       { return pt == ptFFF ? this->fff_prints : this->sla_prints; }
+	//const PresetCollection& 	prints(PrinterTechnology pt) const { return pt == ptFFF ? this->fff_prints : this->sla_prints; }
 	PresetCollection& 			materials(PrinterTechnology pt)       { return pt == ptFFF ? this->filaments : this->sla_materials; }
 	const PresetCollection& 	materials(PrinterTechnology pt) const { return pt == ptFFF ? this->filaments : this->sla_materials; }
     PrinterPresetCollection     printers;
@@ -66,6 +67,7 @@ public:
     VendorMap                   vendors;
 
     struct ObsoletePresets {
+        std::vector<std::string> prints;
         std::vector<std::string> fff_prints;
         std::vector<std::string> sla_prints;
         std::vector<std::string> filaments;

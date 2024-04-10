@@ -93,6 +93,8 @@ add_library(libslic3r STATIC
     Format/Format.cpp
     Format/3mf.cpp
     Format/3mf.hpp
+    Format/bbs_3mf.hpp
+    Format/bbs_3mf.cpp
     Format/AMF.cpp
     Format/AMF.hpp
     Format/OBJ.cpp

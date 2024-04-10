@@ -37,6 +37,9 @@ public:
     unsigned int get_vertices_count() const { return (unsigned int)m_vertices.size(); }
 };
 
+bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z);
+
+
 class Bed3D
 {
     class Axes

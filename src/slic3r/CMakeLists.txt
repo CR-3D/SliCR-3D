@@ -108,6 +108,10 @@ set(SLIC3R_GUI_SOURCES
     GUI/ConfigSnapshotDialog.hpp
     GUI/CreateMMUTiledCanvas.cpp
     GUI/CreateMMUTiledCanvas.hpp
+    GUI/Color.hpp
+    GUI/Color.cpp
+    GUI/GUI_Colors.hpp
+    GUI/GUI_Colors.cpp
     GUI/3DScene.cpp
     GUI/3DScene.hpp
     GUI/format.hpp
@@ -209,6 +213,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/MeshUtils.hpp
     GUI/Tab.cpp
     GUI/Tab.hpp
+    GUI/PartPlate.hpp
+    GUI/PartPlate.cpp
     GUI/ConfigManipulation.cpp
     GUI/ConfigManipulation.hpp
     GUI/Field.cpp
