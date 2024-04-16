@@ -2,7 +2,7 @@
 #define slic3r_GUI_Colors_hpp_
 
 #include "imgui/imgui.h"
-#include "libslic3r/Color.hpp"
+#include "Color.hpp"
 #include <array>
 
 enum RenderCol_ {

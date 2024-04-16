@@ -37,7 +37,7 @@ size_t GLModel::InitializationData::indices_count() const
 
 void GLModel::init_from(const InitializationData& data)
 {
-    if (!m_render_data.empty()) // call reset() if you want to reuse this model
+    if (!m_render_data_array.empty()) // call reset() if you want to reuse this model
         return;
 
     for (const InitializationData::Entity& entity : data.entities) {
@@ -70,13 +70,13 @@ void GLModel::init_from(const InitializationData& data)
         }
 
         send_to_gpu(rdata, vertices, indices);
-        m_render_data.emplace_back(rdata);
+        m_render_data_array.emplace_back(rdata);
     }
 }
 
 void GLModel::init_from(const indexed_triangle_set& its, const BoundingBoxf3 &bbox)
 {
-    if (!m_render_data.empty()) // call reset() if you want to reuse this model
+    if (!m_render_data_array.empty()) // call reset() if you want to reuse this model
         return;
 
     RenderData data;
@@ -104,7 +104,7 @@ void GLModel::init_from(const indexed_triangle_set& its, const BoundingBoxf3 &bb
     m_bounding_box = bbox;
 
     send_to_gpu(data, vertices, indices);
-    m_render_data.emplace_back(data);
+    m_render_data_array.emplace_back(data);
 }
 
 void GLModel::init_from(const indexed_triangle_set& its)
@@ -167,15 +167,15 @@ bool GLModel::init_from_file(const std::string& filename)
 
 void GLModel::set_color(int entity_id, const std::array<float, 4>& color)
 {
-    for (size_t i = 0; i < m_render_data.size(); ++i) {
+    for (size_t i = 0; i < m_render_data_array.size(); ++i) {
         if (entity_id == -1 || static_cast<int>(i) == entity_id)
-            m_render_data[i].color = color;
+            m_render_data_array[i].color = color;
     }
 }
 
 void GLModel::reset()
 {
-    for (RenderData& data : m_render_data) {
+    for (RenderData& data : m_render_data_array) {
         // release gpu memory
         if (data.ibo_id > 0)
             glsafe(::glDeleteBuffers(1, &data.ibo_id));
@@ -183,7 +183,7 @@ void GLModel::reset()
             glsafe(::glDeleteBuffers(1, &data.vbo_id));
     }
 
-    m_render_data.clear();
+    m_render_data_array.clear();
     m_bounding_box = BoundingBoxf3();
     m_filename = std::string();
 }
@@ -192,7 +192,7 @@ void GLModel::render() const
 {
     GLShaderProgram* shader = wxGetApp().get_current_shader();
 
-    for (const RenderData& data : m_render_data) {
+    for (const RenderData& data : m_render_data_array) {
         if (data.vbo_id == 0 || data.ibo_id == 0)
             continue;
 
@@ -259,7 +259,7 @@ void GLModel::render_instanced(unsigned int instances_vbo, unsigned int instance
         glsafe(::glVertexAttribDivisor(scales_id, 1));
     }
 
-    for (const RenderData& data : m_render_data) {
+    for (const RenderData& data : m_render_data_array) {
         if (data.vbo_id == 0 || data.ibo_id == 0)
             continue;
 

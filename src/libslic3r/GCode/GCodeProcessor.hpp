@@ -124,6 +124,14 @@ namespace Slic3r {
             float volumetric_rate() const { return feedrate * mm3_per_mm; }
         };
 
+        
+        struct SliceWarning {
+            int         level;                  // 0: normal tips, 1: warning; 2: error
+            std::string msg;                    // enum string
+            std::string error_code;             // error code for studio
+            std::vector<std::string> params;    // extra msg info
+        };
+        
         std::string filename;
         unsigned int id;
         std::vector<MoveVertex> moves;
@@ -267,6 +275,7 @@ namespace Slic3r {
             float time() const;
         };
 
+        
     private:
         struct TimeMachine
         {

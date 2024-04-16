@@ -1368,9 +1368,12 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     
     //auto thing = wxGetApp().plater()->
     std::set<const DynamicPrintConfig*> changed = m_config->value_changed(opt_key, {
-        &wxGetApp().preset_bundle->prints(wxGetApp().plater()->printer_technology()).get_edited_preset().config,
+        &wxGetApp().preset_bundle->prints.get_edited_preset().config,
+        
         &wxGetApp().preset_bundle->materials(wxGetApp().plater()->printer_technology()).get_edited_preset().config,
+        
         &wxGetApp().preset_bundle->printers.get_edited_preset().config,
+        
         /*&wxGetApp().preset_bundle->full_config()*/ });
     if (changed.find(m_config) != changed.end()) {
         update_dirty();
@@ -3717,19 +3720,6 @@ void Tab::load_current_preset()
             on_presets_changed();
             if ((m_type & Preset::TYPE_PRINT1) != 0)
                 update_frequently_changed_parameters();
-
-            //update width/spacing links
-            if (m_type == Preset::TYPE_FFF_PRINT) {
-                //verify that spacings are set
-                if (m_config && !m_config->update_phony({
-                        &wxGetApp().preset_bundle->prints(wxGetApp().plater()->printer_technology()).get_edited_preset().config,
-                        &wxGetApp().preset_bundle->materials(wxGetApp().plater()->printer_technology()).get_edited_preset().config,
-                        &wxGetApp().preset_bundle->printers.get_edited_preset().config
-                    }).empty()) {
-                    update_dirty(); // will call on_presets_changed() again
-                    reload_config();
-                }
-            }
         }
 
         m_opt_status_value = (m_presets->get_selected_preset_parent() ? osSystemValue : 0) | osInitValue;
@@ -4407,7 +4397,9 @@ wxSizer* Tab::compatible_widget_create(wxWindow* parent, PresetDependencies &dep
     {
         // Collect names of non-default non-external profiles.
         PrinterTechnology printer_technology = m_preset_bundle->printers.get_edited_preset().printer_technology();
-        PresetCollection &depending_presets  = (deps.type == Preset::TYPE_PRINTER) ? m_preset_bundle->printers : m_preset_bundle->prints(printer_technology);
+        
+        PresetCollection &depending_presets  = (deps.type == Preset::TYPE_PRINTER) ? m_preset_bundle->printers : m_preset_bundle->prints;
+        
         wxArrayString presets;
         for (size_t idx = 0; idx < depending_presets.size(); ++ idx)
         {

@@ -43,6 +43,10 @@ add_library(libslic3r STATIC
     enum_bitmask.hpp
     ExPolygon.cpp
     ExPolygon.hpp
+    EmbossShape.hpp
+    ExPolygonSerialize.hpp
+    NSVGUtils.hpp
+    NSVGUtils.cpp
     ExPolygonCollection.cpp
     ExPolygonCollection.hpp
     Extruder.cpp
@@ -269,6 +273,7 @@ add_library(libslic3r STATIC
     MeshSplitImpl.hpp
     TriangulateWall.hpp
     TriangulateWall.cpp
+    TextConfiguration.hpp
     utils.cpp
     Utils.hpp
     Time.cpp

@@ -27,6 +27,7 @@ class wxString;
 namespace Slic3r {
 
 class BuildVolume;
+enum class BuildVolume_Type : unsigned char;
 class Model;
 class ModelObject;
 enum class ModelObjectCutAttribute : int;

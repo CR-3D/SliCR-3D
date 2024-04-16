@@ -2,7 +2,7 @@
 #define BBS_3MF_hpp_
 
 #include "../GCode/ThumbnailData.hpp"
-#include "libslic3r/ProjectTask.hpp"
+#include "ProjectTask.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include <functional>
 

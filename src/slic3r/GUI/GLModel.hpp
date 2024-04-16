@@ -3,6 +3,7 @@
 
 #include "libslic3r/Point.hpp"
 #include "libslic3r/BoundingBox.hpp"
+#include "Color.hpp"
 #include <vector>
 #include <string>
 
@@ -13,6 +14,7 @@ namespace Slic3r {
 class TriangleMesh;
 class Polygon;
 using Polygons = std::vector<Polygon>;
+class BuildVolume;
 
 namespace GUI {
 
@@ -136,10 +138,12 @@ namespace GUI {
 
         struct RenderData
         {
+            Geometry geometry;
             PrimitiveType type;
             unsigned int vbo_id{ 0 };
             unsigned int ibo_id{ 0 };
             size_t indices_count{ 0 };
+            size_t vertices_count{ 0 };
             std::array<float, 4> color{ 1.0f, 1.0f, 1.0f, 1.0f };
         };
 
@@ -165,7 +169,7 @@ namespace GUI {
         };
 
     private:
-        std::vector<RenderData> m_render_data;
+        RenderData m_render_data;
 
         BoundingBoxf3 m_bounding_box;
         std::string m_filename;
@@ -173,6 +177,16 @@ namespace GUI {
     public:
         GLModel() = default;
         virtual ~GLModel() { reset(); }
+
+        size_t vertices_count() const { return m_render_data.vertices_count > 0 ?
+            m_render_data.vertices_count : m_render_data.geometry.vertices_count(); }
+        size_t indices_count() const { return m_render_data.indices_count > 0 ?
+            m_render_data.indices_count : m_render_data.geometry.indices_count(); }
+
+        size_t vertices_size_floats() const { return vertices_count() * Geometry::vertex_stride_floats(m_render_data.geometry.format); }
+        size_t vertices_size_bytes() const  { return vertices_size_floats() * sizeof(float); }
+
+        size_t indices_size_bytes() const { return indices_count() * Geometry::index_stride_bytes(m_render_data.geometry); }
 
         const Geometry& get_geometry() const { return m_render_data.geometry; }
 
@@ -191,7 +205,7 @@ namespace GUI {
         void render() const;
         void render_instanced(unsigned int instances_vbo, unsigned int instances_count) const;
 
-        bool is_initialized() const { return !m_render_data.empty(); }
+        bool is_initialized() const { return vertices_count() > 0 && indices_count() > 0; }
 
         const BoundingBoxf3& get_bounding_box() const { return m_bounding_box; }
         const std::string& get_filename() const { return m_filename; }

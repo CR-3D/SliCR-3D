@@ -41,7 +41,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/foreach.hpp>
-#include <openssl/md5.h>
+//#include <openssl/md5.h>
 
 namespace pt = boost::property_tree;
 
@@ -56,7 +56,7 @@ namespace pt = boost::property_tree;
 
 #include "TextConfiguration.hpp"
 #include "EmbossShape.hpp"
-#include "ExPolygonSerialize.hpp" 
+#include "ExPolygonSerialize.hpp"
 
 #include "NSVGUtils.hpp"
 
