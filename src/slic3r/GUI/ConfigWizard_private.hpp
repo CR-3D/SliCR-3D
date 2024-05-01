@@ -97,7 +97,7 @@ struct BundleMap : std::map<std::string /* = vendor ID */, Bundle>
 
 struct Materials;
 
-
+class UIManager;
 
 struct PrinterPickerEvent;
 
@@ -181,6 +181,13 @@ struct PageWelcome: ConfigWizardPage
     bool integrate_desktop() const { return cbox_integrate != nullptr ? cbox_integrate->GetValue() : false; }
 
     virtual void set_run_reason(ConfigWizard::RunReason run_reason) override;
+};
+
+struct PageUpdateManager : ConfigWizardPage
+{
+    std::unique_ptr<UIManager>  m_manager;
+
+    PageUpdateManager(ConfigWizard* parent);
 };
 
 struct PagePrinters: ConfigWizardPage
@@ -618,6 +625,9 @@ struct ConfigWizard::priv
     wxButton *btn_cancel = nullptr;
 
     PageWelcome      *page_welcome = nullptr;
+    PageUpdateManager*page_update_manager = nullptr;
+    PagePrinters     *page_fff = nullptr;
+    PagePrinters     *page_msla = nullptr;
     PageMaterials    *page_filaments = nullptr;
     PageMaterials    *page_sla_materials = nullptr;
     PageCustom       *page_custom = nullptr;
@@ -643,6 +653,8 @@ struct ConfigWizard::priv
     PageDiameters    *page_diams = nullptr;
     PageTemperatures *page_temps = nullptr;
     PageBuildVolume* page_bvolume = nullptr;
+
+    bool             m_is_config_updated_from_archive{ false };
 
     // Pointers to all pages (regardless or whether currently part of the ConfigWizardIndex)
     std::vector<ConfigWizardPage*> all_pages;
@@ -687,6 +699,7 @@ struct ConfigWizard::priv
     bool check_sla_selected();        // Used to decide whether to display SLA Materials page
 
     int em() const { return index->em(); }
+    void set_config_updated_from_archive(bool is_updated);
 };
 
 }
