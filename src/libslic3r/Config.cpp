@@ -64,6 +64,7 @@ std::string toString(OptionCategory opt)
     case OptionCategory::hollowing: return "Hollowing";
     case OptionCategory::milling_extruders: return L("Milling tools");
     case OptionCategory::fuzzy_skin: return L("Fuzzy skin");
+    case OptionCategory::nonplanar: return L("Nonplanar");
     }
     return "error";
 }

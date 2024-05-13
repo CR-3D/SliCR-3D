@@ -107,6 +107,7 @@ enum class OptionCategory : int {
     infill,
     ironing,
     fuzzy_skin,
+    nonplanar,
     skirtBrim,
     support,
     speed,

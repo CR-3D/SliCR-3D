@@ -129,6 +129,7 @@ std::map<Slic3r::OptionCategory, std::string> SettingsFactory::CATEGORY_ICON =
     {OptionCategory::infill,        "infill"},
     {OptionCategory::ironing,       "ironing"},
     {OptionCategory::fuzzy_skin,    "fuzzy_skin"},
+    {OptionCategory::nonplanar,     "nonplanar"}, 
     {OptionCategory::support,       "support"},
     {OptionCategory::speed,         "time"},
     {OptionCategory::extruders,     "funnel"},

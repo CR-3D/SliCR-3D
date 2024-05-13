@@ -137,7 +137,13 @@ group:sidetext_width$5:Advanced
 		setting:width$6:sidetext_width$6:fuzzy_skin_thickness
 		setting:width$6:fuzzy_skin_point_dist
 	end_line
-
+    
+    line:Nonplanar Layers (experimental)
+        setting:label$Use Nonplanar Layers:use_nonplanar_layers
+        setting:label$Nonplanar Layers Angle:nonplanar_layers_angle
+        setting:label$Nonplanar Layers height:nonplanar_layers_height
+    end_line
+    
 group:External perimeter first
 
 	setting:label$Activate:external_perimeters_first

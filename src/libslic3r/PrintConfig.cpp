@@ -2711,6 +2711,31 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
 
+    def           = this->add("use_nonplanar_layers", coBool);
+    def->label    = L("Use nonplanar layers");
+    def->category = OptionCategory::nonplanar;
+    def->tooltip  = L("Generate nonplanar layers on top of the object");
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def           = this->add("nonplanar_layers_angle", coFloat);
+    def->label    = L("Maximum nonplanar angle");
+    def->category = OptionCategory::nonplanar;
+    def->tooltip  = L("The maximum angle the printer can print without collisions.");
+    def->sidetext = L("°");
+    def->min      = 0;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10.0));
+
+    def           = this->add("nonplanar_layers_height", coFloat);
+    def->label    = L("Maximum nonplanar height");
+    def->category = OptionCategory::nonplanar;
+    def->tooltip  = L("The maximum height the printer can print without collisions.");
+    def->sidetext = L("mm");
+    def->min      = 0;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10.0));
+
     def = this->add("gap_fill_enabled", coBool);
     def->label = L("Gap fill");
     def->full_label = L("Enable Gap fill");

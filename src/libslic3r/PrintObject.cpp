@@ -1075,6 +1075,11 @@ bool PrintObject::invalidate_state_by_config_options(
                 steps.emplace_back(posInfill);
                 steps.emplace_back(posSupportMaterial);
                 //}
+            } else if (opt_key == "use_nonplanar_layers" || opt_key == "nonplanar_layers_angle" ||
+                       opt_key == "nonplanar_layers_height") {
+                steps.emplace_back(posPerimeters);
+                steps.emplace_back(posInfill);
+                steps.emplace_back(posSlice);
             } else if (
                 opt_key == "perimeter_generator"
                 || opt_key == "wall_transition_length"

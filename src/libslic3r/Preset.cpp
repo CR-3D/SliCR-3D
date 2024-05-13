@@ -484,7 +484,10 @@ static std::vector<std::string> s_Preset_print_options {
         "seam_notch_inner",
         "seam_notch_outer",
         "seam_travel_cost",
-        "seam_visibility",
+        "seam_visibility", 
+        "use_nonplanar_layers", 
+        "nonplanar_layers_angle", 
+        "nonplanar_layers_height",
         // external_perimeters
         "external_perimeters_first",
         "external_perimeters_vase",

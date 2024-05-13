@@ -808,7 +808,11 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                xy_size_compensation))
     ((ConfigOptionFloat,                xy_inner_size_compensation))
     ((ConfigOptionBool,                 wipe_into_objects))
-)
+
+        
+    ((ConfigOptionBool,                 use_nonplanar_layers)) 
+    ((ConfigOptionFloat,                nonplanar_layers_angle)) 
+    ((ConfigOptionFloat,                nonplanar_layers_height)))
 
 // This object is mapped to Perl as Slic3r::Config::PrintRegion.
 PRINT_CONFIG_CLASS_DEFINE(
