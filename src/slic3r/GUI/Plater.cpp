@@ -151,6 +151,8 @@
 
 #include "Widgets/CheckBox.hpp"
 
+#include "GL/glew.h"
+
 using std::optional;
 namespace fs = boost::filesystem;
 using Slic3r::_3DScene;
@@ -158,7 +160,9 @@ using Slic3r::Preset;
 using Slic3r::PrintHostJob;
 using Slic3r::GUI::format_wxstr;
 
-static const std::pair<unsigned int, unsigned int> THUMBNAIL_SIZE_3MF = {256, 256};
+static const std::pair<unsigned int, unsigned int> THUMBNAIL_SIZE_3MF = { 256, 256 };
+
+std::vector<GLuint> s_th_tex_id;
 
 namespace Slic3r { namespace GUI {
 
@@ -3685,6 +3689,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     background_process.set_gcode_result(gcode_results[active_bed]);
     
     background_process.select_technology(this->printer_technology);
+    
 
     // bitmap of enum UpdateBackgroundProcessReturnState
     unsigned int return_state = 0;
@@ -3709,6 +3714,43 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
 
     // Move all instances back to their respective beds.
     s_multiple_beds.move_active_to_first_bed(q->model(), q->build_volume(), false);
+
+    // If current bed was invalidated, update thumbnails for all beds:
+    if (int num = s_multiple_beds.get_number_of_beds(); num > 1 && ! (invalidated & Print::ApplyStatus::APPLY_STATUS_UNCHANGED)) {
+        ThumbnailData data;
+        ThumbnailsParams params;
+        params.parts_only = true;
+        params.printable_only = true;
+        params.show_bed = true;
+        params.transparent_background = false;
+        int w = 100, h = 100;
+
+        int curr_bound_texture = 0;
+        glsafe(glGetIntegerv(GL_TEXTURE_BINDING_2D, &curr_bound_texture));
+        int curr_unpack_alignment = 0;
+        glsafe(glGetIntegerv(GL_UNPACK_ALIGNMENT, &curr_unpack_alignment));
+        glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+        glsafe(glDeleteTextures(s_th_tex_id.size(), s_th_tex_id.data()));
+        
+        s_th_tex_id.resize(num);
+        glsafe(glGenTextures(num, s_th_tex_id.data()));
+        for (int i = 0; i < num; ++i) {
+            s_multiple_beds.set_thumbnail_bed_idx(i);
+            generate_thumbnail(data, w, h, params, GUI::Camera::EType::Ortho);
+            s_multiple_beds.set_thumbnail_bed_idx(-1);
+            glsafe(glBindTexture(GL_TEXTURE_2D, s_th_tex_id[i]));
+            glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+            glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+            glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0));
+            glsafe(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, data.pixels.data()));
+        }
+        glsafe(glBindTexture(GL_TEXTURE_2D, curr_bound_texture));
+        glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, curr_unpack_alignment));
+    }
+
+
+
+
 
     // Just redraw the 3D canvas without reloading the scene to consume the update of the layer height profile.
     if (view3D->is_layers_editing_enabled())
@@ -5179,6 +5221,8 @@ void Plater::priv::generate_thumbnail(ThumbnailData &         data,
 
 ThumbnailsList Plater::priv::generate_thumbnails(const ThumbnailsParams &params, Camera::EType camera_type)
 {
+    s_multiple_beds.set_thumbnail_bed_idx(s_multiple_beds.get_active_bed());
+    ScopeGuard guard([]() { s_multiple_beds.set_thumbnail_bed_idx(-1); });
     ThumbnailsList thumbnails;
     for (const Vec2d &size : params.sizes) {
         thumbnails.push_back(ThumbnailData());

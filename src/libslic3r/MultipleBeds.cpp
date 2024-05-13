@@ -110,10 +110,27 @@ void MultipleBeds::move_active_to_first_bed(Model& model, const BuildVolume& bui
 }
 
 
+
 bool MultipleBeds::is_instance_on_active_bed(ObjectID id) const
 {
     auto it = m_inst_to_bed.find(id);
     return (it != m_inst_to_bed.end() && it->second == m_active_bed);
 }
 
+
+
+bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx, int instance_idx) const
+{
+    if (obj_idx < 0 || instance_idx < 0 || obj_idx >= int(model.objects.size()) || instance_idx >= int(model.objects[obj_idx]->instances.size()))
+        return false;
+
+    auto it = m_inst_to_bed.find(model.objects[obj_idx]->instances[instance_idx]->id());
+    if (it == m_inst_to_bed.end())
+        return false;
+    return (m_bed_for_thumbnails_generation < 0 || it->second == m_bed_for_thumbnails_generation);
 }
+
+
+
+}
+

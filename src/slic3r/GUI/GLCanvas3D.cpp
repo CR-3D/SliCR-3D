@@ -87,6 +87,8 @@
 
 #include <slic3r/GUI/Gizmos/GLGizmoMmuSegmentation.hpp>
 
+extern std::vector<GLuint> s_th_tex_id;
+
 static constexpr const float TRACKBALLSIZE = 0.8f;
 
 static const Slic3r::ColorRGBA DEFAULT_BG_DARK_COLOR  = { 0.431f, 0.431f, 0.431f, 0.7f };
@@ -2111,14 +2113,12 @@ void GLCanvas3D::render()
 
     {
         if (s_multiple_beds.get_number_of_beds() != 1) {
-            ImGui::SetNextWindowPos(ImVec2(10,10));
-            ImGui::SetNextWindowSize(ImVec2(120., 150.));
             ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_NoResize);
             for (int i = 0; i < s_multiple_beds.get_number_of_beds(); ++i) {
                 bool inactive = i != s_multiple_beds.get_active_bed();
                 if (inactive)
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
-                if (ImGui::Button((std::string("Bed number ") + std::to_string(i + 1)).c_str())) {
+                if (ImGui::ImageButton((void*)s_th_tex_id[i], ImVec2(100, 100), ImVec2(0, 1), ImVec2(1, 0))) {
                     int old_bed = s_multiple_beds.get_active_bed();
                     s_multiple_beds.set_active_bed(i);
                     if (wxGetApp().plater()->is_preview_shown()) {
@@ -5121,8 +5121,10 @@ void GLCanvas3D::_render_thumbnail_internal(ThumbnailData& thumbnail_data, const
 
     for (const std::unique_ptr<GLVolume> &vol : volumes.volumes) {
         if (!vol->is_modifier && !vol->is_wipe_tower && (!thumbnail_params.parts_only || vol->composite_id.volume_id >= 0)) {
-            if (!thumbnail_params.printable_only || is_visible(*vol))
-                visible_volumes.push_back(vol.get());
+            if (!thumbnail_params.printable_only || is_visible(*vol)) {
+                if (s_multiple_beds.is_glvolume_on_thumbnail_bed(wxGetApp().model(), vol->composite_id.object_id, vol->composite_id.instance_id))
+                    visible_volumes.emplace_back(vol.get());
+            }
         }
     }
 
@@ -5152,7 +5154,13 @@ void GLCanvas3D::_render_thumbnail_internal(ThumbnailData& thumbnail_data, const
         // extends the near and far z of the frustrum to avoid the bed being clipped
 
         // box in eye space
-        const BoundingBoxf3 t_bed_box = m_bed.extended_bounding_box().transformed(view_matrix);
+        BoundingBoxf3 t_bed_box = m_bed.extended_bounding_box();
+        if (s_multiple_beds.get_thumbnail_bed_idx() != -1) {
+            BoundingBoxf3 bed_bb = m_bed.build_volume().bounding_volume();
+            bed_bb.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_thumbnail_bed_idx()));
+            t_bed_box.merge(bed_bb);
+        }
+        t_bed_box = t_bed_box.transformed(view_matrix);
         near_z = -t_bed_box.max.z();
         far_z = -t_bed_box.min.z();
     }

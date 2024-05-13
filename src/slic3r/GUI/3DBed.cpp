@@ -192,12 +192,15 @@ Point Bed3D::point_projection(const Point& point) const
 
 void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor, bool show_texture)
 {
+    bool is_thumbnail = s_multiple_beds.get_thumbnail_bed_idx() != -1;
     bool is_preview = wxGetApp().plater()->is_preview_shown();
     int  bed_to_highlight = -1;
 
     static std::vector<int> beds_to_render;
     beds_to_render.clear();
-    if (is_preview)
+    if (is_thumbnail)
+        beds_to_render.push_back(s_multiple_beds.get_thumbnail_bed_idx());
+    else if (is_preview)
         beds_to_render.push_back(s_multiple_beds.get_active_bed());
     else {
         beds_to_render.resize(s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()));

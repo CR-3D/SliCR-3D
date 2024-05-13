@@ -11,6 +11,7 @@ namespace Slic3r {
 
 class Model;
 class BuildVolume;
+class PrintBase;
 
 extern bool s_reload_preview_after_switching_beds;
 
@@ -27,11 +28,16 @@ public:
 
 	int    get_number_of_beds() const   { return m_number_of_beds; }
 	bool   should_show_next_bed() const { return m_show_next_bed; }
+
 	void   request_next_bed(bool show);
 	int    get_active_bed() const       { return m_active_bed; }
 	
 	void   set_active_bed(int i);
 	void   move_active_to_first_bed(Model& model, const BuildVolume& build_volume, bool to_or_from) const;
+
+	void   set_thumbnail_bed_idx(int bed_idx) { m_bed_for_thumbnails_generation = bed_idx; }
+	int    get_thumbnail_bed_idx() const { return m_bed_for_thumbnails_generation; }
+	bool   is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx, int instance_idx) const;
 
 
 
@@ -42,8 +48,10 @@ private:
 
 	int m_number_of_beds = 1;
 	int m_active_bed     = 0;
+	int m_bed_for_thumbnails_generation = -1;
 	bool m_show_next_bed = false;
 	std::map<ObjectID, int> m_inst_to_bed;
+	std::map<PrintBase*, size_t> m_printbase_to_texture;
 	
 };
 
