@@ -484,6 +484,238 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 }
 
+// BEGIN NONPLANAR
+
+void LayerRegion::project_nonplanar_extrusion(ExtrusionEntityCollection *collection)
+{
+    for (auto& entity : collection->m_entities) {
+        if (ExtrusionLoop* loop = dynamic_cast<ExtrusionLoop*>(entity)) {
+            BOOST_LOG_TRIVIAL(trace) << "Projecting extrusion loop with " << loop->paths.size() << " paths";
+
+            for(auto& path : loop->paths) {
+                project_nonplanar_path(&path);
+                correct_z_on_path(&path);
+            }
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+            {
+                static int iRun = 0;
+                export_to_svg(debug_out_path("Layer-%d_project_extrusion_loop-%u-after.svg", layer()->id(), iRun ++).c_str(), 
+                    loop->as_polyline(), get_extents(this->slices().surfaces), scale_(0.1f));
+            }
+#endif
+        } else if (ExtrusionMultiPath* multipath = dynamic_cast<ExtrusionMultiPath*>(entity)) {
+            BOOST_LOG_TRIVIAL(trace) << "Projecting extrusion multipath with " << multipath->paths.size() << " paths";
+
+            for (auto& path : multipath->paths) {
+                project_nonplanar_path(&path);
+                correct_z_on_path(&path);
+            }
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+            {
+                static int iRun = 0;
+                export_to_svg(debug_out_path("Layer-%d_project_extrusion_multipath-%u-after.svg", layer()->id(), iRun ++).c_str(), 
+                    multipath->as_polyline(), get_extents(this->slices().surfaces), scale_(0.1f));
+            }
+#endif
+        } else if (ExtrusionPath* path = dynamic_cast<ExtrusionPath*>(entity)) {
+            BOOST_LOG_TRIVIAL(trace) << "Projecting 1 extrusion path";
+
+            project_nonplanar_path(path);
+            correct_z_on_path(path);
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+            {
+                static int iRun = 0;
+                export_to_svg(debug_out_path("Layer-%d_project_extrusion_path-%u-after.svg", layer()->id(), iRun ++).c_str(), 
+                    path->as_polyline(), get_extents(this->slices().surfaces), scale_(0.1f));
+            }
+#endif
+        } else {
+            BOOST_LOG_TRIVIAL(trace) << "Unknown entity class " << typeid(entity).name();
+            assert(false);
+        }
+    }
+}
+
+void LayerRegion::project_nonplanar_surfaces()
+{
+    // skip if there are no nonplanar_surfaces on this LayerRegion
+    if (m_nonplanar_surfaces.size() == 0) {
+        return;
+    }
+
+    BOOST_LOG_TRIVIAL(trace) << "Projecting " << m_nonplanar_surfaces.size() << " nonplanar surfaces for region " << 
+        region().print_region_id() << " and layer " << layer()->id() << " (z = " << layer()->print_z << ")";
+
+    // for all perimeters do path projection
+    BOOST_LOG_TRIVIAL(trace) << "Projecting " << perimeters.size() << " nonplanar perimeters";
+    for (auto& col : perimeters.m_entities) {
+        ExtrusionEntityCollection* collection = dynamic_cast<ExtrusionEntityCollection*>(col);
+        this->project_nonplanar_extrusion(collection);
+    }
+
+    // and all fill paths do path projection
+    BOOST_LOG_TRIVIAL(trace) << "Projecting " << fills.size() << " nonplanar fills";
+    for (auto& col : fills.m_entities) {
+        ExtrusionEntityCollection* collection = dynamic_cast<ExtrusionEntityCollection*>(col);
+        this->project_nonplanar_extrusion(collection);
+    }
+}
+
+//Sorting functions for soring of paths
+bool greaterX(const Vec3d &a, const Vec3d &b)
+{
+   return (a.x() < b.x());
+}
+
+bool smallerX(const Vec3d &a, const Vec3d &b)
+{
+   return (a.x() > b.x());
+}
+
+bool greaterY(const Vec3d &a, const Vec3d &b)
+{
+   return (a.y() < b.y());
+}
+
+bool smallerY(const Vec3d &a, const Vec3d &b)
+{
+   return (a.y() > b.y());
+}
+
+void LayerRegion::project_nonplanar_path(ExtrusionPath *path)
+{
+    //First check all points and project them regarding the triangle mesh
+    for (Point& point : path->polyline.points) {
+        for (auto& surface : m_nonplanar_surfaces) {
+            float distance_to_top = surface.stats.max.z - this->layer()->print_z;
+            for(auto& facet : surface.mesh) {
+                // skip if point is outside of the bounding box of the triangle
+                if (unscale(point).x() < std::min({facet.second.vertex[0].x, facet.second.vertex[1].x, facet.second.vertex[2].x}) ||
+                    unscale(point).x() > std::max({facet.second.vertex[0].x, facet.second.vertex[1].x, facet.second.vertex[2].x}) ||
+                    unscale(point).y() < std::min({facet.second.vertex[0].y, facet.second.vertex[1].y, facet.second.vertex[2].y}) ||
+                    unscale(point).y() > std::max({facet.second.vertex[0].y, facet.second.vertex[1].y, facet.second.vertex[2].y}))
+                {
+                    continue;
+                }
+
+                //check if point is inside of Triangle
+                if (Slic3r::Geometry::Point_in_triangle(
+                    Vec2f(unscale(point).x(), unscale(point).y()),
+                    Vec2f(facet.second.vertex[0].x, facet.second.vertex[0].y),
+                    Vec2f(facet.second.vertex[1].x, facet.second.vertex[1].y),
+                    Vec2f(facet.second.vertex[2].x, facet.second.vertex[2].y))
+                    && (facet.second.normal.z != 0))
+                {
+                    coord_t z = Slic3r::Geometry::Project_point_on_plane(Vec3f(facet.second.vertex[0].x,facet.second.vertex[0].y,facet.second.vertex[0].z),
+                                                             Vec3f(facet.second.normal.x,facet.second.normal.y,facet.second.normal.z),
+                                                             point);
+
+                    //Shift down when on lower layer
+                    point.nonplanar_z = z - scale_(distance_to_top);
+                    //break;
+                }
+            }
+        }
+    }
+
+    // Then check all line intersections, cut line on intersection and project new point
+    std::vector<Vec3crd>::size_type size = path->polyline.points.size();
+    for (std::vector<Vec3crd>::size_type i = 0; i < size-1; ++i)
+    {
+        Pointf3s intersections;
+        // check against every facet if lines intersect
+        for (auto& surface : m_nonplanar_surfaces) {
+            float distance_to_top = surface.stats.max.z - this->layer()->print_z;
+            for(auto& facet : surface.mesh) {
+                for(int j= 0; j < 3; j++) {
+                    // TODO precheck for faster computation
+                    Vec3d p1 = Vec3d(scale_(facet.second.vertex[j].x), scale_(facet.second.vertex[j].y), scale_(facet.second.vertex[j].z));
+                    Vec3d p2 = Vec3d(scale_(facet.second.vertex[(j+1) % 3].x), scale_(facet.second.vertex[(j+1) % 3].y), scale_(facet.second.vertex[(j+1) % 3].z));
+                    Vec3d* p = Slic3r::Geometry::Line_intersection(p1, p2, path->polyline.points[i], path->polyline.points[i+1]);
+
+                    if (p) {
+                        // add distance to top for every added point
+                        p->z() = p->z() - scale_(distance_to_top);
+                        intersections.push_back(*p);
+                    }
+                }
+            }
+        }
+
+        // Stop if no intersections are found
+        if (intersections.size() == 0) continue;
+
+        // sort found intersectons if there are more than 1
+        if ( intersections.size() > 1 ){
+            if (abs(path->polyline.points[i+1].x() - path->polyline.points[i].x()) >= abs(path->polyline.points[i+1].y() - path->polyline.points[i].y()) ) {
+                // sort by X
+                if(path->polyline.points[i].x() < path->polyline.points[i+1].x()) {
+                    std::sort(intersections.begin(), intersections.end(), smallerX);
+                }else {
+                    std::sort(intersections.begin(), intersections.end(), greaterX);
+                }
+            } else {
+                // sort by Y
+                if(path->polyline.points[i].y() < path->polyline.points[i+1].y()) {
+                    std::sort(intersections.begin(), intersections.end(), smallerY);
+                }else {
+                    std::sort(intersections.begin(), intersections.end(), greaterY);
+                }
+            }
+        }
+
+        // remove duplicates
+        Pointf3s::iterator point = intersections.begin();
+        while (point != intersections.end()-1) {
+            bool delete_point = false;
+            Pointf3s::iterator point2 = point;
+            ++point2;
+            //compare with next point if they are the same, delete current point
+            if ((*point).x() == (*point2).x() && (*point).y() == (*point2).y()) {
+                    //remove duplicate point
+                    delete_point = true;
+                    point = intersections.erase(point);
+            }
+            //continue loop when no point is removed. Otherwise the new point is set while deleting the old one.
+            if (!delete_point) {
+                ++point;
+            }
+        }
+
+        //insert new points into array
+        for (Vec3d p : intersections)
+        {
+            Point *pt = new Point(p.x(), p.y());
+            pt->nonplanar_z = p.z();
+            path->polyline.points.insert(path->polyline.points.begin()+i+1, *pt);
+        }
+
+        //modifiy array boundary
+        i = i + intersections.size();
+        size = size + intersections.size();
+    }
+}
+
+void LayerRegion::append_nonplanar_surface(NonplanarSurface& surface)
+{
+    for(auto & s : m_nonplanar_surfaces){
+        if (s == surface){
+            return;
+        }    
+    }
+    m_nonplanar_surfaces.push_back(surface);
+}
+
+void LayerRegion::correct_z_on_path(ExtrusionPath *path)
+{
+    for (Point& point : path->polyline.points) {
+        if(point.nonplanar_z == -1) {
+            point.nonplanar_z = scale_(this->layer()->print_z);
+        }
+    }
+}
+
 void LayerRegion::prepare_fill_surfaces()
 {
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING

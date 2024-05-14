@@ -27,8 +27,9 @@ class ExtrusionEntityCollection : public ExtrusionEntity
 private:
     // set to tru to forbit to reorder and reverse all entities indie us.
     bool m_no_sort;
-    ExtrusionEntitiesPtr m_entities;     // we own these entities
 public:
+    ExtrusionEntitiesPtr m_entities;     // we own these entities
+    
     virtual ExtrusionEntityCollection* clone() const override { return new ExtrusionEntityCollection(*this); }
     // Create a new object, initialize it with this object using the move semantics.
 	virtual ExtrusionEntityCollection* clone_move() override { return new ExtrusionEntityCollection(std::move(*this)); }
@@ -110,6 +111,8 @@ public:
     void remove(size_t i);
     void chained_path_from(const Point &start_near);
     void reverse() override;
+    size_t size() const { return m_entities.size(); }
+
     const Point& first_point() const override { return this->entities().front()->first_point(); }
     const Point& last_point() const override { return this->entities().back()->last_point(); }
     // Produce a list of 2D polygons covered by the extruded paths, offsetted by the extrusion width.

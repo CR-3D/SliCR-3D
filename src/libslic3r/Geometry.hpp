@@ -459,6 +459,23 @@ inline bool is_rotation_ninety_degrees(const Vec3d &rotation)
     return is_rotation_ninety_degrees(rotation.x()) && is_rotation_ninety_degrees(rotation.y()) && is_rotation_ninety_degrees(rotation.z());
 }
 
+inline float sign(Vec2f p1, Vec2f p2, Vec2f p3)
+{
+    return (p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.y() - p3.y());
+}
+
+bool Point_in_triangle(Vec2f pt, Vec2f v1, Vec2f v2, Vec2f v3);
+
+//https://graphics.stanford.edu/~mdfisher/Code/Engine/Plane.cpp.html
+coord_t Project_point_on_plane(Vec3f v1, Vec3f n, Point pt);
+
+// http://paulbourke.net/geometry/pointlineplane/index.html
+Vec3d *Line_intersection(Vec3d p1, Vec3d p2, Point p3, Point p4);
+
+inline float triangle_surface(Point p1, Point p2, Point p3) {
+    return 0.5 * ((p2.x()-p1.x()) * (p3.y()-p1.y()) - (p2.y()-p1.y()) * (p3.x()-p1.x()));
+}
+
 } } // namespace Slicer::Geometry
 
 #endif

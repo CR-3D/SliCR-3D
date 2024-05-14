@@ -222,7 +222,7 @@ typedef std::vector<Polyline3> Polylines3;
 
 
 //private inheritance to avoid letting 'points' visible, as it has to be sync with arc fitting.
-class PolylineOrArc : /*public*/ Polyline {
+class PolylineOrArc : public Polyline {
 public:
     PolylineOrArc() {};
     PolylineOrArc(const PolylineOrArc& other) : Polyline(other.points), m_fitting_result(other.m_fitting_result) {

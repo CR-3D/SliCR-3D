@@ -57,9 +57,13 @@ public:
     void append(const SurfaceCollection &coll) { this->append(coll.surfaces); }
     void append(SurfaceCollection &&coll) { this->append(std::move(coll.surfaces)); }
     void append(const ExPolygons &src, SurfaceType surfaceType) { surfaces_append(this->surfaces, src, surfaceType); }
+    void append(const ExPolygons &src, SurfaceType surfaceType, float distance_to_top) { surfaces_append(this->surfaces, src, surfaceType, distance_to_top); }
+
     void append(const ExPolygons &src, const Surface &surfaceTempl) { surfaces_append(this->surfaces, src, surfaceTempl); }
     void append(const Surfaces &src) { surfaces_append(this->surfaces, src); }
     void append(ExPolygons &&src, SurfaceType surfaceType) { surfaces_append(this->surfaces, std::move(src), surfaceType); }
+    void append(ExPolygons &&src, SurfaceType surfaceType, float distance_to_top) { surfaces_append(this->surfaces, std::move(src), surfaceType, distance_to_top); }
+
     void append(ExPolygons &&src, const Surface &surfaceTempl) { surfaces_append(this->surfaces, std::move(src), surfaceTempl); }
     void append(Surfaces &&src) { surfaces_append(this->surfaces, std::move(src)); }
 

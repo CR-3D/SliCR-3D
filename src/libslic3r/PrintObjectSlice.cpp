@@ -4,9 +4,10 @@
 #include "MultiMaterialSegmentation.hpp"
 #include "Print.hpp"
 #include "ClipperUtils.hpp"
-
+#include "AABBMesh.hpp"
 #include <boost/log/trivial.hpp>
-
+#include "NonplanarFacet.hpp"
+#include "NonplanarSurface.hpp"
 #include <tbb/parallel_for.h>
 
 //! macro used to mark string used at localization, return same string
@@ -544,23 +545,38 @@ void PrintObject::slice()
     //create polyholes
     this->_transform_hole_to_polyholes();
 
-    // Update bounding boxes, back up raw slices of complex models.
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, m_layers.size()),
-        [this](const tbb::blocked_range<size_t>& range) {
-            for (size_t layer_idx = range.begin(); layer_idx < range.end(); ++ layer_idx) {
-                m_print->throw_if_canceled();
-                Layer &layer = *m_layers[layer_idx];
-                layer.lslices_bboxes.clear();
-                layer.lslices_bboxes.reserve(layer.lslices.size());
-                for (const ExPolygon &expoly : layer.lslices)
-                	layer.lslices_bboxes.emplace_back(get_extents(expoly));
-                layer.backup_untyped_slices();
-            }
-        });
+    this->lslices_were_updated();
     if (m_layers.empty())
         throw Slic3r::SlicingError("No layers were detected. You might want to repair your STL file(s) or check their size or thickness and retry.\n");    
     this->set_done(posSlice);
+}
+
+void PrintObject::lslices_were_updated()
+{
+    // Update bounding boxes, back up raw slices of complex models.
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, m_layers.size()),
+        [this](const tbb::blocked_range<size_t> &range) {
+            for (size_t layer_idx = range.begin(); layer_idx < range.end(); ++ layer_idx) {
+                m_print->throw_if_canceled();
+                Layer &layer = *m_layers[layer_idx];
+                layer.lslices_ex.clear();
+                layer.lslices_ex.reserve(layer.lslices.size());
+                for (const ExPolygon &expoly : layer.lslices)
+                	layer.lslices_ex.push_back({ get_extents(expoly) });
+                layer.backup_untyped_slices();
+            }
+        });
+
+    // Interlink the lslices into a Z graph.
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(1, m_layers.size()),
+        [this](const tbb::blocked_range<size_t> &range) {
+            for (size_t layer_idx = range.begin(); layer_idx < range.end(); ++ layer_idx) {
+                m_print->throw_if_canceled();
+                Layer::build_up_down_graph(*m_layers[layer_idx - 1], *m_layers[layer_idx]);
+            }
+    });
 }
 
 template<typename ThrowOnCancel>
@@ -959,18 +975,17 @@ void PrintObject::slice_volumes()
         apply_mm_segmentation(*this, [print]() { print->throw_if_canceled(); });
     }
 
+    this->find_nonplanar_surfaces();
+    BOOST_LOG_TRIVIAL(debug) << "Slicing volumes - end";
 
     BOOST_LOG_TRIVIAL(debug) << "Slicing volumes - make_slices in parallel - begin";
     {
         // Compensation value, scaled. Only applying the negative scaling here, as the positive scaling has already been applied during slicing.
-        ////const size_t num_extruders = print->config().nozzle_diameter.size();
-        ////const auto   xy_compensation_scaled            = (num_extruders > 1 && this->is_mm_painted()) ? scaled<float>(0.f) : scaled<float>(std::min(m_config.xy_size_compensation.value, 0.));
-        ////const float  elephant_foot_compensation_scaled = (m_config.raft_layers == 0) ?
-        ////	// Only enable Elephant foot compensation if printing directly on the print bed.
-        ////    float(scale_(m_config.elefant_foot_compensation.value)) :
-        ////	0.f;
+        const size_t num_extruders = print->config().nozzle_diameter.size();
+        const auto   xy_compensation_scaled            = (num_extruders > 1 && this->is_mm_painted()) ? scaled<float>(0.f) : scaled<float>(std::min(m_config.xy_size_compensation.value, 0.));
+
         // Uncompensated slices for the first layer in case the Elephant foot compensation is applied.
-	    //ExPolygons  lslices_1st_layer;
+	    ExPolygons  lslices_1st_layer;
 	    tbb::parallel_for(
 	        tbb::blocked_range<size_t>(0, m_layers.size()),
 			[this](const tbb::blocked_range<size_t>& range) {
@@ -1107,21 +1122,174 @@ void PrintObject::slice_volumes()
                     }
 	                // Merge all regions' slices to get islands, chain them by a shortest path.
 	                layer->make_slices();
-                    //FIXME: can't make it work in multi-region object, it seems useful to avoid bridge on top of first layer compensation
-                    //so it's disable, if you want an offset, use the offset field.
-                    //if (layer->regions().size() == 1 && ! m_layers.empty() && layer_id == 0 && first_layer_compensation < 0 && m_config.raft_layers == 0) {
-                    //    // The Elephant foot has been compensated, therefore the 1st layer's lslices are shrank with the Elephant foot compensation value.
-                    //    // Store the uncompensated value there.
-                    //    assert(! m_layers.empty());
-                    //    assert(m_layers.front()->id() == 0);
-                    //    m_layers.front()->lslices = offset_ex(std::move(m_layers.front()->lslices), -first_layer_compensation);
-                    //}
 	            }
 	        });
 	}
 
     m_print->throw_if_canceled();
     BOOST_LOG_TRIVIAL(debug) << "Slicing volumes - make_slices in parallel - end";
+}
+
+void PrintObject::find_nonplanar_surfaces()
+{
+    //skip if not active
+    if(!m_config.use_nonplanar_layers.value) {
+        BOOST_LOG_TRIVIAL(debug) << "Find nonplanar surfaces - disabled";
+        return;
+    }
+
+    BOOST_LOG_TRIVIAL(info) << "Find nonplanar surfaces - start";
+
+    //Itterate over all model volumes
+    const ModelVolumePtrs volumes = this->model_object()->volumes;
+    for (ModelVolumePtrs::const_iterator it = volumes.begin(); it != volumes.end(); ++ it) {
+        //only check non modifier volumes
+        if (! (*it)->is_modifier()) {
+            const TriangleMesh tmesh = (*it)->mesh();
+            AABBMesh mesh(tmesh, true);
+            std::map<int, NonplanarFacet> facets;
+
+            // store all meshes with slope <= nonplanar_layers_angle in map. Map is necessary to keep facet ID
+            for (int face_id = 0; face_id < mesh.indices().size(); ++ face_id) {
+                auto &face = mesh.indices(face_id);
+                Vec3d normal = mesh.normal_by_face_id(face_id);
+
+                //TODO check if normals exist
+                if (normal.z() >= std::cos(m_config.nonplanar_layers_angle.value * 3.14159265/180.0)) {
+                    //copy facet
+                    NonplanarFacet new_facet;
+                    new_facet.normal.x = normal.x();
+                    new_facet.normal.y = normal.y();
+                    new_facet.normal.z = normal.z();
+
+                    Vec3i neighbor = mesh.face_neighbor_index()[face_id];
+                    its_triangle vertex = its_triangle_vertices(*mesh.get_triangle_mesh(), face_id);
+                    for (int j=0; j<=2 ;j++) {
+                        new_facet.vertex[j].x = vertex[j].x();
+                        new_facet.vertex[j].y = vertex[j].y();
+                        new_facet.vertex[j].z = vertex[j].z();
+                        new_facet.neighbor[j] = neighbor[j];
+                    }
+                    new_facet.calculate_stats();
+                    facets[face_id] = new_facet;
+                }
+            }
+
+            // create nonplanar surface from facets
+            NonplanarSurface nf = NonplanarSurface(facets);
+            BOOST_LOG_TRIVIAL(trace) << "Find nonplanar surfaces - moving surfaces by z=" << -tmesh.stats().min.z();
+            nf.translate(0, 0, -tmesh.stats().min.z());
+
+            // group surfaces and attach all nonplanar surfaces to the PrintObject
+            m_nonplanar_surfaces = nf.group_surfaces();
+
+            // check if surfaces maintain maximum printing height, if not, erase it
+            for (NonplanarSurfaces::iterator it = m_nonplanar_surfaces.begin(); it!=m_nonplanar_surfaces.end();) {
+                if((*it).check_max_printing_height(m_config.nonplanar_layers_height.value)) {
+                    it = m_nonplanar_surfaces.erase(it);
+                }else {
+                    it++;
+                }
+            }
+
+            // check if surfaces area is not too small
+            for (NonplanarSurfaces::iterator it = m_nonplanar_surfaces.begin(); it!=m_nonplanar_surfaces.end();) {
+                if((*it).check_surface_area()) {
+                    it = m_nonplanar_surfaces.erase(it);
+                }else {
+                    it++;
+                }
+            }
+
+            // check if surfaces areas collide
+            for (NonplanarSurfaces::iterator it = m_nonplanar_surfaces.begin(); it!=m_nonplanar_surfaces.end();) {
+                if(check_nonplanar_collisions((*it))) {
+                    it = m_nonplanar_surfaces.erase(it);
+                } else {
+                    it++;
+                }
+            }
+
+            //nf.debug_output();
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+            for (size_t id = 0; id < m_nonplanar_surfaces.size(); ++ id) {
+                auto& surface = m_nonplanar_surfaces[id];
+                Surfaces surfaces;
+                surfaces_append(surfaces, surface.horizontal_projection(), SurfaceType::stTopNonplanar);
+                SurfaceCollection c(surfaces);
+                c.export_to_svg(debug_out_path("0_find_nonplanar_surface-%d.svg", id).c_str(), true);
+            }
+#endif
+
+            BOOST_LOG_TRIVIAL(info) << "Find nonplanar surfaces - found " << m_nonplanar_surfaces.size() << " in " << (*it)->name;
+        }
+    }
+
+    BOOST_LOG_TRIVIAL(info) << "Find nonplanar surfaces - end";
+}
+
+bool PrintObject::check_nonplanar_collisions(NonplanarSurface &surface)
+{
+	for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
+        Polygons collider;
+        Polygons nonplanar_polygon = to_polygons(surface.horizontal_projection());
+        //check each layer
+        for (size_t idx_layer = 0; idx_layer < m_layers.size(); ++ idx_layer) {
+            m_print->throw_if_canceled();
+            // BOOST_LOG_TRIVIAL(trace) << "Check nonplanar collisions for region " << region_id << " and layer " << layer->print_z;
+            Layer       *layer  = m_layers[idx_layer];
+            LayerRegion *layerm = layer->m_regions[region_id];
+
+            //skip if below minimum nonplanar surface
+            if (surface.stats.min.z-layer->height > layer->slice_z) continue;
+            //break if above nonplanar surface
+            if (surface.stats.max.z < layer->slice_z) break;
+
+            float angle_rad = m_config.nonplanar_layers_angle.value * 3.14159265/180.0;
+            float angle_offset = scale_(layer->height*std::sin(1.57079633-angle_rad)/std::sin(angle_rad));
+
+            //debug
+            // SVG svg("svg/collider" + std::to_string(layer->id()) + ".svg");
+            // svg.draw(layerm_slices_surfaces, "blue");
+            // svg.draw(union_ex(diff(collider,nonplanar_polygon)), "red", 0.7f);
+            // svg.draw_outline(collider);
+            // svg.arrows = false;
+            // svg.Close();
+
+            //check if current surface collides with previous collider
+            ExPolygons collisions = union_ex(intersection(layerm->slices().surfaces, diff(collider, nonplanar_polygon)));
+
+            if (!collisions.empty()){
+                double area = 0;
+                for (auto& c : collisions){
+                    area += c.area();
+                }
+
+                //collsion found abort when area > 1.0 mm²
+                if (1.0 < unscale<double>(unscale<double>(area))) {
+                    std::cout << "Surface removed: collision on layer " << layer->print_z << "mm (" << unscale<double>(unscale<double>(area)) << " mm²)" << '\n';
+                    return true;
+                }
+            }
+
+            if (layer->upper_layer != NULL) {
+                Layer* upper_layer = layer->upper_layer;
+                LayerRegion *upper_layerm = upper_layer->m_regions[region_id];
+                //merge the ofsetted surface to the collider
+                collider= offset(
+                            union_(
+                                intersection(
+                                    diff_ex(layerm->slices().surfaces, upper_layerm->slices().surfaces, ApplySafetyOffset::No),
+                                    nonplanar_polygon,
+                                    ApplySafetyOffset::No), 
+                                collider),
+                            angle_offset);
+            }
+        }
+    }
+
+    return false;
 }
 
 std::vector<Polygons> PrintObject::slice_support_volumes(const ModelVolumeType model_volume_type) const

@@ -20,6 +20,13 @@ if (TARGET OpenVDB::openvdb)
 endif()
 
 add_library(libslic3r STATIC
+    AABBMesh.cpp
+    AABBMesh.hpp
+    ClipperZUtils.hpp
+    NonplanarFacet.cpp
+    NonplanarFacet.hpp
+    NonplanarSurface.cpp
+    NonplanarSurface.hpp
     pchheader.cpp
     pchheader.hpp
     BoundingBox.cpp

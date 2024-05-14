@@ -15,6 +15,8 @@
 #include "GCode/ThumbnailData.hpp"
 #include "GCode/GCodeProcessor.hpp"
 #include "MultiMaterialSegmentation.hpp"
+#include "NonplanarSurface.hpp"
+#include "NonplanarFacet.hpp"
 
 #include "libslic3r.h"
 
@@ -62,8 +64,13 @@ enum PrintStep {
 };
 
 enum PrintObjectStep {
-    posSlice, posPerimeters, posPrepareInfill,
-    posInfill, posIroning, posSupportMaterial, 
+    posSlice, 
+    posPerimeters, 
+    posPrepareInfill,
+    posInfill, 
+    posIroning, 
+    posSupportMaterial, 
+    posNonplanarProjection,
     posSimplifyPath, // simplify &  arc fitting
     posCount,
 };
@@ -344,6 +351,8 @@ public:
     // Called by make_perimeters()
     void slice();
 
+    void lslices_were_updated();
+
     // Helpers to slice support enforcer / blocker meshes by the support generator.
     std::vector<Polygons>       slice_support_volumes(const ModelVolumeType model_volume_type) const;
     std::vector<Polygons>       slice_support_blockers() const { return this->slice_support_volumes(ModelVolumeType::SUPPORT_BLOCKER); }
@@ -405,6 +414,12 @@ private:
     void combine_infill();
     void _generate_support_material();
     void _compute_max_sparse_spacing();
+    void find_nonplanar_surfaces();
+    bool check_nonplanar_collisions(NonplanarSurface &surface);
+    void project_nonplanar_surfaces();
+    void detect_nonplanar_surfaces();
+
+
     std::pair<FillAdaptive::OctreePtr, FillAdaptive::OctreePtr> prepare_adaptive_infill_data();
     FillLightning::GeneratorPtr prepare_lightning_infill_data();
 
@@ -436,6 +451,9 @@ private:
     // this is set to true when LayerRegion->slices is split in top/internal/bottom
     // so that next call to make_perimeters() performs a union() before computing loops
     bool                                    m_typed_slices = false;
+
+    NonplanarSurfaces                       m_nonplanar_surfaces;
+
 
     //this setting allow fill_aligned_z to get the max sparse spacing spacing.
     coord_t                                 m_max_sparse_spacing;

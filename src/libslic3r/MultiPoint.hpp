@@ -15,7 +15,6 @@ class BoundingBox3;
 class MultiPoint
 {
 public:
-    //TODO: makes that private?
     Points points;
     
     MultiPoint() {}

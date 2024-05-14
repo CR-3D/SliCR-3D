@@ -9,6 +9,8 @@
 #include <sstream>
 #include <unordered_map>
 
+#include <oneapi/tbb/scalable_allocator.h>
+
 #include <Eigen/Geometry> 
 
 #include "LocalesUtils.hpp"
@@ -32,9 +34,11 @@ template<int N, class T> using Vec = Mat<N, 1, T>;
 // Vector types with a fixed point coordinate base type.
 using Vec2crd = Eigen::Matrix<coord_t,  2, 1, Eigen::DontAlign>;
 using Vec3crd = Eigen::Matrix<coord_t,  3, 1, Eigen::DontAlign>;
-//using Vec2i   = Eigen::Matrix<int,      2, 1, Eigen::DontAlign>;
-//using Vec3i   = Eigen::Matrix<int,      3, 1, Eigen::DontAlign>;
-//using Vec4i   = Eigen::Matrix<int,      4, 1, Eigen::DontAlign>;
+
+using Vec2i   = Eigen::Matrix<int,      2, 1, Eigen::DontAlign>;
+using Vec3i   = Eigen::Matrix<int,      3, 1, Eigen::DontAlign>;
+using Vec4i   = Eigen::Matrix<int,      4, 1, Eigen::DontAlign>;
+
 using Vec2i32 = Eigen::Matrix<int32_t,  2, 1, Eigen::DontAlign>;
 using Vec2i64 = Eigen::Matrix<int64_t,  2, 1, Eigen::DontAlign>;
 using Vec3i32 = Eigen::Matrix<int32_t,  3, 1, Eigen::DontAlign>;
@@ -47,6 +51,9 @@ using Vec3f   = Eigen::Matrix<float,    3, 1, Eigen::DontAlign>;
 using Vec2d   = Eigen::Matrix<double,   2, 1, Eigen::DontAlign>;
 using Vec3d   = Eigen::Matrix<double,   3, 1, Eigen::DontAlign>;
 
+template<typename BaseType>
+using PointsAllocator = tbb::scalable_allocator<BaseType>;
+
 using Points         = std::vector<Point>;
 using PointPtrs      = std::vector<Point*>;
 using PointConstPtrs = std::vector<const Point*>;
@@ -54,6 +61,8 @@ using Points3        = std::vector<Vec3crd>;
 using Pointfs        = std::vector<Vec2d>;
 using Vec2ds         = std::vector<Vec2d>;
 using Pointf3s       = std::vector<Vec3d>;
+
+using VecOfPoints    = std::vector<Points, PointsAllocator<Points>>;
 
 using Matrix2f       = Eigen::Matrix<float,  2, 2, Eigen::DontAlign>;
 using Matrix2d       = Eigen::Matrix<double, 2, 2, Eigen::DontAlign>;
@@ -125,6 +134,8 @@ class Point : public Vec2crd
 {
 public:
     using coord_type = coord_t;
+
+    coord_t nonplanar_z { -1 };
 
     Point() : Vec2crd(0, 0) {}
     Point(int32_t x, int32_t y) : Vec2crd(coord_t(x), coord_t(y)) {}

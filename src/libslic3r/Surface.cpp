@@ -54,6 +54,10 @@ Surface::has_mod_overBridge() const
     return (this->surface_type & stModOverBridge) != 0;
 }
 
+
+
+
+
 BoundingBox get_extents(const Surface &surface)
 {
     return get_extents(surface.expolygon.contour);
@@ -92,6 +96,9 @@ const char* surface_type_to_color_name(const SurfaceType surface_type)
     if (surface_type == (stPosInternal | stDensVoid)) return "rgb(128,128,128)"; // gray
     if (surface_type == (stPosInternal | stDensSparse)) return "rgb(255,255,128)"; // yellow 
     if ((surface_type & stPosPerimeter) != 0) return "rgb(128,0,0)"; // maroon
+    if ((surface_type & stPosTopNonplanar) != 0) return "rgb(166,2,255)"; // purple
+    if ((surface_type & stPosInternalSolidNonplanar) != 0) return "rgb(255,133,2)"; // orange
+
     return "rgb(64,64,64)"; //dark gray
 }
 
@@ -111,6 +118,8 @@ void export_surface_type_legend_to_svg(SVG &svg, const Point &pos)
     pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "top"            , surface_type_to_color_name(stPosTop));
     pos_x += step_x;
+    svg.draw_legend(Point(pos_x, pos_y), "top nonplanar"  , surface_type_to_color_name(stPosTopNonplanar));
+    pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "bottom"         , surface_type_to_color_name(stPosBottom));
     pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "bottom bridge"  , surface_type_to_color_name(stPosBottom | stModBridge));
@@ -123,6 +132,7 @@ void export_surface_type_legend_to_svg(SVG &svg, const Point &pos)
     pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "internal solid" , surface_type_to_color_name(stPosInternal | stDensSolid));
     pos_x += step_x;
+    svg.draw_legend(Point(pos_x, pos_y), "internal solid nonplanar" , surface_type_to_color_name(stPosInternalSolidNonplanar));
     svg.draw_legend(Point(pos_x, pos_y), "internal bridge", surface_type_to_color_name(stPosInternal | stDensSolid | stModBridge));
     pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "internal over bridge", surface_type_to_color_name(stPosInternal| stDensSolid | stModOverBridge));
@@ -188,6 +198,16 @@ std::string surfaceType_to_string(SurfaceType st)
         if (!str.empty())
             str += "||";
         str += "modOverBridge";
+    }
+    if ((st & stPosInternalSolidNonplanar) != 0) {
+        if (!str.empty())
+            str += "||";
+        str += "internalSolidNonplanar";
+    }
+    if ((st & stPosTopNonplanar) != 0) {
+        if (!str.empty())
+            str += "||";
+        str += "topNonplanar";
     }
     return str.empty() ? "none" : str;
 }
