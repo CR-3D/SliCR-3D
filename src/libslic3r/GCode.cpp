@@ -4468,6 +4468,8 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
 
     //useful var
     const double nozzle_diam = (EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0));
+    bool is_hole = (original_loop.loop_role() & elrHole) == elrHole;
+
 
     //no-seam code path redirect
     if (original_loop.role() == ExtrusionRole::erExternalPerimeter && (original_loop.loop_role() & elrVase) != 0 && !this->m_config.spiral_vase
@@ -4560,9 +4562,9 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
     ExtrusionPaths notch_extrusion_end;
     // seam notch if applicable
     seam_notch(original_loop, building_paths, notch_extrusion_start, notch_extrusion_end, is_hole_loop, is_full_loop_ccw);
-
+    ExtrusionPaths paths;
     const ExtrusionPaths& paths = building_paths;
-
+    
     // apply the small perimeter speed
     if (speed == -1 && is_perimeter(paths.front().role()) && paths.front().role() != erThinWall) {
         double min_length = scale_d(this->m_config.small_perimeter_min_length.get_abs_value(nozzle_diam));
@@ -4648,6 +4650,30 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
         assert(!path.can_reverse());
         gcode += extrude_path(path, description, speed);
     }
+
+    // SoftFever: check loop lenght for small perimeter. 
+    double small_peri_speed = -1;
+    if (speed == -1 && original_loop.length() <= SMALL_PERIMETER_LENGTH(m_config.small_perimeter_speed.value)) {
+        if(m_config.small_perimeter_speed.value == 0)
+            small_peri_speed = m_config.perimeter_speed * 0.5;
+        else
+            small_peri_speed = m_config.small_perimeter_speed.get_abs_value(m_config.perimeter_speed);
+    }
+
+
+    const auto seam_scarf_type = m_config.seam_slope_type.value;
+    const bool enable_seam_slope = ((seam_scarf_type == SeamScarfType::External && !is_hole) || seam_scarf_type == SeamScarfType::All) &&
+        !m_config.spiral_vase &&
+        (original_loop.role() == erExternalPerimeter || (original_loop.role() == erPerimeter && m_config.seam_slope_inner_walls)) &&
+        layer_id() > 0;
+
+    // clip the path to avoid the extruder to get exactly on the first point of the loop;
+    // if polyline was shorter than the clipping distance we'd get a null polyline, so
+    // we discard it in that case
+
+    const double seam_gap = scale_(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0));
+    const double clip_length = m_enable_loop_clipping && !enable_seam_slope ? seam_gap : 0;
+
     // extrude along the path
     //FIXME: we can have one-point paths in the loop that don't move : it's useless! and can create problems!
     for (const ExtrusionPath& path : paths) {
@@ -4779,6 +4805,56 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
             gcode += m_writer.travel_to_xy(this->point_to_gcode(pt_inside), 0.0, "move inwards before travel");
             this->set_last_pos(pt_inside);
         }
+
+    const auto speed_for_path = [&speed, &small_peri_speed](const ExtrusionPath& path) {
+        // don't apply small perimeter setting for overhangs/bridges/non-perimeters
+        const bool is_small_peri = is_perimeter(path.role()) && !is_bridge(path.role());
+        return is_small_peri ? small_peri_speed : speed;
+    };
+
+    if (!enable_seam_slope) {
+        for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
+            gcode += this->_extrude(*path, description, speed_for_path(*path));
+        }
+    } else {
+        // Create seam slope
+        double start_slope_ratio;
+        if (m_config.seam_slope_start_height.percent) {
+            start_slope_ratio = m_config.seam_slope_start_height.value / 100.;
+        } else {
+            // Get the ratio against current layer height
+            double h = paths.front().height;
+            start_slope_ratio = m_config.seam_slope_start_height.value / h;
+        }
+    
+
+        double loop_length = 0.;
+        for (const auto & path : paths) {
+            loop_length += unscale_(path.length());
+        }
+
+        const bool   slope_entire_loop        = m_config.seam_slope_entire_loop;
+        const double slope_min_length         = slope_entire_loop ? loop_length : std::min(m_config.seam_slope_min_length.value, loop_length);
+        const int    slope_steps              = m_config.seam_slope_steps;
+        const double slope_max_segment_length = scale_(slope_min_length / slope_steps);
+
+        // Calculate the sloped loop
+        ExtrusionLoopSloped new_loop(paths, seam_gap, slope_min_length, slope_max_segment_length, start_slope_ratio, original_loop.loop_role());
+
+        // Then extrude it
+        for (const auto& p : new_loop.get_all_paths()) {
+            gcode += this->_extrude(*p, description, speed_for_path(*p));
+        }
+
+        // Fix path for wipe
+        if (!new_loop.ends.empty()) {
+            paths.clear();
+            // The start slope part is ignored as it overlaps with the end part
+            paths.reserve(new_loop.paths.size() + new_loop.ends.size());
+            paths.insert(paths.end(), new_loop.paths.begin(), new_loop.paths.end());
+            paths.insert(paths.end(), new_loop.ends.begin(), new_loop.ends.end());
+        }
+    }
 
         gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_End) + "\n";
 
@@ -5357,6 +5433,13 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &descri
     std::string descr = description.empty() ? ExtrusionEntity::role_to_string(path.role()) : description;
     std::string gcode = this->_before_extrude(path, descr, speed);
 
+    const ExtrusionPathSloped* sloped = dynamic_cast<const ExtrusionPathSloped*>(&path);
+
+    const auto get_sloped_z = [&sloped, this](double z_ratio) {
+        const auto height = sloped->height;
+        return lerp(m_nominal_z - height, m_nominal_z, z_ratio);
+    };
+
     std::function<void(std::string&, const Line&, double, const std::string&)> func = [this](std::string& gcode, const Line& line, double e_per_mm, const std::string& comment) {
         if (line.a == line.b) return; //todo: investigate if it happens (it happens in perimeters)
         gcode += m_writer.extrude_to_xy(
@@ -5430,6 +5513,7 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &descri
             }
         }
     }
+
     gcode += this->_after_extrude(path);
 
     return gcode;
@@ -5777,6 +5861,13 @@ std::string GCode::_before_extrude(const ExtrusionPath &path, const std::string 
     // compute speed here to be able to know it for travel_deceleration_use_target
     speed = _compute_speed_mm_per_sec(path, speed);
         
+    const ExtrusionPathSloped* sloped = dynamic_cast<const ExtrusionPathSloped*>(&path);
+
+    const auto get_sloped_z = [&sloped, this](double z_ratio) {
+        const auto height = sloped->height;
+        return lerp(m_nominal_z - height, m_nominal_z, z_ratio);
+    };
+
     if (m_config.travel_deceleration_use_target){
         if (travel_acceleration <= acceleration || travel_acceleration == 0 || acceleration == 0) {
             m_writer.set_travel_acceleration((uint32_t)floor(acceleration + 0.5));
@@ -5785,6 +5876,7 @@ std::string GCode::_before_extrude(const ExtrusionPath &path, const std::string 
             if (!m_last_pos_defined || m_last_pos != path.first_point()) {
                 Polyline polyline = this->travel_to(gcode, path.first_point(), path.role());
                 this->write_travel_to(gcode, polyline, "move to first " + description + " point");
+                sloped == nullptr ? DBL_MAX : get_sloped_z(sloped->slope_begin.z_ratio);
             }
         } else {
             // go to midpoint to let us set the decel speed)
@@ -5997,7 +6089,7 @@ void GCode::_add_object_change_labels(std::string& gcode) {
 }
 
 // This method accepts &point in print coordinates.
-Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole role)
+Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole role, double z = DBL_MAX)
 {
         /*  Define the travel move as a line between current position and the taget point.
         This is expressed in print coordinates, so it will need to be translated by
@@ -6108,6 +6200,42 @@ Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole 
             // NOTE: okay to use set_points() as i have checked against the absence of arc.
             travel.points = MultiPoint::_douglas_peucker_plus(travel.points, current_scaled_min_length / 10, current_scaled_min_length);
         }
+    }
+
+        if (travel.size() >= 2) {
+        if (m_spiral_vase) {
+            // No lazy z lift for spiral vase mode
+            for (size_t i = 1; i < travel.size(); ++i) {
+                gcode += m_writer.travel_to_xy(this->point_to_gcode(travel.points[i]), comment + " travel_to_xy");
+            }
+        } else {
+            if (travel.size() == 2) {
+                // No extra movements emitted by avoid_crossing_perimeters, simply move to the end point with z change
+                const auto& dest2d = this->point_to_gcode(travel.points.back());
+                Vec3d dest3d(dest2d(0), dest2d(1), z == DBL_MAX ? m_nominal_z : z);
+                gcode += m_writer.travel_to_xyz(dest3d, comment + " travel_to_xyz");
+            } else {
+                // Extra movements emitted by avoid_crossing_perimeters, lift the z to normal height at the beginning, then apply the z
+                // ratio at the last point
+                for (size_t i = 1; i < travel.size(); ++i) {
+                    if (i == 1) {
+                        // Lift to normal z at beginning
+                        Vec2d dest2d = this->point_to_gcode(travel.points[i]);
+                        Vec3d dest3d(dest2d(0), dest2d(1), m_nominal_z);
+                        gcode += m_writer.travel_to_xyz(dest3d, comment + " travel_to_xyz");
+                    } else if (z != DBL_MAX && i == travel.size() - 1) {
+                        // Apply z_ratio for the very last point
+                        Vec2d dest2d = this->point_to_gcode(travel.points[i]);
+                        Vec3d dest3d(dest2d(0), dest2d(1), z);
+                        gcode += m_writer.travel_to_xyz(dest3d, comment + " travel_to_xyz");
+                    } else {
+                        // For all points in between, no z change
+                        gcode += m_writer.travel_to_xy(this->point_to_gcode(travel.points[i]), comment + " travel_to_xy");
+                    }
+                }
+            }
+        }
+        this->set_last_pos(travel.points.back());
     }
 
     return travel;

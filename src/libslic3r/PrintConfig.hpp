@@ -169,6 +169,13 @@ enum SeamPosition {
     spCost,
 };
 
+// Orca
+enum class SeamScarfType {
+    None,
+    External,
+    All,
+};
+
 enum SLAMaterial {
     slamTough,
     slamFlex,
@@ -287,6 +294,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialPattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialStyle)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialInterfacePattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamPosition)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamScarfType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAMaterial)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(DenseInfillAlgo)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NoPerimeterUnsupportedAlgo)
@@ -958,6 +966,14 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                top_solid_min_thickness))
     ((ConfigOptionFloatOrPercent,       top_solid_infill_speed))
     ((ConfigOptionBool,                 wipe_into_infill))
+
+    // Orca: seam slopes
+    ((ConfigOptionEnum<SeamScarfType>,  seam_slope_type))
+    ((ConfigOptionFloatOrPercent,       seam_slope_start_height))
+    ((ConfigOptionBool,                 seam_slope_entire_loop))
+    ((ConfigOptionFloat,                seam_slope_min_length))
+    ((ConfigOptionInt,                  seam_slope_steps))
+    ((ConfigOptionBool,                 seam_slope_inner_walls))
         
 )
 
@@ -1137,6 +1153,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionString,              color_change_gcode))
     ((ConfigOptionString,              pause_print_gcode))
     ((ConfigOptionString,              template_custom_gcode))
+    ((ConfigOptionBool,                has_scarf_joint_seam))
+
 
 )
 #ifdef HAS_PRESSURE_EQUALIZER

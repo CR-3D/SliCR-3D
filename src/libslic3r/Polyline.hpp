@@ -7,6 +7,7 @@
 #include "MultiPoint.hpp"
 #include <string>
 #include <vector>
+#include "ArcFitter.hpp"
 
 namespace Slic3r {
 
@@ -55,6 +56,21 @@ public:
         points.insert(points.end(), src.points.begin(), src.points.end());
     }
 
+    void append_before(const Point& point) {
+        //BBS: don't need to append same point
+        if (!this->empty() && this->first_point() == point)
+            return;
+        if (this->size() == 1) {
+            this->fitting_result.clear();
+            MultiPoint::append(point);
+            MultiPoint::reverse();
+        } else {
+            this->reverse();
+            this->append(point);
+            this->reverse();
+        }
+    }
+    
     void append(Polyline&& src)
     {
         if (this->points.empty()) {
@@ -77,8 +93,17 @@ public:
     void simplify(coordf_t tolerance);
 //    template <class T> void simplify_by_visibility(const T &area);
     void split_at(const Point &point, Polyline* p1, Polyline* p2) const;
+    bool split_at_index(const size_t index, Polyline* p1, Polyline* p2) const;
+    bool split_at_length(const double length, Polyline* p1, Polyline* p2) const;
+    std::vector<PathFittingData> fitting_result;
+
+
     bool is_straight() const;
     bool is_closed() const { return this->points.front() == this->points.back(); }
+
+private:
+    bool split_fitting_result_before_index(const size_t index, Point &new_endpoint, std::vector<PathFittingData>& data) const;
+    bool split_fitting_result_after_index(const size_t index, Point &new_startpoint, std::vector<PathFittingData>& data) const;
 };
 
 inline bool operator==(const Polyline &lhs, const Polyline &rhs) { return lhs.points == rhs.points; }

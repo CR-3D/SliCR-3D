@@ -4711,6 +4711,55 @@ void PrintConfigDef::init_fff_params()
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloatsOrPercents{ FloatOrPercent{15,true} });
 
+    def = this->add("seam_slope_type", coEnum);
+    def->label = L("Scarf joint seam (beta)");
+    def->tooltip = L("Use scarf joint to minimize seam visibility and increase seam strength.");
+    def->enum_keys_map = &ConfigOptionEnum<SeamScarfType>::get_enum_values();
+    def->enum_values.push_back("none");
+    def->enum_values.push_back("external");
+    def->enum_values.push_back("all");
+    def->enum_labels.push_back(L("None"));
+    def->enum_labels.push_back(L("Contour"));
+    def->enum_labels.push_back(L("Contour and hole"));
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionEnum<SeamScarfType>(SeamScarfType::None));
+    
+    def = this->add("seam_slope_start_height", coFloatOrPercent);
+    def->label = L("Scarf start height");
+    def->tooltip = L("Start height of the scarf.\n"
+                     "This amount can be specified in millimeters or as a percentage of the current layer height. The default value for this parameter is 0.");
+    def->sidetext = L("mm or %");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
+
+    def = this->add("seam_slope_entire_loop", coBool);
+    def->label = L("Scarf around entire wall");
+    def->tooltip = L("The scarf extends to the entire length of the wall.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("seam_slope_min_length", coFloat);
+    def->label = L("Scarf length");
+    def->tooltip = L("Length of the scarf. Setting this parameter to zero effectively disables the scarf.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(20));
+
+    def = this->add("seam_slope_steps", coInt);
+    def->label = L("Scarf steps");
+    def->tooltip = L("Minimum number of segments of each scarf.");
+    def->min = 1;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(10));
+
+    def = this->add("seam_slope_inner_walls", coBool);
+    def->label = L("Scarf joint for inner walls");
+    def->tooltip = L("Use scarf joint for inner walls as well.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
     def = this->add("seam_gap_external", coFloatsOrPercents);
     def->label = L("Seam gap for external perimeters");
     def->category = OptionCategory::extruders;
@@ -5182,6 +5231,11 @@ void PrintConfigDef::init_fff_params()
     def->height = 12;
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionString(""));
+
+    def = this->add("has_scarf_joint_seam", coBool);
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionBool(false));
+
 
     def = this->add("single_extruder_multi_material", coBool);
     def->label = L("Single Extruder Multi Material");

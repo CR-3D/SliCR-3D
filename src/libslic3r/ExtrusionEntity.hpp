@@ -245,9 +245,10 @@ public:
     float height;
 
     ExtrusionPath(ExtrusionRole role) : mm3_per_mm(-1), width(-1), height(-1), m_role(role), ExtrusionEntity(true) {}
+
     ExtrusionPath(ExtrusionRole role, bool can_reverse)
-        : mm3_per_mm(-1), width(-1), height(-1), m_role(role), ExtrusionEntity(can_reverse)
-    {}
+        : mm3_per_mm(-1), width(-1), height(-1), m_role(role), ExtrusionEntity(can_reverse) {}
+
     ExtrusionPath(ExtrusionRole role, double mm3_per_mm, float width, float height, bool can_reverse)
         : mm3_per_mm(mm3_per_mm), width(width), height(height), m_role(role), ExtrusionEntity(can_reverse)
     {
@@ -383,7 +384,9 @@ protected:
 
     ExtrusionRole m_role;
 };
+
 typedef std::vector<ExtrusionPath> ExtrusionPaths;
+
 ExtrusionPaths                     clip_end(ExtrusionPaths &paths, coordf_t distance);
 
 class ExtrusionPath3D : public ExtrusionPath
@@ -733,6 +736,62 @@ public:
 
 private:
     ExtrusionLoopRole m_loop_role{elrDefault};
+};
+
+class ExtrusionPathSloped : public ExtrusionPath
+{
+public:
+    struct Slope
+    {
+        double z_ratio{1.};
+        double e_ratio{1.};
+    };
+
+    Slope slope_begin;
+    Slope slope_end;
+
+    ExtrusionPathSloped(const ExtrusionPath& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(rhs), slope_begin(begin), slope_end(end)
+    {}
+    ExtrusionPathSloped(ExtrusionPath&& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(std::move(rhs)), slope_begin(begin), slope_end(end)
+    {}
+    ExtrusionPathSloped(const Polyline& polyline, const ExtrusionPath& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(polyline, rhs), slope_begin(begin), slope_end(end)
+    {}
+    ExtrusionPathSloped(Polyline&& polyline, const ExtrusionPath& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(std::move(polyline), rhs), slope_begin(begin), slope_end(end)
+    {}
+
+    Slope interpolate(const double ratio) const
+    {
+        return {
+            lerp(slope_begin.z_ratio, slope_end.z_ratio, ratio),
+            lerp(slope_begin.e_ratio, slope_end.e_ratio, ratio),
+        };
+    }
+
+    bool is_flat() const { return is_approx(slope_begin.z_ratio, slope_end.z_ratio); }
+};
+
+class ExtrusionLoopSloped : public ExtrusionLoop
+{
+public:
+    std::vector<ExtrusionPathSloped> starts;
+    std::vector<ExtrusionPathSloped> ends;
+
+    ExtrusionLoopSloped(ExtrusionPaths& original_paths,
+                        double          seam_gap,
+                        double          slope_min_length,
+                        double          slope_max_segment_length,
+                        double          start_slope_ratio,
+                        ExtrusionLoopRole role = elrDefault);
+
+    [[nodiscard]] std::vector<const ExtrusionPath*> get_all_paths() const;
+    void clip_slope(double distance, bool inter_perimeter = false );
+    void clip_end(const double distance);
+    void clip_front(const double distance);
+    double slope_path_length();
 };
 
 inline void extrusion_paths_append(ExtrusionPaths &dst,

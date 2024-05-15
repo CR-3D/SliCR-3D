@@ -285,6 +285,13 @@ public:
 
     Model*                  get_model() { return m_model; }
     const Model*            get_model() const { return m_model; }
+    
+    template<typename T> const T* get_config_value(const DynamicPrintConfig& global_config, const std::string& config_option) {
+        if (config.has(config_option))
+            return static_cast<const T*>(config.option(config_option));
+        else
+            return global_config.option<T>(config_option);
+    }
 
     ModelVolume*            add_volume(const TriangleMesh &mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART, bool centered = true);
     ModelVolume*            add_volume(TriangleMesh &&mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART, bool centered = true);

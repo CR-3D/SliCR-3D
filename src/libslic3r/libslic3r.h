@@ -48,6 +48,7 @@ using coordf_t = double;
 // with int64_t we don't have to worry anymore about the size of the int.
 static constexpr double SCALING_FACTOR = 0.000001;
 static constexpr double UNSCALING_FACTOR = 1000000; // 1 / SCALING_FACTOR; <- linux has some problem compiling this constexpr
+#define                 SMALL_PERIMETER_LENGTH(LENGTH)  (((LENGTH) / SCALING_FACTOR) * 2 * PI)
 
 //FIXME This epsilon value is used for many non-related purposes:
 // For a threshold of a squared Euclidean distance,
@@ -67,6 +68,7 @@ static constexpr double INSET_OVERLAP_TOLERANCE = 0.4;
 //FIXME Better to use an inline function with an explicit return type.
 //inline coord_t scale_(coordf_t v) { return coord_t(floor(v / SCALING_FACTOR + 0.5f)); }
 #define scale_(val) (coord_t)((val) / SCALING_FACTOR)
+#define unscale_(val) ((val) * SCALING_FACTOR)
 
 
 #ifndef UNUSED
@@ -271,6 +273,15 @@ constexpr inline bool is_approx(Number value, Number test_value)
 {
     return std::fabs(double(value) - double(test_value)) < double(EPSILON);
 }
+
+template<typename Number>
+constexpr inline bool is_approx(const std::optional<Number> &value,
+                                const std::optional<Number> &test_value)
+{
+    return (!value.has_value() && !test_value.has_value()) ||
+        (value.has_value() && test_value.has_value() && is_approx<Number>(*value, *test_value));
+}
+
 
 // A meta-predicate which is true for integers wider than or equal to coord_t
 template<class I> struct is_scaled_coord

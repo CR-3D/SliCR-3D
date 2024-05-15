@@ -25,6 +25,8 @@
 #include <map>
 #include <string>
 #include <chrono>
+#include <cfloat>
+
 
 #include "GCode/PressureEqualizer.hpp"
 
@@ -388,7 +390,7 @@ private:
     std::string     extrude_ironing(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region);
     std::string     extrude_support(const ExtrusionEntitiesPtr &support_fills);
 
-    Polyline        travel_to(std::string& gcode, const Point &point, ExtrusionRole role);
+    Polyline        travel_to(std::string &gcode, const Point& point, ExtrusionRole role, double z = DBL_MAX);
     void            write_travel_to(std::string& gcode, const Polyline& travel, std::string comment);
     bool            can_cross_perimeter(const Polyline& travel, bool offset);
     bool            needs_retraction(const Polyline& travel, ExtrusionRole role = erNone, coordf_t max_min_dist = 0);
@@ -473,6 +475,8 @@ private:
 
     std::unique_ptr<CoolingBuffer>      m_cooling_buffer;
     std::unique_ptr<SpiralVase>         m_spiral_vase;
+    coordf_t                            m_nominal_z;
+
     //to know the current spiral layer. Only for process_layer. began at 1, 0 means no spiral. Negative means disbaled spiral.
     int32_t                             m_spiral_vase_layer = 0;
     std::unique_ptr<GCodeFindReplace>   m_find_replace;
@@ -520,6 +524,12 @@ private:
     bool                                on_first_layer() const { return m_layer != nullptr && m_layer->id() == 0; }
     // To control print speed of 1st object layer over raft interface.
     bool                                object_layer_over_raft() const { return m_object_layer_over_raft; }
+
+    int layer_id() const {
+        if (m_layer == nullptr)
+            return -1;
+        return m_layer->id();
+    }
 
     friend ObjectByExtruder& object_by_extruder(
         std::map<uint16_t, std::vector<ObjectByExtruder>>      &by_extruder, 

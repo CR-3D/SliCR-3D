@@ -1086,6 +1086,12 @@ bool PrintObject::invalidate_state_by_config_options(
                 steps.emplace_back(posSlice);
             } else if (
                 opt_key == "avoid_crossing_top"
+                || opt_key == "seam_slope_type"
+                || opt_key == "seam_slope_start_height"
+                || opt_key == "seam_slope_entire_loop"
+                || opt_key == "seam_slope_min_length"
+                || opt_key == "seam_slope_steps"
+                || opt_key == "seam_slope_inner_walls"
                 || opt_key == "bridge_speed"
                 || opt_key == "bridge_speed_internal"
                 || opt_key == "external_perimeter_speed"

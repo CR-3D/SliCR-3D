@@ -534,6 +534,8 @@ namespace Slic3r {
         std::vector<std::string> m_extruder_names;
         GCodeFlavor m_flavor;
 
+        double          m_x_offset{ 0 };
+        double          m_y_offset{ 0 };
         AxisCoords m_start_position; // mm
         AxisCoords m_end_position; // mm
         AxisCoords m_origin; // mm
@@ -571,6 +573,12 @@ namespace Slic3r {
         SeamsDetector m_seams_detector;
         OptionsZCorrector m_options_z_corrector;
         size_t m_last_default_color_id;
+
+        bool m_detect_layer_based_on_tag {false};
+        int m_seams_count;
+
+
+
 #if ENABLE_SPIRAL_VASE_LAYERS
         bool m_spiral_vase_active;
 #endif // ENABLE_SPIRAL_VASE_LAYERS
@@ -640,6 +648,9 @@ namespace Slic3r {
         std::vector<std::pair<EMoveType, float>> get_moves_time(PrintEstimatedStatistics::ETimeMode mode) const;
         std::vector<std::pair<ExtrusionRole, float>> get_roles_time(PrintEstimatedStatistics::ETimeMode mode) const;
         std::vector<float> get_layers_time(PrintEstimatedStatistics::ETimeMode mode) const;
+        // Orca: if true, only change new layer if ETags::Layer_Change occurs
+        // otherwise when we got a lift of z during extrusion, a new layer will be added
+        void detect_layer_based_on_tag(bool enabled) { m_detect_layer_based_on_tag = enabled; }
 
     private:
         void apply_config(const DynamicPrintConfig& config);
