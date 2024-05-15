@@ -385,6 +385,7 @@ protected:
     ExtrusionRole m_role;
 };
 
+
 typedef std::vector<ExtrusionPath> ExtrusionPaths;
 
 ExtrusionPaths                     clip_end(ExtrusionPaths &paths, coordf_t distance);

@@ -493,7 +493,7 @@ std::string GCodeWriter::travel_to_xyz(const Vec3d &point, const double speed, c
     // FIXME: This function was not being used when travel_speed_z was separated (bd6badf).
     // Calculation of feedrate was not updated accordingly. If you want to use
     // this function, fix it first.
-    std::terminate();
+   // std::terminate();
 
     /*  If target Z is lower than current Z but higher than nominal Z we
         don't perform the Z move but we only move in the XY plane and

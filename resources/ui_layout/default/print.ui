@@ -125,6 +125,17 @@ group:sidetext_width$5:Advanced
 		setting:tags$Advanced$Expert$SuSi:width$3:sidetext_width$0:seam_travel_cost
 	end_line
 
+	line: Seam Slope
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:label$Seam Slope Type:seam_slope_type
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:label$Seam Slope Start Height:seam_slope_start_height
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:label$Seam Slope Entire Wall:seam_slope_entire_loop
+
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:label$Seam Slope Min Length:seam_slope_min_length
+
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:label$Seam Slope Steps:seam_slope_steps
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:label$Seam Slope Inner Walls:seam_slope_inner_walls
+	end_line
+	
 	line:Seam notch
 		setting:seam_notch_inner
 		setting:seam_notch_outer

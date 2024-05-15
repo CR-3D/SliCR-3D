@@ -7,7 +7,6 @@
 #include "MultiPoint.hpp"
 #include <string>
 #include <vector>
-#include "ArcFitter.hpp"
 
 namespace Slic3r {
 
@@ -95,15 +94,20 @@ public:
     void split_at(const Point &point, Polyline* p1, Polyline* p2) const;
     bool split_at_index(const size_t index, Polyline* p1, Polyline* p2) const;
     bool split_at_length(const double length, Polyline* p1, Polyline* p2) const;
-    std::vector<PathFittingData> fitting_result;
+
+    std::vector<Geometry::PathFittingData> fitting_result;
 
 
     bool is_straight() const;
     bool is_closed() const { return this->points.front() == this->points.back(); }
 
 private:
-    bool split_fitting_result_before_index(const size_t index, Point &new_endpoint, std::vector<PathFittingData>& data) const;
-    bool split_fitting_result_after_index(const size_t index, Point &new_startpoint, std::vector<PathFittingData>& data) const;
+    bool split_fitting_result_before_index(const size_t                            index,
+                                           Point &                                 new_endpoint,
+                                           std::vector<Geometry::PathFittingData> &data) const;
+    bool split_fitting_result_after_index(const size_t                            index,
+                                          Point &                                 new_startpoint,
+                                          std::vector<Geometry::PathFittingData> &data) const;
 };
 
 inline bool operator==(const Polyline &lhs, const Polyline &rhs) { return lhs.points == rhs.points; }
@@ -247,7 +251,7 @@ typedef std::vector<Polyline3> Polylines3;
 
 
 //private inheritance to avoid letting 'points' visible, as it has to be sync with arc fitting.
-class PolylineOrArc : /*public*/ Polyline {
+class PolylineOrArc : public Polyline {
 public:
     PolylineOrArc() {};
     PolylineOrArc(const PolylineOrArc& other) : Polyline(other.points), m_fitting_result(other.m_fitting_result) {

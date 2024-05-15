@@ -73,6 +73,7 @@ group:Advanced
 	setting:use_firmware_retraction
 	setting:use_volumetric_e
 	setting:variable_layer_height
+	setting:has_scarf_joint_seam
 
 page:Custom G-code:cog
 group: 

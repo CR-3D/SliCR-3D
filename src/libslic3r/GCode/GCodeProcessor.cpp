@@ -3052,11 +3052,18 @@ void GCodeProcessor::emit_G1_from_G2(Vec2d dest, float e, float f) {
 void GCodeProcessor::process_G2_G3(const GCodeReader::GCodeLine& line, bool direct)
 {
     //check it has everything
+    AxisCoords delta_pos;
     float i = 0, j = 0;
     bool has_i = line.has_value('I', i);
     bool has_j = line.has_value('J', j);
     if(!((line.has_x() || line.has_y()) && (has_i || has_j)))
         return;
+
+    for (unsigned char a = X; a <= E; ++a) {
+        delta_pos[a] = m_end_position[a] - m_start_position[a];
+    }
+
+
     //compute points
     //  compute mult factor
     float lengthsScaleFactor = (m_units == EUnits::Inches) ? INCHES_TO_MM : 1.0f;
@@ -3160,6 +3167,14 @@ void GCodeProcessor::process_G2_G3(const GCodeReader::GCodeLine& line, bool dire
         }
     }
 }
+
+ // Orca: we now use spiral_vase_layers for proper layer detect when scarf joint is enabled,
+    // and this is needed if the layer has only arc moves
+    if (m_detect_layer_based_on_tag && !m_result.spiral_vase_layers.empty()) {
+
+        if (!m_result.moves.empty())
+            m_result.spiral_vase_layers.back().second.second = m_result.moves.size() - 1 - m_seams_count;
+    }
     //emit last
     emit_G1_from_G2(p_end, e_relative ? dE_incr : start_e + dE, line.has_f() ? line.f() : -1);
 

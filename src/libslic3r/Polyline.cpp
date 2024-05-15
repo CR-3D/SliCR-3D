@@ -8,7 +8,7 @@
 #include <iostream>
 #include <utility>
 #include <algorithm>
-#include "ArcFitter.hpp"
+#include "Geometry/ArcFitter.hpp"
 
 namespace Slic3r {
 
@@ -170,7 +170,9 @@ void Polyline::split_at(const Point &point, Polyline* p1, Polyline* p2) const
     p2->points.insert(p2->points.end(), min_point_it, this->points.cend());
 }
 
-bool Polyline::split_fitting_result_after_index(const size_t index, Point& new_startpoint, std::vector<PathFittingData>& data) const
+bool Polyline::split_fitting_result_after_index(const size_t                            index,
+                                                Point &                                 new_startpoint,
+                                                std::vector<Geometry::PathFittingData> &data) const
 {
     data.clear();
     new_startpoint = this->points[index];
@@ -191,7 +193,7 @@ bool Polyline::split_fitting_result_after_index(const size_t index, Point& new_s
                     if (data.front().is_arc_move() && data.front().start_point_index < index) {
                         if (!data.front().arc_data.clip_start(this->points[index]))
                             //BBS: failed to clip arc, then return to be linear move
-                            data.front().path_type = EMovePathType::Linear_move;
+                            data.front().path_type = Geometry::EMovePathType::Linear_move;
                         else
                             //BBS: succeed to clip arc, then update and return the new start point
                             new_startpoint = data.front().arc_data.start_point;
@@ -207,7 +209,9 @@ bool Polyline::split_fitting_result_after_index(const size_t index, Point& new_s
 }
 
 
-bool Polyline::split_fitting_result_before_index(const size_t index, Point& new_endpoint, std::vector<PathFittingData>& data) const
+bool Polyline::split_fitting_result_before_index(const size_t                          index,
+                                                 Point &                               new_endpoint,
+                                                 std::vector<Geometry::PathFittingData> &data) const
 {
     data.clear();
     new_endpoint = this->points[index];
@@ -228,7 +232,7 @@ bool Polyline::split_fitting_result_before_index(const size_t index, Point& new_
             if (data.back().is_arc_move() && data.back().end_point_index > index) {
                 if (!data.back().arc_data.clip_end(this->points[index]))
                     //BBS: failed to clip arc, then return to be linear move
-                    data.back().path_type = EMovePathType::Linear_move;
+                    data.back().path_type = Geometry::EMovePathType::Linear_move;
                 else
                     //BBS: succeed to clip arc, then update and return the new end point
                     new_endpoint = data.back().arc_data.end_point;
@@ -284,7 +288,7 @@ bool Polyline::split_at_length(const double length, Polyline* p1, Polyline* p2) 
         p1->clear();
         p1->append(this->first_point());
         *p2 = *this;
-    } else if (is_approx(length, this->length(), SCALED_EPSILON)) {
+    } else if (is_approx(length, this->length())) {
         p2->clear();
         p2->append(this->last_point());
         *p1 = *this;

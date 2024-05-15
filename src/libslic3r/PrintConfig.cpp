@@ -211,6 +211,14 @@ static const t_config_enum_values s_keys_map_SeamPosition {
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SeamPosition);
 
+static t_config_enum_values s_keys_map_SeamScarfType{
+    { "none",           int(SeamScarfType::None) },
+    { "external",       int(SeamScarfType::External) },
+    { "all",            int(SeamScarfType::All) },
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SeamScarfType)
+
+
 static const t_config_enum_values s_keys_map_DenseInfillAlgo{
         { "automatic", dfaAutomatic },
         { "autonotfull", dfaAutoNotFull },

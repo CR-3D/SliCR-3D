@@ -4562,8 +4562,8 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
     ExtrusionPaths notch_extrusion_end;
     // seam notch if applicable
     seam_notch(original_loop, building_paths, notch_extrusion_start, notch_extrusion_end, is_hole_loop, is_full_loop_ccw);
-    ExtrusionPaths paths;
-    const ExtrusionPaths& paths = building_paths;
+
+    ExtrusionPaths& paths = building_paths;
     
     // apply the small perimeter speed
     if (speed == -1 && is_perimeter(paths.front().role()) && paths.front().role() != erThinWall) {
@@ -4813,7 +4813,7 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
     };
 
     if (!enable_seam_slope) {
-        for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
+        for (ExtrusionPaths::const_iterator path = paths.begin(); path != paths.end(); ++path) {
             gcode += this->_extrude(*path, description, speed_for_path(*path));
         }
     } else {
@@ -6089,7 +6089,7 @@ void GCode::_add_object_change_labels(std::string& gcode) {
 }
 
 // This method accepts &point in print coordinates.
-Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole role, double z = DBL_MAX)
+Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole role, double z)
 {
         /*  Define the travel move as a line between current position and the taget point.
         This is expressed in print coordinates, so it will need to be translated by
@@ -6206,14 +6206,14 @@ Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole 
         if (m_spiral_vase) {
             // No lazy z lift for spiral vase mode
             for (size_t i = 1; i < travel.size(); ++i) {
-                gcode += m_writer.travel_to_xy(this->point_to_gcode(travel.points[i]), comment + " travel_to_xy");
+                gcode += m_writer.travel_to_xy(this->point_to_gcode(travel.points[i]), 0.0, " travel_to_xy");
             }
         } else {
             if (travel.size() == 2) {
                 // No extra movements emitted by avoid_crossing_perimeters, simply move to the end point with z change
                 const auto& dest2d = this->point_to_gcode(travel.points.back());
                 Vec3d dest3d(dest2d(0), dest2d(1), z == DBL_MAX ? m_nominal_z : z);
-                gcode += m_writer.travel_to_xyz(dest3d, comment + " travel_to_xyz");
+                gcode += m_writer.travel_to_xyz(dest3d,  0.0, " travel_to_xyz");
             } else {
                 // Extra movements emitted by avoid_crossing_perimeters, lift the z to normal height at the beginning, then apply the z
                 // ratio at the last point
@@ -6222,15 +6222,15 @@ Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole 
                         // Lift to normal z at beginning
                         Vec2d dest2d = this->point_to_gcode(travel.points[i]);
                         Vec3d dest3d(dest2d(0), dest2d(1), m_nominal_z);
-                        gcode += m_writer.travel_to_xyz(dest3d, comment + " travel_to_xyz");
+                        gcode += m_writer.travel_to_xyz(dest3d, 0.0, " travel_to_xyz");
                     } else if (z != DBL_MAX && i == travel.size() - 1) {
                         // Apply z_ratio for the very last point
                         Vec2d dest2d = this->point_to_gcode(travel.points[i]);
                         Vec3d dest3d(dest2d(0), dest2d(1), z);
-                        gcode += m_writer.travel_to_xyz(dest3d, comment + " travel_to_xyz");
+                        gcode += m_writer.travel_to_xyz(dest3d, 0.0, "travel_to_xyz");
                     } else {
                         // For all points in between, no z change
-                        gcode += m_writer.travel_to_xy(this->point_to_gcode(travel.points[i]), comment + " travel_to_xy");
+                        gcode += m_writer.travel_to_xy(this->point_to_gcode(travel.points[i]),  0.0, " travel_to_xy");
                     }
                 }
             }
