@@ -120,6 +120,34 @@ double distance_to_infinite(const L &line, const Vec<Dim<L>, Scalar<L>> &point)
     return std::sqrt(distance_to_infinite_squared(line, point));
 }
 
+
+template<class L> bool intersection(const L &l1, const L &l2, Vec<Dim<L>, Scalar<L>> *intersection_pt)
+{
+    using Floating      = typename std::conditional<std::is_floating_point<Scalar<L>>::value, Scalar<L>, double>::type;
+    using VecType       = const Vec<Dim<L>, Floating>;
+    const VecType v1    = (l1.b - l1.a).template cast<Floating>();
+    const VecType v2    = (l2.b - l2.a).template cast<Floating>();
+    Floating      denom = cross2(v1, v2);
+    if (fabs(denom) < EPSILON)
+#if 0
+        // Lines are collinear. Return true if they are coincident (overlappign).
+        return ! (fabs(nume_a) < EPSILON && fabs(nume_b) < EPSILON);
+#else
+        return false;
+#endif
+    const VecType v12 = (l1.a - l2.a).template cast<Floating>();
+    Floating nume_a = cross2(v2, v12);
+    Floating nume_b = cross2(v1, v12);
+    Floating t1     = nume_a / denom;
+    Floating t2     = nume_b / denom;
+    if (t1 >= 0 && t1 <= 1.0f && t2 >= 0 && t2 <= 1.0f) {
+        // Get the intersection point.
+        (*intersection_pt) = (l1.a.template cast<Floating>() + t1 * v1).template cast<Scalar<L>>();
+        return true;
+    }
+    return false; // not intersecting
+}
+
 } // namespace line_alg
 
 class Line
@@ -215,6 +243,7 @@ public:
     static const constexpr int Dim = 2;
     using Scalar = Vec2d::Scalar;
 };
+using Linesf = std::vector<Linef>;
 
 class Linef3
 {

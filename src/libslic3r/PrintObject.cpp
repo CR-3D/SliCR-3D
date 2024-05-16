@@ -1106,6 +1106,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "seam_angle_cost"
                 || opt_key == "seam_notch_all"
                 || opt_key == "seam_notch_angle"
+                || opt_key == "scarf_overhang_threshold"
                 || opt_key == "seam_notch_inner"
                 || opt_key == "seam_notch_outer"
                 || opt_key == "seam_travel_cost"

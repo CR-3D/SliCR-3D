@@ -566,12 +566,20 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     // Seam
     toggle_field("seam_slope_type", !has_spiral_vase);
     bool has_seam_slope = !has_spiral_vase && config->opt_enum<SeamScarfType>("seam_slope_type") != SeamScarfType::None;
+    toggle_field("seam_slope_conditional", has_seam_slope);
+
     toggle_field("seam_slope_start_height", has_seam_slope);
     toggle_field("seam_slope_entire_loop", has_seam_slope);
     toggle_field("seam_slope_min_length", has_seam_slope);
     toggle_field("seam_slope_steps", has_seam_slope);
     toggle_field("seam_slope_inner_walls", has_seam_slope);
     toggle_field("seam_slope_min_length", !config->opt_bool("seam_slope_entire_loop"));
+
+    toggle_field("scarf_joint_speed", has_seam_slope);
+    toggle_field("scarf_joint_flow_ratio", has_seam_slope);
+    toggle_field("seam_slope_min_length", !config->opt_bool("seam_slope_entire_loop"));
+    toggle_field("scarf_angle_threshold", has_seam_slope && config->opt_bool("seam_slope_conditional"));
+    toggle_field("scarf_overhang_threshold", has_seam_slope && config->opt_bool("seam_slope_conditional"));
 
     for (auto el : { "fill_smooth_width", "fill_smooth_distribution" })
         toggle_field(el, (has_top_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("top_fill_pattern")->value == InfillPattern::ipSmooth)

@@ -4732,6 +4732,55 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionEnum<SeamScarfType>(SeamScarfType::None));
     
+    def = this->add("seam_slope_conditional", coBool);
+    def->label = L("Conditional scarf joint");
+    def->tooltip = L("Apply scarf joints only to smooth perimeters where traditional seams do not conceal the seams at sharp corners effectively.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("scarf_angle_threshold", coInt);
+    def->label = L("Conditional angle threshold");
+    def->tooltip = L(
+        "This option sets the threshold angle for applying a conditional scarf joint seam.\nIf the maximum angle within the perimeter loop "
+        "exceeds this value (indicating the absence of sharp corners), a scarf joint seam will be used. The default value is 155°.");
+    def->mode = comAdvanced;
+    def->sidetext = L("°");
+    def->min = 0;
+    def->max = 180;
+    def->set_default_value(new ConfigOptionInt(155));
+
+    def = this->add("scarf_overhang_threshold", coPercent);
+    def->label = L("Conditional overhang threshold");
+    // xgettext:no-c-format, no-boost-format
+    def->tooltip  = L("This option determines the overhang threshold for the application of scarf joint seams. If the unsupported portion "
+                       "of the perimeter is less than this threshold, scarf joint seams will be applied. The default threshold is set at 40% "
+                       "of the external wall's width. Due to performance considerations, the degree of overhang is estimated.");
+    def->sidetext = L("%");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionPercent(40));
+
+    def = this->add("scarf_joint_speed", coFloatOrPercent);
+    def->label = L("Scarf joint speed");
+    def->tooltip  = L(
+        "This option sets the printing speed for scarf joints. It is recommended to print scarf joints at a slow speed (less than 100 "
+         "mm/s).  It's also advisable to enable 'Extrusion rate smoothing' if the set speed varies significantly from the speed of the "
+         "outer or inner walls. If the speed specified here is higher than the speed of the outer or inner walls, the printer will default "
+         "to the slower of the two speeds. When specified as a percentage (e.g., 80%), the speed is calculated based on the respective "
+         "outer or inner wall speed. The default value is set to 100%.");
+    def->sidetext = L("mm/s or %");
+    def->min = 1;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloatOrPercent(100, true));
+
+    def = this->add("scarf_joint_flow_ratio", coFloat);
+    def->label = L("Scarf joint flow ratio");
+    def->tooltip = L("This factor affects the amount of material for scarf joints.");
+    def->mode = comAdvanced;
+    def->max = 2;
+    def->set_default_value(new ConfigOptionFloat(1));
+
+
     def = this->add("seam_slope_start_height", coFloatOrPercent);
     def->label = L("Scarf start height");
     def->tooltip = L("Start height of the scarf.\n"

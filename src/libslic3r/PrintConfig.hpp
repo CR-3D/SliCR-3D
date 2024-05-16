@@ -816,6 +816,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                xy_size_compensation))
     ((ConfigOptionFloat,                xy_inner_size_compensation))
     ((ConfigOptionBool,                 wipe_into_objects))
+    ((ConfigOptionBool,                 precise_z_height))
+
 )
 
 // This object is mapped to Perl as Slic3r::Config::PrintRegion.
@@ -969,12 +971,16 @@ PRINT_CONFIG_CLASS_DEFINE(
 
     // Orca: seam slopes
     ((ConfigOptionEnum<SeamScarfType>,  seam_slope_type))
+    ((ConfigOptionBool,                 seam_slope_conditional))
+    ((ConfigOptionInt,                  scarf_angle_threshold))
     ((ConfigOptionFloatOrPercent,       seam_slope_start_height))
     ((ConfigOptionBool,                 seam_slope_entire_loop))
     ((ConfigOptionFloat,                seam_slope_min_length))
     ((ConfigOptionInt,                  seam_slope_steps))
     ((ConfigOptionBool,                 seam_slope_inner_walls))
-        
+    ((ConfigOptionFloatOrPercent,       scarf_joint_speed))
+    ((ConfigOptionFloat,                scarf_joint_flow_ratio))
+    ((ConfigOptionPercent,              scarf_overhang_threshold))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(

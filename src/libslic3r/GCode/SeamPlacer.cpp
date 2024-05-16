@@ -1198,13 +1198,15 @@ void SeamPlacer::calculate_candidates_visibility(const PrintObject *po,
 
 void SeamPlacer::calculate_overhangs_and_layer_embedding(const PrintObject *po) {
     using namespace SeamPlacerImpl;
+    using PerimeterDistancer = AABBTreeLines::LinesDistancer<Slic3r::Linef>;
+    PerimeterDistancer distancer;
 
     std::vector<PrintObjectSeamData::LayerSeams> &layers = m_seam_per_object[po].layers;
     tbb::parallel_for(tbb::blocked_range<size_t>(0, layers.size()),
             [po, &layers](tbb::blocked_range<size_t> r) {
                 std::unique_ptr<PerimeterDistancer> prev_layer_distancer;
                 if (r.begin() > 0) { // previous layer exists
-                    prev_layer_distancer = std::make_unique<PerimeterDistancer>(po->layers()[r.begin() - 1]);
+                    prev_layer_distancer = std::make_unique<PerimeterDistancer>(to_unscaled_linesf(po->layers()[r.begin() - 1]->lslices));
                 }
 
                 for (size_t layer_idx = r.begin(); layer_idx < r.end(); ++layer_idx) {
@@ -1215,22 +1217,29 @@ void SeamPlacer::calculate_overhangs_and_layer_embedding(const PrintObject *po) 
                         }
                     };
                     bool should_compute_layer_embedding = regions_with_perimeter > 1;
-                    std::unique_ptr<PerimeterDistancer> current_layer_distancer = std::make_unique<PerimeterDistancer>(po->layers()[layer_idx]);
+                    
+                    std::unique_ptr<PerimeterDistancer> current_layer_distancer        = std::make_unique<PerimeterDistancer>(
+                        to_unscaled_linesf(po->layers()[layer_idx]->lslices));
+                    
+                    auto& layer_seams = layers[layer_idx];
 
                     for (SeamCandidate &perimeter_point : layers[layer_idx].points) {
                         Vec2f point = Vec2f { perimeter_point.position.head<2>() };
                         if (prev_layer_distancer.get() != nullptr) {
-                            perimeter_point.overhang = prev_layer_distancer->distance_from_perimeter(point)
-                                    + 0.6f * perimeter_point.perimeter.flow_width
-                                    - tan(SeamPlacer::overhang_angle_threshold)
-                                            * po->layers()[layer_idx]->height;
+                            const auto _dist = prev_layer_distancer->distance_from_lines<true>(point.cast<double>());
+                             perimeter_point.overhang = _dist
+                                                       + 0.6f * perimeter_point.perimeter.flow_width
+                                                       - tan(SeamPlacer::overhang_angle_threshold)
+                                                             * po->layers()[layer_idx]->height;
                             perimeter_point.overhang =
-                                    perimeter_point.overhang < 0.0f ? 0.0f : perimeter_point.overhang;
+                                perimeter_point.overhang < 0.0f ? 0.0f : perimeter_point.overhang;
+                            perimeter_point.unsupported_dist = _dist + 0.4f * perimeter_point.perimeter.flow_width;
+
                         }
 
                         if (should_compute_layer_embedding) { // search for embedded perimeter points (points hidden inside the print ,e.g. multimaterial join, best position for seam)
-                            perimeter_point.embedded_distance = current_layer_distancer->distance_from_perimeter(point)
-                                    + 0.6f * perimeter_point.perimeter.flow_width;
+                            perimeter_point.embedded_distance = current_layer_distancer->distance_from_lines<true>(point.cast<double>())
+                                                                + 0.6f * perimeter_point.perimeter.flow_width;
                         }
                     }
 
@@ -1782,8 +1791,12 @@ std::tuple<bool,std::optional<Vec3f>> get_seam_from_modifier(const Layer& layer,
     return std::tuple<bool, std::optional<Vec3f>>{ false, std::nullopt };
 }
 
-void SeamPlacer::place_seam(const Layer *layer, ExtrusionLoop &loop, const uint16_t print_object_instance_idx,
-        const Point &last_pos) const {
+void SeamPlacer::place_seam(const Layer *layer, 
+                            const ExtrusionLoop &loop,
+                            const uint16_t print_object_instance_idx,
+                            const Point &last_pos, 
+                            float& overhang) const {
+                                
     using namespace SeamPlacerImpl;
     const PrintObject *po = layer->object();
     // Must not be called with supprot layer.
@@ -1830,6 +1843,7 @@ void SeamPlacer::place_seam(const Layer *layer, ExtrusionLoop &loop, const uint1
     }
 
     Vec3f seam_position;
+
     size_t seam_index;
     if (const Perimeter &perimeter = layer_perimeters.points[closest_perimeter_point_index].perimeter;
     perimeter.finalized) {
@@ -1846,8 +1860,9 @@ void SeamPlacer::place_seam(const Layer *layer, ExtrusionLoop &loop, const uint1
 
 
     Point seam_point = Point::new_scale(seam_position.x(), seam_position.y());
+    overhang = layer_perimeters.points[seam_index].unsupported_dist;
 
-    auto [has_seam_mod, seam_mod_pos] = get_seam_from_modifier(*layer, loop, print_object_instance_idx, last_pos, po);
+    auto [has_seam_mod, seam_mod_pos] = get_seam_from_modifier(*layer, const_cast<ExtrusionLoop&>(loop), print_object_instance_idx, last_pos, po);
     if (has_seam_mod && seam_mod_pos.has_value()) {
         seam_point = Point::new_scale(seam_mod_pos->x(), seam_mod_pos->y());
     } else {
@@ -1884,10 +1899,10 @@ void SeamPlacer::place_seam(const Layer *layer, ExtrusionLoop &loop, const uint1
     }
     // Because the G-code export has 1um resolution, don't generate segments shorter than 1.5 microns,
     // thus empty path segments will not be produced by G-code export.
-    if (!loop.split_at_vertex(seam_point, scaled<double>(0.0015))) {
+    if (!const_cast<ExtrusionLoop&>(loop).split_at_vertex(seam_point, scaled<double>(0.0015))) {
         // The point is not in the original loop.
         // Insert it.
-        loop.split_at(seam_point, true);
+        const_cast<ExtrusionLoop&>(loop).split_at(seam_point, true);
         /*{
                 static int isaqsdsdfsdfqzfn = 0;
                 std::stringstream stri;

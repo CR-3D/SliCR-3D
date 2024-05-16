@@ -590,11 +590,14 @@ bool GCodeWriter::will_move_z(double z) const
     return true;
 }
 
-std::string GCodeWriter::extrude_to_xy(const Vec2d &point, double dE, const std::string &comment)
+std::string GCodeWriter::extrude_to_xy(const Vec2d &point, double dE, const std::string &comment, bool force_no_extrusion)
 {
     assert(dE == dE);
     m_pos.x() = point.x();
     m_pos.y() = point.y();
+     if(std::abs(dE) <= std::numeric_limits<double>::epsilon())
+        force_no_extrusion = true;
+
     bool is_extrude = m_tool->extrude(dE) != 0;
 
     std::ostringstream gcode;
@@ -603,6 +606,7 @@ std::string GCodeWriter::extrude_to_xy(const Vec2d &point, double dE, const std:
         << " Y" << XYZ_NUM(point.y());
     if(is_extrude)
         gcode <<    " " << m_extrusion_axis << E_NUM(m_tool->E());
+
     COMMENT(comment);
     gcode << "\n";
     return gcode.str();

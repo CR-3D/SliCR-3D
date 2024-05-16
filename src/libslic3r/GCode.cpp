@@ -4038,6 +4038,7 @@ void GCode::split_at_seam_pos(ExtrusionLoop& loop, bool was_clockwise)
     // find the point of the loop that is closest to the current extruder position
     // or randomize if requested
     Point last_pos = this->last_pos();
+    float overhang = 0.0;
     //for first spiral, choose the seam, as the position will be very relevant.
     if (m_spiral_vase_layer > 1 /* spiral vase is printing and it's after the transition layer (that one can find a good spot)*/
         || !m_seam_perimeters) {
@@ -4051,10 +4052,11 @@ void GCode::split_at_seam_pos(ExtrusionLoop& loop, bool was_clockwise)
         m_seam_placer.place_seam(m_layer, loop,
             /*m_config.external_perimeters_first,*/
             m_print_object_instance_id,
-            this->last_pos()
+            this->last_pos(),
             //EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4),
             //m_print_object_instance_id,
             //lower_layer_edge_grid ? lower_layer_edge_grid->get() : nullptr
+            overhang
             );
     }
 #if _DEBUG
@@ -4660,18 +4662,37 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
             small_peri_speed = m_config.small_perimeter_speed.get_abs_value(m_config.perimeter_speed);
     }
 
+    Point last_pos = this->last_pos();
+    float seam_overhang = std::numeric_limits<float>::lowest();
+    if (!m_config.spiral_vase && description == "perimeter") {
+        assert(m_layer != nullptr);
+
+        m_seam_placer.place_seam(m_layer, original_loop, m_print_object_instance_id, this->last_pos(), seam_overhang);
+    } else
+        const_cast<ExtrusionLoop&>(original_loop).split_at(last_pos, false);
+
 
     const auto seam_scarf_type = m_config.seam_slope_type.value;
-    const bool enable_seam_slope = ((seam_scarf_type == SeamScarfType::External && !is_hole) || seam_scarf_type == SeamScarfType::All) &&
+    bool enable_seam_slope = ((seam_scarf_type == SeamScarfType::External && !is_hole) || seam_scarf_type == SeamScarfType::All) &&
         !m_config.spiral_vase &&
         (original_loop.role() == erExternalPerimeter || (original_loop.role() == erPerimeter && m_config.seam_slope_inner_walls)) &&
         layer_id() > 0;
+    const auto nozzle_diameter = EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0);
 
+    if (enable_seam_slope && m_config.seam_slope_conditional.value) {
+        enable_seam_slope = original_loop.is_smooth(m_config.scarf_angle_threshold.value * M_PI / 180., nozzle_diameter);
+    }
+
+    if (enable_seam_slope && m_config.seam_slope_conditional.value && m_config.scarf_overhang_threshold.value > 0.0f) {
+        const auto _line_width = original_loop.role() == erExternalPerimeter ? m_config.thin_walls_min_width.get_abs_value(nozzle_diameter) :
+                                                                      m_config.overhangs_width.get_abs_value(nozzle_diameter);
+        enable_seam_slope      = seam_overhang < m_config.scarf_overhang_threshold.value * 0.01f * _line_width;
+    }
     // clip the path to avoid the extruder to get exactly on the first point of the loop;
     // if polyline was shorter than the clipping distance we'd get a null polyline, so
     // we discard it in that case
 
-    const double seam_gap = scale_(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0));
+    const double seam_gap = scale_(m_config.seam_gap.get_abs_value(nozzle_diameter, 0));
     const double clip_length = m_enable_loop_clipping && !enable_seam_slope ? seam_gap : 0;
 
     // extrude along the path
@@ -4826,7 +4847,9 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
             double h = paths.front().height;
             start_slope_ratio = m_config.seam_slope_start_height.value / h;
         }
-    
+
+        if (start_slope_ratio >= 1)
+            start_slope_ratio = 0.99;
 
         double loop_length = 0.;
         for (const auto & path : paths) {
@@ -4840,6 +4863,8 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
 
         // Calculate the sloped loop
         ExtrusionLoopSloped new_loop(paths, seam_gap, slope_min_length, slope_max_segment_length, start_slope_ratio, original_loop.loop_role());
+
+        new_loop.clip_slope(seam_gap);
 
         // Then extrude it
         for (const auto& p : new_loop.get_all_paths()) {
@@ -5462,16 +5487,44 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &descri
         //Attention: G2 and G3 is not supported in spiral_mode mode
         if (!m_config.arc_fitting ||
             !path.polyline.has_arc() ||
-            m_config.spiral_vase) {
+            m_config.spiral_vase || sloped != nullptr) {
             Point last_pos = path.polyline.lines().front().a;
+            double path_length = 0.;
+            double total_length = sloped == nullptr ? 0. : path.polyline.length() * SCALING_FACTOR;
+
             for (const Line& line : path.polyline.lines()) {
+                    const double line_length = line.length() * SCALING_FACTOR;
+                    if (line_length < EPSILON)
+                        continue;
+                    path_length += line_length;
+                    auto dE = e_per_mm * line_length;
+
                 if (path.role() != erExternalPerimeter || config().external_perimeter_cut_corners.value == 0) {
                     // normal & legacy pathcode
                     _extrude_line(gcode, line, e_per_mm, comment);
                 } else {
                     _extrude_line_cut_corner(gcode, line, e_per_mm, comment, last_pos, path.width);
                 }
+            
+            if (sloped == nullptr) {
+                // Normal extrusion
+                gcode += m_writer.extrude_to_xy(
+                    this->point_to_gcode(line.b),
+                    dE,
+                    gcode, 
+                    path.is_force_no_extrusion());
+            } else {
+                // Sloped extrusion
+                const auto [z_ratio, e_ratio] = sloped->interpolate(path_length / total_length);
+                Vec2d dest2d = this->point_to_gcode(line.b);
+                Vec3d dest3d(dest2d(0), dest2d(1), get_sloped_z(z_ratio));
+                gcode += m_writer.extrude_to_xyz(
+                    dest3d,
+                    dE * e_ratio,
+                    gcode);
             }
+        }
+
         } else {
             // BBS: start to generate gcode from arc fitting data which includes line and arc
             const std::vector<Slic3r::Geometry::PathFittingData>& fitting_result = path.polyline.get_arc();
@@ -5483,6 +5536,12 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &descri
                     Point last_pos = path.polyline.get_points()[start_index];
                     for (size_t point_index = start_index + 1; point_index < end_index + 1; point_index++) {
                         const Line line = Line(path.polyline.get_points()[point_index - 1], path.polyline.get_points()[point_index]);
+                        const double line_length = line.length() * SCALING_FACTOR;
+
+                        if (line_length < EPSILON)
+                            continue;
+
+
                         if (path.role() != erExternalPerimeter || config().external_perimeter_cut_corners.value == 0) {
                             // normal & legacy pathcode
                             _extrude_line(gcode, line, e_per_mm, comment);
@@ -5513,6 +5572,9 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &descri
             }
         }
     }
+
+
+
 
     gcode += this->_after_extrude(path);
 
@@ -6213,7 +6275,7 @@ Polyline GCode::travel_to(std::string &gcode, const Point &point, ExtrusionRole 
                 // No extra movements emitted by avoid_crossing_perimeters, simply move to the end point with z change
                 const auto& dest2d = this->point_to_gcode(travel.points.back());
                 Vec3d dest3d(dest2d(0), dest2d(1), z == DBL_MAX ? m_nominal_z : z);
-                gcode += m_writer.travel_to_xyz(dest3d,  0.0, " travel_to_xyz");
+                gcode += m_writer.travel_to_xyz(dest3d,  visitor_speed, " travel_to_xyz");
             } else {
                 // Extra movements emitted by avoid_crossing_perimeters, lift the z to normal height at the beginning, then apply the z
                 // ratio at the last point

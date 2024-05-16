@@ -378,9 +378,12 @@ public:
     double       total_volume() const override { return mm3_per_mm * unscale<double>(length()); }
     virtual void visit(ExtrusionVisitor &visitor) override { visitor.use(*this); };
     virtual void visit(ExtrusionVisitorConst &visitor) const override { visitor.use(*this); };
+    bool is_force_no_extrusion() const { return m_no_extrusion; }
+
 
 protected:
     void _inflate_collection(const Polylines &polylines, ExtrusionEntityCollection *collection) const;
+    bool m_no_extrusion = false;
 
     ExtrusionRole m_role;
 };
@@ -722,6 +725,7 @@ public:
 
     virtual void visit(ExtrusionVisitor &visitor) override { visitor.use(*this); };
     virtual void visit(ExtrusionVisitorConst &visitor) const override { visitor.use(*this); };
+    bool is_smooth(double angle_threshold = 0.174, double min_arm_length = 0.025) const;
 
         // static inline std::string role_to_string(ExtrusionLoopRole role);
 

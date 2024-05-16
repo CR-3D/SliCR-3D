@@ -607,6 +607,37 @@ namespace detail {
 		return up_sqr_d;
 	}
 
+	template<typename IndexedPrimitivesDistancerType, typename Scalar>
+    static inline void indexed_primitives_within_distance_squared_recurisve(const IndexedPrimitivesDistancerType &distancer,
+                                                                            size_t                                node_idx,
+                                                                            Scalar                                squared_distance_limit,
+                                                                            std::vector<size_t>                  &found_primitives_indices)
+    {
+        const auto &node = distancer.tree.node(node_idx);
+        assert(node.is_valid());
+        if (node.is_leaf()) {
+            Scalar sqr_dist;
+            distancer.closest_point_to_origin(node.idx, sqr_dist);
+            if (sqr_dist < squared_distance_limit) { found_primitives_indices.push_back(node.idx); }
+        } else {
+            size_t      left_node_idx  = node_idx * 2 + 1;
+            size_t      right_node_idx = left_node_idx + 1;
+            const auto &node_left      = distancer.tree.node(left_node_idx);
+            const auto &node_right     = distancer.tree.node(right_node_idx);
+            assert(node_left.is_valid());
+            assert(node_right.is_valid());
+
+            if (node_left.bbox.squaredExteriorDistance(distancer.origin) < squared_distance_limit) {
+                indexed_primitives_within_distance_squared_recurisve(distancer, left_node_idx, squared_distance_limit,
+                                                                     found_primitives_indices);
+            }
+            if (node_right.bbox.squaredExteriorDistance(distancer.origin) < squared_distance_limit) {
+                indexed_primitives_within_distance_squared_recurisve(distancer, right_node_idx, squared_distance_limit,
+                                                                     found_primitives_indices);
+            }
+        }
+    }
+
 } // namespace detail
 
 // Build a balanced AABB Tree over an indexed triangles set, balancing the tree

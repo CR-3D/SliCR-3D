@@ -95,6 +95,15 @@ inline typename Derived::Scalar cross2(const Eigen::MatrixBase<Derived> &v1, con
     return v1.x() * v2.y() - v1.y() * v2.x();
 }
 
+template<typename Derived, typename Derived2>
+inline double angle(const Eigen::MatrixBase<Derived> &v1, const Eigen::MatrixBase<Derived2> &v2) {
+    static_assert(Derived::IsVectorAtCompileTime && int(Derived::SizeAtCompileTime) == 2, "angle(): first parameter is not a 2D vector");
+    static_assert(Derived2::IsVectorAtCompileTime && int(Derived2::SizeAtCompileTime) == 2, "angle(): second parameter is not a 2D vector");
+    auto v1d = v1.template cast<double>();
+    auto v2d = v2.template cast<double>();
+    return atan2(cross2(v1d, v2d), v1d.dot(v2d));
+}
+
 template<typename T, int Options>
 inline Eigen::Matrix<T, 2, 1, Eigen::DontAlign> perp(const Eigen::MatrixBase<Eigen::Matrix<T, 2, 1, Options>> &v) { return Eigen::Matrix<T, 2, 1, Eigen::DontAlign>(- v.y(), v.x()); }
 
