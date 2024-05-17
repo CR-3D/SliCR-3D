@@ -5293,7 +5293,6 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced | comExpert;
     def->set_default_value(new ConfigOptionBool(false));
 
-
     def = this->add("single_extruder_multi_material", coBool);
     def->label = L("Single Extruder Multi Material");
     def->category = OptionCategory::mmsetup;

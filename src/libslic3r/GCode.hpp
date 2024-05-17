@@ -389,7 +389,7 @@ private:
     std::string     extrude_support(const ExtrusionEntitiesPtr &support_fills);
 
     Polyline        travel_to(std::string& gcode, const Point &point, ExtrusionRole role);
-    void            write_travel_to(std::string& gcode, const Polyline& travel, std::string comment, double z = DBL_MAX);
+    void            write_travel_to(std::string& gcode, const Polyline& travel, std::string comment);
     bool            can_cross_perimeter(const Polyline& travel, bool offset);
     bool            needs_retraction(const Polyline& travel, ExtrusionRole role = erNone, coordf_t max_min_dist = 0);
     std::string     retract(bool toolchange = false, bool inhibit_lift = false);
@@ -504,8 +504,6 @@ private:
 
     //some post-processing on the file, with their data class
     std::unique_ptr<FanMover> m_fan_mover;
-    coordf_t m_nominal_z;
-
 
     std::function<void()> m_throw_if_canceled = [](){};
 

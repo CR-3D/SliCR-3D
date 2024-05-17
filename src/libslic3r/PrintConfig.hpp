@@ -170,7 +170,7 @@ enum SeamPosition {
 };
 
 // Orca
-enum SeamScarfType {
+enum class SeamScarfType {
     None,
     External,
     All,
