@@ -237,6 +237,7 @@ class ExtrusionPath : public ExtrusionEntity
 {
 public:
     PolylineOrArc polyline;
+    double overhang_degree = 0;
     // Volumetric velocity. mm^3 of plastic per mm of linear head motion. Used by the G-code generator.
     double mm3_per_mm;
     // Width of the extrusion, used for visualization purposes & for seam notch %. Unscaled
@@ -380,6 +381,16 @@ public:
     virtual void visit(ExtrusionVisitorConst &visitor) const override { visitor.use(*this); };
     bool is_force_no_extrusion() const { return m_no_extrusion; }
 
+    void set_overhang_degree(int overhang) {
+        if (is_perimeter(m_role) || is_bridge(m_role))
+            overhang_degree = (overhang < 0)?0:(overhang > 10 ? 10 : overhang);
+    };
+    int get_overhang_degree() const {
+        // only perimeter has overhang degree. Other return 0;
+        if (is_perimeter(m_role))
+            return (int)overhang_degree;
+        return 0;
+    };
 
 protected:
     void _inflate_collection(const Polylines &polylines, ExtrusionEntityCollection *collection) const;
@@ -681,6 +692,7 @@ public:
     bool              has_overhang_point(const Point &point) const;
     ExtrusionRole     role() const override;
     ExtrusionLoopRole loop_role() const { return m_loop_role; }
+    void              clip_end(double distance, ExtrusionPaths *paths) const;
     // Produce a list of 2D polygons covered by the extruded paths, offsetted by the extrusion width.
     // Increase the offset by scaled_epsilon to achieve an overlap, so a union will produce no gaps.
     void polygons_covered_by_width(Polygons &out, const float scaled_epsilon) const override;

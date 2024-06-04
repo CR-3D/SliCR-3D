@@ -304,7 +304,7 @@ private:
     virtual void use(const ExtrusionLoop &loop) override { visitor_gcode += extrude_loop(loop, visitor_comment, visitor_speed); };
     virtual void use(const ExtrusionEntityCollection &collection) override;
     std::string     extrude_entity(const ExtrusionEntity &entity, const std::string &description, double speed = -1.);
-    std::string     extrude_loop(const ExtrusionLoop &loop, const std::string &description, double speed = -1.);
+    std::string     extrude_loop(ExtrusionLoop original_loop, const std::string &description, double speed = -1.);
     std::string     extrude_loop_vase(const ExtrusionLoop &loop, const std::string &description, double speed = -1.);
     std::string     extrude_multi_path(const ExtrusionMultiPath &multipath, const std::string &description, double speed = -1.);
     std::string     extrude_multi_path3D(const ExtrusionMultiPath3D &multipath, const std::string &description, double speed = -1.);

@@ -149,6 +149,23 @@ ExtrusionRole ExtrusionLoop::role() const
     return role;
 }
 
+void ExtrusionLoop::clip_end(double distance, ExtrusionPaths *paths) const
+{
+    *paths = this->paths;
+
+    while (distance > 0 && !paths->empty()) {
+        ExtrusionPath &last = paths->back();
+        double         len  = last.length();
+        if (len <= distance) {
+            paths->pop_back();
+            distance -= len;
+        } else {
+            last.polyline.clip_end(distance);
+            break;
+        }
+    }
+}
+
 bool ExtrusionLoop::split_at_vertex(const Point &point, const double scaled_epsilon)
 {
     for (ExtrusionPaths::iterator path = this->paths.begin(); path != this->paths.end(); ++path) {

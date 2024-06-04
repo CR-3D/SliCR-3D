@@ -4038,7 +4038,7 @@ void GCode::split_at_seam_pos(ExtrusionLoop& loop, bool was_clockwise)
     // find the point of the loop that is closest to the current extruder position
     // or randomize if requested
     Point last_pos = this->last_pos();
-    float overhang = 1.0;
+    float seam_overhang = std::numeric_limits<float>::lowest();
     //for first spiral, choose the seam, as the position will be very relevant.
     if (m_spiral_vase_layer > 1 /* spiral vase is printing and it's after the transition layer (that one can find a good spot)*/
         || !m_seam_perimeters) {
@@ -4056,7 +4056,7 @@ void GCode::split_at_seam_pos(ExtrusionLoop& loop, bool was_clockwise)
             //EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4),
             //m_print_object_instance_id,
             //lower_layer_edge_grid ? lower_layer_edge_grid->get() : nullptr
-            overhang
+            seam_overhang
             );
     }
 #if _DEBUG
@@ -4447,7 +4447,7 @@ void GCode::seam_notch(const ExtrusionLoop& original_loop,
     }
 }
 
-std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::string &description, double speed)
+std::string GCode::extrude_loop(ExtrusionLoop original_loop, const std::string &description, double speed)
 {
 #if _DEBUG
     for (auto it = std::next(original_loop.paths.begin()); it != original_loop.paths.end(); ++it) {
@@ -4461,46 +4461,72 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
     for (const ExtrusionPath &path : original_loop.paths) {
         std::cout << ", path{ ";
         for (const Point &pt : path.polyline.get_points()) {
-            std::cout << ", " << floor(100 * unscale<double>(pt.x())) / 100.0 << ":" << floor(100 * unscale<double>(pt.y())) / 100.0;
+            std::cout << ", " << floor(100 * unscale<double>(pt.x())) / 100.0 << ":"
+                      << floor(100 * unscale<double>(pt.y())) / 100.0;
         }
         std::cout << "}";
     }
     std::cout << "\n";
 #endif
 
-    //useful var
+    // useful var
     const double nozzle_diam = (EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0));
 
-    //no-seam code path redirect
-    if (original_loop.role() == ExtrusionRole::erExternalPerimeter && (original_loop.loop_role() & elrVase) != 0 && !this->m_config.spiral_vase
-        //but not for the first layer
+    // no-seam code path redirect
+    if (original_loop.role() == ExtrusionRole::erExternalPerimeter && (original_loop.loop_role() & elrVase) != 0 &&
+        !this->m_config.spiral_vase
+        // but not for the first layer
         && this->m_layer->id() > 0
-        //exclude if min_layer_height * 2 > layer_height (increase from 2 to 3 because it's working but uses in-between)
-        && this->m_layer->height >= m_config.min_layer_height.get_abs_value(m_writer.tool()->id(), nozzle_diam) * 2 - EPSILON
-        ) {
+        // exclude if min_layer_height * 2 > layer_height (increase from 2 to 3 because it's working but uses in-between)
+        && this->m_layer->height >=
+               m_config.min_layer_height.get_abs_value(m_writer.tool()->id(), nozzle_diam) * 2 - EPSILON) {
         return extrude_loop_vase(original_loop, description, speed);
     }
+
 
     // get a copy; don't modify the orientation of the original loop object otherwise
     // next copies (if any) would not detect the correct orientation
     ExtrusionLoop loop_to_seam = original_loop;
 
-
     // extrude all loops ccw
-    //no! this was decided in perimeter_generator
-    //but we need to know where is "inside", so we will use is_hole_loop. if is_hole_loop, then we need toconsider that the right direction is clockwise, else counter clockwise.
-    bool is_hole_loop = (loop_to_seam.loop_role() & ExtrusionLoopRole::elrHole) != 0;// loop.make_counter_clockwise();
+    // no! this was decided in perimeter_generator
+    // but we need to know where is "inside", so we will use is_hole_loop. if is_hole_loop, then we need toconsider
+    // that the right direction is clockwise, else counter clockwise.
+    bool is_hole_loop = (loop_to_seam.loop_role() & ExtrusionLoopRole::elrHole) != 0; // loop.make_counter_clockwise();
 
-    //if spiral vase, we have to ensure that all loops are in the same orientation.
+    // if spiral vase, we have to ensure that all loops are in the same orientation.
     if (this->m_config.spiral_vase) {
         loop_to_seam.make_counter_clockwise();
         is_hole_loop = false;
     }
 
+    float seam_overhang = std::numeric_limits<float>::lowest();
+    // find the point of the loop that is closest to the current extruder position
+    // or randomize if requested
+    Point last_pos = this->last_pos();
+    if (!m_config.spiral_vase && description == "perimeter") {
+        assert(m_layer != nullptr);
+
+        m_seam_placer.place_seam(m_layer, loop_to_seam, m_print_object_instance_id, this->last_pos(), seam_overhang);
+    } else
+        loop_to_seam.split_at(last_pos, false);
+
+    const auto seam_scarf_type   = m_config.seam_slope_type.value;
+    const bool enable_seam_slope = ((seam_scarf_type == SeamScarfType::External && !is_hole_loop) ||
+                                    seam_scarf_type == SeamScarfType::All) &&
+                                   !m_config.spiral_vase &&
+                                   (loop_to_seam.role() == erExternalPerimeter ||
+                                    (loop_to_seam.role() == erPerimeter && m_config.seam_slope_inner_walls)) &&
+                                   m_layer->id() > 0;
+
+    const double seam_gap = scale_(m_config.seam_gap.get_abs_value(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0), 0));
+
     split_at_seam_pos(loop_to_seam, is_hole_loop);
+
     const coordf_t full_loop_length = loop_to_seam.length();
-    const bool is_full_loop_ccw = loop_to_seam.polygon().is_counter_clockwise();
-    //after that point, loop_to_seam can be modified by 'paths', so don't use it anymore
+    const bool     is_full_loop_ccw = loop_to_seam.polygon().is_counter_clockwise();
+
+    // after that point, loop_to_seam can be modified by 'paths', so don't use it anymore
 #if _DEBUG
     for (auto it = std::next(loop_to_seam.paths.begin()); it != loop_to_seam.paths.end(); ++it) {
         assert(it->polyline.get_points().size() >= 2);
@@ -4508,19 +4534,27 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
     }
     assert(loop_to_seam.paths.front().first_point() == loop_to_seam.paths.back().last_point());
 #endif
+
     // clip the path to avoid the extruder to get exactly on the first point of the loop;
     // if polyline was shorter than the clipping distance we'd get a null polyline, so
     // we discard it in that case
-    ExtrusionPaths& building_paths = loop_to_seam.paths;
-    //direction is now set, make the path unreversable
-    for (ExtrusionPath& path : building_paths) {
-        //assert(!path.can_reverse() || !is_perimeter(path.role())); //just ensure the perimeter have their direction enforced.
+    ExtrusionPaths &building_paths = loop_to_seam.paths;
+    // const double seam_gap = scale_(m_config.seam_gap.get_abs_value(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)));
+
+    const double clip_length = m_enable_loop_clipping && !enable_seam_slope ? 1.0 : 0;
+
+    // direction is now set, make the path unreversable
+    for (ExtrusionPath &path : building_paths) {
+        // assert(!path.can_reverse() || !is_perimeter(path.role())); //just ensure the perimeter have their direction
+        // enforced.
         path.set_can_reverse(false);
     }
+
     if (m_enable_loop_clipping && m_writer.tool_is_extruder()) {
         coordf_t clip_length = scale_(m_config.seam_gap.get_abs_value(m_writer.tool()->id(), nozzle_diam));
         if (original_loop.role() == erExternalPerimeter) {
-            coordf_t clip_length_external = scale_(m_config.seam_gap_external.get_abs_value(m_writer.tool()->id(), unscaled(clip_length)));
+            coordf_t clip_length_external = scale_(
+                m_config.seam_gap_external.get_abs_value(m_writer.tool()->id(), unscaled(clip_length)));
             if (clip_length_external > 0) {
                 clip_length = clip_length_external;
             }
@@ -4528,42 +4562,44 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
         coordf_t min_clip_length = scale_(nozzle_diam) * 0.15;
 
         if (clip_length > full_loop_length / 4) {
-            //fall back to min_clip_length
+            // fall back to min_clip_length
             if (clip_length > full_loop_length / 2) {
                 clip_length = min_clip_length;
             } else {
                 float percent = (float(clip_length) / (float(full_loop_length) / 4)) - 1;
-                clip_length = clip_length * (1- percent) + min_clip_length * percent;
+                clip_length   = clip_length * (1 - percent) + min_clip_length * percent;
             }
         }
         if (clip_length < full_loop_length / 4) {
             // get paths
             ExtrusionPaths clipped;
             if (clip_length > min_clip_length) {
-                    // remove clip_length, like normally, but keep the removed part
+                // remove clip_length, like normally, but keep the removed part
                 clipped = clip_end(building_paths, clip_length);
-                    // remove min_clip_length from the removed paths
+                // remove min_clip_length from the removed paths
                 clip_end(clipped, min_clip_length);
-                    // ensure that the removed paths are travels
-                for (ExtrusionPath& ep : clipped)
-                    ep.mm3_per_mm = 0;
-                    // re-add removed paths as travels.
+                // ensure that the removed paths are travels
+                for (ExtrusionPath &ep : clipped) ep.mm3_per_mm = 0;
+                // re-add removed paths as travels.
                 append(building_paths, clipped);
             } else {
                 clip_end(building_paths, clip_length);
             }
         }
     }
-    if (building_paths.empty()) return "";
+    if (building_paths.empty())
+        return "";
 
-    const ExtrusionPaths& wipe_paths = building_paths;
+    const ExtrusionPaths &wipe_paths = building_paths;
 
     ExtrusionPaths notch_extrusion_start;
     ExtrusionPaths notch_extrusion_end;
     // seam notch if applicable
-    seam_notch(original_loop, building_paths, notch_extrusion_start, notch_extrusion_end, is_hole_loop, is_full_loop_ccw);
+    seam_notch(original_loop, building_paths, notch_extrusion_start, notch_extrusion_end, is_hole_loop,
+               is_full_loop_ccw);
 
-    const ExtrusionPaths& paths = building_paths;
+    // Our paths for orca
+    ExtrusionPaths paths = building_paths;
 
     // apply the small perimeter speed
     if (speed == -1 && is_perimeter(paths.front().role()) && paths.front().role() != erThinWall) {
@@ -4573,78 +4609,155 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
             if (full_loop_length <= min_length) {
                 speed = SMALL_PERIMETER_SPEED_RATIO_OFFSET;
             } else if (max_length > min_length) {
-                //use a negative speed: it will be use as a ratio when computing the real speed
-                speed = SMALL_PERIMETER_SPEED_RATIO_OFFSET - (full_loop_length - min_length) / (max_length - min_length);
+                // use a negative speed: it will be use as a ratio when computing the real speed
+                speed = SMALL_PERIMETER_SPEED_RATIO_OFFSET -
+                        (full_loop_length - min_length) / (max_length - min_length);
             }
         }
+    }
+
+    // SoftFever: check loop lenght for small perimeter.
+    double small_peri_speed = -1;
+    if (speed == -1 && original_loop.length() <= SMALL_PERIMETER_LENGTH(m_config.small_perimeter_speed.value)) {
+        if (m_config.small_perimeter_speed.value == 0)
+            small_peri_speed = m_config.external_perimeter_speed * 0.5;
+        else
+            small_peri_speed = m_config.small_perimeter_speed.get_abs_value(m_config.external_perimeter_speed);
     }
 
     std::string gcode;
 
     // generate the unretracting/wipe start move (same thing than for the end, but on the other side)
     assert(!wipe_paths.empty() && wipe_paths.front().size() > 1 && !wipe_paths.back().empty());
-    if (EXTRUDER_CONFIG_WITH_DEFAULT(wipe_inside_start, true) && !wipe_paths.empty() && wipe_paths.front().size() > 1 && wipe_paths.back().size() > 1 && wipe_paths.front().role() == erExternalPerimeter) {
-        //note: previous & next are inverted to extrude "in the opposite direction, as we are "rewinding"
-        //Point previous_point = wipe_paths.back().polyline.points.back();
+    if (EXTRUDER_CONFIG_WITH_DEFAULT(wipe_inside_start, true) && !wipe_paths.empty() &&
+        wipe_paths.front().size() > 1 && wipe_paths.back().size() > 1 &&
+        wipe_paths.front().role() == erExternalPerimeter) {
+        // note: previous & next are inverted to extrude "in the opposite direction, as we are "rewinding"
+        // Point previous_point = wipe_paths.back().polyline.points.back();
         Point previous_point = wipe_paths.front().polyline.get_points()[1];
-        Point current_point = wipe_paths.front().first_point();
-        //Point next_point = wipe_paths.front().polyline.get_points()[1];
+        Point current_point  = wipe_paths.front().first_point();
+        // Point next_point = wipe_paths.front().polyline.get_points()[1];
         Point next_point = wipe_paths.front().last_point();
         if (next_point == current_point) {
-            //can happen if seam_gap is null
-            next_point = wipe_paths.back().polyline.get_points()[wipe_paths.back().polyline.size()-2];
+            // can happen if seam_gap is null
+            next_point = wipe_paths.back().polyline.get_points()[wipe_paths.back().polyline.size() - 2];
         }
         if (next_point == current_point || previous_point == current_point) {
-            throw Slic3r::SlicingError(_(L("Error while writing gcode: two points are at the same position. Please send the .3mf project to the dev team for debugging. Extrude loop: wipe_inside_start.")));
+            throw Slic3r::SlicingError(
+                _(L("Error while writing gcode: two points are at the same position. Please send the .3mf project to "
+                    "the dev team for debugging. Extrude loop: wipe_inside_start.")));
         }
-        Point a = next_point;  // second point
-        Point b = previous_point;  // second to last point
+        Point a = next_point;     // second point
+        Point b = previous_point; // second to last point
         if (is_hole_loop ? (!is_full_loop_ccw) : (is_full_loop_ccw)) {
             // swap points
-            Point c = a; a = b; b = c;
+            Point c = a;
+            a       = b;
+            b       = c;
         }
         double angle = current_point.ccw_angle(a, b) / 3;
 
         // turn left if contour, turn right if hole
-        if (is_hole_loop ? (!is_full_loop_ccw) : (is_full_loop_ccw)) angle *= -1;
+        if (is_hole_loop ? (!is_full_loop_ccw) : (is_full_loop_ccw))
+            angle *= -1;
 
         // create the destination point along the first segment and rotate it
         // we make sure we don't exceed the segment length because we don't know
         // the rotation of the second segment so we might cross the object boundary
-        Vec2d  current_pos = current_point.cast<double>();
-        Vec2d  next_pos = next_point.cast<double>();
-        Vec2d  vec_dist = next_pos - current_pos;
-        double vec_norm = vec_dist.norm();
-        const double setting_max_depth = (m_config.wipe_inside_depth.get_abs_value(m_writer.tool()->id(), nozzle_diam));
-        coordf_t dist = scale_d(nozzle_diam) / 2;
-        Point  pt = (current_pos + vec_dist * (2 * dist / vec_norm)).cast<coord_t>();
+        Vec2d        current_pos       = current_point.cast<double>();
+        Vec2d        next_pos          = next_point.cast<double>();
+        Vec2d        vec_dist          = next_pos - current_pos;
+        double       vec_norm          = vec_dist.norm();
+        const double setting_max_depth = (m_config.wipe_inside_depth.get_abs_value(m_writer.tool()->id(),
+                                                                                   nozzle_diam));
+        coordf_t     dist              = scale_d(nozzle_diam) / 2;
+        Point        pt                = (current_pos + vec_dist * (2 * dist / vec_norm)).cast<coord_t>();
         pt.rotate(angle, current_point);
-        //check if we can go to higher dist
+        // check if we can go to higher dist
         if (nozzle_diam != 0 && setting_max_depth > nozzle_diam * 0.55) {
             // call travel_to to trigger retract, so we can check it (but don't use the travel)
             travel_to(gcode, pt, wipe_paths.front().role());
             if (m_writer.tool()->need_unretract()) {
                 this->m_throw_if_canceled();
-                dist = coordf_t(check_wipe::max_depth(wipe_paths, scale_t(setting_max_depth), scale_t(nozzle_diam), [current_pos, current_point, vec_dist, vec_norm, angle](coord_t dist)->Point {
-                    Point pt = (current_pos + vec_dist * (2 * dist / vec_norm)).cast<coord_t>();
-                    pt.rotate(angle, current_point);
-                    return pt;
-                    }));
+                dist = coordf_t(check_wipe::max_depth(wipe_paths, scale_t(setting_max_depth), scale_t(nozzle_diam),
+                                                      [current_pos, current_point, vec_dist, vec_norm,
+                                                       angle](coord_t dist) -> Point {
+                                                          Point pt = (current_pos + vec_dist * (2 * dist / vec_norm))
+                                                                         .cast<coord_t>();
+                                                          pt.rotate(angle, current_point);
+                                                          return pt;
+                                                      }));
             }
         }
         // Shift by no more than a nozzle diameter.
-        //FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        pt = (/*(nd >= vec_norm) ? next_pos : */(current_pos + vec_dist * ( 2 * dist / vec_norm))).cast<coord_t>();
+        // FIXME Hiding the seams will not work nicely for very densely discretized contours!
+        pt = (/*(nd >= vec_norm) ? next_pos : */ (current_pos + vec_dist * (2 * dist / vec_norm))).cast<coord_t>();
         pt.rotate(angle, current_point);
-        //gcode += m_writer.travel_to_xy(this->point_to_gcode(pt), 0.0, "move inwards before retraction/seam");
-        //this->set_last_pos(pt);
+        // gcode += m_writer.travel_to_xy(this->point_to_gcode(pt), 0.0, "move inwards before retraction/seam");
+        // this->set_last_pos(pt);
         // use extrude instead of travel_to_xy to trigger the unretract
-        ExtrusionPath fake_path_wipe(Polyline{ pt , current_point }, wipe_paths.front());
+        ExtrusionPath fake_path_wipe(Polyline{pt, current_point}, wipe_paths.front());
         fake_path_wipe.mm3_per_mm = 0;
         assert(!fake_path_wipe.can_reverse());
         gcode += extrude_path(fake_path_wipe, "move inwards before retraction/seam", speed);
     }
-    
+
+    const auto speed_for_path = [&speed, &small_peri_speed](const ExtrusionPath &path) {
+        // don't apply small perimeter setting for overhangs/bridges/non-perimeters
+        const bool is_small_peri = is_perimeter(path.role()) && !is_bridge(path.role()) && small_peri_speed > 0 &&
+                                   (path.get_overhang_degree() == 0 || path.get_overhang_degree() > 5);
+        return is_small_peri ? small_peri_speed : speed;
+    };
+
+    if (!enable_seam_slope) {
+        for (ExtrusionPaths::const_iterator path = paths.begin(); path != paths.end(); ++path) {
+            gcode += this->_extrude(*path, description, speed_for_path(*path));
+        }
+    } else {
+        // Create seam slope
+        double start_slope_ratio;
+        if (m_config.seam_slope_start_height.percent) {
+            start_slope_ratio = m_config.seam_slope_start_height.value / 100.;
+        } else {
+            // Get the ratio against current layer height
+            double h          = paths.front().height;
+            start_slope_ratio = m_config.seam_slope_start_height.value / h;
+        }
+        if (start_slope_ratio >= 1)
+            start_slope_ratio = 0.99;
+
+        double loop_length = 0.;
+        for (const auto &path : paths) { loop_length += unscale_(path.length()); }
+
+        const bool   slope_entire_loop        = m_config.seam_slope_entire_loop;
+        const double slope_min_length         = slope_entire_loop ?
+                                                    loop_length :
+                                                    std::min(m_config.seam_slope_min_length.value, loop_length);
+        const int    slope_steps              = m_config.seam_slope_steps;
+        const double slope_max_segment_length = scale_(slope_min_length / slope_steps);
+ 
+        // Calculate the sloped loop
+        ExtrusionLoopSloped new_loop(paths, seam_gap, slope_min_length, slope_max_segment_length, start_slope_ratio, original_loop.loop_role());
+
+
+        // Then extrude it
+        for (const auto &p : new_loop.get_all_paths()) {
+            gcode += this->_extrude(*p, description, speed_for_path(*p));
+        }
+
+        // Fix path for wipe
+        if (!new_loop.ends.empty()) {
+            
+            paths.clear();
+            // The start slope part is ignored as it overlaps with the end part
+            paths.reserve(new_loop.paths.size() + new_loop.ends.size());
+            paths.insert(paths.end(), new_loop.paths.begin(), new_loop.paths.end());
+            paths.insert(paths.end(), new_loop.ends.begin(), new_loop.ends.end());
+        }
+
+     }
+
+
     //extrusion notch start if any
     for (const ExtrusionPath& path : notch_extrusion_start) {
         assert(!path.can_reverse());
