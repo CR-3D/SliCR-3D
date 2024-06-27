@@ -717,6 +717,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       brim_acceleration))
     ((ConfigOptionBool,                 brim_inside_holes))
     ((ConfigOptionFloat,                brim_width))
+    ((ConfigOptionBool,                 minimal_support))
+
     ((ConfigOptionFloat,                brim_width_interior))
     ((ConfigOptionBool,                 brim_ears))
     ((ConfigOptionFloat,                brim_ears_detection_length))

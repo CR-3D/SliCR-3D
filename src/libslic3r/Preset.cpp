@@ -623,6 +623,7 @@ static std::vector<std::string> s_Preset_print_options {
         "support_material_interface_layers", "support_material_bottom_interface_layers",
         "support_material_interface_pattern",
         "support_material_interface_angle",
+        "minimal_support",
         "support_material_interface_angle_increment",
         "support_material_interface_spacing",
         "support_material_interface_contact_loops",

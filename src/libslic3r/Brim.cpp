@@ -170,6 +170,8 @@ static ExPolygons top_level_outer_brim_area(const Print                   &print
 
     ExPolygons brim_area;
     ExPolygons no_brim_area;
+    size_t polygon_idx = 0;
+
     for(size_t print_object_idx = 0; print_object_idx < print.objects().size(); ++print_object_idx) {
         const PrintObject *object            = print.objects()[print_object_idx];
         const BrimType     brim_type         = object->config().brim_type.value;
@@ -186,6 +188,21 @@ static ExPolygons top_level_outer_brim_area(const Print                   &print
             // After 7ff76d07684858fd937ef2f5d863f105a10f798e offset and shrink don't work with CW polygons (holes), so let's make it CCW.
             Polygons ex_poly_holes_reversed = ex_poly.holes;
             polygons_reverse(ex_poly_holes_reversed);
+            for ([[maybe_unused]] const PrintInstance &instance : object->instances()) {
+                ++polygon_idx; // Increase idx because of the contour of the ExPolygon.
+
+                if (brim_type == BrimType::btInnerOnly || brim_type == BrimType::btOuterAndInner)
+                    for(const Polygon &hole : ex_poly_holes_reversed) {
+                        size_t hole_idx = &hole - &ex_poly_holes_reversed.front();
+                        if (has_nothing_inside[polygon_idx + hole_idx])
+                            append(brim_area_innermost_object, shrink_ex({hole}, brim_separation, ClipperLib::jtSquare));
+                        else
+                            append(brim_area_object, diff_ex(shrink_ex({hole}, brim_separation, ClipperLib::jtSquare), shrink_ex({hole}, brim_width + brim_separation, ClipperLib::jtSquare)));
+                    }
+
+                polygon_idx += ex_poly.holes.size(); // Increase idx for every hole of the ExPolygon.
+            }
+
             if (brim_type == BrimType::btOuterOnly || brim_type == BrimType::btNoBrim)
                 append(no_brim_area_object, shrink_ex(ex_poly_holes_reversed, no_brim_offset, ClipperLib::jtSquare));
 

@@ -5463,6 +5463,13 @@ void PrintConfigDef::init_fff_params()
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
+    def = this->add("minimal_support", coBool);
+    def->label = L("Use minimal supports");
+    def->category = OptionCategory::support;
+    def->tooltip = L("If checked, supports will be optimized for minimal support.");
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBool(true));
+
     def = this->add("support_material_interface_acceleration", coFloatOrPercent);
     def->label = L("Interface");
     def->full_label = L("Support interface acceleration");

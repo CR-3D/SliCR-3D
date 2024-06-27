@@ -1032,25 +1032,27 @@ GCodeViewer::GCodeViewer()
     {
         this->Extrusion_Role_Colors.clear();
         this->Extrusion_Role_Colors.insert(this->Extrusion_Role_Colors.begin(), ExtrusionRole::erCount,{ 0.00f, 0.00f, 0.00f, 1.f });
-        this->Extrusion_Role_Colors[ExtrusionRole::erNone]              = { 0.75f, 0.75f, 0.75f, 1.f }, // note: should never occur
-        this->Extrusion_Role_Colors[ExtrusionRole::erPerimeter]         = { 1.00f, 0.90f, 0.30f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erExternalPerimeter] = { 1.00f, 0.49f, 0.22f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erOverhangPerimeter] = { 0.12f, 0.12f, 1.00f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erInternalInfill]    = { 0.69f, 0.19f, 0.16f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erInternalBridgeInfill] = { 0.79f, 0.29f, 0.26f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erSolidInfill]       = { 0.59f, 0.33f, 0.80f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erTopSolidInfill]    = { 0.94f, 0.25f, 0.25f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erIroning]           = { 1.00f, 0.55f, 0.41f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erBridgeInfill]      = { 0.30f, 0.50f, 0.73f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erThinWall]          = { 0.00f, 1.00f, 0.40f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erGapFill]           = { 1.00f, 1.00f, 1.00f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erSkirt]             = { 0.00f, 0.53f, 0.43f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erSupportMaterial]   = { 0.00f, 1.00f, 0.00f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erSupportMaterialInterface] = { 0.00f, 0.50f, 0.00f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erWipeTower]         = { 0.70f, 0.89f, 0.67f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erMilling]           = { 0.70f, 0.70f, 0.70f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erCustom]            = { 0.37f, 0.82f, 0.58f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erMixed]             = { 0.00f, 0.00f, 0.00f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erNone]              = { 0.50f, 0.50f, 0.50f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erPerimeter]         = { 0.80f, 0.60f, 0.20f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erExternalPerimeter] = { 0.80f, 0.30f, 0.10f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erOverhangPerimeter] = { 0.20f, 0.20f, 0.80f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erInternalInfill]    = { 0.50f, 0.10f, 0.10f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erInternalBridgeInfill] = { 0.60f, 0.20f, 0.20f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erSolidInfill]       = { 0.40f, 0.20f, 0.60f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erTopSolidInfill]    = { 0.70f, 0.20f, 0.20f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erIroning]           = { 0.80f, 0.40f, 0.30f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erBridgeInfill]      = { 0.70f, 0.30f, 0.50f, 1.0f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erOverhangInfill]    = { 0.20f, 0.40f, 0.60f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erThinWall]          = { 0.00f, 0.80f, 0.30f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erGapFill]           = { 0.80f, 0.80f, 0.80f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erSkirt]             = { 0.00f, 0.40f, 0.30f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erSupportMaterial]   = { 0.00f, 0.80f, 0.00f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erSupportMaterialInterface] = { 0.00f, 0.40f, 0.00f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erWipeTower]         = { 0.50f, 0.70f, 0.50f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erMilling]           = { 0.50f, 0.50f, 0.50f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erCustom]            = { 0.30f, 0.70f, 0.50f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erMixed]             = { 0.10f, 0.10f, 0.10f, 1.f };
+
         this->Extrusion_Role_Colors[ExtrusionRole::erTravel]            = GCodeViewer::Travel_Colors.front();
 
 

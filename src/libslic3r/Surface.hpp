@@ -73,42 +73,42 @@ public:
     uint16_t        priority;
     
     Surface(const Slic3r::Surface &rhs)
-        : surface_type(rhs.surface_type), expolygon(rhs.expolygon),pedestal(rhs.pedestal),
-            thickness(rhs.thickness), thickness_layers(rhs.thickness_layers), 
+        : surface_type(rhs.surface_type), expolygon(rhs.expolygon),pedestal(rhs.pedestal),is_overhang(rhs.is_overhang),
+            thickness(rhs.thickness), thickness_layers(rhs.thickness_layers), has_overhang_holes(rhs.has_overhang_holes),
             bridge_angle(rhs.bridge_angle), extra_perimeters(rhs.extra_perimeters),
             maxNbSolidLayersOnTop(rhs.maxNbSolidLayersOnTop),
             priority(rhs.priority)
         {};
 
     Surface(SurfaceType _surface_type, const ExPolygon &_expolygon)
-        : surface_type(_surface_type), expolygon(_expolygon), pedestal(Polyline()),
-            thickness(-1), thickness_layers(1), bridge_angle(-1), extra_perimeters(0),
+        : surface_type(_surface_type), expolygon(_expolygon),pedestal(Polyline()),is_overhang(false),
+            thickness(-1), thickness_layers(1), bridge_angle(-1), extra_perimeters(0),has_overhang_holes(false),
             maxNbSolidLayersOnTop(-1),
             priority(0)
         {};
     Surface(const Surface &other, const ExPolygon &_expolygon)
         : surface_type(other.surface_type), expolygon(_expolygon),
-            thickness(other.thickness), thickness_layers(other.thickness_layers),pedestal(other.pedestal),
-            bridge_angle(other.bridge_angle), extra_perimeters(other.extra_perimeters),
+            thickness(other.thickness), thickness_layers(other.thickness_layers),pedestal(other.pedestal),has_overhang_holes(other.has_overhang_holes),
+            bridge_angle(other.bridge_angle), extra_perimeters(other.extra_perimeters),is_overhang(other.is_overhang),
             maxNbSolidLayersOnTop(other.maxNbSolidLayersOnTop),
             priority(other.priority)
         {};
     Surface(Surface &&rhs)
         : surface_type(rhs.surface_type), expolygon(std::move(rhs.expolygon)),pedestal(rhs.pedestal),
-            thickness(rhs.thickness), thickness_layers(rhs.thickness_layers), 
-            bridge_angle(rhs.bridge_angle), extra_perimeters(rhs.extra_perimeters),
+            thickness(rhs.thickness), thickness_layers(rhs.thickness_layers), is_overhang(rhs.is_overhang),
+            bridge_angle(rhs.bridge_angle), extra_perimeters(rhs.extra_perimeters),has_overhang_holes(rhs.has_overhang_holes),
             maxNbSolidLayersOnTop(rhs.maxNbSolidLayersOnTop),
             priority(rhs.priority)
         {};
     Surface(SurfaceType _surface_type, const ExPolygon &&_expolygon)
-        : surface_type(_surface_type), expolygon(std::move(_expolygon)), pedestal(Polyline()),
-            thickness(-1), thickness_layers(1), bridge_angle(-1), extra_perimeters(0),
+        : surface_type(_surface_type), expolygon(std::move(_expolygon)),pedestal(Polyline()),has_overhang_holes(false),
+            thickness(-1), thickness_layers(1), bridge_angle(-1), extra_perimeters(0),is_overhang(false),
             maxNbSolidLayersOnTop(-1),
             priority(-1)
         {};
     Surface(const Surface &other, const ExPolygon &&_expolygon)
         : surface_type(other.surface_type), expolygon(std::move(_expolygon)),pedestal(other.pedestal),
-            thickness(other.thickness), thickness_layers(other.thickness_layers), 
+            thickness(other.thickness), thickness_layers(other.thickness_layers), has_overhang_holes(other.has_overhang_holes),
             bridge_angle(other.bridge_angle), extra_perimeters(other.extra_perimeters),
             maxNbSolidLayersOnTop(other.maxNbSolidLayersOnTop),
             priority(other.priority)
@@ -122,6 +122,8 @@ public:
         thickness_layers = rhs.thickness_layers;
         bridge_angle     = rhs.bridge_angle;
 	    pedestal         = rhs.pedestal;
+        is_overhang      = rhs.is_overhang;
+        has_overhang_holes = rhs.has_overhang_holes;
         extra_perimeters = rhs.extra_perimeters;
         maxNbSolidLayersOnTop = rhs.maxNbSolidLayersOnTop;
         priority         = rhs.priority;
@@ -136,11 +138,14 @@ public:
         thickness_layers = rhs.thickness_layers;
         bridge_angle     = rhs.bridge_angle;
 	    pedestal         = rhs.pedestal;
+        is_overhang      = rhs.is_overhang;
+        has_overhang_holes = rhs.has_overhang_holes;
         extra_perimeters = rhs.extra_perimeters;
         maxNbSolidLayersOnTop = rhs.maxNbSolidLayersOnTop;
         priority         = rhs.priority;
         return *this;
     }
+
 
 	double area() 		 const { return this->expolygon.area(); }
     bool empty() const { return expolygon.empty(); }

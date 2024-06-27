@@ -411,7 +411,20 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                         bridges[idx_last].bridge_angle = 0;
                     }
                     if (!bd._pedestal.empty()) bridges[idx_last].pedestal = (Polyline)bd._pedestal;
-                    
+                    if(bd.has_overhang_holes){
+                                this->has_overhang_holes = true;
+                                this->is_overhang = true;
+                                bridges[idx_last].has_overhang_holes = true;
+                                bridges[idx_last].is_overhang = true;
+                    }else if(bd.is_bridge){
+                        this->is_bridge = true;
+                        bridges[idx_last].bridge_angle += (this->region().config().bridge_fill_pattern.value != ipArc?Geometry::deg2rad(90.):0.) + custom_angle;
+                    }else{
+                        bridges[idx_last].is_overhang = true;
+                        this->is_overhang = true;
+                    }
+
+
                     // without safety offset, artifacts are generated (GH #2494)
                     surfaces_append(bottom, union_safety_offset_ex(grown), bridges[idx_last]);
                 }

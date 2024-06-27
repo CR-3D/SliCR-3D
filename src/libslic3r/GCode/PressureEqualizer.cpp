@@ -600,7 +600,7 @@ void PressureEqualizer::adjust_volumetric_rate()
                 // Limit by the succeeding volumetric flow rate.
                 rate_end = rate_succ;
 
-            if (!line.adjustable_flow || line.extrusion_role == erExternalPerimeter || line.extrusion_role == erGapFill || line.extrusion_role == erThinWall || line.extrusion_role == erBridgeInfill || line.extrusion_role == erInternalBridgeInfill || line.extrusion_role == erIroning) {
+            if (!line.adjustable_flow || line.extrusion_role == erExternalPerimeter || line.extrusion_role == erGapFill || line.extrusion_role == erThinWall || line.extrusion_role == erBridgeInfill || line.extrusion_role == erInternalBridgeInfill || line.extrusion_role == erOverhangInfill || line.extrusion_role == erIroning) {
                 rate_end = line.volumetric_extrusion_rate_end;
             } else if (line.volumetric_extrusion_rate_end > rate_end) {
                 line.volumetric_extrusion_rate_end = rate_end;
@@ -654,7 +654,7 @@ void PressureEqualizer::adjust_volumetric_rate()
                 continue; // The positive rate is unlimited or the rate for ExtrusionRole iRole is unlimited.
 
             float rate_start = feedrate_per_extrusion_role[iRole];
-            if (!line.adjustable_flow || line.extrusion_role == erExternalPerimeter || line.extrusion_role == erGapFill || line.extrusion_role == erThinWall || line.extrusion_role == erBridgeInfill || line.extrusion_role == erInternalBridgeInfill || line.extrusion_role == erIroning) {
+            if (!line.adjustable_flow || line.extrusion_role == erExternalPerimeter || line.extrusion_role == erGapFill || line.extrusion_role == erThinWall || line.extrusion_role == erBridgeInfill || line.extrusion_role == erOverhangInfill || line.extrusion_role == erInternalBridgeInfill || line.extrusion_role == erIroning) {
                 rate_start = line.volumetric_extrusion_rate_start;
             } else if (iRole == line.extrusion_role && rate_prec < rate_start)
                 rate_start = rate_prec;

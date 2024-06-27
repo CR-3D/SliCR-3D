@@ -1094,6 +1094,8 @@ namespace DoExport {
                 excluded.insert(erTopSolidInfill);
             if (config->option("bridge_speed") != nullptr && config->get_computed_value("bridge_speed") != 0)
                 excluded.insert(erBridgeInfill);
+            if (config->option("overhangs_speed") != nullptr && config->get_computed_value("overhangs_speed") != 0)
+                excluded.insert(erOverhangInfill);
             if (config->option("internal_bridge_speed") != nullptr && config->get_computed_value("internal_bridge_speed") != 0)
                 excluded.insert(erInternalBridgeInfill);
             if (config->option("support_material_speed") != nullptr && config->get_computed_value("support_material_speed") != 0)
@@ -1160,7 +1162,7 @@ namespace DoExport {
 	                const LayerRegion* layerm = layer->regions()[region_id];
                     if (compute_min_mm3_per_mm.is_compatible({ erPerimeter, erExternalPerimeter, erOverhangPerimeter }))
                         mm3_per_mm.push_back(compute_min_mm3_per_mm.reset_use_get(layerm->perimeters));
-                    if (compute_min_mm3_per_mm.is_compatible({ erInternalInfill, erSolidInfill, erTopSolidInfill,erBridgeInfill,erInternalBridgeInfill }))
+                    if (compute_min_mm3_per_mm.is_compatible({ erInternalInfill, erSolidInfill, erTopSolidInfill,erBridgeInfill, erOverhangInfill, erInternalBridgeInfill }))
                         mm3_per_mm.push_back(compute_min_mm3_per_mm.reset_use_get(layerm->fills));
 	            }
 	        }
@@ -5755,6 +5757,9 @@ double_t GCode::_compute_speed_mm_per_sec(const ExtrusionPath &path, double spee
         } else if (path.role() == erBridgeInfill) {
             speed = m_config.get_computed_value("bridge_speed");
             if(comment) *comment = "bridge_speed";
+        } else if (path.role() == erOverhangInfill) {
+            speed = m_config.get_computed_value("overhangs_speed");
+            if(comment) *comment = "overhangs_speed";
         } else if (path.role() == erInternalBridgeInfill) {
             speed = m_config.get_computed_value("internal_bridge_speed");
             if(comment) *comment = "internal_bridge_speed";
@@ -5834,6 +5839,9 @@ double_t GCode::_compute_speed_mm_per_sec(const ExtrusionPath &path, double spee
         } else if (path.role() == erBridgeInfill) {
             speed = m_config.bridge_speed.get_abs_value(vol_speed);
             if(comment) *comment = std::string("bridge_speed ") + *comment;
+        } else if (path.role() == erOverhangInfill) {
+            speed = m_config.overhangs_speed.get_abs_value(vol_speed);
+            if(comment) *comment = std::string("overhangs_speed ") + *comment;
         } else if (path.role() == erInternalBridgeInfill) {
             speed = m_config.internal_bridge_speed.get_abs_value(vol_speed);
             if(comment) *comment = std::string("internal_bridge_speed ") + *comment;
@@ -6071,6 +6079,14 @@ std::string GCode::_before_extrude(const ExtrusionPath &path, const std::string 
                 goto supportMaterial;
             case erBridgeInfill:
             bridgeInfill:
+                if (m_config.bridge_acceleration.value > 0) {
+                    double bridge_acceleration = m_config.get_computed_value("bridge_acceleration");
+                    if (bridge_acceleration > 0)
+                        acceleration = bridge_acceleration;
+                }
+                break;
+            case erOverhangInfill:
+            OverhangInfill:
                 if (m_config.bridge_acceleration.value > 0) {
                     double bridge_acceleration = m_config.get_computed_value("bridge_acceleration");
                     if (bridge_acceleration > 0)
@@ -6963,6 +6979,8 @@ GCode::extrusion_role_to_string_for_parser(const ExtrusionRole & role) {
     case erBridgeInfill:
     case erInternalBridgeInfill:
         return "BridgeInfill";
+    case erOverhangInfill:
+        return "OverhangInfill";
     case erThinWall:
         return "ThinWall";
     case erGapFill:

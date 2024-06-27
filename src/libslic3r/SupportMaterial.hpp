@@ -41,7 +41,7 @@ public:
 		// Some undecided type yet. It will turn into sltBase first, then it may turn into sltBottomInterface or sltTopInterface.
 		sltIntermediate,
 	};
-
+	int material_interface_layers;
 	// A support layer type used internally by the SupportMaterial class. This class carries a much more detailed
 	// information about the support layer than the layers stored in the PrintObject, mainly
 	// the MyLayer is aware of the bridging flow and the interface gaps between the object and the support.
