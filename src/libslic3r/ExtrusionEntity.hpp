@@ -99,13 +99,21 @@ enum ExtrusionLoopRole : uint16_t {
 
 inline bool is_perimeter(ExtrusionRole role)
 {
-    return role == erPerimeter || role == erExternalPerimeter || role == erThinWall || role == erOverhangPerimeter;
+    return role == erPerimeter 
+        || role == erExternalPerimeter 
+        || role == erThinWall;
+        //|| role == erOverhangPerimeter;
 }
 
 inline bool is_infill(ExtrusionRole role)
 {
-    return role == erBridgeInfill || role == erInternalBridgeInfill || role == erInternalInfill ||
-           role == erSolidInfill || role == erTopSolidInfill || role == erIroning;
+    return role == erBridgeInfill 
+        || role == erInternalBridgeInfill 
+        || role == erInternalInfill 
+        || role == erSolidInfill 
+        || role == erTopSolidInfill 
+        || role == erIroning
+        || role == erOverhangPerimeter;
 }
 
 inline bool is_solid_infill(ExtrusionRole role)

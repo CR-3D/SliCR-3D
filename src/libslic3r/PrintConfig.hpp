@@ -53,6 +53,11 @@ enum WipeAlgo {
     waHyper,
 };
 
+enum ArcPosition : uint8_t {
+    apMiddle,
+    apSide
+};
+
 enum GCodeFlavor : uint8_t {
     gcfRepRap,
     gcfSprinter,
@@ -112,6 +117,7 @@ enum class FuzzySkinType {
 enum InfillPattern : uint8_t{
     ipRectilinear, ipAlignedRectilinear, ipGrid, ipTriangles, ipStars, ipCubic, ipLine,
     ipConcentric, ipConcentricGapFill,
+    ipArc,
     ipHoneycomb, ip3DHoneycomb,
     ipGyroid, ipHilbertCurve, ipArchimedeanChords, ipOctagramSpiral,
     ipAdaptiveCubic, ipSupportCubic, ipSupportBase,
@@ -276,6 +282,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(ForwardCompatibilitySubstitutionRule)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(CompleteObjectSort)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(WipeAlgo)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(GCodeFlavor)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(ArcPosition)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(MachineLimitsUsage)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PrintHostType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(AuthorizationType)
@@ -823,10 +830,17 @@ PRINT_CONFIG_CLASS_DEFINE(
     PrintRegionConfig,
 
     ((ConfigOptionBool,                 avoid_crossing_top))
+    ((ConfigOptionEnum<InfillPattern>,  overhang_fill_pattern))
     ((ConfigOptionFloatOrPercent,       bridge_acceleration))
     ((ConfigOptionFloat,                bridge_angle))
     ((ConfigOptionEnum<InfillPattern>,  bridge_fill_pattern))
     ((ConfigOptionEnum<BridgeType>,     bridge_type))
+    ((ConfigOptionFloat,                bds_ratio_length))
+    ((ConfigOptionFloat,                bds_ratio_nr))
+    ((ConfigOptionFloat,                bds_median_length))
+    ((ConfigOptionFloat,                bds_max_length))
+    ((ConfigOptionFloat,                arc_radius))
+    ((ConfigOptionFloat,                arc_infill_raylen))
     ((ConfigOptionInt,                  bottom_solid_layers))
     ((ConfigOptionFloat,                bottom_solid_min_thickness))
     ((ConfigOptionPercent,              bridge_flow_ratio))
@@ -842,6 +856,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                curve_smoothing_angle_concave))
     ((ConfigOptionFloatOrPercent,       default_acceleration))
     ((ConfigOptionFloatOrPercent,       default_speed))
+    ((ConfigOptionFloat,                overhang_distance))
     ((ConfigOptionBool,                 ensure_vertical_shell_thickness))
     ((ConfigOptionBool,                 enforce_full_fill_volume))
     ((ConfigOptionFloatOrPercent,       external_infill_margin))
@@ -861,6 +876,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 only_one_perimeter_first_layer))
     ((ConfigOptionBool,                 only_one_perimeter_top))
     ((ConfigOptionBool,                 only_one_perimeter_top_other_algo))
+    ((ConfigOptionBool,                 only_one_perimeter_overhang))
     ((ConfigOptionBool,                 fill_aligned_z))
     ((ConfigOptionFloat,                fill_angle))
     ((ConfigOptionBool,                 fill_angle_cross))
@@ -873,6 +889,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       fuzzy_skin_thickness))
     ((ConfigOptionFloatOrPercent,       fuzzy_skin_point_dist))
     ((ConfigOptionPercent,              fill_top_flow_ratio))
+    ((ConfigOptionBool,                 overhang_infill_first))
     ((ConfigOptionPercent,              fill_smooth_distribution))
     ((ConfigOptionFloatOrPercent,       fill_smooth_width))
     ((ConfigOptionFloatOrPercent,       gap_fill_acceleration))
@@ -904,6 +921,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<InfillConnection>,  infill_connection_top))
     ((ConfigOptionEnum<InfillConnection>,  infill_connection_bottom))
     ((ConfigOptionEnum<InfillConnection>,  infill_connection_bridge))
+    ((ConfigOptionEnum<InfillConnection>,  infill_connection_overhang))
+
     ((ConfigOptionBool,                 infill_dense))
     ((ConfigOptionEnum<DenseInfillAlgo>,  infill_dense_algo))
     ((ConfigOptionBool,                 infill_first))
@@ -1097,6 +1116,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                gcode_comments))
     ((ConfigOptionString,              gcode_filename_illegal_char))
     ((ConfigOptionEnum<GCodeFlavor>,   gcode_flavor))
+    ((ConfigOptionEnum<ArcPosition>,   arc_position))
     ((ConfigOptionBool,                gcode_label_objects))
     ((ConfigOptionInt,                 gcode_precision_xyz))
     ((ConfigOptionInt,                 gcode_precision_e))
@@ -1204,6 +1224,10 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInts,                 default_fan_speed))
     ((ConfigOptionEnum<DraftShield>,    draft_shield))
     ((ConfigOptionFloat,                duplicate_distance))
+    ((ConfigOptionFloat,                bds_ratio_length))
+    ((ConfigOptionFloat,                bds_ratio_nr))
+    ((ConfigOptionFloat,                bds_median_length))
+    ((ConfigOptionFloat,                bds_max_length))
     ((ConfigOptionBool,                 enforce_retract_first_layer))
     ((ConfigOptionInts,                 external_perimeter_fan_speed))
     ((ConfigOptionFloat,                extruder_clearance_height))

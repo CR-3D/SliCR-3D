@@ -36,6 +36,7 @@
 #include <boost/nowide/iostream.hpp>
 #include <boost/nowide/cstdio.hpp>
 #include <boost/nowide/cstdlib.hpp>
+#include <boost/algorithm/string_regex.hpp>
 
 #include "SVG.hpp"
 
@@ -3520,6 +3521,7 @@ LayerResult GCode::process_layer(
                 m_layer = layer_to_print.layer();
                 m_object_layer_over_raft = object_layer_over_raft;
                 m_print_object_instance_id = static_cast<uint16_t>(instance_to_print.instance_id);
+
                 if (m_config.avoid_crossing_perimeters)
                     m_avoid_crossing_perimeters.init_layer(*m_layer);
                 //print object label to help the printer firmware know where it is (for removing the objects)
@@ -3616,32 +3618,27 @@ LayerResult GCode::process_layer(
                     this->set_origin(unscale(offset));
                 }
                 //FIXME order islands?
+                //FIXME order islands?
                 // Sequential tool path ordering of multiple parts within the same object, aka. perimeter tracking (#5511)
                 for (ObjectByExtruder::Island &island : instance_to_print.object_by_extruder.islands) {
                     const std::vector<ObjectByExtruder::Island::Region>& by_region_specific =
-                        is_anything_overridden ? 
-                        island.by_region_per_copy(by_region_per_copy_cache, 
-                            static_cast<uint16_t>(instance_to_print.instance_id), 
-                            extruder_id, 
-                            print_wipe_extrusions != 0) : 
+                        is_anything_overridden ?
+                        island.by_region_per_copy(by_region_per_copy_cache,
+                            static_cast<uint16_t>(instance_to_print.instance_id),
+                            extruder_id,
+                            print_wipe_extrusions != 0) :
                         island.by_region;
-                    
-                    gcode += this->extrude_infill(print, by_region_specific, true);
-                    this->m_throw_if_canceled();
-                    gcode += this->extrude_perimeters(print, by_region_specific);
-                    this->m_throw_if_canceled();
-                    gcode += this->extrude_infill(print, by_region_specific, false);
-                    this->m_throw_if_canceled();
-                    gcode += this->extrude_ironing(print, by_region_specific);
 
-                    //clear any leftover
-                    if(!m_last_too_small.empty()){
-                        // finish extrude the little thing that was left before us and incompatible with our next extrusion.
-                        ExtrusionPath to_finish = m_last_too_small;
-                        gcode += this->_extrude(m_last_too_small, m_last_description, m_last_speed_mm_per_sec);
-                        m_last_too_small.polyline.clear();
-                    }
+                    /*gcode += this->extrude_infill(print, by_region_specific, true);
+                    gcode += this->extrude_perimeters(print, by_region_specific);
+                    gcode += this->extrude_infill(print, by_region_specific, false);
+                    */
+                    gcode += this->extrude_infill(print,by_region_specific, true);
+                    gcode += this->extrude_perimeters(print, by_region_specific);
+                    gcode += this->extrude_infill(print, by_region_specific, false);
+                    gcode += this->extrude_ironing(print, by_region_specific);
                 }
+                
                 // Don't set m_gcode_label_objects_end if you don't had to write the m_gcode_label_objects_start.
                 if (!m_gcode_label_objects_start.empty()) {
                     m_gcode_label_objects_start = "";
@@ -5023,8 +5020,9 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
                     }
                     if (best_sqr_dist == max_sqr_dist) {
                         // fail to find nearest point, try to find an edge
-                        if (poly.is_clockwise() ^ original_polygon.is_clockwise())
-                            poly.reverse();
+                        /*if (poly.is_clockwise() ^ original_polygon.is_clockwise())
+                            poly.reverse();*/
+
                         poly.points.push_back(poly.points.front());
                         for (size_t pt_idx = 0; pt_idx < poly.points.size() - 1; pt_idx++) {
                             if (Line{poly.points[pt_idx], poly.points[pt_idx + 1]}.distance_to_squared(pt_inside) <
@@ -5385,9 +5383,22 @@ std::string GCode::extrude_infill(const Print& print, const std::vector<ObjectBy
     std::string gcode;
     for (const ObjectByExtruder::Island::Region& region : by_region) {
         m_region = &print.get_print_region(&region - &by_region.front());
+        bool overhang_infill_first = false;
+        for(const LayerRegion *lm: m_layer->regions())
+            if(lm->is_overhang){
+                overhang_infill_first = true;
+                break;
+            }
         if (!region.infills.empty() &&
-            (m_region->config().infill_first == is_infill_first)) {
-            apply_region_config(gcode);
+           ((overhang_infill_first && m_region->config().overhang_infill_first == is_infill_first) || !m_region->config().overhang_infill_first == overhang_infill_first && m_region->config().infill_first == is_infill_first)) {
+            m_config.apply(m_region->config());
+            m_writer.apply_print_region_config(m_region->config());
+            if (m_config.print_temperature > 0)
+                gcode += m_writer.set_temperature(m_config.print_temperature.value, false, m_writer.tool()->id());
+            else if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.first_layer_temperature.get_at(m_writer.tool()->id()) > 0)
+                    gcode += m_writer.set_temperature(m_config.first_layer_temperature.get_at(m_writer.tool()->id()), false, m_writer.tool()->id());
+            else if (m_config.temperature.get_at(m_writer.tool()->id()) > 0) // don't set it if disabled
+                gcode += m_writer.set_temperature(m_config.temperature.get_at(m_writer.tool()->id()), false, m_writer.tool()->id());
             ExtrusionEntitiesPtr extrusions{ region.infills };
             chain_and_reorder_extrusion_entities(extrusions, &m_last_pos);
             for (const ExtrusionEntity* fill : extrusions) {
@@ -5397,6 +5408,8 @@ std::string GCode::extrude_infill(const Print& print, const std::vector<ObjectBy
         m_region = nullptr;
     }
     return gcode;
+
+
 }
 
 // Chain the paths hierarchically by a greedy algorithm to minimize a travel distance.

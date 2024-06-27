@@ -108,7 +108,16 @@ public:
     }
     void replace(size_t i, const ExtrusionEntity &entity);
     void remove(size_t i);
+    static ExtrusionEntityCollection chained_path_from(const ExtrusionEntitiesPtr &extrusion_entities, const Point &start_near, ExtrusionRole role = erMixed);
+
     void chained_path_from(const Point &start_near);
+    ExtrusionEntityCollection chained_path_from(const Point &start_near, ExtrusionRole role = erNone) const {
+        if (role == erNone) role = this->role();
+        if ( this->m_no_sort || (role == erMixed)|| (role == erInternalInfill))
+            return *this;
+        else
+            return chained_path_from(this->m_entities, start_near, role);
+    }
     void reverse() override;
     const Point& first_point() const override { return this->entities().front()->first_point(); }
     const Point& last_point() const override { return this->entities().back()->last_point(); }

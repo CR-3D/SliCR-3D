@@ -587,6 +587,7 @@ namespace Slic3r {
             Slic3rPE,
             Slic3r,
             SuperSlicer,
+            SliCR3D,
             Cura,
             Simplify3D,
             CraftWare,
