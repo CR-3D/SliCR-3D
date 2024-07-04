@@ -1341,8 +1341,12 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Monotonic (filled)"));
     def->enum_labels.push_back(L("Concentric"));
     def->enum_labels.push_back(L("Concentric (filled)"));
+<<<<<<< HEAD
     def->enum_labels.push_back(L("Arc"));
 
+=======
+    def->enum_labels.push_back("Arc");
+>>>>>>> spiralling-arc-infill
     def->enum_labels.push_back(L("Hilbert Curve"));
     def->enum_labels.push_back(L("Archimedean Chords"));
     def->enum_labels.push_back(L("Octagram Spiral"));
@@ -1363,9 +1367,14 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("monotonic");
     def->enum_values.push_back("monotonicgapfill");
     def->enum_values.push_back("concentric");
+<<<<<<< HEAD
     def->enum_values.push_back("concentricgapfill");   
     def->enum_values.push_back("arc");
 
+=======
+    def->enum_values.push_back("concentricgapfill");
+    def->enum_values.push_back("arc");
+>>>>>>> spiralling-arc-infill
     def->enum_values.push_back("hilbertcurve");
     def->enum_values.push_back("archimedeanchords");
     def->enum_values.push_back("octagramspiral");
@@ -1398,7 +1407,11 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("monotonicgapfill");
     def->enum_values.push_back("concentric");
     def->enum_values.push_back("concentricgapfill");
+<<<<<<< HEAD
         def->enum_values.push_back("arc");
+=======
+    def->enum_values.push_back("arc");
+>>>>>>> spiralling-arc-infill
 
     def->enum_values.push_back("hilbertcurve");
     def->enum_values.push_back("archimedeanchords");
@@ -1410,7 +1423,11 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Monotonic (filled)"));
     def->enum_labels.push_back(L("Concentric"));
     def->enum_labels.push_back(L("Concentric (filled)"));
+<<<<<<< HEAD
         def->enum_labels.push_back(L("Arc"));
+=======
+    def->enum_labels.push_back(L("Arc"));
+>>>>>>> spiralling-arc-infill
 
     def->enum_labels.push_back(L("Hilbert Curve"));
     def->enum_labels.push_back(L("Archimedean Chords"));
@@ -1437,7 +1454,11 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Monotonic (filled)"));
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill));
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> spiralling-arc-infill
     def = this->add("overhang_fill_pattern", coEnum);
     def->label = L("Overhang fill pattern");
     def->category = OptionCategory::infill;
@@ -1465,6 +1486,11 @@ void PrintConfigDef::init_fff_params()
     def->min = 0.;
     def->mode =  comExpert | comPrusa;
     def->set_default_value(new ConfigOptionFloat(20.));
+<<<<<<< HEAD
+=======
+    
+
+>>>>>>> spiralling-arc-infill
     def = this->add("bds_ratio_length", coFloat);
     def->category = OptionCategory::output;
     def->label = L("Scoring on total length of anchored lines in overhang");
@@ -1500,6 +1526,7 @@ void PrintConfigDef::init_fff_params()
     def->min = -10000.0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(0));
+<<<<<<< HEAD
 
     def = this->add("arc_radius", coFloat);
     def->category = OptionCategory::output;
@@ -1518,7 +1545,26 @@ void PrintConfigDef::init_fff_params()
     def->sidetext = L("");
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(12.));
+=======
+>>>>>>> spiralling-arc-infill
 
+    def = this->add("arc_radius", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("");
+    def->label = L("Radius of the outer arc");
+    def->min = 0;
+    def->sidetext = L("");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.55));
+
+    def = this->add("arc_infill_raylen", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("");
+    def->label = L("Length of the ray used for edge intersection");
+    def->min = 0;
+    def->sidetext = L("");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(12.));
     def = this->add("enforce_full_fill_volume", coBool);
     def->label = L("Enforce 100% fill volume");
     def->category = OptionCategory::infill;
@@ -3322,6 +3368,10 @@ void PrintConfigDef::init_fff_params()
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> spiralling-arc-infill
     def = this->add("overhang_infill_first", coBool);
     def->label = L("Overhangs before perimeters");
     def->full_label = L("Overhang infill before perimeters");
@@ -5464,6 +5514,13 @@ void PrintConfigDef::init_fff_params()
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
+    def = this->add("minimal_support", coBool);
+    def->label = L("Use minimal supports");
+    def->category = OptionCategory::support;
+    def->tooltip = L("If checked, supports will be optimized for minimal support.");
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBool(true));
+
     def = this->add("support_material_interface_acceleration", coFloatOrPercent);
     def->label = L("Interface");
     def->full_label = L("Support interface acceleration");
@@ -6491,7 +6548,11 @@ void PrintConfigDef::init_fff_params()
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{ 0.f });
 
+<<<<<<< HEAD
     def = this->add("bds_ratio_length", coFloat);
+=======
+        def = this->add("bds_ratio_length", coFloat);
+>>>>>>> spiralling-arc-infill
     def->category = OptionCategory::output;
     def->label = L("Scoring on total length of anchored lines in overhang");
     def->tooltip = L("Given in percentage of total");

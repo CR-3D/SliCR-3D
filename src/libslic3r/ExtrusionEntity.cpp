@@ -406,6 +406,7 @@ std::string role_to_code(ExtrusionRole role)
         case erInternalInfill               : return L("IFill");
         case erSolidInfill                  : return L("SFill");
         case erTopSolidInfill               : return L("TFill");
+        case erOverhangInfill               : return L("OFill");
         case erIroning                      : return L("Iron");
         case erBridgeInfill                 : return L("EBridge");
         case erInternalBridgeInfill         : return L("IBridge");

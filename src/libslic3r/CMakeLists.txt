@@ -56,8 +56,13 @@ add_library(libslic3r STATIC
     FileParserError.hpp
     Fill/Fill.cpp
     Fill/Fill.hpp
+<<<<<<< HEAD
 Fill/FillArc.cpp
 Fill/FillArc.hpp
+=======
+    Fill/FillArc.hpp
+    Fill/FillArc.cpp
+>>>>>>> spiralling-arc-infill
     Fill/Fill3DHoneycomb.cpp
     Fill/Fill3DHoneycomb.hpp
     Fill/FillAdaptive.cpp

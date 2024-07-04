@@ -185,7 +185,10 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 FlowRole extrusion_role = surface.has_pos_top() ? frTopSolidInfill : (surface.has_fill_solid() ? frSolidInfill : frInfill);
                 bool     is_bridge      = layer.id() > 0 && surface.has_mod_bridge();
                 bool     is_overhang      = layer.id() > 0 && layerm.is_overhang;
+<<<<<<< HEAD
 
+=======
+>>>>>>> spiralling-arc-infill
                 bool     is_denser      = false;
                 params.extruder         = layerm.region().extruder(extrusion_role, *layer.object());
                 params.pattern          = region_config.fill_pattern.value;
@@ -195,7 +198,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 params.priority         = 0;
 
 
+<<<<<<< HEAD
                    if (is_overhang && surface.has_pos_bottom()) {
+=======
+                    if (is_overhang && surface.has_pos_bottom()) {
+>>>>>>> spiralling-arc-infill
                         params.pattern = region_config.overhang_fill_pattern.value;
                         params.connection = region_config.infill_connection_overhang.value;
                         params.bridge_type = region_config.bridge_type.value;
@@ -205,7 +212,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         params.connection = region_config.infill_connection_bridge.value;
                         params.bridge_type = region_config.bridge_type.value;
                         params.density = 1.f;
+<<<<<<< HEAD
                 } else if (surface.has_fill_solid()) {
+=======
+                    }else if (surface.has_fill_solid()) {
+>>>>>>> spiralling-arc-infill
                     params.density = 1.f;
                     params.pattern = ipRectilinear;
                     params.connection = region_config.infill_connection_solid.value;
@@ -214,9 +225,20 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                     }
                     if (surface.has_pos_bottom()) {
                         params.connection = region_config.infill_connection_bottom.value;
+<<<<<<< HEAD
 
                     }
+=======
+                    }
+                    //FIXME for non-thick bridges, shall we allow a bottom surface pattern?
+                    /*if (is_bridge) {
+                        params.pattern = region_config.bridge_fill_pattern.value;
+                        params.connection = region_config.infill_connection_bridge.value;
+                        params.bridge_type = region_config.bridge_type.value;
+                    }*/
+>>>>>>> spiralling-arc-infill
                     if (surface.has_pos_external() && !is_bridge) {
+                    if (surface.has_pos_external() && !is_bridge)
                         params.pattern = surface.has_pos_top() ? region_config.top_fill_pattern.value : region_config.bottom_fill_pattern.value;
                     } else if (!is_bridge) {
                         params.pattern = region_config.solid_fill_pattern.value;
@@ -248,7 +270,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                             params.role = erOverhangInfill;
                         else
                             params.role = erBridgeInfill;
+<<<<<<< HEAD
                 } else if (surface.has_fill_solid()) {
+=======
+                }else if (surface.has_fill_solid()) {
+>>>>>>> spiralling-arc-infill
                     if (surface.has_pos_top()) {
                         params.role = erTopSolidInfill;
                     } else {
@@ -257,8 +283,12 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 }
                 params.fill_exactly = region_config.enforce_full_fill_volume.get_bool();
                 params.bridge_angle = float(surface.bridge_angle);
-                params.angle         = (is_denser) ? 0 : compute_fill_angle(region_config, layerm.layer()->id());
-                params.can_angle_cross = region_config.fill_angle_cross;
+                if (is_denser) {
+                    params.angle = 0;
+                } else {
+                    params.angle = float(Geometry::deg2rad(region_config.fill_angle.value));
+                    params.angle += float(PI * (region_config.fill_angle_increment.value * layerm.layer()->id()) / 180.f);
+                }
 		        params.anchor_length = std::min(params.anchor_length, params.anchor_length_max);
 
                 //adjust flow (to over-extrude when needed)
@@ -273,7 +303,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 //params.flow = params.bridge ?
                 //    layerm.bridging_flow(extrusion_role) :
                 //    layerm.flow(extrusion_role, (surface.thickness == -1) ? layer.height : surface.thickness);
-                if (is_bridge) {
+                if (is_overhang||is_bridge) {
                     float nozzle_diameter = layer.object()->print()->config().nozzle_diameter.get_at(layerm.region().extruder(extrusion_role, *layer.object()) - 1);
                     double diameter = 0;
                     if (region_config.bridge_type == BridgeType::btFromFlow) {
@@ -290,12 +320,12 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         *layer.object(),
                         extrusion_role,
                         (surface.thickness == -1) ? layer.height : surface.thickness,   // extrusion height
-                        layer.id()
+                        layer.id() == 0                                                 // first layer?
                     );
                 }
                 
                 // Calculate flow spacing for infill pattern generation.
-                if (surface.has_fill_solid() || is_bridge) {
+                if (surface.has_fill_solid() || is_bridge || is_overhang) {
                     params.spacing = params.flow.spacing();
                     // Don't limit anchor length for solid or bridging infill.
                     // use old algo for bridging to prevent possible weird stuff from 'new' connections optimized for sparse stuff.
@@ -305,18 +335,17 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                     //FIXME FLOW decide what to use
                     // Internal infill. Calculating infill line spacing independent of the current layer height and 1st layer status,
                     // so that internall infill will be aligned over all layers of the current region.
-                    //params.spacing = layerm.region().flow(*layer.object(), frInfill, layer.heigh, false).spacing();
+                    //params.spacing = layerm.region().flow(*layer.object(), frInfill, layer.object()->config().layer_height, false).spacing();
                     // it's internal infill, so we can calculate a generic flow spacing 
                     // for all layers, for avoiding the ugly effect of
                     // misaligned infill on first layer because of different extrusion width and
                     // layer height
-                    Flow infill_flow = layerm.region().flow(
+                    params.spacing = layerm.region().flow(
                             *layer.object(),
                             frInfill,
-                            layer.height,  // TODO: handle infill_every_layers?
-                            layer.id()
-                        );
-                    params.spacing = infill_flow.spacing();
+                            layer.object()->config().layer_height.value,  // TODO: handle infill_every_layers?
+                            false  // no first layer
+                        ).spacing();
 
                     // Anchor a sparse infill to inner perimeters with the following anchor length:
                     params.anchor_length = float(region_config.infill_anchor);
@@ -326,16 +355,6 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                     if (region_config.infill_anchor_max.percent)
                         params.anchor_length_max = float(params.anchor_length_max * 0.01 * params.spacing);
                     params.anchor_length = std::min(params.anchor_length, params.anchor_length_max);
-                    
-                    //sparse infill, compute the max width if needed
-                    if (region_config.fill_aligned_z) {
-                        //don't use fill_aligned_z if the pattern can't use it.
-                        if (params.pattern != ipHilbertCurve && params.pattern != ipArchimedeanChords &&
-                            params.pattern != ipOctagramSpiral && params.pattern != ipScatteredRectilinear &&
-                            params.pattern != ipLightning) {
-                            params.max_sparse_infill_spacing = unscaled(layer.object()->get_sparse_max_spacing());
-                        }
-                    }
                 }
 
                 auto it_params = set_surface_params.find(params);
@@ -344,6 +363,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 region_to_surface_params[region_id][&surface - &layerm.fill_surfaces.surfaces.front()] = &(*it_params);
             }
     }
+
 
     surface_fills.reserve(set_surface_params.size());
     for (const SurfaceFillParams &params : set_surface_params) {

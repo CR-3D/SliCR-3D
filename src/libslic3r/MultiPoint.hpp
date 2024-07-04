@@ -69,7 +69,11 @@ public:
     }
     const Point* closest_point(const Point &point) const { return this->points.empty() ? nullptr : &this->points[this->closest_point_index(point)]; }
     BoundingBox bounding_box() const;
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> spiralling-arc-infill
     // The distance of polygon to point is defined as:
     //  the minimum distance of all points to that point
     double distance_to(const Point& point) const {

@@ -100,31 +100,58 @@ enum ExtrusionLoopRole : uint16_t {
 
 inline bool is_perimeter(ExtrusionRole role)
 {
+<<<<<<< HEAD
     return role == erPerimeter
         || role == erExternalPerimeter
+=======
+    return role == erPerimeter 
+        || role == erExternalPerimeter 
+>>>>>>> spiralling-arc-infill
         || role == erThinWall
         || role == erOverhangPerimeter;
 }
 
 inline bool is_infill(ExtrusionRole role)
 {
+<<<<<<< HEAD
     return role == erBridgeInfill
         || role == erOverhangInfill
         || role == erInternalBridgeInfill
         || role == erInternalInfill
         || role == erSolidInfill
         || role == erTopSolidInfill
+=======
+    return role == erBridgeInfill 
+        || role == erOverhangInfill
+        || role == erInternalBridgeInfill 
+        || role == erInternalInfill 
+        || role == erSolidInfill 
+        || role == erTopSolidInfill 
+>>>>>>> spiralling-arc-infill
         || role == erIroning;
 }
 
 inline bool is_solid_infill(ExtrusionRole role)
 {
+<<<<<<< HEAD
     return role == erBridgeInfill
         || role == erOverhangInfill
         || role == erInternalBridgeInfill
         || role == erSolidInfill
         || role == erTopSolidInfill
         || role == erIroning;
+=======
+    return role == erBridgeInfill 
+        || role == erOverhangInfill
+        || role == erInternalBridgeInfill 
+        || role == erSolidInfill 
+        || role == erTopSolidInfill 
+        || role == erIroning;
+}
+
+inline bool is_overhang(ExtrusionRole role) {
+    return role == erOverhangInfill;
+>>>>>>> spiralling-arc-infill
 }
 
 inline bool is_bridge(ExtrusionRole role)

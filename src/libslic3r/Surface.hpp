@@ -64,15 +64,26 @@ public:
     unsigned short  thickness_layers;   // in layers
     double          bridge_angle;       // in radians, ccw, 0 = East, only 0+ (negative means undefined)
     unsigned short  extra_perimeters;
+<<<<<<< HEAD
     Polyline pedestal;
     bool is_overhang;
     bool has_overhang_holes;
 
+=======
+    Polyline           pedestal;
+    bool is_overhang;
+    bool has_overhang_holes;
+    
+>>>>>>> spiralling-arc-infill
     //for dense infill
     uint16_t        maxNbSolidLayersOnTop;
     uint16_t        priority;
     
+<<<<<<< HEAD
      Surface(const Slic3r::Surface &rhs)
+=======
+    Surface(const Slic3r::Surface &rhs)
+>>>>>>> spiralling-arc-infill
         : surface_type(rhs.surface_type), expolygon(rhs.expolygon),pedestal(rhs.pedestal),is_overhang(rhs.is_overhang),
             thickness(rhs.thickness), thickness_layers(rhs.thickness_layers), has_overhang_holes(rhs.has_overhang_holes),
             bridge_angle(rhs.bridge_angle), extra_perimeters(rhs.extra_perimeters),
@@ -145,6 +156,7 @@ public:
         priority         = rhs.priority;
         return *this;
     }
+
 
 	double area() 		 const { return this->expolygon.area(); }
     bool empty() const { return expolygon.empty(); }

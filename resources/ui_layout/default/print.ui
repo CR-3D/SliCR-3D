@@ -81,9 +81,13 @@ group:label_width$12:Overhangs
 		setting:label$Bridge speed and fan:width$5:sidetext_width$0:overhangs_width_speed
 		setting:label_width$12:label$Bridge flow:width$5:overhangs_width
 	end_line
-
+	setting:label$Overhang infill first:overhang_infill_first
 	setting:overhangs_speed_enforce
+<<<<<<< HEAD
 
+=======
+	
+>>>>>>> spiralling-arc-infill
 	line:Extrusion direction
 		setting:sidetext_width$2:overhangs_reverse
 		setting:label_width$12:width$5:overhangs_reverse_threshold

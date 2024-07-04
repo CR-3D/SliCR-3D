@@ -1030,8 +1030,13 @@ FillLightning::GeneratorPtr PrintObject::prepare_lightning_infill_data()
                 opt_key == "bottom_fill_pattern"
                 || opt_key == "bridge_fill_pattern"
                 || opt_key == "bridge_overlap"
-                || opt_key == "bridge_overlap_min"
                 || opt_key == "bridge_fill_pattern"
+                || opt_key == "bridge_overlap_min"
+<<<<<<< HEAD
+                || opt_key == "bridge_fill_pattern"
+=======
+                || opt_key == "overhang_fill_pattern"
+>>>>>>> spiralling-arc-infill
                 || opt_key == "enforce_full_fill_volume"
                 || opt_key == "fill_aligned_z"
                 || opt_key == "fill_angle"

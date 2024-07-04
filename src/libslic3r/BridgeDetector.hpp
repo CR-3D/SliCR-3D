@@ -30,19 +30,27 @@ public:
     ExPolygons                   expolygons_owned;
     // Lower slices, all regions.
     const ExPolygons   			&lower_slices;
+<<<<<<< HEAD
     bool is_bridge{false};
 
+=======
+    bool is_bridge {false};
+>>>>>>> spiralling-arc-infill
     // Scaled extrusion width of the infill.
     coord_t                      spacing;
     // Angle resolution for the brute force search of the best bridging angle.
     double                       resolution;
     // The final optimal angle.
     double                       angle;
-    
+
     BridgeDetector(ExPolygon _expolygon, const ExPolygons &_lower_slices, coord_t _extrusion_width);
     BridgeDetector(const ExPolygons &_expolygons, const ExPolygons &_lower_slices, coord_t _extrusion_width);
     // If bridge_direction_override != 0, then the angle is used instead of auto-detect.
+<<<<<<< HEAD
     bool detect_angle(double bridge_direction_override = 0., const PrintRegionConfig* params = nullptr);
+=======
+    bool detect_angle(double bridge_direction_override = 0, const PrintRegionConfig *params = nullptr);
+>>>>>>> spiralling-arc-infill
     Polygons coverage(double angle = -1, bool precise = true) const;
     void unsupported_edges(double angle, Polylines* unsupported) const;
     Polylines unsupported_edges(double angle = -1) const;
@@ -58,10 +66,13 @@ private:
 
         double angle;
         double coverage;
-
         float along_perimeter_length;
         Polyline _pedestal;
+<<<<<<< HEAD
         bool has_overhang_holes = false;
+=======
+	bool has_overhang_holes = false;
+>>>>>>> spiralling-arc-infill
         coordf_t total_length_anchored = 0;
         coordf_t median_length_anchor = 0;
         coordf_t max_length_anchored = 0;

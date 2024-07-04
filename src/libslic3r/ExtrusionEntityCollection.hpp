@@ -108,8 +108,13 @@ public:
     }
     void replace(size_t i, const ExtrusionEntity &entity);
     void remove(size_t i);
-    void chained_path_from(const Point &start_near);
     static ExtrusionEntityCollection chained_path_from(const ExtrusionEntitiesPtr &extrusion_entities, const Point &start_near, ExtrusionRole role = erMixed);
+
+    void chained_path_from(const Point &start_near);
+<<<<<<< HEAD
+    static ExtrusionEntityCollection chained_path_from(const ExtrusionEntitiesPtr &extrusion_entities, const Point &start_near, ExtrusionRole role = erMixed);
+=======
+>>>>>>> spiralling-arc-infill
     ExtrusionEntityCollection chained_path_from(const Point &start_near, ExtrusionRole role = erNone) const {
         if (role == erNone) role = this->role();
         if ( this->m_no_sort || (role == erMixed)|| (role == erInternalInfill))

@@ -15,6 +15,7 @@
 #include "FillArc.hpp"
 #include "FillBase.hpp"
 #include "FillConcentric.hpp"
+#include "FillArc.hpp"
 #include "FillHoneycomb.hpp"
 #include "Fill3DHoneycomb.hpp"
 #include "FillGyroid.hpp"
@@ -35,6 +36,7 @@ Fill* Fill::new_from_type(const InfillPattern type)
     case ipConcentric:          return new FillConcentric();
     case ipArc:                 return new FillArc();
     case ipConcentricGapFill:   return new FillConcentricWGapFill();
+    case ipArc:                 return new FillArc();
     case ipHoneycomb:           return new FillHoneycomb();
     case ip3DHoneycomb:         return new Fill3DHoneycomb();
     case ipGyroid:              return new FillGyroid();
@@ -61,7 +63,7 @@ Fill* Fill::new_from_type(const InfillPattern type)
     case ipSupportCubic:        return new FillAdaptive::Filler();
     case ipSupportBase:         return new FillSupportBase();
     case ipLightning:           return new FillLightning::Filler();
-    default: throw Slic3r::InvalidArgument("unknown type");
+    default: throw Slic3r::InvalidArgument("unknown infill type");
     }
 }
 
@@ -322,7 +324,10 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
 
 }
 
-
+Polyline Fill::_infill_pedestal(const Surface *surface) const
+{
+    return (Polyline)surface->pedestal;
+}
 
 coord_t Fill::_line_spacing_for_density(const FillParams& params) const
 {

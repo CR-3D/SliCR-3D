@@ -129,8 +129,12 @@ bool ExPolygon::contains_b(const Point &point) const
     return this->contains(point) || this->has_boundary_point(point);
 }
 
+<<<<<<< HEAD
 bool ExPolygon::contains_h(const Point &point) const
 {
+=======
+bool ExPolygon::contains_h(const Point &point) const {
+>>>>>>> spiralling-arc-infill
     for (const Polygon &hole : this->holes)
         if (hole.contains(point))
             return true;

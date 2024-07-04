@@ -13,6 +13,7 @@ public:
 protected:
     Fill* clone() const override { return new FillConcentric(*this); };
     void init_spacing(coordf_t spacing, const FillParams &params) override;
+    
     void _fill_surface_single(
         const FillParams                &params,
         unsigned int                     thickness_layers,

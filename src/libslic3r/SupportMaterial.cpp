@@ -356,6 +356,8 @@ PrintObjectSupportMaterial::PrintObjectSupportMaterial(const PrintObject *object
     m_support_params.raft_interface_flow                = raft_interface_flow(object, float(slicing_params->interface_raft_layer_height));
     m_support_params.raft_bridge_flow_ratio             = object->print()->default_region_config().bridge_flow_ratio.get_abs_value(1.);
 
+    this->material_interface_layers = m_object_config->minimal_support?0:m_object_config->support_material_interface_layers.value;
+
     // Calculate a minimum support layer height as a minimum over all extruders, but not smaller than 10um.
     m_support_params.support_layer_height_min = 1000000.;
     const ConfigOptionFloatsOrPercents& min_layer_height = m_print_config->min_layer_height;
@@ -380,7 +382,6 @@ PrintObjectSupportMaterial::PrintObjectSupportMaterial(const PrintObject *object
         m_support_params.raft_interface_flow = m_support_params.raft_flow;
     }
 
-    // Evaluate the XY gap between the object outer perimeters and the support structures.
     // Evaluate the XY gap between the object outer perimeters and the support structures.
     coordf_t external_perimeter_width = 0.;
     coordf_t bridge_flow_ratio = 0;
@@ -422,7 +423,7 @@ PrintObjectSupportMaterial::PrintObjectSupportMaterial(const PrintObject *object
     }
 
     SupportMaterialPattern  support_pattern = m_object_config->support_material_pattern;
-    m_support_params.with_sheath            = m_object_config->support_material_with_sheath;
+    m_support_params.with_sheath            = m_object_config->minimal_support?true:m_object_config->support_material_with_sheath;
     m_support_params.base_fill_pattern      = 
         support_pattern == smpHoneycomb ? ipHoneycomb :
         m_support_params.support_density > 0.95 || m_support_params.with_sheath ? ipRectilinear : ipSupportBase;
@@ -766,7 +767,7 @@ Polygons collect_slices_outer(const Layer &layer)
 
 struct SupportGridParams {
     SupportGridParams(const PrintObjectConfig &object_config, const Flow &support_material_flow) :
-        style(object_config.support_material_style.value),
+        style(object_config.minimal_support?smsSnug:object_config.support_material_style.value),
         grid_resolution(object_config.support_material_spacing.value + support_material_flow.spacing()),
         support_angle(Geometry::deg2rad(object_config.support_material_angle.value)),
         extrusion_width(support_material_flow.spacing()),
@@ -1404,17 +1405,20 @@ namespace SupportMaterialInternal {
                 }
             bridges = union_(bridges);
         }
+        bool has_ped = false;
         // remove the entire bridges and only support the unsupported edges
         //FIXME the brided regions are already collected as layerm.bridged. Use it?
         for (const Surface &surface : layerm.fill_surfaces.surfaces)
-            if (surface.has_pos_bottom() && surface.has_mod_bridge() && surface.bridge_angle != -1)
-                polygons_append(bridges, surface.expolygon);
+            if (surface.has_pos_bottom() && surface.has_mod_bridge()){// && surface.bridge_angle >= 0.0)
+                if((!surface.pedestal.empty())) has_ped = true;//polygons_append(pedestals, surface.expolygon);
+            polygons_append(bridges, surface.expolygon);
+        }
         //FIXME add the gap filled areas. Extrude the gaps with a bridge flow?
         // Remove the unsupported ends of the bridges from the bridged areas.
         //FIXME add supports at regular intervals to support long bridges!
         bridges = diff(bridges,
                 // Offset unsupported edges into polygons.
-                offset(layerm.unsupported_bridge_edges, scale_(SUPPORT_MATERIAL_MARGIN), SUPPORT_SURFACES_OFFSET_PARAMETERS));
+               offset(layerm.unsupported_bridge_edges, (has_ped?0:0)*float(layerm.region().config().perimeters.value)/*perimeter_bridge_flow.scaled_width()0.005*scale_(SUPPORT_MATERIAL_MARGIN)*/, SUPPORT_SURFACES_OFFSET_PARAMETERS));
         // Remove bridged areas from the supported areas.
         contact_polygons = diff(contact_polygons, bridges, ApplySafetyOffset::Yes);
 
@@ -1560,9 +1564,14 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
         for (LayerRegion *layerm : layer.regions()) {
             bool hasOverhang = false;
             for(const Surface &surface: layerm->fill_surfaces)
+<<<<<<< HEAD
                 for(const Surface &surface: layerm->fill_surfaces)
                     if((uint8_t)layerm->region().config().overhang_fill_pattern == (uint8_t)ipArc && surface.is_overhang && !layerm->is_bridge) hasOverhang = true;
                 if ((hasOverhang && layer.object()->config().dont_support_bridges)) continue;
+=======
+                if((uint8_t)layerm->region().config().overhang_fill_pattern == (uint8_t)ipArc && surface.is_overhang && !layerm->is_bridge) hasOverhang = true;
+            if ((hasOverhang && layer.object()->config().dont_support_bridges)) continue;
+>>>>>>> spiralling-arc-infill
 
             // Extrusion width accounts for the roundings of the extrudates.
             // It is the maximum widh of the extrudate.
@@ -1859,7 +1868,7 @@ static inline void fill_contact_layer(
 #endif // SLIC3R_DEBUG
         ));
     // 2) infill polygons, expand them by half the extrusion width + a tiny bit of extra.
-    bool reduce_interfaces = object_config.support_material_style.value != smsSnug && layer_id > 0 && !slicing_params.soluble_interface;
+    bool reduce_interfaces = (object_config.minimal_support||object_config.support_material_style.value != smsSnug) && layer_id > 0 && !slicing_params.soluble_interface;
     if (reduce_interfaces) {
         // Reduce the amount of dense interfaces: Do not generate dense interfaces below overhangs with 60% overhang of the extrusions.
         Polygons dense_interface_polygons = diff(overhang_polygons, lower_layer_polygons_for_dense_interface());
@@ -3145,7 +3154,7 @@ PrintObjectSupportMaterial::MyLayersPtr PrintObjectSupportMaterial::generate_raf
 
     // How much to inflate the support columns to be stable. This also applies to the 1st layer, if no raft layers are to be printed.
     const float inflate_factor_fine      = float(scale_((m_slicing_params->raft_layers() > 1) ? 0.5 : EPSILON));
-    const float inflate_factor_1st_layer = std::max(0.f, float(scale_(object.config().raft_first_layer_expansion)) - inflate_factor_fine);
+    const float inflate_factor_1st_layer = std::max(0.f, float(scale_(object.config().minimal_support?.5:object.config().raft_first_layer_expansion)) - inflate_factor_fine);
     MyLayer       *contacts         = top_contacts         .empty() ? nullptr : top_contacts         .front();
     MyLayer       *interfaces       = interface_layers     .empty() ? nullptr : interface_layers     .front();
     MyLayer       *base_interfaces  = base_interface_layers.empty() ? nullptr : base_interface_layers.front();
