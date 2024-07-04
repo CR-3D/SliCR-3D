@@ -2317,6 +2317,12 @@ bool GCodeProcessor::process_simplify3d_tags(const std::string_view comment)
         return true;
     }
 
+    pos = cmt.find(" overhang");
+    if (pos == 0) {
+        set_extrusion_role(erOverhangInfill);
+        return true;
+    }
+
     // ; support
     pos = cmt.find(" support");
     if (pos == 0) {
@@ -2468,6 +2474,8 @@ bool GCodeProcessor::process_ideamaker_tags(const std::string_view comment)
             set_extrusion_role(erInternalInfill);
         else if (type == "BRIDGE")
             set_extrusion_role(erBridgeInfill);
+        else if (type == "OVERHANG")
+            set_extrusion_role(erOverhangInfill);
         else if (type == "SUPPORT")
             set_extrusion_role(erSupportMaterial);
         else {

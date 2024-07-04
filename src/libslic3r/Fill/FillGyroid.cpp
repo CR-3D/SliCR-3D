@@ -142,7 +142,8 @@ static Polylines make_gyroid_waves(coordf_t gridZ, coordf_t scaleFactor, double 
 void FillGyroid::_fill_surface_single(
     const FillParams                &params, 
     unsigned int                     thickness_layers,
-    const std::pair<float, Point>   &direction, 
+    const std::pair<float, Point>   &direction,
+    const Polyline                   pedestal,
     ExPolygon                        expolygon, 
     Polylines                       &polylines_out) const
 {

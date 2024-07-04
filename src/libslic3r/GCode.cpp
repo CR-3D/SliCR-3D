@@ -36,6 +36,7 @@
 #include <boost/nowide/iostream.hpp>
 #include <boost/nowide/cstdio.hpp>
 #include <boost/nowide/cstdlib.hpp>
+#include <boost/algorithm/string_regex.hpp>
 
 #include "SVG.hpp"
 
@@ -1093,6 +1094,8 @@ namespace DoExport {
                 excluded.insert(erTopSolidInfill);
             if (config->option("bridge_speed") != nullptr && config->get_computed_value("bridge_speed") != 0)
                 excluded.insert(erBridgeInfill);
+            if (config->option("overhangs_speed") != nullptr && config->get_computed_value("overhangs_speed") != 0)
+                excluded.insert(erOverhangInfill);
             if (config->option("internal_bridge_speed") != nullptr && config->get_computed_value("internal_bridge_speed") != 0)
                 excluded.insert(erInternalBridgeInfill);
             if (config->option("support_material_speed") != nullptr && config->get_computed_value("support_material_speed") != 0)
@@ -1159,7 +1162,7 @@ namespace DoExport {
 	                const LayerRegion* layerm = layer->regions()[region_id];
                     if (compute_min_mm3_per_mm.is_compatible({ erPerimeter, erExternalPerimeter, erOverhangPerimeter }))
                         mm3_per_mm.push_back(compute_min_mm3_per_mm.reset_use_get(layerm->perimeters));
-                    if (compute_min_mm3_per_mm.is_compatible({ erInternalInfill, erSolidInfill, erTopSolidInfill,erBridgeInfill,erInternalBridgeInfill }))
+                    if (compute_min_mm3_per_mm.is_compatible({ erInternalInfill, erSolidInfill, erTopSolidInfill,erBridgeInfill,erOverhangInfill,erInternalBridgeInfill }))
                         mm3_per_mm.push_back(compute_min_mm3_per_mm.reset_use_get(layerm->fills));
 	            }
 	        }
@@ -1591,32 +1594,16 @@ void GCode::_do_export(Print& print_mod, GCodeOutputStream &file, ThumbnailsGene
                 if (print.config().gcode_flavor.value == gcfKlipper) {
                     Polygon poly = print_object->model_object()->convex_hull_2d(
                         print_instance.model_instance->get_matrix());
-                    Polygon poly_old = poly;
-                    coord_t simplify_size = scale_t(0.1);
-                    // simplify as long as there is too many points
-                    while (poly.size() > 20 && simplify_size < 100) {
-                        poly_old = poly;
-                        poly.douglas_peucker(simplify_size);
-                        simplify_size *= 2;
-                    }
-                    //if gone too far, get the previous one.
-                    if (poly.size() < 10) {
-                        poly = poly_old;
-                    }
+                    poly.douglas_peucker(0.1);
 
-                    const boost::format format_point("[%.2f,%.2f]");
+                    const boost::format format_point("[%f,%f]");
                     std::string s_poly;
                     for (const Point& point : poly.points)
                         s_poly += (boost::format(format_point) % unscaled(point.x()) % unscaled(point.y())).str() + ",";
                     s_poly += (boost::format(format_point) % unscaled(poly.points.front().x()) % unscaled(poly.points.front().y())).str();
-                    //std::string good_name_without_space = boost::algorithm::replace_all_regex(print_object->model_object()->name, regex_space, std::string("_"));
-                    //std::locale::global(std::locale("en_US.UTF-8"));
-                    std::wstring wname = boost::nowide::widen(print_object->model_object()->name);
-                    std::wstring wname_without_space = std::regex_replace(wname, pattern, L"_");
-                    std::string name_without_space = boost::nowide::narrow(wname_without_space);
-                    raw_str_to_objectid_str[print_object->model_object()->name] = name_without_space;
+
                     file.write_format("EXCLUDE_OBJECT_DEFINE NAME=%s_id_%d_copy_%d CENTER=%f,%f POLYGON=[%s]\n",
-                        name_without_space.c_str(),
+                        boost::algorithm::replace_all_regex_copy(print_object->model_object()->name, boost::regex("[^\\w]+"), std::string("_")).c_str(),
                         this->m_ordered_objects.size() - 1, copy_id,
                         bounding_box.center().x(), bounding_box.center().y(),
                         s_poly.c_str()
@@ -3510,12 +3497,20 @@ LayerResult GCode::process_layer(
                 bool object_layer_over_raft = layer_to_print.object_layer && layer_to_print.object_layer->id() > 0 && 
                     instance_to_print.print_object.slicing_parameters().raft_layers() == layer_to_print.object_layer->id();
                 // Get data for gcode_label_objects
-                std::string instance_id   = std::to_string(std::find(this->m_ordered_objects.begin(),
-                                                                   this->m_ordered_objects.end(),
-                                                                   &instance_to_print.print_object) -
-                                                         this->m_ordered_objects.begin());
-                std::string instance_copy = std::to_string(instance_to_print.instance_id);
-                std::string instance_full_id; // for klipper
+                 std::string instance_clean_name =
+                    boost::algorithm::replace_all_regex_copy(
+                        instance_to_print.print_object.model_object()->name,
+                        boost::regex("[^\\w]+"), std::string("_"));
+                std::string instance_id = std::to_string(
+                    std::find(this->m_ordered_objects.begin(),
+                              this->m_ordered_objects.end(),
+                              &instance_to_print.print_object) -
+                    this->m_ordered_objects.begin());
+                std::string instance_copy = std::to_string(
+                    instance_to_print.instance_id);
+                std::string instance_full_id = instance_clean_name + "_id_" +
+                                               instance_id + "_copy_" +
+                                               instance_copy;
 
                 m_layer = layer_to_print.layer();
                 m_object_layer_over_raft = object_layer_over_raft;
@@ -3525,7 +3520,7 @@ LayerResult GCode::process_layer(
                 //print object label to help the printer firmware know where it is (for removing the objects)
                 m_gcode_label_objects_start = "";
                 if (this->config().gcode_label_objects) {
-                    m_gcode_label_objects_start +=
+                    m_gcode_label_objects_start =
                         std::string("; printing object ") +
                         instance_to_print.print_object.model_object()->name +
                         " id:" + instance_id + " copy " + instance_copy +
@@ -3616,6 +3611,8 @@ LayerResult GCode::process_layer(
                     this->set_origin(unscale(offset));
                 }
                 //FIXME order islands?
+                std::string temp_perimeters;
+                std::string temp_infill;
                 // Sequential tool path ordering of multiple parts within the same object, aka. perimeter tracking (#5511)
                 for (ObjectByExtruder::Island &island : instance_to_print.object_by_extruder.islands) {
                     const std::vector<ObjectByExtruder::Island::Region>& by_region_specific =
@@ -5013,8 +5010,7 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
                     Polygon &poly = polys.front();
                     for (int i = 1; i < poly.points.size(); ++i)
                         assert(!poly.points[i - 1].coincides_with_epsilon(poly.points[i]));
-                    if (poly.is_clockwise() ^ original_polygon.is_clockwise())
-                        poly.reverse();
+
                     for (size_t pt_idx = 0; pt_idx < poly.size(); pt_idx++) {
                         if (poly.points[pt_idx].distance_to_square(pt_inside) < best_sqr_dist) {
                             best_sqr_dist = poly.points[pt_idx].distance_to_square(pt_inside);
@@ -5023,8 +5019,7 @@ std::string GCode::extrude_loop(const ExtrusionLoop &original_loop, const std::s
                     }
                     if (best_sqr_dist == max_sqr_dist) {
                         // fail to find nearest point, try to find an edge
-                        if (poly.is_clockwise() ^ original_polygon.is_clockwise())
-                            poly.reverse();
+
                         poly.points.push_back(poly.points.front());
                         for (size_t pt_idx = 0; pt_idx < poly.points.size() - 1; pt_idx++) {
                             if (Line{poly.points[pt_idx], poly.points[pt_idx + 1]}.distance_to_squared(pt_inside) <
@@ -5742,6 +5737,9 @@ double_t GCode::_compute_speed_mm_per_sec(const ExtrusionPath &path, double spee
         } else if (path.role() == erBridgeInfill) {
             speed = m_config.get_computed_value("bridge_speed");
             if(comment) *comment = "bridge_speed";
+        } else if (path.role() == erOverhangInfill) {
+            speed = m_config.get_computed_value("overhangs_speed");
+            if(comment) *comment = "overhangs_speed";
         } else if (path.role() == erInternalBridgeInfill) {
             speed = m_config.get_computed_value("internal_bridge_speed");
             if(comment) *comment = "internal_bridge_speed";
@@ -5821,6 +5819,9 @@ double_t GCode::_compute_speed_mm_per_sec(const ExtrusionPath &path, double spee
         } else if (path.role() == erBridgeInfill) {
             speed = m_config.bridge_speed.get_abs_value(vol_speed);
             if(comment) *comment = std::string("bridge_speed ") + *comment;
+        } else if (path.role() == erOverhangInfill) {
+            speed = m_config.overhangs_speed.get_abs_value(vol_speed);
+            if(comment) *comment = std::string("overhangs_speed ") + *comment;
         } else if (path.role() == erInternalBridgeInfill) {
             speed = m_config.internal_bridge_speed.get_abs_value(vol_speed);
             if(comment) *comment = std::string("internal_bridge_speed ") + *comment;
@@ -6058,6 +6059,15 @@ std::string GCode::_before_extrude(const ExtrusionPath &path, const std::string 
                 goto supportMaterial;
             case erBridgeInfill:
             bridgeInfill:
+                if (m_config.bridge_acceleration.value > 0) {
+                    double bridge_acceleration = m_config.get_computed_value("bridge_acceleration");
+                    if (bridge_acceleration > 0)
+                        acceleration = bridge_acceleration;
+                }
+                break;
+
+            case erOverhangInfill:
+            OverhangInfill:
                 if (m_config.bridge_acceleration.value > 0) {
                     double bridge_acceleration = m_config.get_computed_value("bridge_acceleration");
                     if (bridge_acceleration > 0)
@@ -6304,14 +6314,22 @@ std::string GCode::_before_extrude(const ExtrusionPath &path, const std::string 
             + float_to_string_decimal_point(m_last_height) + "\n";
     }
 
-    std::string comment;
-    assert(path.role() > ExtrusionRole::erNone);
-    assert(path.role() < ExtrusionRole::erCount);
+   std::string comment;
     if (m_enable_cooling_markers) {
-        // Send the current extrusion type to Coolingbuffer
-        gcode += ";_EXTRUDETYPE_"; gcode += char('A' + path.role()); gcode += "\n";
-        // comment to be on the same line as the speed command.
-        comment = GCode::_cooldown_marker_speed[path.role()];
+        if(path.role() == erInternalBridgeInfill)
+            gcode += ";_BRIDGE_INTERNAL_FAN_START\n";
+        else if (is_bridge(path.role()))
+            gcode += ";_BRIDGE_FAN_START\n";
+        else if (ExtrusionRole::erTopSolidInfill == path.role())
+            gcode += ";_TOP_FAN_START\n";
+        else if (ExtrusionRole::erSupportMaterialInterface == path.role())
+            gcode += ";_SUPP_INTER_FAN_START\n";
+        else
+            comment = ";_EXTRUDE_SET_SPEED";
+        if (path.role() == erExternalPerimeter)
+            comment += ";_EXTERNAL_PERIMETER";
+        if (path.role() == erThinWall)
+            comment += ";_EXTERNAL_PERIMETER";
     }
     // F     is mm per minute.
     // speed is mm per second
@@ -6320,11 +6338,18 @@ std::string GCode::_before_extrude(const ExtrusionPath &path, const std::string 
     return gcode;
 }
 std::string GCode::_after_extrude(const ExtrusionPath &path) {
-    std::string gcode;
-    if (m_enable_cooling_markers) {
-        // Notify Coolingbuffer that the current extrusion end.
-        gcode += ";_EXTRUDE_END\n";
-    }
+ std::string gcode;
+    if (m_enable_cooling_markers)
+        if (path.role() == erInternalBridgeInfill)
+            gcode += ";_BRIDGE_INTERNAL_FAN_END\n";
+        else if (is_bridge(path.role()))
+            gcode += ";_BRIDGE_FAN_END\n";
+        else if (ExtrusionRole::erTopSolidInfill == path.role())
+            gcode += ";_TOP_FAN_END\n";
+        else if (ExtrusionRole::erSupportMaterialInterface == path.role())
+            gcode += ";_SUPP_INTER_FAN_END\n";
+        else
+            gcode += ";_EXTRUDE_END\n";
 
     if (path.role() != ExtrusionRole::erGapFill ) {
         m_last_notgapfill_extrusion_role = path.role();
@@ -6950,6 +6975,8 @@ GCode::extrusion_role_to_string_for_parser(const ExtrusionRole & role) {
     case erBridgeInfill:
     case erInternalBridgeInfill:
         return "BridgeInfill";
+    case erOverhangInfill:
+        return "OverhangInfill";
     case erThinWall:
         return "ThinWall";
     case erGapFill:

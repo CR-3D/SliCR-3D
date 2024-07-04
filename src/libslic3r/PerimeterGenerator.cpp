@@ -775,7 +775,7 @@ void PerimeterGenerator::process()
             }
         }
 
-        if ((layer->id() == 0 && this->config->only_one_perimeter_first_layer) || (this->config->only_one_perimeter_top && loop_number > 0 && this->upper_slices == NULL)) {
+        if ((layer->id() == 0 && this->config->only_one_perimeter_first_layer) || (layer->id() == 0 && this->config->only_one_perimeter_overhang) || (this->config->only_one_perimeter_top && loop_number > 0 && this->upper_slices == NULL)) {
             loop_number = 0;
         }
 
@@ -1152,7 +1152,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(int& loop_number, const
                     BridgeDetector detector{ unsupported,
                         lower_island.expolygons,
                         perimeter_spacing };
-                    if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value)))
+                    if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value), this->config))
                         expolygons_append(bridgeable, union_ex(detector.coverage(-1, true)));
                 }
                 if (!bridgeable.empty()) {
@@ -1180,7 +1180,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(int& loop_number, const
 
             if (offset_ex(overhangs, -offset / 2.).size() > 0) {
                 //allow this loop to be printed in reverse
-                has_steep_overhang = true;
+                //has_steep_overhang = true;
             }
         }
 
@@ -1492,12 +1492,125 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(int& loop_number, const
             for(ExPolygon& exp : next_onion)
                 exp.simplify((resolution < SCALED_EPSILON ? SCALED_EPSILON : resolution), &last);
 
-            // store surface for top infill if only_one_perimeter_top
+            //store surface for top infill if only_one_perimeter_top
             if (perimeter_idx == 0 && (config->only_one_perimeter_top && this->upper_slices != NULL)) {
-                ExPolygons next;
-                split_top_surfaces(this->lower_slices, this->upper_slices, last, results.top_fills, next,
-                                   results.fill_clip);
-                last = next;
+                if (this->config->only_one_perimeter_top_other_algo) {
+                    //split the polygons with top/not_top
+                    //get the offset from solid surface anchor
+                    coord_t offset_top_surface = scale_(config->external_infill_margin.get_abs_value(
+                        config->perimeters.value == 0 ? 0. : unscaled(double(ext_perimeter_width + perimeter_spacing * int(int(config->perimeters.value) - int(1))))));
+                    // if possible, try to not push the extra perimeters inside the sparse infill
+                    if (offset_top_surface > 0.9 * (config->perimeters.value <= 1 ? 0. : (perimeter_spacing * (config->perimeters.value - 1))))
+                        offset_top_surface -= coord_t(0.9 * (config->perimeters.value <= 1 ? 0. : (perimeter_spacing * (config->perimeters.value - 1))));
+                    else offset_top_surface = 0;
+                    //don't takes into account too thin areas
+                    double min_width_top_surface = std::max(double(ext_perimeter_spacing / 2 + 10), scale_d(this->config->min_width_top_surface.get_abs_value(unscaled(perimeter_width))));
+                    //make thin upper surfaces disapear with -+offset_top_surface
+                    ExPolygons grown_upper_slices;
+                    //do offset2 per island, to avoid big blob merging
+                    //remove polygon too thin (but don't mess with holes)
+                    for (const ExPolygon& expoly_to_grow : *this->upper_slices) {
+                        //only offset the contour, as it can merge holes
+                        Polygons contour = offset2(ExPolygons{ ExPolygon{expoly_to_grow.contour} }, -offset_top_surface, offset_top_surface + min_width_top_surface + (this->mill_extra_size > SCALED_EPSILON ? (double)mill_extra_size : 0));
+                        if (!contour.empty()) {
+                            if (expoly_to_grow.holes.empty()) {
+                                for (Polygon& p : contour)
+                                    grown_upper_slices.push_back(ExPolygon{ p });
+                            } else {
+                                Polygons holes = expoly_to_grow.holes;
+                                for (Polygon& h : holes)
+                                    h.reverse();
+                                holes = offset(holes, -min_width_top_surface - ((this->mill_extra_size > SCALED_EPSILON) ? (double)mill_extra_size : 0));
+                                for (ExPolygon p : diff_ex(contour, holes))
+                                    grown_upper_slices.push_back(p);
+                            }
+                        }
+                    }
+                    grown_upper_slices = union_ex(grown_upper_slices);
+                    //set the clip to a virtual "second perimeter"
+                    results.fill_clip = offset_ex(last, -double(ext_perimeter_spacing));
+                    auto fill_clip_old = results.fill_clip;
+                    // get the real top surface
+                    const ExPolygons top_grown_polygons = (!(this->mill_extra_size > SCALED_EPSILON))
+                        ? diff_ex(last, grown_upper_slices, ApplySafetyOffset::Yes)
+                        : (unmillable.empty())
+                            ? diff_ex(last, grown_upper_slices, ApplySafetyOffset::Yes)
+                            : diff_ex(last, diff_ex(grown_upper_slices, unmillable, ApplySafetyOffset::Yes));
+
+                    //get the not-top surface, from the "real top" but enlarged by external_infill_margin (and the min_width_top_surface we removed a bit before)
+                    const ExPolygons inner_polygons = diff_ex(last,
+                        offset_ex(top_grown_polygons, offset_top_surface + min_width_top_surface
+                            //also remove the ext_perimeter_spacing/2 width because we are faking the external periemter, and we will remove ext_perimeter_spacing2
+                            - double(ext_perimeter_spacing / 2)), ApplySafetyOffset::Yes);
+                    // get the enlarged top surface, by using inner_polygons instead of upper_slices, and clip it for it to be exactly the polygons to fill.
+                    const ExPolygons top_polygons = diff_ex(results.fill_clip, inner_polygons, ApplySafetyOffset::Yes);
+                    // increase by half peri the inner space to fill the frontier between last and stored.
+                    results.top_fills = union_ex(results.top_fills, top_polygons);
+                    //set the clip to the external wall but go back inside by infill_extrusion_width/2 to be sure the extrusion won't go outside even with a 100% overlap.
+                    double infill_spacing_unscaled = this->config->infill_extrusion_width.get_abs_value(this->solid_infill_flow.nozzle_diameter());
+                    if (infill_spacing_unscaled == 0) infill_spacing_unscaled = Flow::auto_extrusion_width(frInfill, this->solid_infill_flow.nozzle_diameter());
+                    results.fill_clip = offset_ex(last, double(ext_perimeter_spacing / 2) - scale_d(infill_spacing_unscaled / 2));
+                    last = intersection_ex(inner_polygons, last);
+                    //{
+                    //    static int isazfn = 0;
+                    //    std::stringstream stri;
+                    //    stri << this->layer->id() << "_" << perimeter_idx << "_"<< isazfn++ <<"_only_one_peri"<< ".svg";
+                    //    SVG svg(stri.str());
+                    //    svg.draw(to_polylines(oldLast), "orange");
+                    //    svg.draw(to_polylines(fill_clip), "purple");
+                    //    svg.draw(to_polylines(inner_polygons), "yellow");
+                    //    svg.draw(to_polylines(top_polygons), "cyan");
+                    //    svg.draw(to_polylines(last), "red");
+                    //    svg.draw(to_polylines(fill_clip_old), "green");
+                    //    svg.Close();
+                    //}
+                } else {
+
+                    //split the polygons with top/not_top
+                    //get the offset from solid surface anchor
+                    coord_t offset_top_surface = scale_(config->external_infill_margin.get_abs_value(
+                        config->perimeters.value == 0 ? 0. : unscaled(double(ext_perimeter_width + perimeter_spacing * int(int(config->perimeters.value) - int(1))))));
+                    // if possible, try to not push the extra perimeters inside the sparse infill
+                    if (offset_top_surface > 0.9 * (config->perimeters.value <= 1 ? 0. : (perimeter_spacing * (config->perimeters.value - 1))))
+                        offset_top_surface -= coord_t(0.9 * (config->perimeters.value <= 1 ? 0. : (perimeter_spacing * (config->perimeters.value - 1))));
+                    else offset_top_surface = 0;
+                    //don't takes into account too thin areas
+                    double min_width_top_surface = std::max(double(ext_perimeter_spacing / 2 + 10), scale_d(this->config->min_width_top_surface.get_abs_value(unscaled(perimeter_width))));
+                    ExPolygons grown_upper_slices = offset_ex(*this->upper_slices, min_width_top_surface);
+                    //set the clip to a virtual "second perimeter"
+                    results.fill_clip = offset_ex(last, -double(ext_perimeter_spacing));
+                    // get the real top surface
+                    ExPolygons top_polygons = (!(this->mill_extra_size > SCALED_EPSILON))
+                        ? diff_ex(last, grown_upper_slices, ApplySafetyOffset::Yes)
+                        : (unmillable.empty())
+                            ? diff_ex(last, offset_ex(grown_upper_slices, (double)mill_extra_size), ApplySafetyOffset::Yes)
+                            : diff_ex(last, diff_ex(offset_ex(grown_upper_slices, (double)mill_extra_size), unmillable, ApplySafetyOffset::Yes));
+
+
+                    //get the not-top surface, from the "real top" but enlarged by external_infill_margin (and the min_width_top_surface we removed a bit before)
+                    ExPolygons inner_polygons = diff_ex(last, offset_ex(top_polygons, offset_top_surface + min_width_top_surface
+                        //also remove the ext_perimeter_spacing/2 width because we are faking the external perimeter, and we will remove ext_perimeter_spacing2
+                        - double(ext_perimeter_spacing / 2)), ApplySafetyOffset::Yes);
+                    // get the enlarged top surface, by using inner_polygons instead of upper_slices, and clip it for it to be exactly the polygons to fill.
+                    top_polygons = diff_ex(results.fill_clip, inner_polygons, ApplySafetyOffset::Yes);
+                    // increase by half peri the inner space to fill the frontier between last and stored.
+                    results.top_fills = union_ex(results.top_fills, top_polygons);
+                    //set the clip to the external wall but go back inside by infill_extrusion_width/2 to be sure the extrusion won't go outside even with a 100% overlap.
+                    results.fill_clip = offset_ex(last, double(ext_perimeter_spacing / 2) - this->config->infill_extrusion_width.get_abs_value(this->solid_infill_flow.nozzle_diameter()) / 2);
+                    //ExPolygons oldLast = last;
+                    last = intersection_ex(inner_polygons, last);
+                    //{
+                    //    std::stringstream stri;
+                    //    stri << this->layer->id() << "_1_"<< perimeter_idx <<"_only_one_peri"<< ".svg";
+                    //    SVG svg(stri.str());
+                    //    svg.draw(to_polylines(top_fills), "green");
+                    //    svg.draw(to_polylines(inner_polygons), "yellow");
+                    //    svg.draw(to_polylines(top_polygons), "cyan");
+                    //    svg.draw(to_polylines(oldLast), "orange");
+                    //    svg.draw(to_polylines(last), "red");
+                    //    svg.Close();
+                    //}
+                }
             }
         }
 

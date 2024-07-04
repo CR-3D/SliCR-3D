@@ -84,7 +84,6 @@ group:label_width$12:Overhangs
 
 	setting:overhangs_speed_enforce
 
-
 	line:Extrusion direction
 		setting:sidetext_width$2:overhangs_reverse
 		setting:label_width$12:width$5:overhangs_reverse_threshold
@@ -237,7 +236,11 @@ group:title_width$0:Infill
 		setting:label_left:label_width$20:label$Bridge:bridge_fill_pattern
 		setting:label$_:width$18:infill_connection_bridge
 	end_line
-
+	line:_
+		#setting:label_left:label_width$20:label$Overhang:overhang_fill_pattern
+		setting:label$_:width$18:infill_connection_overhang
+	end_line
+	
 group:Reducing printing time
 	setting:infill_only_where_needed
 	
@@ -321,6 +324,12 @@ group:Support material
 	setting:tags$Advanced$Expert$Prusa:support_material_auto
 	setting:support_material_threshold
 	setting:support_material_enforce_layers
+
+group:Overhangs
+	line:Overhang limit
+		setting:label$Max distance:overhang_distance
+	end_line
+	setting:label$Overhang infill first:overhang_infill_first
 
 group:Raft
 

@@ -62,6 +62,7 @@ enum ExtrusionRole : uint8_t {
     erTopSolidInfill,
     erIroning,
     erBridgeInfill,
+    erOverhangInfill,
     erInternalBridgeInfill,
     erThinWall,
     erGapFill,
@@ -99,25 +100,44 @@ enum ExtrusionLoopRole : uint16_t {
 
 inline bool is_perimeter(ExtrusionRole role)
 {
-    return role == erPerimeter || role == erExternalPerimeter || role == erThinWall || role == erOverhangPerimeter;
+    return role == erPerimeter
+        || role == erExternalPerimeter
+        || role == erThinWall
+        || role == erOverhangPerimeter;
 }
 
 inline bool is_infill(ExtrusionRole role)
 {
-    return role == erBridgeInfill || role == erInternalBridgeInfill || role == erInternalInfill ||
-           role == erSolidInfill || role == erTopSolidInfill || role == erIroning;
+    return role == erBridgeInfill
+        || role == erOverhangInfill
+        || role == erInternalBridgeInfill
+        || role == erInternalInfill
+        || role == erSolidInfill
+        || role == erTopSolidInfill
+        || role == erIroning;
 }
 
 inline bool is_solid_infill(ExtrusionRole role)
 {
-    return role == erBridgeInfill || role == erInternalBridgeInfill || role == erSolidInfill ||
-           role == erTopSolidInfill || role == erIroning;
+    return role == erBridgeInfill
+        || role == erOverhangInfill
+        || role == erInternalBridgeInfill
+        || role == erSolidInfill
+        || role == erTopSolidInfill
+        || role == erIroning;
 }
 
 inline bool is_bridge(ExtrusionRole role)
 {
-    return role == erBridgeInfill || role == erInternalBridgeInfill || role == erOverhangPerimeter;
+    return role == erBridgeInfill
+        || role == erOverhangInfill
+        || role == erInternalBridgeInfill
+        || role == erOverhangPerimeter;
 }
+
+inline bool is_overhang(ExtrusionRole role){
+    return role == erOverhangInfill;
+}  
 
 class ExtrusionEntity;
 class ExtrusionPath;

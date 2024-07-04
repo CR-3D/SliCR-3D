@@ -135,11 +135,12 @@ static Polylines makeGrid(coord_t z, coord_t gridSize, size_t gridWidth, size_t 
 }
 
 void Fill3DHoneycomb::_fill_surface_single(
-    const FillParams                &params, 
+    const FillParams                 &params, 
     unsigned int                     thickness_layers,
-    const std::pair<float, Point>   &direction, 
+    const std::pair<float, Point>    &direction, 
+    const Polyline		             pedestal,
     ExPolygon                        expolygon,
-    Polylines                       &polylines_out) const
+    Polylines                        &polylines_out) const
 {
     // no rotation is supported for this infill pattern
     BoundingBox bb = expolygon.contour.bounding_box();

@@ -184,6 +184,8 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 const PrintRegionConfig &region_config = layerm.region().config();
                 FlowRole extrusion_role = surface.has_pos_top() ? frTopSolidInfill : (surface.has_fill_solid() ? frSolidInfill : frInfill);
                 bool     is_bridge      = layer.id() > 0 && surface.has_mod_bridge();
+                bool     is_overhang      = layer.id() > 0 && layerm.is_overhang;
+
                 bool     is_denser      = false;
                 params.extruder         = layerm.region().extruder(extrusion_role, *layer.object());
                 params.pattern          = region_config.fill_pattern.value;
@@ -192,7 +194,18 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 params.connection       = region_config.infill_connection.value;
                 params.priority         = 0;
 
-                if (surface.has_fill_solid()) {
+
+                   if (is_overhang && surface.has_pos_bottom()) {
+                        params.pattern = region_config.overhang_fill_pattern.value;
+                        params.connection = region_config.infill_connection_overhang.value;
+                        params.bridge_type = region_config.bridge_type.value;
+			            params.density = 1.f;
+                    }else if (is_bridge && surface.has_pos_bottom()) {
+                        params.pattern = region_config.bridge_fill_pattern.value;
+                        params.connection = region_config.infill_connection_bridge.value;
+                        params.bridge_type = region_config.bridge_type.value;
+                        params.density = 1.f;
+                } else if (surface.has_fill_solid()) {
                     params.density = 1.f;
                     params.pattern = ipRectilinear;
                     params.connection = region_config.infill_connection_solid.value;
@@ -201,12 +214,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                     }
                     if (surface.has_pos_bottom()) {
                         params.connection = region_config.infill_connection_bottom.value;
-                    }
-                    //FIXME for non-thick bridges, shall we allow a bottom surface pattern?
-                    if (is_bridge) {
-                        params.pattern = region_config.bridge_fill_pattern.value;
-                        params.connection = region_config.infill_connection_bridge.value;
-                        params.bridge_type = region_config.bridge_type.value;
+
                     }
                     if (surface.has_pos_external() && !is_bridge) {
                         params.pattern = surface.has_pos_top() ? region_config.top_fill_pattern.value : region_config.bottom_fill_pattern.value;
@@ -214,20 +222,16 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         params.pattern = region_config.solid_fill_pattern.value;
                     }
                 } else {
-                    if (is_bridge) {
-                        params.pattern = region_config.bridge_fill_pattern.value;
-                        params.connection = region_config.infill_connection_bridge.value;
-                    }
                     if (region_config.infill_dense.get_bool()
                         && region_config.fill_density < 40
                         && surface.maxNbSolidLayersOnTop == 1) {
                         params.density = 0.42f;
                         is_denser = true;
                         is_bridge = true;
-                        params.pattern = ipRectiWithPerimeter;
+                        params.pattern = region_config.bridge_fill_pattern.value;
                         params.priority = surface.priority;
                         params.dont_adjust = true; // keep the 42% density
-                        params.connection = InfillConnection::icConnected;
+                        params.connection = region_config.infill_connection_bridge.value;
                     }
                     if (params.density <= 0 && !is_denser)
                         continue;
@@ -239,11 +243,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
 
                 //note: same as getRoleFromSurfaceType()
                 params.role = erInternalInfill;
-                if (is_bridge) {
-                    if(surface.has_pos_bottom())
-                        params.role = erBridgeInfill;
-                    else
-                        params.role = erInternalBridgeInfill;
+                if ((is_overhang || is_bridge) && surface.has_pos_bottom()){
+                        if(is_overhang)
+                            params.role = erOverhangInfill;
+                        else
+                            params.role = erBridgeInfill;
                 } else if (surface.has_fill_solid()) {
                     if (surface.has_pos_top()) {
                         params.role = erTopSolidInfill;

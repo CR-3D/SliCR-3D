@@ -70,6 +70,11 @@ enum GCodeFlavor : uint8_t {
     gcfNoExtrusion,
 };
 
+enum ArcPosition : uint8_t {
+    apMiddle,
+    apSide
+};
+
 enum class MachineLimitsUsage : uint8_t {
     EmitToGCode,
     TimeEstimateOnly,
@@ -112,6 +117,7 @@ enum class FuzzySkinType {
 enum InfillPattern : uint8_t{
     ipRectilinear, ipAlignedRectilinear, ipGrid, ipTriangles, ipStars, ipCubic, ipLine,
     ipConcentric, ipConcentricGapFill,
+    ipArc,
     ipHoneycomb, ip3DHoneycomb,
     ipGyroid, ipHilbertCurve, ipArchimedeanChords, ipOctagramSpiral,
     ipAdaptiveCubic, ipSupportCubic, ipSupportBase,
@@ -276,6 +282,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(ForwardCompatibilitySubstitutionRule)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(CompleteObjectSort)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(WipeAlgo)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(GCodeFlavor)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(ArcPosition)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(MachineLimitsUsage)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PrintHostType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(AuthorizationType)
@@ -827,11 +834,22 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                bridge_angle))
     ((ConfigOptionEnum<InfillPattern>,  bridge_fill_pattern))
     ((ConfigOptionEnum<BridgeType>,     bridge_type))
+    ((ConfigOptionFloat,                bds_ratio_length))
+    ((ConfigOptionFloat,                bds_ratio_nr))
+    ((ConfigOptionFloat,                bds_median_length))
+    ((ConfigOptionFloat,                bds_max_length))
+    ((ConfigOptionFloat,                arc_radius))
+    ((ConfigOptionFloat,                arc_infill_raylen))
     ((ConfigOptionInt,                  bottom_solid_layers))
     ((ConfigOptionFloat,                bottom_solid_min_thickness))
     ((ConfigOptionPercent,              bridge_flow_ratio))
     ((ConfigOptionPercent,              over_bridge_flow_ratio))
     ((ConfigOptionPercent,              bridge_overlap))
+
+    ((ConfigOptionFloat,                overhang_distance))
+    ((ConfigOptionEnum<InfillPattern>,  overhang_fill_pattern))
+    ((ConfigOptionEnum<InfillConnection>,  infill_connection_overhang))
+
     ((ConfigOptionPercent,              bridge_overlap_min))
     ((ConfigOptionEnum<InfillPattern>,  bottom_fill_pattern))
     ((ConfigOptionFloatOrPercent,       bridged_infill_margin))
@@ -861,6 +879,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 only_one_perimeter_first_layer))
     ((ConfigOptionBool,                 only_one_perimeter_top))
     ((ConfigOptionBool,                 only_one_perimeter_top_other_algo))
+    ((ConfigOptionBool,                 only_one_perimeter_overhang))
+
     ((ConfigOptionBool,                 fill_aligned_z))
     ((ConfigOptionFloat,                fill_angle))
     ((ConfigOptionBool,                 fill_angle_cross))
@@ -956,6 +976,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       small_perimeter_min_length))
     ((ConfigOptionFloatOrPercent,       small_perimeter_max_length))
     ((ConfigOptionEnum<InfillPattern>,  solid_fill_pattern))
+
     ((ConfigOptionFloatOrPercent,       solid_infill_acceleration))
     ((ConfigOptionFloat,                solid_infill_below_area))
     ((ConfigOptionInt,                  solid_infill_extruder))
@@ -1097,6 +1118,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                gcode_comments))
     ((ConfigOptionString,              gcode_filename_illegal_char))
     ((ConfigOptionEnum<GCodeFlavor>,   gcode_flavor))
+    ((ConfigOptionBool,                overhang_infill_first))
+    ((ConfigOptionEnum<ArcPosition>,   arc_position))
     ((ConfigOptionBool,                gcode_label_objects))
     ((ConfigOptionInt,                 gcode_precision_xyz))
     ((ConfigOptionInt,                 gcode_precision_e))
@@ -1203,6 +1226,10 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInts,                 disable_fan_first_layers))
     ((ConfigOptionInts,                 default_fan_speed))
     ((ConfigOptionEnum<DraftShield>,    draft_shield))
+    ((ConfigOptionFloat,                bds_ratio_length))
+    ((ConfigOptionFloat,                bds_ratio_nr))
+    ((ConfigOptionFloat,                bds_median_length))
+    ((ConfigOptionFloat,                bds_max_length))
     ((ConfigOptionFloat,                duplicate_distance))
     ((ConfigOptionBool,                 enforce_retract_first_layer))
     ((ConfigOptionInts,                 external_perimeter_fan_speed))

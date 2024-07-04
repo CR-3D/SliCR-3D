@@ -331,6 +331,7 @@ std::string ExtrusionEntity::role_to_string(ExtrusionRole role)
         case erSolidInfill                  : return L("Solid infill");
         case erTopSolidInfill               : return L("Top solid infill");
         case erIroning                      : return L("Ironing");
+        case erOverhangInfill               : return L("Overhang infill");
         case erBridgeInfill                 : return L("Bridge infill");
         case erInternalBridgeInfill         : return L("Internal bridge infill");
         case erThinWall                     : return L("Thin wall");
@@ -357,7 +358,7 @@ ExtrusionRole ExtrusionEntity::string_to_role(const std::string_view role)
     else if (role == L("External perimeter"))
         return erExternalPerimeter;
     else if (role == L("Overhang perimeter"))
-        return erOverhangPerimeter;
+        return erBridgeInfill;
     else if (role == L("Internal infill"))
         return erInternalInfill;
     else if (role == L("Solid infill"))
@@ -368,6 +369,8 @@ ExtrusionRole ExtrusionEntity::string_to_role(const std::string_view role)
         return erIroning;
     else if (role == L("Bridge infill"))
         return erBridgeInfill;
+    else if (role == L("Overhang infill"))
+        return erOverhangInfill;
     else if (role == L("Internal bridge infill"))
         return erInternalBridgeInfill;
     else if (role == L("Thin wall"))

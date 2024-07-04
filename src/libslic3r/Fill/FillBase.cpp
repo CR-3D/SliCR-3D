@@ -12,6 +12,7 @@
 #include "../ExtrusionEntityCollection.hpp"
 #include "../libslic3r.h"
 
+#include "FillArc.hpp"
 #include "FillBase.hpp"
 #include "FillConcentric.hpp"
 #include "FillHoneycomb.hpp"
@@ -32,6 +33,7 @@ Fill* Fill::new_from_type(const InfillPattern type)
 {
     switch (type) {
     case ipConcentric:          return new FillConcentric();
+    case ipArc:                 return new FillArc();
     case ipConcentricGapFill:   return new FillConcentricWGapFill();
     case ipHoneycomb:           return new FillHoneycomb();
     case ip3DHoneycomb:         return new Fill3DHoneycomb();
@@ -76,9 +78,21 @@ Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) c
     Slic3r::ExPolygons expp = offset_ex(surface->expolygon, scale_d(0 - 0.5 * this->get_spacing()));
     // Create the infills for each of the regions.
     Polylines polylines_out;
-    for (ExPolygon &expoly : expp)
-        _fill_surface_single(params, surface->thickness_layers, _infill_direction(surface), std::move(expoly), polylines_out);
+    for (size_t i = 0; i < expp.size(); ++ i)
+        _fill_surface_single(
+            params,
+            surface->thickness_layers,
+            _infill_direction(surface),
+	        _infill_pedestal(surface),
+            std::move(expp[i]),
+            polylines_out);
+            
     return polylines_out;
+}
+
+Polyline Fill::_infill_pedestal(const Surface *surface) const
+{
+    return (Polyline)surface->pedestal;
 }
 
 ThickPolylines Fill::fill_surface_arachne(const Surface *surface, const FillParams &params) const
@@ -88,7 +102,7 @@ ThickPolylines Fill::fill_surface_arachne(const Surface *surface, const FillPara
     // Create the infills for each of the regions.
     ThickPolylines thick_polylines_out;
     for (ExPolygon &expoly : expp)
-        _fill_surface_single(params, surface->thickness_layers, _infill_direction(surface), std::move(expoly), thick_polylines_out);
+        _fill_surface_single(params, surface->thickness_layers, _infill_direction(surface), _infill_pedestal(surface), std::move(expoly), thick_polylines_out);
     return thick_polylines_out;
 }
 
