@@ -141,6 +141,8 @@ add_library(libslic3r STATIC
     GCode/GCodeProcessor.hpp
     GCode/AvoidCrossingPerimeters.cpp
     GCode/AvoidCrossingPerimeters.hpp
+GCode/ArcOverhang.hpp
+GCode/ArcOverhang.cpp
     GCode.cpp
     GCode.hpp
     GCodeReader.cpp
@@ -418,6 +420,16 @@ target_include_directories(libslic3r PUBLIC ${EXPAT_INCLUDE_DIRS})
 
 find_package(JPEG REQUIRED)
 
+set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+
+#/Users/steve/.pyenv/versions/3.11-dev/include/python3.11
+
+set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
+
+include_directories(${PYTHON_INCLUDE_DIR})
+set(PYTHON_MODULE_DIR ${PROJECT_SOURCE_DIR})
+include_directories(${PYTHON_MODULE_DIR})
+
 target_link_libraries(libslic3r
     libnest2d
     admesh
@@ -434,6 +446,7 @@ target_link_libraries(libslic3r
     TBB::tbb
     libslic3r_cgal
     ${CMAKE_DL_LIBS}
+    ${PYTHON_LIBRARY}
     PNG::PNG
     ZLIB::ZLIB
     JPEG::JPEG

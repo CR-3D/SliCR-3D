@@ -44,6 +44,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/CalibrationCr3dDialog.hpp
     GUI/CR3DWebView.cpp
     GUI/CR3DWebView.hpp
+    GUI/PythonScriptExecutor.cpp
+    GUI/PythonScriptExecutor.hpp
     GUI/Widgets/AxisCtrlButton.cpp
     GUI/Widgets/AxisCtrlButton.hpp
     GUI/Widgets/Button.cpp

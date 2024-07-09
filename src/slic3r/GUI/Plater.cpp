@@ -15,6 +15,12 @@
 #include <boost/log/trivial.hpp>
 #include <boost/nowide/convert.hpp>
 
+#include "PythonScriptExecutor.hpp"
+#include "libslic3r/GCode/ArcOverhang.hpp"
+#include <pybind11/include/pybind11/pybind11.h>
+#include <pybind11/include/pybind11/embed.h>
+
+
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/button.h>
@@ -1728,6 +1734,10 @@ struct Plater::priv
     std::unique_ptr<NotificationManager> notification_manager;
 
     ProjectDirtyStateManager dirty_state;
+    
+    // PostProcessing
+    ArcOverhang* m_arc_overhang;
+    PythonScriptExecutor* m_python_script_executor;
 
     BackgroundSlicingProcess    background_process;
     bool suppressed_backround_processing_update { false };
@@ -4270,6 +4280,10 @@ void Plater::priv::on_slicing_completed(wxCommandEvent & evt)
         else
             this->update_sla_scene();
     }
+    
+    ArcOverhang* arc_overhang = new ArcOverhang();
+    arc_overhang->set_script_arc_overhang("");
+    
 }
 
 void Plater::priv::on_export_began(wxCommandEvent& evt)

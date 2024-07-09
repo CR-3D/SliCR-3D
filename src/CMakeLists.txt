@@ -36,6 +36,31 @@ set(CMAKE_CXX_STANDARD 17)
     include_directories(exif/include)
     add_subdirectory(angelscript)
     # include_directories(angelscript/include)
+
+    add_subdirectory(pybind11)
+    include_directories(pybind11/include)
+
+
+    set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+
+    #/Users/steve/.pyenv/versions/3.11-dev/include/python3.11
+    
+    set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
+
+    include_directories(${PYTHON_INCLUDE_DIR})
+    set(PYTHON_MODULE_DIR ${PROJECT_SOURCE_DIR})
+    include_directories(${PYTHON_MODULE_DIR})
+    set(ENV{PYTHONPATH} $ENV{PYTHONPATH}:${PYTHON_MODULE_DIR})
+
+    find_package(pybind11 REQUIRED)
+
+    #file(GLOB_RECURSE LIBSLIC3R_SOURCES "libslic3r/*.cpp" "libslic3r/*.hpp")
+
+    file(GLOB_RECURSE LIBSLIC3R_GUI_SOURCES "slic3r/*.cpp" "slic3r/*.hpp")
+
+
+    pybind11_add_module(python_module ${LIBSLIC3R_SOURCES} ${LIBSLIC3R_GUI_SOURCES})
+
     if(WIN32)
         message(STATUS "WXWIN environment set to: $ENV{WXWIN}")
     elseif(UNIX)
@@ -152,7 +177,7 @@ if (NOT WIN32)
     set_target_properties(Slic3r PROPERTIES OUTPUT_NAME "${SLIC3R_APP_CMD}")
 endif ()
 
-target_link_libraries(Slic3r libslic3r cereal)
+target_link_libraries(Slic3r libslic3r cereal ${PYTHON_LIBRARY})
 
 if (APPLE)
 #    add_compile_options(-stdlib=libc++)
