@@ -111,7 +111,7 @@ std::pair<std::string, bool> SlicingProcessCompletedEvent::format_error_message(
 BackgroundSlicingProcess::BackgroundSlicingProcess()
 {
     boost::filesystem::path temp_path(wxStandardPaths::Get().GetTempDir().utf8_str().data());
-    temp_path /= (boost::format(".%1%.gcode") % get_current_pid()).str();
+    temp_path /= (boost::format("%1%.gcode") % get_current_pid()).str();
 	m_temp_output_path = temp_path.string();
 }
 

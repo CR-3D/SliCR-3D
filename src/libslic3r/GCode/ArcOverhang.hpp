@@ -18,7 +18,7 @@ public:
     ArcOverhang(); // Default constructor
     ~ArcOverhang();
     
-    void set_script_arc_overhang(const std::string& script_path);
+    void set_script_arc_overhang(std::string gcode);
     
 private:
     GUI::PythonScriptExecutor executor_;

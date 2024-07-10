@@ -20,6 +20,7 @@
 #include "GCode/SeamPlacer.hpp"
 #include "GCode/GCodeProcessor.hpp"
 #include "GCode/ThumbnailData.hpp"
+#include "GCode/ArcOverhang.hpp"
 
 #include <memory>
 #include <map>
@@ -483,6 +484,7 @@ private:
 
     std::unique_ptr<CoolingBuffer>      m_cooling_buffer;
     std::unique_ptr<SpiralVase>         m_spiral_vase;
+    std::unique_ptr<ArcOverhang>        m_arc_overhang;
     //to know the current spiral layer. Only for process_layer. began at 1, 0 means no spiral. Negative means disbaled spiral.
     int32_t                             m_spiral_vase_layer = 0;
     std::unique_ptr<GCodeFindReplace>   m_find_replace;

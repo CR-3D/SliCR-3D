@@ -453,6 +453,7 @@ static std::vector<std::string> s_Preset_print_options {
         "perimeters",
         "perimeters_hole",
         "spiral_vase",
+        "arc_overhang",
         "slice_closing_radius",
         "slicing_mode",
         "top_solid_layers",

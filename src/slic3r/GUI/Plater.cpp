@@ -4280,16 +4280,13 @@ void Plater::priv::on_slicing_completed(wxCommandEvent & evt)
         else
             this->update_sla_scene();
     }
-    
-    ArcOverhang* arc_overhang = new ArcOverhang();
-    arc_overhang->set_script_arc_overhang("");
-    
 }
 
 void Plater::priv::on_export_began(wxCommandEvent& evt)
 {
 	if (show_warning_dialog)
 		warnings_dialog();
+    
 }
 void Plater::priv::on_slicing_began()
 {
@@ -4536,6 +4533,7 @@ void Plater::priv::on_right_click(RBtnEvent& evt)
 void Plater::priv::on_wipetower_moved(Vec3dEvent &evt)
 {
     DynamicPrintConfig cfg;
+    
     cfg.opt<ConfigOptionFloat>("wipe_tower_x", true)->value = evt.data(0);
     cfg.opt<ConfigOptionFloat>("wipe_tower_y", true)->value = evt.data(1);
     wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->load_config(cfg);
@@ -6065,8 +6063,15 @@ void Plater::export_gcode(bool prefer_removable)
         // is_path_on_removable_drive() is called with the "true" parameter to update its internal database as the user may have shuffled the external drives
         // while the dialog was open.
         appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
-		
 	}
+    
+    const DynamicPrintConfig* print_config = wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->get_config();
+    bool arc_overhang_value = print_config->get_bool("arc_overhang");
+
+    if (arc_overhang_value) {
+        ArcOverhang* arc_overhang = new ArcOverhang();
+        arc_overhang->set_script_arc_overhang(output_path.string());
+    }
 }
 
 bool OptionForExportPlatter_can_select = true;

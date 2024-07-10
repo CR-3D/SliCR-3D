@@ -17,9 +17,10 @@ public:
     void set_script_path(const std::string& script_path);
     
     py::object run_python_script_result(
-                                        const std::string& gcode_path,
+                                        const std::string gcode_path,
                                         const char* script_name,
-                                        const char* function_name);
+                                        const char* function_name
+                                    );
     
     static py::module_ import(const char *name);
     

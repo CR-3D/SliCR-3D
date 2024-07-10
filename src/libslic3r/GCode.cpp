@@ -1004,6 +1004,7 @@ void GCode::do_export(Print* print, const char* path, GCodeProcessorResult* resu
 
     m_processor.initialize(path_tmp);
     GCodeOutputStream file(boost::nowide::fopen(path_tmp.c_str(), "wb"), m_processor, *this);
+    
     if (! file.is_open())
         throw Slic3r::RuntimeError(std::string("G-code export to ") + path + " failed.\nCannot open the file for writing.\n");
     
@@ -1055,7 +1056,7 @@ void GCode::do_export(Print* print, const char* path, GCodeProcessorResult* resu
         result->filename = path;
     }
     BOOST_LOG_TRIVIAL(debug) << "Finished processing gcode, " << log_memory_info();
-
+    
     if (rename_file(path_tmp, path)) {
         std::string err_msg = ("Failed to rename the output G-code file from " + path_tmp + " to " + path + '\n' + "Is " + path_tmp + " locked?" + '\n');
         if (copy_file(path_tmp, path, err_msg, true) != CopyFileResult::SUCCESS)
@@ -1067,10 +1068,11 @@ void GCode::do_export(Print* print, const char* path, GCodeProcessorResult* resu
     //notify gui that the gcode is ready to be drawed
     print->set_status(100, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
     print->set_status(100, L("Gcode done"), PrintBase::SlicingStatus::FlagBits::GCODE_ENDED);
-
+    
     // Write the profiler measurements to file
     PROFILE_UPDATE();
     PROFILE_OUTPUT(debug_out_path("gcode-export-profile.txt").c_str());
+    
 }
 
 // free functions called by GCode::_do_export()
@@ -1899,6 +1901,7 @@ void GCode::_do_export(Print& print_mod, GCodeOutputStream &file, ThumbnailsGene
     // adds tag for processor
     preamble_to_put_start_layer.append(";").append(GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Role)).append(ExtrusionEntity::role_to_string(erCustom)).append("\n");
 
+    
     // Write the custom start G-code
     preamble_to_put_start_layer.append(start_gcode).append("\n");
 
@@ -2204,6 +2207,8 @@ void GCode::_do_export(Print& print_mod, GCodeOutputStream &file, ThumbnailsGene
 
      this->m_throw_if_canceled();
 
+    
+    
     // Get filament stats.
     file.write(DoExport::update_print_stats_and_format_filament_stats(
         // Const inputs
@@ -2213,6 +2218,8 @@ void GCode::_do_export(Print& print_mod, GCodeOutputStream &file, ThumbnailsGene
         initial_extruder_id,
         // Modifies
         status_monitor.stats()));
+    
+    
     file.write("\n");
     file.write_format("; total filament used [g] = %.2lf\n", status_monitor.stats().total_weight);
     file.write_format("; total filament cost = %.2lf\n", status_monitor.stats().total_cost);
@@ -2232,6 +2239,7 @@ void GCode::_do_export(Print& print_mod, GCodeOutputStream &file, ThumbnailsGene
             file.write(full_config);
         file.write("; " SLIC3R_APP_NAME "_config = end\n");
     }
+    
      this->m_throw_if_canceled();
 
     //print thumbnails at the end instead of the start if requested (unless BTT / biqu thumbnail)
@@ -2250,6 +2258,7 @@ void GCode::_do_export(Print& print_mod, GCodeOutputStream &file, ThumbnailsGene
             this->m_throw_if_canceled);
     }
      this->m_throw_if_canceled();
+    
 }
 
 void GCode::_move_to_print_object(std::string& gcode_out, const Print& print, size_t finished_objects, uint16_t initial_extruder_id)
@@ -2536,6 +2545,7 @@ std::string GCode::placeholder_parser_process(const std::string &name, const std
                 default_config.set_key_value(key, new ConfigOptionInt((int)strtol(colour.substr(1, 6).c_str(), NULL, 16)));
             }
         };
+        
         if (current_extruder_id >= 0 && current_extruder_id < config().filament_colour.size()) {
             func_add_colour("filament_colour_int", config().filament_colour.get_at(current_extruder_id));
             func_add_colour("extruder_colour_int", config().extruder_colour.get_at(current_extruder_id));
@@ -3134,6 +3144,7 @@ LayerResult GCode::process_layer(
     // Check whether it is possible to apply the spiral vase logic for this layer.
     // Just a reminder: A spiral vase mode is allowed for a single object, single material print only.
     m_enable_loop_clipping = true;
+
     if (m_spiral_vase && layers.size() == 1 && support_layer == nullptr) {
         bool enable = (layer.id() > 0 || !layer.object()->has_brim()) && (layer.id() >= (size_t)print.config().skirt_height.value && ! print.has_infinite_skirt());
         if (enable) {
@@ -3806,9 +3817,10 @@ LayerResult GCode::process_layer(
         gcode = m_pressure_equalizer->process(gcode.c_str(), false);
     // printf("G-code after filter:\n%s\n", out.c_str());
 
+    if (config().
     file.write(gcode);
 #endif
-
+        
     // set area used in this layer
     double layer_area = 0;
     for (const LayerToPrint &print_layer : layers) {

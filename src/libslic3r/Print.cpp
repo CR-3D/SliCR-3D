@@ -1277,6 +1277,7 @@ void Print::process()
     m_timestamp_last_change = std::time(0);
     BOOST_LOG_TRIVIAL(info) << "Slicing process finished." << log_memory_info();
     //notify gui that the slicing/preview structs are ready to be drawed
+    
     if (something_done)
         this->set_status(60, L("Slicing done"), SlicingStatus::FlagBits::SLICING_ENDED);
 }

@@ -5298,6 +5298,13 @@ void PrintConfigDef::init_fff_params()
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
 
+    def = this->add("arc_overhang", coBool);
+    def->label = L("Arc Overhang");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("This is a testing experimental feature, it creates arc overhang infills");
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBool(false));
+    
     def = this->add("standby_temperature_delta", coInt);
     def->label = L("Temperature variation");
     def->tooltip = L("Temperature difference to be applied when an extruder is not active. "

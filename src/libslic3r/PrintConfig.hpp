@@ -1268,6 +1268,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInt,                  skirts))
     ((ConfigOptionFloats,               slowdown_below_layer_time))
     ((ConfigOptionBool,                 spiral_vase))
+    ((ConfigOptionBool,                 arc_overhang))
     ((ConfigOptionInts,                 solid_infill_fan_speed))
     ((ConfigOptionInt,                  standby_temperature_delta))
     ((ConfigOptionFloatOrPercent,       support_material_acceleration))

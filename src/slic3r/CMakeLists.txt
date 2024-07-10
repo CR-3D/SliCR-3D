@@ -356,6 +356,7 @@ set(SLIC3R_GUI_SOURCES
     Utils/MPMDv2.cpp
     Utils/MPMDv2.hpp
     Utils/MacUtils.mm
+    Scripts/slicr-3d_arc_overhang_post_processing_script.py
 )
 
 if (APPLE)
