@@ -40,19 +40,32 @@ set(CMAKE_CXX_STANDARD 17)
     add_subdirectory(pybind11)
     include_directories(pybind11/include)
 
+    if(SLIC3R_STATIC)
+    set(wxWidgets_USE_STATIC ON)
+else()
+    set(wxWidgets_USE_STATIC OFF)
+endif()
 
-    set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+    if (APPLE)
+        set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+        set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
+        #/Users/steve/.pyenv/versions/3.11-dev/include/python3.11   
+        message(STATUS "apple")
+    else ()
+        set(PYTHON_INCLUDE_DIR "C:/Users/stefa/AppData/Local/Programs/Python/Python311/include")
+        set(PYTHON_LIBRARY "C:/Users/stefa/AppData/Local/Programs/Python/Python311/libs/python311.lib")
+    endif()
 
-    #/Users/steve/.pyenv/versions/3.11-dev/include/python3.11
-    
-    set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
+    set(PYTHON_INCLUDE_DIR "C:/Users/stefa/AppData/Local/Programs/Python/Python311/include")
+    set(PYTHON_LIBRARY "C:/Users/stefa/AppData/Local/Programs/Python/Python311/libs/python311.lib")
+
+    message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
+    message(STATUS "PYTHON_LIBRARY: ${PYTHON_LIBRARY}")
 
     include_directories(${PYTHON_INCLUDE_DIR})
     set(PYTHON_MODULE_DIR ${PROJECT_SOURCE_DIR})
     include_directories(${PYTHON_MODULE_DIR})
     set(ENV{PYTHONPATH} $ENV{PYTHONPATH}:${PYTHON_MODULE_DIR})
-
-    find_package(pybind11 REQUIRED)
 
     #file(GLOB_RECURSE LIBSLIC3R_SOURCES "libslic3r/*.cpp" "libslic3r/*.hpp")
 
@@ -83,8 +96,8 @@ set(CMAKE_CXX_STANDARD 17)
             find_package(wxWidgets 3.1 REQUIRED COMPONENTS base core adv html gl aui net mediactrl webview)
 
             if (NOT wxWidgets_FOUND)
-                message(FATAL_ERROR "\nCould not find wxWidgets 3.1.\n"
-                    "Hint: On Linux you can set -DSLIC3R_WX_STABLE=1 to use wxWidgets 3.0\n")
+                message(FATAL_ERROR "\\nCould not find wxWidgets 3.1.\\n"
+                    "Hint: On Linux you can set -DSLIC3R_WX_STABLE=1 to use wxWidgets 3.0\\n")
             endif ()
         endif ()
     else ()
@@ -351,5 +364,5 @@ else ()
     install(TARGETS Slic3r RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
     # Install the symlink for gcodeviewer
-    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SLIC3R_APP_CMD} ${GCODEVIEWER_APP_CMD} WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})")
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${SLIC3R_APP_CMD} ${GCODEVIEWER_APP_CMD} WORKING_DIRECTORY \\$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})")
 endif ()

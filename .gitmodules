@@ -4,3 +4,6 @@
 [submodule "profiles"]
 	path = resources/profiles
 	url = https://github.com/CR-3D/SliCR-3D-profiles
+[submodule "pybind11"]
+	path = src/pybind11
+	url = https://github.com/pybind/pybind11

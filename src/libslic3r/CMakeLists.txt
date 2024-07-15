@@ -420,11 +420,18 @@ target_include_directories(libslic3r PUBLIC ${EXPAT_INCLUDE_DIRS})
 
 find_package(JPEG REQUIRED)
 
-set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+if (APPLE)
+    set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+    set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
+    #/Users/steve/.pyenv/versions/3.11-dev/include/python3.11   
+    message(STATUS "apple")
+else ()
+    set(PYTHON_INCLUDE_DIR "C:/Users/stefa/AppData/Local/Programs/Python/Python311/include")
+    set(PYTHON_LIBRARY "C:/Users/stefa/AppData/Local/Programs/Python/Python311/libs/python311.lib")
+endif()
 
-#/Users/steve/.pyenv/versions/3.11-dev/include/python3.11
-
-set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
+set(PYTHON_INCLUDE_DIR "C:/Users/stefa/AppData/Local/Programs/Python/Python311/include")
+set(PYTHON_LIBRARY "C:/Users/stefa/AppData/Local/Programs/Python/Python311/libs/python311.lib")
 
 include_directories(${PYTHON_INCLUDE_DIR})
 set(PYTHON_MODULE_DIR ${PROJECT_SOURCE_DIR})

@@ -1,6 +1,6 @@
 #include <iostream>
-#include "pybind11/pybind11.h"
-#include "pybind11/embed.h"
+#include <pybind11/include/pybind11/pybind11.h>
+#include <pybind11/include/pybind11/embed.h>
 #include "../libslic3r/GCode/ArcOverhang.hpp"
 #include "PythonScriptExecutor.hpp"
 #include <boost/filesystem.hpp>
@@ -48,7 +48,7 @@ py::object PythonScriptExecutor::run_python_script_result(
         py::module sys = py::module::import("sys");
         py::list path = sys.attr("path");
 
-        std::string script_dir = "/Users/steve/Documents/CR3D/SliCR-3D/src/slic3r/Scripts";
+        std::string script_dir = "C:\\CR3D\\SliCR-3D\\src\\slic3r\\Scripts";
         path.append(script_dir);
 
         std::cout << "Script directory added to sys.path: " << script_dir << std::endl;

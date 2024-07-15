@@ -19,7 +19,8 @@ ArcOverhang::~ArcOverhang() {
 void ArcOverhang::set_script_arc_overhang(std::string gcode) {
     
     //TODO: Make it dynamic
-    executor_.set_script_path("/Users/steve/Documents/CR3D/SliCR-3D/src/slic3r/Scripts/slicr-3d_arc_overhang_post_processing_script.py");
+    executor_.set_script_path("C:/CR3D/SliCR-3D/src/slic3r/Scripts");
+
    /* py::object PythonScriptExecutor::run_python_script_result(
                                                               const std::string& gcode_path,
                                                               const char* script_name,

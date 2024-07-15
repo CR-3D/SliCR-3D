@@ -244,6 +244,11 @@ group:title_width$0:Infill
 		setting:label$_:width$18:infill_connection_bridge
 	end_line
 
+group: Arc Overhang (Experimental)
+	line:Use Arc Overhang
+		setting:label$Use Arc Overhang:arc_overhang
+	end_line
+
 group:Reducing printing time
 	setting:infill_only_where_needed
 	
