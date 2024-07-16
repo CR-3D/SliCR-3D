@@ -48,8 +48,7 @@ def makeFullSettingDict(gCodeSettingDict: dict) -> dict:
         "CheckForAllowedSpace": False,  # use the following x&y filter or not
         "AllowedSpaceForArcs": Polygon([[0, 0], [500, 0], [500, 500], [0, 500]]),
         # have control in which areas Arcs shall be generated
-        "ArcCenterOffset": 2,
-        # Unit:mm, prevents very small Arcs by hiding the center in not printed section. Make 0 to get into tricky spots with smaller arcs.
+        "ArcCenterOffset": 0,  # Unit:mm, prevents very small Arcs by hiding the center in not printed section. Make 0 to get into tricky spots with smaller arcs.
         "ArcMinPrintSpeed": 0.5 * 60,  # Unit:mm/min
         "ArcPrintSpeed": 1.5 * 60,  # Unit:mm/min
         # "ArcPrintTemp":gCodeSettingDict.get("temperature"), # unit: Celsius
@@ -65,9 +64,9 @@ def makeFullSettingDict(gCodeSettingDict: dict) -> dict:
         "TimeLapseEveryNArcs": 5,  # deactivate with 0, inserts M240 after N ArcLines, 5 is a good value to start.
 
         # Special cooling to prevent warping:
-        "aboveArcsFanSpeed": 25,  # 0->255, 255=100%
-        "aboveArcsInfillPrintSpeed": 25 * 60,  # Unit :mm/min
-        "aboveArcsPerimeterFanSpeed": 25,  # 0->255, 255=100%
+        "aboveArcsFanSpeed": 60,  # 0->255, 255=100%
+        "aboveArcsInfillPrintSpeed": 10 * 60,  # Unit :mm/min
+        "aboveArcsPerimeterFanSpeed": 60,  # 0->255, 255=100%
         "aboveArcsPerimeterPrintSpeed": 3 * 60,  # Unit: mm/min
         "applyAboveFanSpeedToWholeLayer": True,
         "CoolingSettingDetectionDistance": 5,
@@ -76,7 +75,7 @@ def makeFullSettingDict(gCodeSettingDict: dict) -> dict:
 
         # advanced Settings, you should not need to touch these.
         "ArcExtrusionMultiplier": 1.35,
-        "ArcSlowDownBelowThisDuration": 3,  # Arc Time below this Duration =>slow down, Unit: sec
+        "ArcSlowDownBelowThisDuration": 4,  # Arc Time below this Duration =>slow down, Unit: sec
         "ArcWidth": gCodeSettingDict.get("nozzle_diameter") * 0.95,
         # change the spacing between the arcs,should be nozzle_diameter
         "ArcFanSpeed": 255,  # cooling to full blast=255

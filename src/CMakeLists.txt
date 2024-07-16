@@ -56,8 +56,8 @@ endif()
         set(PYTHON_LIBRARY "C:/Users/stefa/AppData/Local/Programs/Python/Python311/libs/python311.lib")
     endif()
 
-    set(PYTHON_INCLUDE_DIR "C:/Users/stefa/AppData/Local/Programs/Python/Python311/include")
-    set(PYTHON_LIBRARY "C:/Users/stefa/AppData/Local/Programs/Python/Python311/libs/python311.lib")
+    set(PYTHON_INCLUDE_DIR "/Users/steve/.pyenv/versions/3.11-dev/include/python3.11")
+    set(PYTHON_LIBRARY "/Users/steve/.pyenv/versions/3.11-dev/lib/libpython3.11.dylib")
 
     message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
     message(STATUS "PYTHON_LIBRARY: ${PYTHON_LIBRARY}")
