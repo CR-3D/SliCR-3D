@@ -2050,6 +2050,7 @@ struct Plater::priv
     void reload_all_from_disk();
     void set_current_panel(wxTitledPanel *panel);
 
+    void on_support_selected(std::string filament_name, int idx_selected);
     void on_select_preset(wxCommandEvent &);
     void on_physical_printer_selected(wxCommandEvent &);
     void on_slicing_update(SlicingStatusEvent &);
@@ -4219,6 +4220,30 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
     }
 }
 
+void Plater::priv::on_support_selected(std::string filament_name, int idx_selected) {
+
+    Tab* tab_print = wxGetApp().get_tab(Preset::TYPE_FFF_PRINT);
+    DynamicPrintConfig* new_conf = tab_print->get_config();
+    DynamicPrintConfig print_config = wxGetApp().preset_bundle->fff_prints.get_selected_preset().config;
+    
+    if (filament_name == "Support VXL90" && idx_selected == 1) {
+        // Set specific values in the new configuration
+        new_conf->set_key_value("support_material", new ConfigOptionBool(true));
+        new_conf->set_key_value("support_material_contact_distance_type", new ConfigOptionEnum<SupportZDistanceType>(zdNone));
+        new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
+        new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
+        new_conf->set_key_value("draft_shield", new ConfigOptionEnum<DraftShield>(dsEnabled));
+        
+        tab_print->load_config(*new_conf);
+        tab_print->update_dirty();
+        tab_print->reload_config();
+        return;
+    }
+
+    tab_print->load_config(print_config);
+    tab_print->reload_config();
+}
+
 void Plater::priv::on_select_preset(wxCommandEvent &evt)
 {
     PlaterPresetComboBox *combo       = static_cast<PlaterPresetComboBox *>(evt.GetEventObject());
@@ -4246,6 +4271,7 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
 
     if (preset_type == Preset::TYPE_FFF_FILAMENT) {
         wxGetApp().preset_bundle->set_filament_preset(idx, preset_name);
+        this->on_support_selected(preset_name, idx);
     }
 
     bool select_preset = !combo->selection_is_changed_according_to_physical_printers();
@@ -4268,8 +4294,6 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
     if (wxGetApp().preset_bundle->physical_printers.get_selected_printer_config()) {
         DynamicPrintConfig *selected_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
         q->set_physical_printer_config(selected_printer_config);
-    } else {
-        std::cout << "No Physical Printer Config was found.";
     }
     
 
