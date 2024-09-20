@@ -809,7 +809,8 @@ void GUI_App::post_init()
             if (this->preset_updater->version_check_enabled() && ! run_updater_win())
                 // "prusaslicer-updater.exe" was not started, run our own update check.
         #endif // _WIN32
-                this->preset_updater->slic3r_update_notify();
+
+                
         });
     }
 
@@ -1324,11 +1325,6 @@ bool GUI_App::on_init_inner()
           Bind(EVT_SLIC3R_APP_OPEN_FAILED, [](const wxCommandEvent& evt) {
               show_error(nullptr, evt.GetString());
           });
-
-          Bind(EVT_CONFIG_UPDATER_SYNC_DONE, [this](const wxCommandEvent& evt) {
-              this->check_updates(false);
-          });
-
       }
       else {
   #ifdef __WXMSW__
@@ -3433,36 +3429,29 @@ bool GUI_App::config_wizard_startup()
     return false;
 }
 
-bool GUI_App::check_updates(const bool verbose)
-{	
-	PresetUpdater::UpdateResult updater_result;
-	try {
-		updater_result = preset_updater->config_update(app_config->orig_version(), verbose ? PresetUpdater::UpdateParams::SHOW_TEXT_BOX : PresetUpdater::UpdateParams::SHOW_NOTIFICATION);
 
-
-        std::cout << "Current Version"
-                  << app_config->orig_version();
-        std::cout << "Online Version"
-                  << app_config->version_check_url();
-
-		if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
-			mainframe->Close();
-            // Applicaiton is closing.
-            return false;
-		}
-		else if (updater_result == PresetUpdater::R_INCOMPAT_CONFIGURED) {
-            m_app_conf_exists = true;
-		}
-		else if (verbose && updater_result == PresetUpdater::R_NOOP) {
-			MsgNoUpdates dlg;
-			dlg.ShowModal();
-		}
-	} catch (const std::exception &ex) {
-		show_error(nullptr, ex.what());
-	}
-    // Applicaiton will continue.
-    return true;
-}
+bool GUI_App::check_updates(const bool verbose) {
+     PresetUpdater::UpdateResult updater_result;
+     try {
+         updater_result = preset_updater->config_update(app_config->orig_version(), verbose ? PresetUpdater::UpdateParams::SHOW_TEXT_BOX : PresetUpdater::UpdateParams::SHOW_NOTIFICATION);
+         if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
+             mainframe->Close();
+             // Applicaiton is closing.
+             return false;
+         }
+         else if (updater_result == PresetUpdater::R_INCOMPAT_CONFIGURED) {
+             m_app_conf_exists = true;
+         }
+         else if (verbose && updater_result == PresetUpdater::R_NOOP) {
+             MsgNoUpdates dlg;
+             dlg.ShowModal();
+         }
+     } catch (const std::exception &ex) {
+         show_error(nullptr, ex.what());
+     }
+     // Applicaiton will continue.
+     return true;
+ }
 
 bool GUI_App::open_browser_with_warning_dialog(const wxString& url, wxWindow* parent/* = nullptr*/, bool force_remember_choice /*= true*/, int flags/* = 0*/)
 {

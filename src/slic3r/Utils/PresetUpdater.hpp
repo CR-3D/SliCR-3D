@@ -28,9 +28,6 @@ public:
 	// If either version check or config updating is enabled, get the appropriate data in the background and cache it.
 	void sync(PresetBundle *preset_bundle);
 
-	// If version check is enabled, check if chaced online slic3r version is newer, notify if so.
-	void slic3r_update_notify();
-
 	enum UpdateResult {
 		R_NOOP,
 		R_INCOMPAT_EXIT,
@@ -65,9 +62,7 @@ private:
 	std::unique_ptr<priv> p;
 };
 
-//wxDECLARE_EVENT(EVT_SLIC3R_VERSION_ONLINE, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE, wxCommandEvent);
-wxDECLARE_EVENT(EVT_CONFIG_UPDATER_SYNC_DONE, wxCommandEvent);
-
+wxDECLARE_EVENT(EVT_SLIC3R_VERSION_ONLINE, wxCommandEvent);
+wxDECLARE_EVENT(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE, wxCommandEvent);
 }
 #endif

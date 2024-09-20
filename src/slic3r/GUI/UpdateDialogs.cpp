@@ -43,7 +43,7 @@ MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, bool force_
                                                           "Configuration Wizard may not offer the latest printers, "
                                                           "filaments and SLA materials to be installed. "),
                                                        SLIC3R_APP_NAME) :
-                                      _L("Configuration update is available"),
+                                      _L("Profile update is available"),
                 wxICON_ERROR)
 {
     auto *text = new wxStaticText(
