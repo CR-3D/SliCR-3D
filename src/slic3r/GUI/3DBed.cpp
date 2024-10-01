@@ -32,7 +32,9 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
-static const float GROUND_Z = 0.5f;
+#include <numeric>
+
+static const float GROUND_Z = -0.02f;
 static const Slic3r::ColorRGBA DEFAULT_MODEL_COLOR             = Slic3r::ColorRGBA::DARK_GRAY();
 static const Slic3r::ColorRGBA PICKING_MODEL_COLOR             = Slic3r::ColorRGBA::BLACK();
 static const Slic3r::ColorRGBA DEFAULT_SOLID_GRID_COLOR        = { 0.5f, 0.5f, 0.5f, 1.0f };
@@ -190,11 +192,24 @@ Point Bed3D::point_projection(const Point& point) const
 
 void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor, bool show_texture)
 {
-    for (size_t i = 0; i < s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()); ++i) {
+    bool is_preview = wxGetApp().plater()->is_preview_shown();
+    int  bed_to_highlight = -1;
+
+    static std::vector<int> beds_to_render;
+    beds_to_render.clear();
+    if (is_preview)
+        beds_to_render.push_back(s_multiple_beds.get_active_bed());
+    else {
+        beds_to_render.resize(s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()));
+        std::iota(beds_to_render.begin(), beds_to_render.end(), 0);
+        if (s_multiple_beds.get_number_of_beds() != 1)
+            bed_to_highlight = s_multiple_beds.get_active_bed();
+    }
+
+    for (int i : beds_to_render) {
         Transform3d mat = view_matrix;
         mat.translate(s_multiple_beds.get_bed_translation(i));
-        bool is_active = (i == s_multiple_beds.get_active_bed() && s_multiple_beds.get_number_of_beds() != 1);
-        render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, is_active);
+        render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, i == bed_to_highlight);
     }
 }
 

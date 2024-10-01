@@ -2118,15 +2118,22 @@ void GLCanvas3D::render()
                 bool inactive = i != s_multiple_beds.get_active_bed();
                 if (inactive)
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
-                if (ImGui::Button((std::string("Bed number ") + std::to_string(i + 1)).c_str()))
+                if (ImGui::Button((std::string("Bed number ") + std::to_string(i + 1)).c_str())) {
+                    int old_bed = s_multiple_beds.get_active_bed();
                     s_multiple_beds.set_active_bed(i);
+                    if (wxGetApp().plater()->is_preview_shown()) {
+                        s_reload_preview_after_switching_beds = true;
+                        wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
+                        camera.translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
+                    }
+                    wxGetApp().plater()->sidebar().update_sliced_info_sizer();
+                }
                 if (inactive)
                     ImGui::PopStyleColor();
             }
             ImGui::End();
         }
     }
-
 
     const bool is_looking_downward = camera.is_looking_downward();
 

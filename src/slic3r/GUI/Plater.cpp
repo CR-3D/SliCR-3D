@@ -4424,12 +4424,18 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
 #ifdef __WXMAC__
     bool force_render = (current_panel != nullptr);
 #endif // __WXMAC__
+
+    if (current_panel == panel) {
+        if (!s_reload_preview_after_switching_beds)
+            return;
+        else
+            s_reload_preview_after_switching_beds = false;
+    }
+
+    wxTitledPanel* old_panel = current_panel;
+    current_panel = panel;
+
     
-    if (current_panel == panel)
-        return;
-    
-    wxTitledPanel *old_panel = current_panel;
-    current_panel            = panel;
     // to reduce flickering when changing view, first set as visible the new current panel
     for (wxPanel *p : panels) {
         if (p == current_panel) {
@@ -4457,7 +4463,7 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
         old_panel->get_canvas3d()->unbind_event_handlers();
     if (current_panel)
         current_panel->get_canvas3d()->bind_event_handlers();
-    
+
     if (current_panel == view3D) {
         if (view3D->is_reload_delayed()) {
             // Delayed loading of the 3D scene.

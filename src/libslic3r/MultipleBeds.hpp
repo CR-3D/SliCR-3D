@@ -12,6 +12,7 @@ namespace Slic3r {
 class Model;
 class BuildVolume;
 
+extern bool s_reload_preview_after_switching_beds;
 
 class MultipleBeds {
 public:

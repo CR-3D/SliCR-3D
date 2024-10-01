@@ -8,6 +8,8 @@
 namespace Slic3r {
 
 MultipleBeds s_multiple_beds;
+bool s_reload_preview_after_switching_beds = false;
+
 
 
 Vec3d MultipleBeds::get_bed_translation(int id) const
