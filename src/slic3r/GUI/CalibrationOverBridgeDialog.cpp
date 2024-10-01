@@ -163,7 +163,7 @@ void CalibrationOverBridgeDialog::create_geometry(bool over_bridge) {
     if (has_to_arrange) {
         //update print config (done at reslice but we need it here)
         if (plat->printer_technology() == ptFFF)
-            plat->fff_print().apply(plat->model(), *plat->config());
+            plat->active_fff_print().apply(plat->model(), *plat->config());
         plat->arrange();
         // std::shared_ptr<ProgressIndicatorStub> fake_statusbar = std::make_shared<ProgressIndicatorStub>();
         // ArrangeJob arranger(std::dynamic_pointer_cast<ProgressIndicator>(fake_statusbar), plat);

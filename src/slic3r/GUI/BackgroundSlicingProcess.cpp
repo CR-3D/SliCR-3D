@@ -130,11 +130,13 @@ bool BackgroundSlicingProcess::select_technology(PrinterTechnology tech) {
         case ptSLA: m_print = m_sla_print; break;
         case ptSLS: m_print = m_fff_print; break;
         default: assert(false); break;
-        }
-        changed = true;
-    }
-    assert(m_print != nullptr);
-    return changed;
+		}
+		changed = true;
+	}
+	if (tech == ptFFF)
+		m_print = m_fff_print;
+	assert(m_print != nullptr);
+	return changed;
 }
 
 PrinterTechnology BackgroundSlicingProcess::current_printer_technology() const { return m_print->technology(); }

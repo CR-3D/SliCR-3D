@@ -190,7 +190,7 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     if (has_to_arrange) {
         //update print config (done at reslice but we need it here)
         if (plat->printer_technology() == ptFFF)
-            plat->fff_print().apply(plat->model(), *plat->config());
+           plat->active_fff_print().apply(plat->model(), *plat->config());
         plat->arrange();
         //std::shared_ptr<ProgressIndicatorStub> fake_statusbar = std::make_shared<ProgressIndicatorStub>();
         //arr2::Scene arrscene{build_scene(*plat, ArrangeSelectionMode::Full)};

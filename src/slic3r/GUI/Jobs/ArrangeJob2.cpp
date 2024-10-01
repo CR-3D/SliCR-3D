@@ -194,9 +194,9 @@ arr2::SceneBuilder build_scene(Plater &plater, ArrangeSelectionMode mode)
     builder.set_model(plater.model());
 
     if (plater.printer_technology() == ptSLA)
-        builder.set_sla_print(&plater.sla_print());
+        builder.set_sla_print(&plater.active_sla_print());
     else
-        builder.set_fff_print(&plater.fff_print());
+        builder.set_fff_print(&plater.active_fff_print());
 
     return builder;
 }

@@ -642,7 +642,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     if (has_to_arrange) {
         //update print config (done at reslice but we need it here)
         if (plat->printer_technology() == ptFFF)
-            plat->fff_print().apply(plat->model(), *plat->config());
+            plat->active_fff_print().apply(plat->model(), *plat->config());
         plat->arrange();
     }
 

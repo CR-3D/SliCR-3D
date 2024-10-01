@@ -87,8 +87,8 @@ public:
 	// Stop the background processing and finalize the bacgkround processing thread, remove temp files.
 	~BackgroundSlicingProcess();
 
-	void set_fff_print(Print *print) { m_fff_print = print; }
-    void set_sla_print(SLAPrint *print) { m_sla_print = print; }
+	void set_fff_print(Print* print) { if (m_fff_print != print) stop(); m_fff_print = print; }
+    void set_sla_print(SLAPrint *print) { if (m_sla_print != print) stop(); m_sla_print = print; }
 	void set_thumbnail_cb(ThumbnailsGeneratorCallback cb) { m_thumbnail_cb = cb; }
 	void set_gcode_result(GCodeProcessorResult &result) { m_gcode_result = &result; }
 

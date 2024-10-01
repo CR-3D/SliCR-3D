@@ -518,7 +518,7 @@ bool GLGizmoFdmSupports::has_backend_supports()
 
 void GLGizmoFdmSupports::auto_generate()
 {
-    auto [error_type, err_msg] = wxGetApp().plater()->fff_print().validate();
+    auto [error_type, err_msg] = wxGetApp().plater()->active_fff_print().validate();
     if (error_type != PrintBase::PrintValidationError::pveNone) {
         MessageDialog dlg(GUI::wxGetApp().plater(), _L("Automatic painting requires valid print setup.") + " \n" + from_u8(err_msg), _L("Warning"), wxOK);
         dlg.ShowModal();
