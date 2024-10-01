@@ -1,0 +1,56 @@
+#ifndef libslic3r_MultipleBeds_hpp_
+#define libslic3r_MultipleBeds_hpp_
+
+#include "libslic3r/ObjectID.hpp"
+#include "libslic3r/Point.hpp"
+#include "libslic3r/BoundingBox.hpp"
+
+#include <map>
+
+namespace Slic3r {
+
+class Model;
+class BuildVolume;
+
+
+class MultipleBeds {
+public:
+	MultipleBeds() = default;
+
+	static constexpr int get_max_beds() { return MAX_NUMBER_OF_BEDS; };
+	Vec3d get_bed_translation(int id) const;
+
+	void   clear_inst_map();
+	void   set_instance_bed(ObjectID id, int bed_idx);
+	void   inst_map_updated();
+
+	int    get_number_of_beds() const   { return m_number_of_beds; }
+	bool   should_show_next_bed() const { return m_show_next_bed; }
+	void   request_next_bed(bool show);
+	int    get_active_bed() const       { return m_active_bed; }
+	
+	void   set_active_bed(int i);
+	void   move_active_to_first_bed(Model& model, const BuildVolume& build_volume, bool to_or_from) const;
+
+
+
+private:
+	bool   is_instance_on_active_bed(ObjectID id) const;
+
+
+
+	int m_number_of_beds = 1;
+	int m_active_bed     = 0;
+	bool m_show_next_bed = false;
+	std::map<ObjectID, int> m_inst_to_bed;
+	
+};
+
+extern MultipleBeds s_multiple_beds;
+
+
+
+
+} // namespace Slic3r
+
+#endif // libslic3r_MultipleBeds_hpp_

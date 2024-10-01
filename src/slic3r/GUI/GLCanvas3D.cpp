@@ -21,6 +21,7 @@
 #include "libslic3r/Geometry/ConvexHull.hpp"
 #include "libslic3r/ExtrusionEntity.hpp"
 #include "libslic3r/Layer.hpp"
+#include "libslic3r/MultipleBeds.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/LocalesUtils.hpp"
 #include "libslic3r/Technologies.hpp"
@@ -1669,6 +1670,7 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
     bool contained_min_one = false;
 
     const Slic3r::BuildVolume& build_volume = m_bed.build_volume();
+    s_multiple_beds.request_next_bed(false);
 
     const std::vector<unsigned int> volumes_idxs = volumes_to_process_idxs();
     for (unsigned int vol_idx : volumes_idxs) {
@@ -2104,7 +2106,27 @@ void GLCanvas3D::render()
     
 #ifdef SHOW_IMGUI_DEMO_WINDOW
     if (show_imgui_demo_window) ImGui::ShowDemoWindow();
-#endif // SHOW_IMGUI_DEMO_WINDOW    
+#endif // SHOW_IMGUI_DEMO_WINDOW
+
+
+    {
+        if (s_multiple_beds.get_number_of_beds() != 1) {
+            ImGui::SetNextWindowPos(ImVec2(10,10));
+            ImGui::SetNextWindowSize(ImVec2(120., 150.));
+            ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_NoResize);
+            for (int i = 0; i < s_multiple_beds.get_number_of_beds(); ++i) {
+                bool inactive = i != s_multiple_beds.get_active_bed();
+                if (inactive)
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
+                if (ImGui::Button((std::string("Bed number ") + std::to_string(i + 1)).c_str()))
+                    s_multiple_beds.set_active_bed(i);
+                if (inactive)
+                    ImGui::PopStyleColor();
+            }
+            ImGui::End();
+        }
+    }
+
 
     const bool is_looking_downward = camera.is_looking_downward();
 
@@ -5947,8 +5969,19 @@ BoundingBoxf3 GLCanvas3D::_max_bounding_box(bool include_gizmos, bool include_be
         bb.merge(BoundingBoxf3(sel_bb_center - extend_by, sel_bb_center + extend_by));
     }
 
-    const BoundingBoxf3 bed_bb = include_bed_model ? m_bed.extended_bounding_box() : m_bed.build_volume().bounding_volume();
+    
+
+    const BoundingBoxf3 first_bed_bb = include_bed_model ? m_bed.extended_bounding_box() : m_bed.build_volume().bounding_volume();
+    BoundingBoxf3 bed_bb = first_bed_bb;
+    
+    for (int i = 0; i < s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()); ++i) {
+        BoundingBoxf3 this_bed = first_bed_bb;
+        this_bed.translate(s_multiple_beds.get_bed_translation(i));
+        bed_bb.merge(this_bed);
+    }
     bb.merge(bed_bb);
+    
+    
 
     if (!m_main_toolbar.is_enabled())
         bb.merge(m_gcode_viewer.get_max_bounding_box());

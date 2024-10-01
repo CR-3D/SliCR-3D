@@ -10,6 +10,8 @@
 
 #include <boost/log/trivial.hpp>
 
+#include "MultipleBeds.hpp"
+
 namespace Slic3r {
 
 BuildVolume::BuildVolume(const std::vector<Vec2d> &bed_shape, const double max_print_height) : m_bed_shape(bed_shape), m_max_print_height(max_print_height)
@@ -274,8 +276,19 @@ BuildVolume::ObjectState object_state_templ(const indexed_triangle_set &its, con
     return inside ? (outside ? BuildVolume::ObjectState::Colliding : BuildVolume::ObjectState::Inside) : BuildVolume::ObjectState::Outside;
 }
 
-BuildVolume::ObjectState BuildVolume::object_state(const indexed_triangle_set& its, const Transform3f& trafo, bool may_be_below_bed, bool ignore_bottom) const
+BuildVolume::ObjectState BuildVolume::object_state(const indexed_triangle_set& its, const Transform3f& trafo_orig, bool may_be_below_bed, bool ignore_bottom, int* bed_idx) const
 {
+    ObjectState out = ObjectState::Outside;
+    if (bed_idx)
+        *bed_idx = -1;
+
+    for (int bed_id = 0; bed_id <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_id) {
+
+
+
+    Transform3f trafo = trafo_orig;
+    trafo.pretranslate(-s_multiple_beds.get_bed_translation(bed_id).cast<float>());
+
     switch (m_type) {
     case Type::Rectangle:
     {
@@ -288,28 +301,48 @@ BuildVolume::ObjectState BuildVolume::object_state(const indexed_triangle_set& i
         // The following test correctly interprets intersection of a non-convex object with a rectangular build volume.
         //return rectangle_test(its, trafo, to_2d(build_volume.min), to_2d(build_volume.max), build_volume.max.z());
         //FIXME This test does NOT correctly interprets intersection of a non-convex object with a rectangular build volume.
-        return object_state_templ(its, trafo, may_be_below_bed, [build_volumef](const Vec3f &pt) { return build_volumef.contains(pt); });
+        out = object_state_templ(its, trafo, may_be_below_bed, [build_volumef](const Vec3f& pt) { return build_volumef.contains(pt); });
+        break;
     }
     case Type::Circle:
     {
         Geometry::Circlef circle { unscaled<float>(m_circle.center), unscaled<float>(m_circle.radius + SceneEpsilon) };
-        return m_max_print_height == 0.0 ? 
-            object_state_templ(its, trafo, may_be_below_bed, [circle](const Vec3f &pt) { return circle.contains(to_2d(pt)); }) :
-            object_state_templ(its, trafo, may_be_below_bed, [circle, z = m_max_print_height + SceneEpsilon](const Vec3f &pt) { return pt.z() < z && circle.contains(to_2d(pt)); });
+        out = m_max_print_height == 0.0 ?
+            object_state_templ(its, trafo, may_be_below_bed, [circle](const Vec3f& pt) { return circle.contains(to_2d(pt)); }) :
+            object_state_templ(its, trafo, may_be_below_bed, [circle, z = m_max_print_height + SceneEpsilon](const Vec3f& pt) { return pt.z() < z && circle.contains(to_2d(pt)); });
+        break;
     }
     case Type::Convex:
     //FIXME doing test on convex hull until we learn to do test on non-convex polygons efficiently.
     case Type::Custom:
-        return m_max_print_height == 0.0 ? 
-            object_state_templ(its, trafo, may_be_below_bed, [this](const Vec3f &pt) { return Geometry::inside_convex_polygon(m_top_bottom_convex_hull_decomposition_scene, to_2d(pt).cast<double>()); }) :
-            object_state_templ(its, trafo, may_be_below_bed, [this, z = m_max_print_height + SceneEpsilon](const Vec3f &pt) { return pt.z() < z && Geometry::inside_convex_polygon(m_top_bottom_convex_hull_decomposition_scene, to_2d(pt).cast<double>()); });
+        out = m_max_print_height == 0.0 ?
+            object_state_templ(its, trafo, may_be_below_bed, [this](const Vec3f& pt) { return Geometry::inside_convex_polygon(m_top_bottom_convex_hull_decomposition_scene, to_2d(pt).cast<double>()); }) :
+            object_state_templ(its, trafo, may_be_below_bed, [this, z = m_max_print_height + SceneEpsilon](const Vec3f& pt) { return pt.z() < z && Geometry::inside_convex_polygon(m_top_bottom_convex_hull_decomposition_scene, to_2d(pt).cast<double>()); });
+        break;
     case Type::Invalid:
     default:
-        return ObjectState::Inside;
+        out = ObjectState::Inside;
+        break;
     }
+
+    if (out != ObjectState::Outside) {
+        if (bed_id == s_multiple_beds.get_number_of_beds()) {
+            // The object is on the next bed to be added.
+            s_multiple_beds.request_next_bed(true);
+        }
+        if (bed_idx)
+            *bed_idx = bed_id;
+        break;
+    }    
+
+
+
+    }
+
+    return out;
 }
 
-BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3& volume_bbox, bool ignore_bottom) const
+BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3 volume_bbox_orig, bool ignore_bottom) const
 {
     assert(m_type == Type::Rectangle);
     BoundingBox3Base<Vec3d> build_volume = this->bounding_volume().inflated(SceneEpsilon);
@@ -317,9 +350,25 @@ BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3& vol
         build_volume.max.z() = std::numeric_limits<double>::max();
     if (ignore_bottom)
         build_volume.min.z() = -std::numeric_limits<double>::max();
-    return build_volume.max.z() <= - SceneEpsilon ? ObjectState::Below :
-           build_volume.contains(volume_bbox) ? ObjectState::Inside : 
-           build_volume.intersects(volume_bbox) ? ObjectState::Colliding : ObjectState::Outside;
+
+    ObjectState state = ObjectState::Outside;
+    int bed_idx = 0;
+    for (bed_idx = 0; bed_idx <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_idx) {
+        BoundingBoxf3 volume_bbox = volume_bbox_orig;
+        volume_bbox.translate(-s_multiple_beds.get_bed_translation(bed_idx));
+
+        state = build_volume.max.z() <= -SceneEpsilon ? ObjectState::Below :
+            build_volume.contains(volume_bbox) ? ObjectState::Inside :
+            build_volume.intersects(volume_bbox) ? ObjectState::Colliding : ObjectState::Outside;
+        if (state != ObjectState::Outside)
+            break;
+    }
+
+    if (bed_idx == s_multiple_beds.get_number_of_beds()) {
+        // The object is on the next bed to be added.
+        s_multiple_beds.request_next_bed(true);
+    }
+    return state;
 }
 
 bool BuildVolume::all_paths_inside(const GCodeProcessorResult& paths, const BoundingBoxf3& paths_bbox, bool ignore_bottom) const

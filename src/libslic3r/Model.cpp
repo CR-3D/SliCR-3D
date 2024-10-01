@@ -24,6 +24,7 @@
 #include "MTUtils.hpp"
 #include "TriangleMeshSlicer.hpp"
 #include "TriangleSelector.hpp"
+#include "MultipleBeds.hpp"
 
 #include "Format/AMF.hpp"
 #include "Format/OBJ.hpp"
@@ -399,8 +400,10 @@ double Model::max_z() const
 unsigned int Model::update_print_volume_state(const BuildVolume &build_volume)
 {
     unsigned int num_printable = 0;
+    s_multiple_beds.clear_inst_map();
     for (ModelObject* model_object : this->objects)
         num_printable += model_object->update_instances_print_volume_state(build_volume);
+    s_multiple_beds.inst_map_updated();
     return num_printable;
 }
 
@@ -1641,11 +1644,12 @@ unsigned int ModelObject::update_instances_print_volume_state(const BuildVolume 
         OUTSIDE = 2
     };
     for (ModelInstance* model_instance : this->instances) {
+        int bed_idx = -1;
         unsigned int inside_outside = 0;
         for (const ModelVolume* vol : this->volumes)
             if (vol->is_model_part()) {
                 const Transform3d matrix = model_instance->get_matrix() * vol->get_matrix();
-                BuildVolume::ObjectState state = build_volume.object_state(vol->mesh().its, matrix.cast<float>(), true /* may be below print bed */);
+                BuildVolume::ObjectState state = build_volume.object_state(vol->mesh().its, matrix.cast<float>(), true /* may be below print bed */, true /*ignore_bottom*/, &bed_idx);
                 if (state == BuildVolume::ObjectState::Inside)
                     // Volume is completely inside.
                     inside_outside |= INSIDE;
@@ -1664,6 +1668,7 @@ unsigned int ModelObject::update_instances_print_volume_state(const BuildVolume 
             inside_outside == INSIDE ? ModelInstancePVS_Inside : ModelInstancePVS_Fully_Outside;
         if (inside_outside == INSIDE)
             ++num_printable;
+        s_multiple_beds.set_instance_bed(model_instance->id(), bed_idx);
     }
     return num_printable;
 }

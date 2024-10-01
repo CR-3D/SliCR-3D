@@ -14,6 +14,7 @@
 #include "libslic3r/Geometry/Circle.hpp"
 #include "libslic3r/Tesselate.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/MultipleBeds.hpp"
 
 #include "GUI.hpp"
 #include "GUI_App.hpp"
@@ -189,22 +190,29 @@ Point Bed3D::point_projection(const Point& point) const
 
 void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor, bool show_texture)
 {
-    render_internal(canvas, view_matrix, projection_matrix, bottom, scale_factor, show_texture, false);
+    for (size_t i = 0; i < s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()); ++i) {
+        Transform3d mat = view_matrix;
+        mat.translate(s_multiple_beds.get_bed_translation(i));
+        bool is_active = (i == s_multiple_beds.get_active_bed() && s_multiple_beds.get_number_of_beds() != 1);
+        render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, is_active);
+    }
 }
 
 void Bed3D::render_for_picking(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor)
 {
-    render_internal(canvas, view_matrix, projection_matrix, bottom, scale_factor, false, true);
+    render_internal(canvas, view_matrix, projection_matrix, bottom, scale_factor, false, true, false);
 }
 
 void Bed3D::render_internal(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor,
-    bool show_texture, bool picking)
+    bool show_texture, bool picking, bool active)
 {
     m_scale_factor = scale_factor;
 
     glsafe(::glEnable(GL_DEPTH_TEST));
 
     m_model.model.set_color(picking ? PICKING_MODEL_COLOR : DEFAULT_MODEL_COLOR);
+    if (!picking && ! active)
+        m_model.model.set_color(ColorRGBA(.6f, .6f, 0.6f, 0.5f));
 
     switch (m_type)
     {
