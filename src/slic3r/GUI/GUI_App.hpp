@@ -41,7 +41,7 @@ namespace Slic3r {
 
 class AppConfig;
 class PresetBundle;
-class PresetUpdater;
+class PresetUpdaterWrapper;
 class ModelObject;
 class PrintHostJobQueue;
 class Model;
@@ -379,10 +379,11 @@ public:
     std::unique_ptr<AppConfig> app_config;
 
     std::unique_ptr<PresetBundle> preset_bundle;
+    MainFrame*      mainframe{ nullptr };
+    Plater*         plater_{ nullptr };
+	PresetUpdaterWrapper*  get_preset_updater_wrapper() { return m_preset_updater_wrapper.get(); }
 
     std::unique_ptr<PresetUpdater> preset_updater;
-    MainFrame *mainframe{nullptr};
-    Plater *plater_{nullptr};
     Sidebar *sidebar_{nullptr};
     std::mutex not_modal_dialog_mutex;
     wxDialog *not_modal_dialog = nullptr;
@@ -477,7 +478,8 @@ private:
     bool m_check_for_application_update = false;
 
     void app_version_check(bool from_user = false);
-
+    std::unique_ptr<PresetUpdaterWrapper> m_preset_updater_wrapper; 
+    ConfigWizard* m_config_wizard {nullptr};
     bool m_datadir_redefined{false};
     bool m_wifi_config_dialog_shown{false};
 };

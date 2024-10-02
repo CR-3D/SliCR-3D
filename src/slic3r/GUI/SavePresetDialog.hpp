@@ -40,8 +40,11 @@ public:
             Warning
         };
 
+        // Item as an item inside of the SavePresetDialog
         Item(Preset::Type type, const std::string& suffix, wxBoxSizer* sizer, SavePresetDialog* parent, bool is_for_multiple_save);
-        Item(wxWindow* parent, wxBoxSizer* sizer, const std::string& def_name, PrinterTechnology pt = ptFFF);
+
+        // Item as a separate control(f.e. as a part of ConfigWizard to check name of the new custom priter)
+        Item(wxWindow* parent, wxBoxSizer* sizer, const std::string& def_name, PresetBundle* preset_bundle, PrinterTechnology pt = ptFFF);
 
         void            update_valid_bmp();
         void            accept();
@@ -65,6 +68,7 @@ public:
         wxStaticText*       m_valid_label   {nullptr};
 
         PresetCollection*   m_presets       {nullptr};
+        PresetBundle*       m_preset_bundle {nullptr};
 
         std::string get_init_preset_name(const std::string &suffix);
         void        init_input_name_ctrl(wxBoxSizer *input_name_sizer, std::string preset_name);

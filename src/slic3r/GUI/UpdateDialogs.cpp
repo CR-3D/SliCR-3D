@@ -34,15 +34,11 @@ static const std::string CONFIG_UPDATE_WIKI_URL(
 
 // MsgUpdateConfig
 
-MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, bool force_before_wizard /* = false*/)
-    : MsgDialog(nullptr,
-                force_before_wizard ? _L("Opening Configuration Wizard") : _L("Configuration Update"),
-                force_before_wizard ? wxString::Format(_L("%s is not using the newest configuration available.\n"
-                                                          "Configuration Wizard may not offer the latest printers, "
-                                                          "filaments and SLA materials to be installed. "),
-                                                       SLIC3R_APP_NAME) :
-                                      _L("Configuration Update is available"),
-                wxICON_ERROR)
+MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, PresetUpdater::UpdateParams update_params) :
+	MsgDialog(nullptr, update_params == PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD  ? _L("Opening Configuration Wizard") : _L("Configuration update"), 
+					   update_params == PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD ? _L("PrusaSlicer is not using the newest configuration available.\n"
+												"Configuration Wizard may not offer the latest printers, filaments and SLA materials to be installed.") : 
+											 _L("Configuration update is available"), wxICON_ERROR)
 {
     auto *text = new wxStaticText(
         this, wxID_ANY,
@@ -87,14 +83,21 @@ MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, bool force_
     content_sizer->Add(versions);
     content_sizer->AddSpacer(2 * VERT_SPACING);
 
-    add_button(wxID_OK, true, force_before_wizard ? _L("Install") : "OK");
-    if (force_before_wizard) {
-        auto *btn = add_button(wxID_CLOSE, false, _L("Don't install"));
-        btn->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &) { this->EndModal(wxID_CLOSE); });
+    if (update_params == PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD) {
+        add_button(wxID_OK, true,  _L("Install"));
+        auto* btn = add_button(wxID_CLOSE, false, _L("Don't install"));
+		btn->Bind(wxEVT_BUTTON, [this](const wxCommandEvent&) { this->EndModal(wxID_CLOSE); });
+        add_button(wxID_CANCEL);
+    } else if (update_params == PresetUpdater::UpdateParams::SHOW_TEXT_BOX_YES_NO) {
+        add_button(wxID_OK, true, _L("Yes"));
+	    add_button(wxID_CANCEL, false, _L("No"));
+    } else {
+        assert(update_params == PresetUpdater::UpdateParams::SHOW_TEXT_BOX);
+        add_button(wxID_OK, true, "OK");
+	    add_button(wxID_CANCEL);
     }
-    add_button(wxID_CANCEL);
 
-    finalize();
+	finalize();
 }
 
 MsgUpdateConfig::~MsgUpdateConfig() {}

@@ -4,7 +4,6 @@
 #include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/Plater.hpp"
-#include "slic3r/GUI/UserAccount.hpp"
 #include "slic3r/Utils/PresetUpdaterWrapper.hpp"
 #include "slic3r/GUI/Field.hpp"
 #include "libslic3r/Utils.hpp"
@@ -185,10 +184,12 @@ bool add_authorization_header(Http& http)
 {
     if (wxApp::GetInstance() == nullptr || ! GUI::wxGetApp().plater())
         return false;
+    /*
     const std::string access_token = GUI::wxGetApp().plater()->get_user_account()->get_access_token();
     if (!access_token.empty()) {
         http.header("Authorization", "Bearer " + access_token);
     }
+	*/
     return true;
 }
 
@@ -231,7 +232,7 @@ bool OnlineArchiveRepository::get_file_inner(const std::string& url, const fs::p
         .on_retry([&](int attempt, unsigned delay) {
             return !ui_status->on_attempt(attempt, delay);
 		})
-		.perform_sync(ui_status->get_retry_policy());	
+		.perform_sync();	
 
 	return res;
 }
@@ -882,12 +883,13 @@ namespace {
 bool sync_inner(std::string& manifest, PresetUpdaterUIStatus* ui_status)
 {
 	bool ret = false;
-    std::string url = Utils::ServiceConfig::instance().preset_repo_repos_url();
+	// TODO: add repo_url
+    std::string repo_url = "http://files.cr3d.de/updates/SliCR-3D";
+    std::string url = "http://files.cr3d.de/updates/SliCR-3D/v1/repos/CR3D/ArchiveRepositoryManifest.json";
+
     auto http = Http::get(std::move(url));
-    if (!add_authorization_header(http))
-        return false;
-    http
-		.timeout_max(30)
+
+    http.timeout_max(30)
 		.on_error([&](std::string body, std::string error, unsigned http_status) {
 			BOOST_LOG_TRIVIAL(error) << "Failed to get online archive source manifests: "<< body << " ; " << error << " ; " << http_status;
             ui_status->set_error(error);
@@ -900,7 +902,7 @@ bool sync_inner(std::string& manifest, PresetUpdaterUIStatus* ui_status)
         .on_retry([&](int attempt, unsigned delay) {
             return !ui_status->on_attempt(attempt, delay);
 		})
-		.perform_sync(ui_status->get_retry_policy());
+		.perform_sync();
 	return ret;
 }
 }

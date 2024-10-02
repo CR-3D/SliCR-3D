@@ -150,10 +150,10 @@ void RepositoryUpdateUIManager::fill_grids()
 
         for (const auto& entry : m_online_entries)
         {
-            auto chb = CheckBox::GetNewWin(m_parent, "");
-            CheckBox::SetValue(chb, entry.use);
+            CheckBox* chb = new CheckBox(m_parent, "");
+            chb->SetValue(entry.use);
             chb->Bind(wxEVT_CHECKBOX, [this, chb, &entry](wxCommandEvent e) {
-                if (CheckBox::GetValue(chb))
+                if (chb->GetValue())
                     m_selected_uuids.emplace(entry.id);
                 else
                     m_selected_uuids.erase(entry.id);
@@ -191,10 +191,10 @@ void RepositoryUpdateUIManager::fill_grids()
 
         for (const auto& entry : m_offline_entries)
         {
-            auto chb = CheckBox::GetNewWin(m_parent, "");
-            CheckBox::SetValue(chb, entry.use);
+            CheckBox* chb = new CheckBox(m_parent, "");
+            chb->SetValue(entry.use);
             chb->Bind(wxEVT_CHECKBOX, [this, chb, &entry](wxCommandEvent e) {
-                if (CheckBox::GetValue(chb))
+                if (chb->GetValue())
                     m_selected_uuids.emplace(entry.id);
                 else
                     m_selected_uuids.erase(entry.id);

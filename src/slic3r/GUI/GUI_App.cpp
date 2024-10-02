@@ -76,6 +76,7 @@
 #include "GLCanvas3D.hpp"
 
 #include "../Utils/PresetUpdater.hpp"
+#include "../Utils/PresetUpdaterWrapper.hpp"
 #include "../Utils/PrintHost.hpp"
 #include "../Utils/Process.hpp"
 #include "../Utils/MacDarkMode.hpp"
@@ -912,18 +913,14 @@ void GUI_App::post_init() {
     // to popup a modal dialog on start without screwing combo boxes.
     // This is ugly but I honestly found no better way to do it.
     // Neither wxShowEvent nor wxWindowCreateEvent work reliably.
-    if (this->preset_updater) { // G-Code Viewer does not initialize preset_updater.
-
-#if 0 // This code was moved to EVT_CONFIG_UPDATER_SYNC_DONE bind - after preset_updater finishes synchronization.
-        if (! this->check_updates(false))
-            // Configuration is not compatible and reconfigure was refused by the user. Application is closing.
-            return;
-#endif
+    if (this->get_preset_updater_wrapper()) { // G-Code Viewer does not initialize preset_updater.
         CallAfter([this] {
-            // preset_updater->sync downloads profile updates on background so it must begin after config wizard finished.
+            // preset_updater->sync downloads profile updates and than via event checks updates and incompatible presets. We need to run it on startup.
+            // start before cw so it is canceled by cw if needed?
+            this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle.get());
             bool cw_showed = this->config_wizard_startup();
             this->app_version_check(true);
-            this->preset_updater->sync(preset_bundle.get(), this);
+
             if (!cw_showed) {
                 // The CallAfter is needed as well, without it, GL extensions did not show.
                 // Also, we only want to show this when the wizard does not, so the new user
@@ -1480,7 +1477,7 @@ bool GUI_App::on_init_inner() {
             associate_stl_files();
 #endif // __WXMSW__
 
-        preset_updater.reset(new PresetUpdater());
+        m_preset_updater_wrapper = std::make_unique<PresetUpdaterWrapper>();
         Bind(EVT_SLIC3R_VERSION_ONLINE, &GUI_App::on_version_read, this);
         Bind(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE, [this](const wxCommandEvent &evt) {
             if (this->plater_ != nullptr &&
@@ -3705,29 +3702,25 @@ bool GUI_App::may_switch_to_SLA_preset(const wxString &caption) {
 bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage start_page) {
     wxCHECK_MSG(mainframe != nullptr, false, "Internal error: Main frame not created / null");
 
-    if (reason == ConfigWizard::RR_USER) {
-        // Cancel sync before starting wizard to prevent two downloads at same time
-        if (preset_updater->config_update(app_config->orig_version(),
-                                          PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD) ==
-            PresetUpdater::R_ALL_CANCELED)
-            return false;
-    }
-
-    
-    ConfigWizard *wizard = nullptr;
-    {
-        wxBusyCursor wait;
-        wizard = new ConfigWizard(mainframe);
-    }
-    const bool res = wizard->run(reason, start_page);
+    // Loading of Config Wizard takes some time. 
+    // First part is to download neccessary data.
+    // That is done on worker thread while nice modal progress is shown.
+    // TRN: Progress dialog title
+    get_preset_updater_wrapper()->wizard_sync(preset_bundle.get(), app_config->orig_version(), mainframe,
+                                              reason == ConfigWizard::RunReason::RR_USER,
+                                              _L("Opening Configuration Wizard"));
+    // Then the wizard itself will start and that also takes time.
+    // But for now no ui is shown until then. (Showing modal progress dialog while showing another would be a headacke)
+    m_config_wizard = new ConfigWizard(mainframe);
+    const bool res = m_config_wizard->run(reason, start_page);
 
     // !!! Deallocate memory after close ConfigWizard.
     // Note, that mainframe is a parent of ConfigWizard.
     // So, wizard will be destroyed only during destroying of mainframe
     // To avoid this state the wizard have to be disconnected from mainframe and Destroyed explicitly
-    assert(wizard);
-    mainframe->RemoveChild(wizard);
-    wizard->Destroy();
+    mainframe->RemoveChild(m_config_wizard);
+    m_config_wizard->Destroy();
+    m_config_wizard = nullptr;
 
     if (res) {
         load_current_presets();
@@ -3923,24 +3916,23 @@ bool GUI_App::config_wizard_startup() {
 
 bool GUI_App::check_updates(const bool verbose)
 {	
-	PresetUpdater::UpdateResult updater_result;
-	try {
-        preset_updater->update_index_db();
-		updater_result = preset_updater->config_update(app_config->orig_version(), verbose ? PresetUpdater::UpdateParams::SHOW_TEXT_BOX : PresetUpdater::UpdateParams::SHOW_NOTIFICATION);
-		if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
-			mainframe->Close();
-            // Applicaiton is closing.
-            return false;
-		}
-		else if (updater_result == PresetUpdater::R_INCOMPAT_CONFIGURED) {
-            m_app_conf_exists = true;
-		}
-		else if (verbose && updater_result == PresetUpdater::R_NOOP) {
-			MsgNoUpdates dlg;
-			dlg.ShowModal();
-		}
-	} catch (const std::exception &ex) {
-		show_error(nullptr, ex.what());
+    PresetUpdater::UpdateResult updater_result;
+    if (verbose)
+    {
+         updater_result = get_preset_updater_wrapper()->check_updates_on_user_request(preset_bundle.get(), app_config->orig_version(), mainframe);
+    } else {
+        updater_result = get_preset_updater_wrapper()->check_updates_on_startup(app_config.get()->orig_version());
+    }
+	if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
+		mainframe->Close();
+        // Applicaiton is closing.
+        return false;
+	}
+	else if (updater_result == PresetUpdater::R_INCOMPAT_CONFIGURED) {
+        m_app_conf_exists = true;
+	} else if (verbose && updater_result == PresetUpdater::R_NOOP) {
+		MsgNoUpdates dlg;
+		dlg.ShowModal();
 	}
     // Applicaiton will continue.
     return true;
