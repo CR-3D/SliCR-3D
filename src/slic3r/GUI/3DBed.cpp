@@ -194,7 +194,7 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
 {
     bool is_thumbnail = s_multiple_beds.get_thumbnail_bed_idx() != -1;
     bool is_preview = wxGetApp().plater()->is_preview_shown();
-    int  bed_to_highlight = -1;
+    int  bed_to_highlight = s_multiple_beds.get_active_bed();
 
     static std::vector<int> beds_to_render;
     beds_to_render.clear();
@@ -205,14 +205,12 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
     else {
         beds_to_render.resize(s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()));
         std::iota(beds_to_render.begin(), beds_to_render.end(), 0);
-        if (s_multiple_beds.get_number_of_beds() != 1)
-            bed_to_highlight = s_multiple_beds.get_active_bed();
     }
 
     for (int i : beds_to_render) {
         Transform3d mat = view_matrix;
         mat.translate(s_multiple_beds.get_bed_translation(i));
-        render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, i == bed_to_highlight);
+        render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, is_thumbnail || i == bed_to_highlight);
     }
 }
 
@@ -234,9 +232,9 @@ void Bed3D::render_internal(GLCanvas3D& canvas, const Transform3d& view_matrix, 
 
     switch (m_type)
     {
-    case Type::System: { render_system(canvas, view_matrix, projection_matrix, bottom, show_texture); break; }
+    case Type::System: { render_system(canvas, view_matrix, projection_matrix, bottom, show_texture, active); break; }
     default:
-    case Type::Custom: { render_custom(canvas, view_matrix, projection_matrix, bottom, show_texture, picking); break; }
+    case Type::Custom: { render_custom(canvas, view_matrix, projection_matrix, bottom, show_texture, picking, active); break; }
     }
 
     glsafe(::glDisable(GL_DEPTH_TEST));
@@ -572,19 +570,19 @@ void Bed3D::render_grid(bool bottom, bool has_model)
     m_gridlines_big.render();
 }
 
-void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture)
+void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool is_active)
 {
     if (!bottom) {
         render_model(view_matrix, projection_matrix);
     }
     
     if (show_texture)
-        render_texture(bottom, canvas, view_matrix, projection_matrix);
+        render_texture(bottom, canvas, view_matrix, projection_matrix, is_active);
     else if (bottom)
         render_contour(view_matrix, projection_matrix);
 }
 
-void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix)
+void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active)
 {
     if (m_texture_filename.empty()) {
         m_texture.reset();
@@ -655,7 +653,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         shader->start_using();
         shader->set_uniform("view_model_matrix", view_matrix);
         shader->set_uniform("projection_matrix", projection_matrix);
-        shader->set_uniform("transparent_background", bottom);
+        shader->set_uniform("transparent_background", bottom || ! is_active);
         shader->set_uniform("svg_source", boost::algorithm::iends_with(m_texture.get_source(), ".svg"));
 
         glsafe(::glEnable(GL_DEPTH_TEST));
@@ -765,7 +763,7 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
     }
 }
 
-void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking)
+void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking, bool is_active)
 {
     if (m_texture_filename.empty() && m_model_filename.empty()) {
         render_default(bottom, picking, show_texture, view_matrix, projection_matrix);
@@ -777,7 +775,7 @@ void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, co
    }
 
     if (show_texture)
-        render_texture(bottom, canvas, view_matrix, projection_matrix);
+        render_texture(bottom, canvas, view_matrix, projection_matrix, is_active);
     else if (bottom)
         render_contour(view_matrix, projection_matrix);
 }

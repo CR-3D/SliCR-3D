@@ -108,6 +108,24 @@ static bool show_imgui_demo_window = false;
 namespace Slic3r {
 namespace GUI {
 
+static void select_bed(int i)
+{
+    int old_bed = s_multiple_beds.get_active_bed();
+    if (i == old_bed || i == -1)
+        return;
+
+    s_multiple_beds.set_active_bed(i);
+    if (wxGetApp().plater()->is_preview_shown()) {
+        s_reload_preview_after_switching_beds = true;
+        wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
+        wxGetApp().plater()->get_camera().translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
+    }
+    wxGetApp().plater()->sidebar().update_sliced_info_sizer();
+}
+
+
+
+
 #ifdef __WXGTK3__
 // wxGTK3 seems to simulate OSX behavior in regard to HiDPI scaling support.
 RetinaHelper::RetinaHelper(wxWindow* window) : m_window(window), m_self(nullptr) {}
@@ -1672,7 +1690,6 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
     bool contained_min_one = false;
 
     const Slic3r::BuildVolume& build_volume = m_bed.build_volume();
-    s_multiple_beds.request_next_bed(false);
 
     const std::vector<unsigned int> volumes_idxs = volumes_to_process_idxs();
     for (unsigned int vol_idx : volumes_idxs) {
@@ -2112,22 +2129,14 @@ void GLCanvas3D::render()
 
 
     {
-        if (s_multiple_beds.get_number_of_beds() != 1) {
+        if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
             ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_NoResize);
             for (int i = 0; i < s_multiple_beds.get_number_of_beds(); ++i) {
                 bool inactive = i != s_multiple_beds.get_active_bed();
                 if (inactive)
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
-                if (ImGui::ImageButton((void*)s_th_tex_id[i], ImVec2(100, 100), ImVec2(0, 1), ImVec2(1, 0))) {
-                    int old_bed = s_multiple_beds.get_active_bed();
-                    s_multiple_beds.set_active_bed(i);
-                    if (wxGetApp().plater()->is_preview_shown()) {
-                        s_reload_preview_after_switching_beds = true;
-                        wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
-                        camera.translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
-                    }
-                    wxGetApp().plater()->sidebar().update_sliced_info_sizer();
-                }
+                if (ImGui::ImageButton((void*)(int64_t)s_th_tex_id[i], ImVec2(100, 100), ImVec2(0, 1), ImVec2(1, 0)))
+                    select_bed(i);
                 if (inactive)
                     ImGui::PopStyleColor();
             }
@@ -3641,10 +3650,11 @@ void GLCanvas3D::on_timer(wxTimerEvent& evt)
 
 void GLCanvas3D::on_render_timer(wxTimerEvent& evt)
 {
+    m_dirty = true;
+
     // no need to wake up idle
     // right after this event, idle event is fired
-    // m_dirty = true; 
-    // wxWakeUpIdle(); 
+    //wxWakeUpIdle();
 }
 
 // can be only called from main thread
@@ -3735,6 +3745,9 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
 #endif
 
     Point pos(evt.GetX(), evt.GetY());
+
+    static wxTimer s_virtual_bed_timer;
+    s_virtual_bed_timer.Bind(wxEVT_TIMER, [this](wxTimerEvent&) { s_multiple_beds.request_next_bed(true); schedule_extra_frame(100); });
 
     ImGuiWrapper* imgui = wxGetApp().imgui();
     if (m_tooltip.is_in_imgui() && evt.LeftUp())
@@ -3976,6 +3989,8 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                         post_event(SimpleEvent(EVT_GLCANVAS_OBJECT_SELECT));
                         m_dirty = true;
                     }
+                } else if (evt.LeftDown()) {
+                    select_bed(s_multiple_beds.get_last_hovered_bed());
                 }
             }
 
@@ -4005,6 +4020,8 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     else if (evt.Dragging() && evt.LeftIsDown() && !evt.CmdDown() && m_layers_editing.state == LayersEditing::Unknown &&
              m_mouse.drag.move_volume_idx != -1 && m_mouse.is_start_position_3D_defined()) {
         if (!m_mouse.drag.move_requires_threshold) {
+            static bool was_dragging = false;
+            was_dragging = m_mouse.dragging;
             m_mouse.dragging = true;
             Vec3d cur_pos = m_mouse.drag.start_position_3D;
             // we do not want to translate objects if the user just clicked on an object while pressing shift to remove it from the selection and then drag
@@ -4047,6 +4064,13 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                 update_sequential_clearance(false);
             wxGetApp().obj_manipul()->set_dirty();
             m_dirty = true;
+            
+            const Selection::IndicesList& list = m_selection.get_volume_idxs();
+            static bool was_outside = true;
+            bool is_outside = std::any_of(list.begin(), list.end(), [this](unsigned int i) { return m_volumes.volumes[i]->is_outside; });
+            if (is_outside && (! was_dragging || ! was_outside))
+                s_virtual_bed_timer.Start(1000, true);
+            was_outside = is_outside;
         }
     }
     else if (evt.Dragging() && evt.LeftIsDown() && m_picking_enabled && m_rectangle_selection.is_dragging()) {
@@ -4119,6 +4143,8 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
             m_layers_editing.accept_changes(*this);
         }
         else if (m_mouse.drag.move_volume_idx != -1 && m_mouse.dragging) {
+            s_multiple_beds.request_next_bed(false);
+            s_virtual_bed_timer.Stop();
             do_move(L("Move Object"));
             wxGetApp().obj_manipul()->set_dirty();
             m_sequential_print_clearance.stop_dragging();

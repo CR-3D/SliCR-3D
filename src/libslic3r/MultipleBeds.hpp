@@ -39,6 +39,9 @@ public:
 	int    get_thumbnail_bed_idx() const { return m_bed_for_thumbnails_generation; }
 	bool   is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx, int instance_idx) const;
 
+	void set_last_hovered_bed(int i)  { m_last_hovered_bed = i; }
+	int  get_last_hovered_bed() const { return m_last_hovered_bed; }
+
 
 
 private:
@@ -52,7 +55,7 @@ private:
 	bool m_show_next_bed = false;
 	std::map<ObjectID, int> m_inst_to_bed;
 	std::map<PrintBase*, size_t> m_printbase_to_texture;
-	
+	int m_last_hovered_bed = -1;
 };
 
 extern MultipleBeds s_multiple_beds;
