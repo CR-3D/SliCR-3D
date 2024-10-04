@@ -10,6 +10,7 @@
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "MsgDialog.hpp"
+#include "Tab.hpp"
 
 #include <string>
 #include <wx/msgdlg.h>
@@ -645,6 +646,15 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
                                                    const bool          is_global_config)
 {
+    
+    if (is_msg_dlg_already_exist)
+        return;
+    
+    
+    DynamicPrintConfig *filament_config = wxGetApp().get_tab(Preset::TYPE_FFF_FILAMENT)->get_config();
+    std::vector<int> first_layer_temp = filament_config->option<ConfigOptionInts>("first_layer_temperature")->get_values();
+    bool is_dirty = wxGetApp().preset_bundle->filaments.current_is_dirty();
+    
     const std::vector<double> &nozzle_sizes = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values();
     double min_step_size = config->option("z_step")->get_float();
     //for each extruder
@@ -653,7 +663,7 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
         double max_lh = config->option("max_layer_height")->is_enabled() ? config->get_computed_value("max_layer_height", extruder_idx) : nozzle_sizes[extruder_idx] * 0.75f;
         if (config->option("max_layer_height")->is_enabled() && (max_lh < min_step_size || max_lh < EPSILON)) {
             const wxString msg_text = _(
-                L("Maximum layer height is not valid, it can't be lower than minimum z step, and not 0.\n\nThe maximum layer height will be deactivated (set to 75% of the nozzle diameter)."));
+                                        L("Maximum layer height is not valid, it can't be lower than minimum z step, and not 0.\n\nThe maximum layer height will be deactivated (set to 75% of the nozzle diameter)."));
             MessageDialog dialog(m_msg_dlg_parent, msg_text, _(L("Maximum layer height")), wxICON_WARNING | wxOK);
             DynamicPrintConfig new_conf = *config;
             is_msg_dlg_already_exist    = true;
@@ -668,7 +678,7 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
         // now max_lh > nozzle_size is allowed, but a warning is sent when changed
         if (min_lh >= max_lh) {
             const wxString msg_text = _(
-                L("Minimum layer height is not valid, it can't be higher or equal to the maximum layer height.\n\nThe minimum layer height will be set to 0."));
+                                        L("Minimum layer height is not valid, it can't be higher or equal to the maximum layer height.\n\nThe minimum layer height will be set to 0."));
             MessageDialog dialog(m_msg_dlg_parent, msg_text, _(L("Minimum layer height")), wxICON_WARNING | wxOK);
             DynamicPrintConfig new_conf = *config;
             is_msg_dlg_already_exist    = true;
@@ -686,10 +696,10 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
             DynamicPrintConfig new_conf = *config;
             //wxMessageDialog dialog(parent(),
             MessageDialog dialog(m_msg_dlg_parent,
-                _(L("The Wipe option is not available when using the Firmware Retraction mode.\n"
-                "\nShall I disable it in order to enable Firmware Retraction?")),
-                _(L("Firmware Retraction")), wxICON_WARNING | wxYES | wxNO);
-
+                                 _(L("The Wipe option is not available when using the Firmware Retraction mode.\n"
+                                     "\nShall I disable it in order to enable Firmware Retraction?")),
+                                 _(L("Firmware Retraction")), wxICON_WARNING | wxYES | wxNO);
+            
             if (dialog.ShowModal() == wxID_YES) {
                 new_conf.opt_bool("wipe", extruder_idx) = uint8_t(false);
             } else {
@@ -697,8 +707,41 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
             }
             apply(config, &new_conf);
         }
+        
+        
+        
+    
+        if (config->option<ConfigOptionStrings>("nozzle_type")->get_at(extruder_idx) == "tungsten_carbide" && !is_dirty) {
+            DynamicPrintConfig new_conf = *filament_config;
+            first_layer_temp[extruder_idx] += 5;
+            
+            is_msg_dlg_already_exist = true;
+            MessageDialog dialog(m_msg_dlg_parent, "FDsaFSDFDAS", _("Setting Nozzle Type"), wxICON_WARNING | wxOK);
+            dialog.ShowModal();
+            
+            // Apply the updated configuration with the new temperature values
+            new_conf.option<ConfigOptionInts>("first_layer_temperature")->set(first_layer_temp);
+            apply(filament_config, &new_conf);
+            wxGetApp().get_tab(Preset::TYPE_FFF_FILAMENT)->reload_config();
+            is_msg_dlg_already_exist = false;
+            
+        } else if (config->option<ConfigOptionStrings>("nozzle_type")->get_at(extruder_idx) == "dianoz" && !is_dirty) {
+            DynamicPrintConfig new_conf = *filament_config;
+            first_layer_temp[extruder_idx] += 15;
+            
+            is_msg_dlg_already_exist = true;
+            MessageDialog dialog(m_msg_dlg_parent, "FDsaFSDFDAS", _("Setting Nozzle Type"), wxICON_WARNING | wxOK);
+            dialog.ShowModal();
+            
+            // Apply the updated configuration with the new temperature values
+            new_conf.option<ConfigOptionInts>("first_layer_temperature")->set(first_layer_temp);
+            apply(filament_config, &new_conf);
+            wxGetApp().get_tab(Preset::TYPE_FFF_FILAMENT)->reload_config();
+            is_msg_dlg_already_exist = false;
+        }
     }
 }
+
 void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, DynamicPrintConfig &full_config)
 {
 

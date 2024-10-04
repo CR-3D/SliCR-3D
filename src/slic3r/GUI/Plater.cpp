@@ -8378,6 +8378,7 @@ void Plater::on_config_change(const DynamicConfig &config)
             }
         }
         
+        
         //FIXME also mills?
         if (opt_key == "filament_colour")
         {

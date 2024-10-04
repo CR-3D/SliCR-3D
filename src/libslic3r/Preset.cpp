@@ -947,6 +947,9 @@ static std::vector<std::string> s_Preset_printer_options {
     "time_cost",
     "time_start_gcode",
     "time_toolchange",
+
+    //ORCA
+    "nozzle_type",
 };
 
 static std::vector<std::string> s_Preset_sla_print_options {
