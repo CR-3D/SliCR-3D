@@ -1649,7 +1649,10 @@ unsigned int ModelObject::update_instances_print_volume_state(const BuildVolume 
         for (const ModelVolume* vol : this->volumes)
             if (vol->is_model_part()) {
                 const Transform3d matrix = model_instance->get_matrix() * vol->get_matrix();
-                BuildVolume::ObjectState state = build_volume.object_state(vol->mesh().its, matrix.cast<float>(), true /* may be below print bed */, true /*ignore_bottom*/, &bed_idx);
+                int bed = -1;
+                BuildVolume::ObjectState state = build_volume.object_state(vol->mesh().its, matrix.cast<float>(), true /* may be below print bed */, true /*ignore_bottom*/, &bed);
+                if (bed_idx == -1) // instance will be assigned to the bed the first volume is assigned to.
+                    bed_idx = bed;
                 if (state == BuildVolume::ObjectState::Inside)
                     // Volume is completely inside.
                     inside_outside |= INSIDE;
@@ -1668,7 +1671,8 @@ unsigned int ModelObject::update_instances_print_volume_state(const BuildVolume 
             inside_outside == INSIDE ? ModelInstancePVS_Inside : ModelInstancePVS_Fully_Outside;
         if (inside_outside == INSIDE)
             ++num_printable;
-        s_multiple_beds.set_instance_bed(model_instance->id(), bed_idx);
+        if (bed_idx != -1)
+            s_multiple_beds.set_instance_bed(model_instance->id(), bed_idx);
     }
     return num_printable;
 }

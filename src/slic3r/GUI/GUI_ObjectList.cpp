@@ -21,6 +21,8 @@
 #include "Gizmos/GLGizmoCut.hpp"
 #include "Gizmos/GLGizmoScale.hpp"
 
+#include "libslic3r/MultipleBeds.hpp"
+
 #include "OptionsGroup.hpp"
 #include "Tab.hpp"
 #include "wxExtensions.hpp"
@@ -1843,6 +1845,9 @@ void ObjectList::load_mesh_object(const TriangleMesh &mesh, const std::string &n
     bb.center());
 
     new_object->ensure_on_bed();
+
+    if (! s_multiple_beds.get_loading_project_flag())
+        new_object->instances.front()->set_offset(new_object->instances.front()->get_offset() + s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
 
 #ifdef _DEBUG
     check_model_ids_validity(model);

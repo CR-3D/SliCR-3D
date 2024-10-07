@@ -3184,9 +3184,13 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
             // to be updated accordingly
             view3D->get_canvas3d()->update_gizmos_on_off_state();
     }
-    
-    GLGizmoSimplify::add_simplify_suggestion_notification(obj_idxs, model.objects, *notification_manager);
-    
+        
+    GLGizmoSimplify::add_simplify_suggestion_notification(
+        obj_idxs, model.objects, *notification_manager);
+
+    if (s_multiple_beds.rearrange_linear_to_grid_if_possible(model, q->build_volume()))
+        update();
+
     return obj_idxs;
 }
 
@@ -3246,6 +3250,9 @@ std::vector<size_t> Plater::priv::load_model_objects(const ModelObjectPtrs& mode
                 instance->set_scaling_factor(instance->get_scaling_factor() / max_ratio);
                 scaled_down = true;
             }
+
+            if (! s_multiple_beds.get_loading_project_flag())
+                instance->set_offset(instance->get_offset() + s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
         }
         
         object->ensure_on_bed(allow_negative_z);
@@ -6089,11 +6096,11 @@ void Plater::load_project(const wxString &filename)
         return;
     
     // Take the Undo / Redo snapshot.
-    Plater::TakeSnapshot snapshot(this,
-                                  _L("Load Project") + ": " +
-                                  wxString::FromUTF8(into_path(filename).stem().string().c_str()),
-                                  UndoRedo::SnapshotType::ProjectSeparator);
-    
+    Plater::TakeSnapshot snapshot(this, _L("Load Project") + ": " + wxString::FromUTF8(into_path(filename).stem().string().c_str()), UndoRedo::SnapshotType::ProjectSeparator);
+
+    s_multiple_beds.set_loading_project_flag(true);
+    ScopeGuard guard([](){ s_multiple_beds.set_loading_project_flag(false);});
+
     p->reset();
     
     if (!load_files({into_path(filename)}, true, true, true, false).empty()) {
@@ -8869,7 +8876,9 @@ void Plater::arrange(Worker &w, bool selected)
                                                                          "can't fit into a single bed:\n%s"),
                                                                       concat_strings(names, "\n")));
         }
-        
+
+        s_multiple_beds.rearrange_linear_to_grid_if_possible(model(), build_volume());
+
         update(static_cast<unsigned int>(UpdateParams::FORCE_FULL_SCREEN_REFRESH));
         wxGetApp().obj_manipul()->set_dirty();
     };

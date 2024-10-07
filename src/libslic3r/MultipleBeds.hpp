@@ -39,8 +39,15 @@ public:
 	int    get_thumbnail_bed_idx() const { return m_bed_for_thumbnails_generation; }
 	bool   is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx, int instance_idx) const;
 
-	void set_last_hovered_bed(int i)  { m_last_hovered_bed = i; }
-	int  get_last_hovered_bed() const { return m_last_hovered_bed; }
+	void   set_last_hovered_bed(int i)  { m_last_hovered_bed = i; }
+	int    get_last_hovered_bed() const { return m_last_hovered_bed; }
+
+	bool   rearrange_linear_to_grid_if_possible(Model& model, const BuildVolume& build_volume);
+	void   set_loading_project_flag(bool project) { m_loading_project = project; }
+	bool   get_loading_project_flag() const { return m_loading_project; }
+
+	void   update_build_volume(const BoundingBoxf& build_volume_bb) { m_build_volume_bb = build_volume_bb; }
+
 
 
 
@@ -56,6 +63,9 @@ private:
 	std::map<ObjectID, int> m_inst_to_bed;
 	std::map<PrintBase*, size_t> m_printbase_to_texture;
 	int m_last_hovered_bed = -1;
+	BoundingBoxf m_build_volume_bb;
+	bool m_layout_linear = false;
+	bool m_loading_project = false;
 };
 
 extern MultipleBeds s_multiple_beds;

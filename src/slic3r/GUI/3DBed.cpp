@@ -150,6 +150,8 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     m_model_path = Slic3r::find_full_path(m_model_filename, m_model_filename);
     m_extended_bounding_box = this->calc_extended_bounding_box();
 
+    s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
+
     m_contour = ExPolygon(Polygon::new_scale(bed_shape));
     
     std::vector<ExPolygon> exclude_polys;
@@ -409,6 +411,13 @@ void Bed3D::init_triangles()
     
     m_triangles.init_from(std::move(init_data));
     m_triangles.set_color(m_model_color);
+
+    BoundingBoxf bb = m_build_volume.bounding_volume2d();
+    double y = bb.size().y();
+    double ym = m_model.model.get_bounding_box().size().y();
+    double diff = std::max(0., ym - y);
+    bb.max = Vec2d(bb.max.x(), bb.max.y() + diff);
+    s_multiple_beds.update_build_volume(bb);
 }
 
 void Bed3D::init_gridlines()

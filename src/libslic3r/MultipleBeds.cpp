@@ -14,32 +14,37 @@ bool s_reload_preview_after_switching_beds = false;
 
 Vec3d MultipleBeds::get_bed_translation(int id) const
 {
-    // TODO: Arrange defines this in LogicalBedGap in SceneBuilder.cpp
-    // TODO: It should be defined as multiple of bed size.
+    // The x value is bed gap as multiples of the actual printable area bounding box,
+    // so it can be matched to how the old slicer arranged things (in SceneBuilder.cpp).
+    // The y value is a multiple of the larger of printable area BB and bed model BB -
+    // this is to make sure that the bed models do not overlap.
+    const double bed_gap_x = 2./10;
+    const double bed_gap_y = 2./10;
 
     if (id == 0)
         return Vec3d::Zero();
     int x = 0;
     int y = 0;
-#if 0
-    // Linear layout
-    x = id;
-#else
-    // Grid layout.
-    ++id;
-    int a = 1;
-    while ((a+1)*(a+1) < id)
-        ++a;
-    id = id - a*a;
-    x=a;
-    y=a;
-    if (id <= a)
-        y = id-1;
-    else
-        x=id-a-1;
-#endif
-    return 300. * Vec3d(x, y, 0.);
+    if (m_layout_linear)
+        x = id;
+    else {
+        // Grid layout.
+        ++id;
+        int a = 1;
+        while ((a+1)*(a+1) < id)
+            ++a;
+        id = id - a*a;
+        x=a;
+        y=a;
+        if (id <= a)
+            y = id-1;
+        else
+            x=id-a-1;
+    }
+    return Vec3d(x * m_build_volume_bb.size().x() * (1. + bed_gap_x), y * m_build_volume_bb.size().y() * (1. + bed_gap_y), 0.);
 }
+
+
 
 
 
@@ -128,6 +133,55 @@ bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx,
     if (it == m_inst_to_bed.end())
         return false;
     return (m_bed_for_thumbnails_generation < 0 || it->second == m_bed_for_thumbnails_generation);
+}
+
+
+
+bool MultipleBeds::rearrange_linear_to_grid_if_possible(Model& model, const BuildVolume& build_volume)
+{
+    m_layout_linear = true;
+    int old_number_of_beds = m_number_of_beds;
+    m_number_of_beds = get_max_beds();
+    Slic3r::ScopeGuard guard([this]() { m_layout_linear = false; });
+    model.update_print_volume_state(build_volume);
+    m_number_of_beds = old_number_of_beds;
+
+    int max_bed = 0;
+
+    std::map<ObjectID, std::pair<ModelInstance*, int>> id_to_ptr_and_bed;
+    for (ModelObject* mo : model.objects) {
+        for (ModelInstance* mi : mo->instances) {
+            auto it = m_inst_to_bed.find(mi->id());
+            if (it == m_inst_to_bed.end()) {
+                // An instance is outside. Do not rearrange anything,
+                // that could create collisions.
+                return false;
+            }
+            id_to_ptr_and_bed[mi->id()] = std::make_pair(mi, it->second);
+            max_bed = std::max(max_bed, it->second);
+        }
+    }
+
+    if (max_bed == 0) {
+        // All instances are on the first bed. No need to do anything.
+        return false;
+    }
+    m_number_of_beds = max_bed + 1;
+    assert(m_number_of_beds <= get_max_beds());
+
+    // All instances are on some bed, at least two are used.
+    for (auto& [oid, mi_and_bed] : id_to_ptr_and_bed) {
+        auto& [mi, bed_idx] = mi_and_bed;
+        mi->set_offset(mi->get_offset() - get_bed_translation(bed_idx));
+    }
+
+    m_layout_linear = false;
+    for (auto& [oid, mi_and_bed] : id_to_ptr_and_bed) {
+        auto& [mi, bed_idx] = mi_and_bed;
+        mi->set_offset(mi->get_offset() + get_bed_translation(bed_idx));
+    }
+    model.update_print_volume_state(build_volume);
+    return true;
 }
 
 
