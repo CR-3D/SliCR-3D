@@ -14,6 +14,7 @@ class BuildVolume;
 class PrintBase;
 
 extern bool s_reload_preview_after_switching_beds;
+extern bool s_beds_just_switched;
 
 class MultipleBeds {
 public:

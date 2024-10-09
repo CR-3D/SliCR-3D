@@ -750,6 +750,8 @@ private:
     // returns the containment state in the given out_state, if non-null
     bool check_volumes_outside_state(GLVolumeCollection& volumes, ModelInstanceEPrintVolumeState* out_state, bool selection_only = true) const;
 
+    void select_bed(int i);
+
 public:
     void init_gcode_viewer() { m_gcode_viewer.init(); }
     void reset_gcode_toolpaths() { m_gcode_viewer.reset(); }

@@ -108,19 +108,28 @@ static bool show_imgui_demo_window = false;
 namespace Slic3r {
 namespace GUI {
 
-static void select_bed(int i)
+void GLCanvas3D::select_bed(int i)
 {
     int old_bed = s_multiple_beds.get_active_bed();
     if (i == old_bed || i == -1)
         return;
+    wxGetApp().plater()->canvas3D()->m_process->stop();
 
-    s_multiple_beds.set_active_bed(i);
-    if (wxGetApp().plater()->is_preview_shown()) {
-        s_reload_preview_after_switching_beds = true;
-        wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
-        wxGetApp().plater()->get_camera().translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
-    }
-    wxGetApp().plater()->sidebar().update_sliced_info_sizer();
+    // The stop call above schedules some events that would be processed after the switch.
+    // Among else, on_process_completed would be called, which would stop slicing of
+    // the new bed. We need to stop the process, pump all the events out of the queue
+    // and then switch the beds.
+    wxGetApp().CallAfter([i, old_bed]() {
+        wxYield();
+        s_multiple_beds.set_active_bed(i);
+        s_beds_just_switched = true;
+        if (wxGetApp().plater()->is_preview_shown()) {
+            s_reload_preview_after_switching_beds = true;
+            wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
+            wxGetApp().plater()->get_camera().translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
+        }
+        wxGetApp().plater()->schedule_background_process();
+    });
 }
 
 

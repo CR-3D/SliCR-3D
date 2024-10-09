@@ -3689,13 +3689,24 @@ void Plater::priv::process_validation_warning(const std::vector<std::string>& wa
 // Returns a bitmask of UpdateBackgroundProcessReturnState.
 unsigned int Plater::priv::update_background_process(bool force_validation, bool postpone_error_messages)
 {
+    assert(! s_beds_just_switched || background_process.idle());
+
     int active_bed = s_multiple_beds.get_active_bed();
-    
+    background_process.set_temp_output_path(active_bed);
     background_process.set_fff_print(fff_prints[active_bed].get());
     background_process.set_sla_print(sla_prints[active_bed].get());
     background_process.set_gcode_result(gcode_results[active_bed]);
     
     background_process.select_technology(this->printer_technology);
+
+    if (s_beds_just_switched) {
+        PrintBase::SlicingStatus status(q->active_fff_print(), -1);
+        SlicingStatusEvent evt(EVT_SLICING_UPDATE, 0, status);
+        on_slicing_update(evt);
+        s_beds_just_switched = false;
+        notification_manager->close_notification_of_type(NotificationType::ExportOngoing);
+        q->sidebar().show_sliced_info_sizer(background_process.finished());
+    }
     
 
     // bitmap of enum UpdateBackgroundProcessReturnState
@@ -4474,11 +4485,12 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
     bool force_render = (current_panel != nullptr);
 #endif // __WXMAC__
 
+    ScopeGuard guard([]() { s_reload_preview_after_switching_beds = false; });
     if (current_panel == panel) {
         if (!s_reload_preview_after_switching_beds)
             return;
         else
-            s_reload_preview_after_switching_beds = false;
+            update_background_process();
     }
 
     wxTitledPanel* old_panel = current_panel;
@@ -4866,33 +4878,69 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
         // preview anyways.
         this->preview->reload_print();
     }
+
+    std::vector<ObjectID> object_ids = { evt.status.warning_object_id };
+    std::vector<int> warning_steps = { evt.status.warning_step };
+    std::vector<int> flagss = { int(evt.status.flags) };
     
-    if (evt.status.flags & (PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS |
-                            PrintBase::SlicingStatus::UPDATE_PRINT_OBJECT_STEP_WARNINGS)) {
-        // Update notification center with warnings of object_id and its warning_step.
-        ObjectID                          object_id    = evt.status.warning_object_id;
-        int                               warning_step = evt.status.warning_step;
-        PrintStateBase::StateWithWarnings state;
-        if (evt.status.flags & PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS) {
-            if (this->printer_technology == ptFFF)
-               state = q->active_fff_print().step_state_with_warnings(static_cast<PrintStep>(warning_step));
-            else if (this->printer_technology == ptSLA)
-                state = q->active_sla_print().step_state_with_warnings(static_cast<SLAPrintStep>(warning_step));
-        } else if (this->printer_technology == ptFFF) {
-            //LUKAS const PrintObject *print_object = this->fff_print.get_object(object_id);
-            //if (print_object)
-            //    state = print_object->step_state_with_warnings(static_cast<PrintObjectStep>(warning_step));
-        } else {
-            // LUKAS const SLAPrintObject *print_object = this->sla_print.get_object(object_id);
-            // if (print_object)
-            //    state = print_object->step_state_with_warnings(static_cast<SLAPrintObjectStep>(warning_step));
+    if (warning_steps.front() == -1) {
+        flagss = { PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS, PrintBase::SlicingStatus::UPDATE_PRINT_OBJECT_STEP_WARNINGS };
+        notification_manager->close_slicing_errors_and_warnings();
+    }
+    
+    for (int flags : flagss ) {
+        if (warning_steps.front() == -1) {
+            warning_steps.clear();
+            if (flags == PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS) {                
+                int i = 0;
+                while (i < int(psCount)) { warning_steps.push_back(i); ++i; }
+            } else {
+                int i = 0;
+                while (i < int(posCount)) { warning_steps.push_back(i); ++i; }
+                for (const PrintObject* po : wxGetApp().plater()->active_fff_print().objects())
+                    object_ids.push_back(po->id());
+            }
         }
-        // Now process state.warnings.
-        for (auto const &warning : state.warnings) {
-            if (warning.current) {
-                notification_manager->push_slicing_warning_notification(warning.message, false, object_id,
-                                                                        warning_step);
-                add_warning(warning, object_id.id);
+
+
+
+
+
+        for (int warning_step : warning_steps) {
+            for (ObjectID object_id : object_ids) {
+                if ((flags & PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS) &&
+                    static_cast<PrintStep>(warning_step) == psAlertWhenSupportsNeeded &&
+                    !get_app_config()->get_bool("alert_when_supports_needed")) {
+                    // This alerts are from psAlertWhenSupportsNeeded and the respective app settings is not Enabled, so discard the alerts.
+                }
+                else if (flags &
+                    (PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS | PrintBase::SlicingStatus::UPDATE_PRINT_OBJECT_STEP_WARNINGS)) {
+                    // Update notification center with warnings of object_id and its warning_step.
+
+                    PrintStateBase::StateWithWarnings state;
+                    if (flags & PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS) {
+                        state = this->printer_technology == ptFFF ?
+                            q->active_fff_print().step_state_with_warnings(static_cast<PrintStep>(warning_step)) :
+                            q->active_sla_print().step_state_with_warnings(static_cast<SLAPrintStep>(warning_step));
+                    }
+                    else if (this->printer_technology == ptFFF) {
+                        const PrintObject* print_object = q->active_fff_print().get_object(object_id);
+                        if (print_object)
+                            state = print_object->step_state_with_warnings(static_cast<PrintObjectStep>(warning_step));
+                    }
+                    else {
+                        const SLAPrintObject* print_object = q->active_sla_print().get_object(object_id);
+                        if (print_object)
+                            state = print_object->step_state_with_warnings(static_cast<SLAPrintObjectStep>(warning_step));
+                    }
+                    // Now process state.warnings.
+                    for (auto const& warning : state.warnings) {
+                        if (warning.current) {
+                            notification_manager->push_slicing_warning_notification(warning.message, false, object_id, warning_step);
+                            add_warning(warning, object_id.id);
+                        }
+                    }
+                }
             }
         }
     }

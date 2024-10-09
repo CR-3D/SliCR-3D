@@ -108,16 +108,30 @@ std::pair<std::string, bool> SlicingProcessCompletedEvent::format_error_message(
     return std::make_pair(std::move(error), monospace);
 }
 
-BackgroundSlicingProcess::BackgroundSlicingProcess() {
+void BackgroundSlicingProcess::set_temp_output_path(int bed_idx)
+{
     boost::filesystem::path temp_path(wxStandardPaths::Get().GetTempDir().utf8_str().data());
-    temp_path /= (boost::format(".%1%.gcode") % get_current_pid()).str();
-    m_temp_output_path = temp_path.string();
+    temp_path /= (boost::format(".%1%_%2%.gcode") % get_current_pid() % bed_idx).str();
+	m_temp_output_path = temp_path.string();
 }
 
-BackgroundSlicingProcess::~BackgroundSlicingProcess() {
-    this->stop();
-    this->join_background_thread();
-    boost::nowide::remove(m_temp_output_path.c_str());
+BackgroundSlicingProcess::~BackgroundSlicingProcess() 
+{ 
+	this->stop();
+	this->join_background_thread();
+
+	// Current m_temp_output_path corresponds to the last selected bed. Remove everything
+	// in the same directory that starts the same (see set_temp_output_path).
+	const auto temp_dir = boost::filesystem::path(m_temp_output_path).parent_path();
+	std::string prefix = boost::filesystem::path(m_temp_output_path).filename().string();
+	prefix = prefix.substr(0, prefix.find('_'));
+    for (const auto& entry : boost::filesystem::directory_iterator(temp_dir)) {
+        if (entry.is_regular_file()) {
+            const std::string filename = entry.path().filename().string();
+            if (boost::starts_with(filename, prefix) && boost::ends_with(filename, ".gcode"))
+                boost::filesystem::remove(entry);
+        }
+    }
 }
 
 bool BackgroundSlicingProcess::select_technology(PrinterTechnology tech) {

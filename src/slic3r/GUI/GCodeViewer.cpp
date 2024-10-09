@@ -1433,9 +1433,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     // avoid processing if called with the same gcode_result
     // unless you changed the path merge mode
-    if (m_last_result_id == gcode_result.id && (m_current_mode == m_last_mode))
-            //(m_last_view_type != EViewType::VolumetricRate && m_view_type != EViewType::VolumetricRate &&
-             //m_last_view_type != EViewType::VolumetricFlow && m_view_type != EViewType::VolumetricFlow)))
+    if (m_last_result_id == gcode_result.id && wxGetApp().is_editor() && !s_reload_preview_after_switching_beds)
         return;
 
     m_last_result_id = gcode_result.id;
@@ -1493,8 +1491,6 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
                                            gcode_result.bed_shape.empty());
         }
     }
-
-
 
     m_print_statistics = gcode_result.print_statistics;
 
