@@ -39,6 +39,7 @@ static const Slic3r::ColorRGBA DEFAULT_MODEL_COLOR             = Slic3r::ColorRG
 static const Slic3r::ColorRGBA PICKING_MODEL_COLOR             = Slic3r::ColorRGBA::BLACK();
 static const Slic3r::ColorRGBA DEFAULT_SOLID_GRID_COLOR        = { 0.5f, 0.5f, 0.5f, 1.0f };
 static const Slic3r::ColorRGBA DEFAULT_TRANSPARENT_GRID_COLOR  = { 0.9f, 0.9f, 0.9f, 0.6f };
+static const Slic3r::ColorRGBA DISABLED_MODEL_COLOR            = { 0.6f, 0.6f, 0.6f, 0.75f };
 
 namespace Slic3r {
 namespace GUI {
@@ -122,11 +123,11 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     if (force_as_custom)
         type = Type::Custom;
     else {
-        auto [new_type, system_model, system_texture, system_with_grid] = detect_type(bed_shape);
+        auto [new_type, system_model, system_texture] = detect_type(bed_shape);
         type = new_type;
         model = system_model;
         texture = system_texture;
-        m_texture_with_grid = system_with_grid;
+        //m_texture_with_grid = system_with_grid;
     }
 
     std::string texture_filename = custom_texture.empty() ? texture : custom_texture;
@@ -150,8 +151,6 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     m_model_path = Slic3r::find_full_path(m_model_filename, m_model_filename);
     m_extended_bounding_box = this->calc_extended_bounding_box();
 
-    s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
-
     m_contour = ExPolygon(Polygon::new_scale(bed_shape));
     
     std::vector<ExPolygon> exclude_polys;
@@ -171,12 +170,19 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     m_texture.reset();
     m_model.reset();
 
+    // unregister from picking
+    wxGetApp().plater()->canvas3D()->remove_raycasters_for_picking(SceneRaycaster::EType::Bed);
+
+    init_internal_model_from_file();
+    init_triangles();
+
+    BoundingBoxf bb = m_build_volume.bounding_volume2d();
+    bb.max = Vec2d(bb.max.x() + std::max(0., m_model.model.get_bounding_box().size().x() - bb.size().x()), bb.max.y() + std::max(0., m_model.model.get_bounding_box().size().y() - bb.size().y()));
+    s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d(), bb);
+
     // Set the origin and size for rendering the coordinate system axes.
     m_axes.set_origin({ 0.0, 0.0, static_cast<double>(GROUND_Z) });
     m_axes.set_stem_length(0.1f * static_cast<float>(m_build_volume.bounding_volume().max_size()));
-
-    // unregister from picking
-    wxGetApp().plater()->canvas3D()->remove_raycasters_for_picking(SceneRaycaster::EType::Bed);
 
     // Let the calee to update the UI.
     return true;
@@ -229,8 +235,11 @@ void Bed3D::render_internal(GLCanvas3D& canvas, const Transform3d& view_matrix, 
     glsafe(::glEnable(GL_DEPTH_TEST));
 
     m_model.model.set_color(picking ? PICKING_MODEL_COLOR : DEFAULT_MODEL_COLOR);
-    if (!picking && ! active)
-        m_model.model.set_color(ColorRGBA(.6f, .6f, 0.6f, 0.5f));
+    m_triangles.set_color(picking ? PICKING_MODEL_COLOR : DEFAULT_MODEL_COLOR);
+    if (!picking && !active) {
+        m_model.model.set_color(DISABLED_MODEL_COLOR);
+        m_triangles.set_color(DISABLED_MODEL_COLOR);
+    }
 
     switch (m_type)
     {
@@ -410,14 +419,6 @@ void Bed3D::init_triangles()
 
     
     m_triangles.init_from(std::move(init_data));
-    m_triangles.set_color(m_model_color);
-
-    BoundingBoxf bb = m_build_volume.bounding_volume2d();
-    double y = bb.size().y();
-    double ym = m_model.model.get_bounding_box().size().y();
-    double diff = std::max(0., ym - y);
-    bb.max = Vec2d(bb.max.x(), bb.max.y() + diff);
-    s_multiple_beds.update_build_volume(bb);
 }
 
 void Bed3D::init_gridlines()
@@ -519,10 +520,11 @@ void Bed3D::init_contourlines()
 
 // Try to match the print bed shape with the shape of an active profile. If such a match exists,
 // return the print bed model.
-std::tuple<Bed3D::Type, std::string, std::string, bool> Bed3D::detect_type(const Pointfs& shape)
+std::tuple<Bed3D::Type, std::string, std::string> Bed3D::detect_type(const Pointfs& shape)
 {
-    auto bundle = wxGetApp().preset_bundle.get();
-    if (bundle != nullptr && bundle->printers.size() > bundle->printers.get_selected_idx()) {
+   PresetBundle* bundle = wxGetApp().preset_bundle.get();
+   
+    if (bundle != nullptr) {
         const Preset* curr = &bundle->printers.get_selected_preset();
         while (curr != nullptr) {
             if (curr->config.has("bed_shape")) {
@@ -530,19 +532,14 @@ std::tuple<Bed3D::Type, std::string, std::string, bool> Bed3D::detect_type(const
                     std::string model_filename = PresetUtils::system_printer_bed_model(*curr);
                     std::string texture_filename = PresetUtils::system_printer_bed_texture(*curr);
                     if (!model_filename.empty() && !texture_filename.empty())
-                        return { Type::System, model_filename, texture_filename, PresetUtils::system_printer_model(*curr)->bed_with_grid };
-                    else if(!model_filename.empty())
-                        return { Type::System, model_filename, {}, true };
-                    else if(!texture_filename.empty())
-                        return { Type::System, {}, texture_filename, PresetUtils::system_printer_model(*curr)->bed_with_grid};
+                        return { Type::System, model_filename, texture_filename };
                 }
             }
-
             curr = bundle->printers.get_preset_parent(*curr);
         }
     }
 
-    return { Type::Custom, {}, {}, false };
+    return { Type::Custom, {}, {} };
 }
 
 void Bed3D::render_axes()
@@ -729,7 +726,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
 
 }
 
-void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix)
+void Bed3D::init_internal_model_from_file()
 {
     if (m_model_filename.empty())
         return;
@@ -755,7 +752,15 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
         // update extended bounding box
         m_extended_bounding_box = this->calc_extended_bounding_box();
     }
-    
+}
+
+void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix)
+{
+    if (m_model_filename.empty())
+        return;
+
+    init_internal_model_from_file();
+
     if (!m_model.model.get_filename().empty()) {
         GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
         if (shader != nullptr) {

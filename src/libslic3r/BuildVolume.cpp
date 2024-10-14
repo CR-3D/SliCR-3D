@@ -282,8 +282,14 @@ BuildVolume::ObjectState BuildVolume::object_state(const indexed_triangle_set& i
     if (bed_idx)
         *bed_idx = -1;
 
-    for (int bed_id = 0; bed_id <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_id) {
+    // When loading an old project with more than the maximum number of beds,
+    // we still want to move the objects to the respective positions.
+    // Max beds number is momentarily increased when doing the rearrange, so use it.
+    const int max_bed = s_multiple_beds.get_loading_project_flag()
+                        ? s_multiple_beds.get_number_of_beds() - 1
+                        : std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1);
 
+    for (int bed_id = 0; bed_id <= max_bed; ++bed_id) {
 
 
     Transform3f trafo = trafo_orig;
@@ -326,10 +332,6 @@ BuildVolume::ObjectState BuildVolume::object_state(const indexed_triangle_set& i
     }
 
     if (out != ObjectState::Outside) {
-        if (bed_id == s_multiple_beds.get_number_of_beds()) {
-            // The object is on the next bed to be added.
-            s_multiple_beds.request_next_bed(true);
-        }
         if (bed_idx)
             *bed_idx = bed_id;
         break;
@@ -342,7 +344,7 @@ BuildVolume::ObjectState BuildVolume::object_state(const indexed_triangle_set& i
     return out;
 }
 
-BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3 volume_bbox_orig, bool ignore_bottom) const
+BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3 volume_bbox_orig, bool ignore_bottom, int* bed_idx) const
 {
     assert(m_type == Type::Rectangle);
     BoundingBox3Base<Vec3d> build_volume = this->bounding_volume().inflated(SceneEpsilon);
@@ -352,10 +354,10 @@ BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3 volu
         build_volume.min.z() = -std::numeric_limits<double>::max();
 
     ObjectState state = ObjectState::Outside;
-    int bed_idx = 0;
-    for (bed_idx = 0; bed_idx <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_idx) {
+    int bed_id = 0;
+    for (bed_id = 0; bed_id <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_id) {
         BoundingBoxf3 volume_bbox = volume_bbox_orig;
-        volume_bbox.translate(-s_multiple_beds.get_bed_translation(bed_idx));
+        volume_bbox.translate(-s_multiple_beds.get_bed_translation(bed_id));
 
         state = build_volume.max.z() <= -SceneEpsilon ? ObjectState::Below :
             build_volume.contains(volume_bbox) ? ObjectState::Inside :
@@ -364,10 +366,8 @@ BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3 volu
             break;
     }
 
-    if (bed_idx == s_multiple_beds.get_number_of_beds()) {
-        // The object is on the next bed to be added.
-        s_multiple_beds.request_next_bed(true);
-    }
+    if (bed_idx)
+        *bed_idx = bed_id;
     return state;
 }
 

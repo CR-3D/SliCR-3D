@@ -87,7 +87,7 @@ public:
     ObjectState  object_state(const indexed_triangle_set &its, const Transform3f& trafo, bool may_be_below_bed, bool ignore_bottom = true, int* bed_idx = nullptr) const;
     // Called by GLVolumeCollection::check_outside_state() after an object is manipulated with gizmos for example.
     // Called for a rectangular bed:
-    ObjectState  volume_state_bbox(BoundingBoxf3 volume_bbox, bool ignore_bottom = true) const;
+    ObjectState  volume_state_bbox(BoundingBoxf3 volume_bbox, bool ignore_bottom, int* bed_idx) const;
 
     // 2) Test called on G-code paths.
     // Using BedEpsilon for all tests.

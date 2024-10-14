@@ -43,11 +43,11 @@ public:
 	void   set_last_hovered_bed(int i)  { m_last_hovered_bed = i; }
 	int    get_last_hovered_bed() const { return m_last_hovered_bed; }
 
-	bool   rearrange_linear_to_grid_if_possible(Model& model, const BuildVolume& build_volume);
+	bool   update_after_load_or_arrange(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn);
 	void   set_loading_project_flag(bool project) { m_loading_project = project; }
 	bool   get_loading_project_flag() const { return m_loading_project; }
 
-	void   update_build_volume(const BoundingBoxf& build_volume_bb) { m_build_volume_bb = build_volume_bb; }
+	void   update_build_volume(const BoundingBoxf& build_volume_bb, const BoundingBoxf& build_volume_bb_incl_model) { m_build_volume_bb = build_volume_bb; m_build_volume_bb_incl_model = build_volume_bb_incl_model; }
 
 
 
@@ -65,6 +65,7 @@ private:
 	std::map<PrintBase*, size_t> m_printbase_to_texture;
 	int m_last_hovered_bed = -1;
 	BoundingBoxf m_build_volume_bb;
+	BoundingBoxf m_build_volume_bb_incl_model;
 	bool m_layout_linear = false;
 	bool m_loading_project = false;
 };

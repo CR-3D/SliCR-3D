@@ -42,7 +42,7 @@ Vec3d MultipleBeds::get_bed_translation(int id) const
         else
             x=id-a-1;
     }
-    return Vec3d(x * m_build_volume_bb.size().x() * (1. + bed_gap_x), y * m_build_volume_bb.size().y() * (1. + bed_gap_y), 0.);
+    return Vec3d(x * m_build_volume_bb_incl_model.size().x() * (1. + bed_gap_x), y * m_build_volume_bb_incl_model.size().y() * (1. + bed_gap_y), 0.);
 }
 
 
@@ -137,15 +137,42 @@ bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx,
 }
 
 
-
-bool MultipleBeds::rearrange_linear_to_grid_if_possible(Model& model, const BuildVolume& build_volume)
+// Beware! This function is also needed for proper update of bed when normal grid project is loaded!
+bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn)
 {
+    int original_number_of_beds = m_number_of_beds;
+    int stash_active = get_active_bed();
+    Slic3r::ScopeGuard guard([&]() {
+        m_layout_linear = false;
+        m_number_of_beds = get_max_beds();
+        model.update_print_volume_state(build_volume);
+        int max_bed = 0;
+        for (const auto& [oid, bed_id] : m_inst_to_bed)
+            max_bed = std::max(bed_id, max_bed);
+        m_number_of_beds = std::min(get_max_beds(), max_bed + 1);
+        model.update_print_volume_state(build_volume);
+        request_next_bed(false);
+        set_active_bed(m_number_of_beds != original_number_of_beds ? 0 : stash_active);
+        update_fn();
+    });
+
     m_layout_linear = true;
-    int old_number_of_beds = m_number_of_beds;
-    m_number_of_beds = get_max_beds();
-    Slic3r::ScopeGuard guard([this]() { m_layout_linear = false; });
-    model.update_print_volume_state(build_volume);
-    m_number_of_beds = old_number_of_beds;
+    std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
+    int abs_max = get_max_beds();
+    while (true) {
+        // This is to ensure that even objects on linear bed with higher than
+        // allowed index will be rearranged.
+        m_number_of_beds = abs_max;
+        model.update_print_volume_state(build_volume);
+        int max_bed = 0;
+        for (const auto& [oid, bed_id] : m_inst_to_bed)
+            max_bed = std::max(bed_id, max_bed);
+        if (max_bed + 1 < abs_max)
+            break;
+        abs_max += get_max_beds();
+    }
+    m_number_of_beds = 1;
+    std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
 
     int max_bed = 0;
 
@@ -163,17 +190,18 @@ bool MultipleBeds::rearrange_linear_to_grid_if_possible(Model& model, const Buil
         }
     }
 
-    if (max_bed == 0) {
-        // All instances are on the first bed. No need to do anything.
-        return false;
-    }
+    // Now do the rearrangement
     m_number_of_beds = max_bed + 1;
     assert(m_number_of_beds <= get_max_beds());
+    if (m_number_of_beds == 1)
+        return false;
 
     // All instances are on some bed, at least two are used.
     for (auto& [oid, mi_and_bed] : id_to_ptr_and_bed) {
         auto& [mi, bed_idx] = mi_and_bed;
+        std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
         mi->set_offset(mi->get_offset() - get_bed_translation(bed_idx));
+        std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
     }
 
     m_layout_linear = false;
@@ -181,7 +209,6 @@ bool MultipleBeds::rearrange_linear_to_grid_if_possible(Model& model, const Buil
         auto& [mi, bed_idx] = mi_and_bed;
         mi->set_offset(mi->get_offset() + get_bed_translation(bed_idx));
     }
-    model.update_print_volume_state(build_volume);
     return true;
 }
 

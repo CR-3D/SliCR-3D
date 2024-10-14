@@ -1671,7 +1671,7 @@ unsigned int ModelObject::update_instances_print_volume_state(const BuildVolume 
             inside_outside == INSIDE ? ModelInstancePVS_Inside : ModelInstancePVS_Fully_Outside;
         if (inside_outside == INSIDE)
             ++num_printable;
-        if (bed_idx != -1)
+        if (bed_idx != -1 && model_instance->is_printable())
             s_multiple_beds.set_instance_bed(model_instance->id(), bed_idx);
     }
     return num_printable;

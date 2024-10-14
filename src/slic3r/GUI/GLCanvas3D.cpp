@@ -1705,20 +1705,21 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
         const std::unique_ptr<GLVolume> & volume = volumes.volumes[vol_idx];
         if (!volume->is_modifier && (volume->shader_outside_printer_detection_enabled || (!volume->is_wipe_tower && volume->composite_id.volume_id >= 0))) {
             BuildVolume::ObjectState state;
+            int bed_idx = -1;
             if (volume_below(*volume))
                 state = BuildVolume::ObjectState::Below;
             else {
                 switch (build_volume.type()) {
                 case BuildVolume::Type::Rectangle:
                     //FIXME this test does not evaluate collision of a build volume bounding box with non-convex objects.
-                    state = build_volume.volume_state_bbox(volume_bbox(*volume));
+                    state = build_volume.volume_state_bbox(volume_bbox(*volume), true, &bed_idx);
                     break;
                 case BuildVolume::Type::Circle:
                 case BuildVolume::Type::Convex:
                 //FIXME doing test on convex hull until we learn to do test on non-convex polygons efficiently.
 
                 case BuildVolume::Type::Custom:
-                    state = build_volume.object_state(volume_convex_mesh(*volume).its, volume->world_matrix().cast<float>(), volume_sinking(*volume));
+                    state = build_volume.object_state(volume_convex_mesh(*volume).its, volume->world_matrix().cast<float>(), volume_sinking(*volume), true, &bed_idx);
                     break;
                     
                 default:
@@ -1735,6 +1736,9 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
                 if (overall_state == ModelInstancePVS_Fully_Outside && volume->is_outside && state == BuildVolume::ObjectState::Colliding)
                     overall_state = ModelInstancePVS_Partly_Outside;
                 contained_min_one |= !volume->is_outside;
+
+                if (! volume->is_outside && bed_idx != -1 && bed_idx == s_multiple_beds.get_number_of_beds())
+                s_multiple_beds.request_next_bed(true);
             }
         }
         else if (volume->is_modifier)

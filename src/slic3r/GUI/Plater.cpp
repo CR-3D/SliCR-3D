@@ -3188,7 +3188,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
     GLGizmoSimplify::add_simplify_suggestion_notification(
         obj_idxs, model.objects, *notification_manager);
 
-    if (s_multiple_beds.rearrange_linear_to_grid_if_possible(model, q->build_volume()))
+    if (s_multiple_beds.update_after_load_or_arrange(model, q->build_volume(), [this]() {q->canvas3D()->check_volumes_outside_state(); }))
         update();
 
     return obj_idxs;
@@ -4542,17 +4542,9 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
             bool export_in_progress = this->background_process.is_export_scheduled();
             bool model_fits = view3D->get_canvas3d()->check_volumes_outside_state() != ModelInstancePVS_Partly_Outside;
             if (!model.objects.empty() && !export_in_progress && model_fits) {
-                //check if already slicing
-                bool already_running = this->background_process.state() == BackgroundSlicingProcess::State::STATE_RUNNING
-                || this->background_process.state() == BackgroundSlicingProcess::State::STATE_STARTED;
-                if(!already_running) {
-                    preview->get_canvas3d()->init_gcode_viewer();
-                    this->q->reslice();
-                } else if (! this->background_process.finished()) {
-                    //TODO test
-                    preview->get_canvas3d()->init_gcode_viewer();
-                    preview->load_gcode_shells();
-                }
+                preview->get_canvas3d()->init_gcode_viewer();
+                preview->load_gcode_shells();
+                q->reslice();
             }
             // keeps current gcode preview, if any
             preview->reload_print(true);
@@ -8925,7 +8917,7 @@ void Plater::arrange(Worker &w, bool selected)
                                                                       concat_strings(names, "\n")));
         }
 
-        s_multiple_beds.rearrange_linear_to_grid_if_possible(model(), build_volume());
+        s_multiple_beds.update_after_load_or_arrange(model(), build_volume(), [this]() { canvas3D()->check_volumes_outside_state(); });
 
         update(static_cast<unsigned int>(UpdateParams::FORCE_FULL_SCREEN_REFRESH));
         wxGetApp().obj_manipul()->set_dirty();
