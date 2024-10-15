@@ -1076,6 +1076,7 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox** combo, const int extr_i
     
     auto combo_and_btn_sizer = new wxBoxSizer(wxHORIZONTAL);
     {   // tool name
+    /*
         auto opt = wxGetApp().preset_bundle->printers.get_edited_preset().config.option<ConfigOptionStrings>("tool_name");
         assert(opt);
         std::string tool_name = opt? opt->get_at(extr_idx) : nullptr;
@@ -1088,6 +1089,9 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox** combo, const int extr_i
         (*combo)->label->SetFont(wxGetApp().small_font());
         combo_and_btn_sizer->Add((*combo)->label, 0, wxALIGN_LEFT | wxEXPAND | wxRIGHT, 4);
     }
+    */
+    }
+    
     combo_and_btn_sizer->Add(*combo, 1, wxEXPAND);
     assert((*combo)->edit_btn);
     combo_and_btn_sizer->Add((*combo)->edit_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT,
@@ -1150,6 +1154,7 @@ void Sidebar::update_all_preset_comboboxes()
         }
     
     if (print_tech == ptFFF) {
+    /*
         for (PlaterPresetComboBox* cb : p->combos_filament)
             for (size_t extr_idx = 0; extr_idx < p->combos_filament.size(); ++extr_idx) {
                 PlaterPresetComboBox *cb  = p->combos_filament[extr_idx];
@@ -1167,6 +1172,7 @@ void Sidebar::update_all_preset_comboboxes()
                     cb->label->SetLabel(wide_tool_name.empty() ? "" : (wide_tool_name + std::string(": ")));
                 }
             }
+            */
     }
 }
 
@@ -1179,10 +1185,7 @@ void Sidebar::update_presets(Preset::Type preset_type)
         case Preset::TYPE_FFF_FILAMENT: {
             const size_t extruder_cnt = print_tech != ptFFF ?
             1 :
-            dynamic_cast<ConfigOptionFloats *>(
-                                               preset_bundle.printers.get_edited_preset().config.option(
-                                                                                                        "nozzle_diameter"))
-            ->size();
+            dynamic_cast<ConfigOptionFloats *>(preset_bundle.printers.get_edited_preset().config.option("nozzle_diameter"))->size();
             const size_t filament_cnt = p->combos_filament.size() > extruder_cnt ? extruder_cnt :
             p->combos_filament.size();
             
