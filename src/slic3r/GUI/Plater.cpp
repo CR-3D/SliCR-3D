@@ -4233,6 +4233,7 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
         new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
         new_conf->set_key_value("draft_shield", new ConfigOptionEnum<DraftShield>(dsEnabled));
+        new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
         
         tab_print->load_config(*new_conf);
         tab_print->update_dirty();
@@ -4271,8 +4272,9 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
 
     if (preset_type == Preset::TYPE_FFF_FILAMENT) {
         wxGetApp().preset_bundle->set_filament_preset(idx, preset_name);
-        this->on_support_selected(preset_name, idx);
     }
+    
+    this->on_support_selected(preset_name, idx);
 
     bool select_preset = !combo->selection_is_changed_according_to_physical_printers();
     // TODO: ?

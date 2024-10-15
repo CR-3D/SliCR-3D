@@ -8,13 +8,10 @@ group:filament_spool_weight_event:Filament
 	setting:id$0:filament_cost
 	setting:id$0:filament_spool_weight
 group:Temperature °C
-	setting:chamber_temperature
-
 	line:Extruder
 		setting:id$0:first_layer_temperature
 		setting:id$0:temperature
 	end_line
-
 	line:Bed
 		setting:id$0:first_layer_bed_temperature
 		setting:id$0:label:Other layers:bed_temperature
