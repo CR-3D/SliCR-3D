@@ -1,0 +1,16 @@
+min_slic3r_version = 2.3.0-alpha3
+0.0.1 Initial CR-3D bundle
+0.0.2 fix filament profiles
+0.0.3 lot of improvements, new filament ABS-FibCR20, new printer C1 Flat and I65X
+0.0.4 fix PLA extrusion multiplier
+0.0.5 add pause command to printer custom gcode
+0.0.6 update I444 IDEX bed model
+0.0.7 update printer and filament profiles
+0.0.8 fix I444 IDEX bed model
+0.0.9 Added Z-Hop to every printer, Modified Toolchange Settings, Improved Support Settings
+0.0.10 increased internal bridge speed, changed lift_height
+0.0.11 SuperSlicer Profiles
+0.0.12 added CR-3D ABS CRBON
+0.0.13 updated to 2.6.0.5 profiles
+0.0.14 ABS ESD renamed
+0.0.15 time_toolchange set to 3
