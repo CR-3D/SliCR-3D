@@ -4474,6 +4474,8 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
         new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
         new_conf->set_key_value("draft_shield", new ConfigOptionEnum<DraftShield>(dsEnabled));
+        new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
+        
         
         tab_print->load_config(*new_conf);
         tab_print->update_dirty();

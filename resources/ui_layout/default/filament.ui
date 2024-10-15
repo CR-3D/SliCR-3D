@@ -1,80 +1,111 @@
 #note: all settings are id$0 as the slicer consider there is only one value in the arrays in the gui.
 page:Filament:spool
 group:filament_spool_weight_event:Filament
+	setting:id$0:filament_cost
+	setting:id$0:filament_spool_weight
 	setting:id$0:filament_colour
 	setting:id$0:filament_diameter
 	setting:id$0:filament_density
-	setting:id$0:filament_cost
-	setting:id$0:filament_spool_weight
 group:Flow
 	setting:id$0:extrusion_multiplier
 	setting:id$0:filament_fill_top_flow_ratio
 	setting:id$0:filament_first_layer_flow_ratio
+
 group:Temperature °C
 	line:Extruder
 		setting:id$0:first_layer_temperature
 		setting:id$0:temperature
 	end_line
-	line:toggle$idle_temperature:toggle_default$30:Idle temperature
-		setting:id$0:idle_temperature
+
 	line:Bed
 		setting:id$0:first_layer_bed_temperature
 		setting:id$0:label:Other layers:bed_temperature
 	end_line
-	setting:id$0:chamber_temperature
+
 	setting:id$0:label$Idle:idle_temperature
+
+	setting:id$0:chamber_temperature
+
 group:Filament properties
 	setting:id$0:width$7:filament_type
 	setting:id$0:filament_soluble
+	setting:id$0:label$Pressure Advance:filament_pressure_advance
+
 	setting:id$0:filament_shrink
 	setting:id$0:filament_max_overlap
-	setting:id$0:label$pa:filament_pressure_advance
+
 group:Print speed override
 	setting:id$0:filament_max_speed
 	setting:id$0:filament_max_volumetric_speed
 	volumetric_speed_description
 
 page:Cooling:time
-group:Fan speed - default
-	setting:id$0:default_fan_speed
-	line:Perimeter fan speed
-		setting:id$0:label_width$12:label$Internal:perimeter_fan_speed
-		setting:id$0:label_width$12:label$External:external_perimeter_fan_speed
-	line:Internal Infill fan speed
-		setting:id$0:label_width$12:label$Sparse:infill_fan_speed
-	line:Solid Infill fan speed
-		setting:id$0:label_width$12:label$Solid:solid_infill_fan_speed
-		setting:id$0:label_width$12:label$Top solid:top_fan_speed
-	line:Support Material fan speed
-		setting:id$0:label_width$12:label$Default:support_material_fan_speed
-		setting:id$0:label_width$12:label$Interface:support_material_interface_fan_speed
-	line:Bridges fan speed
-		setting:id$0:label_width$12:label$Bridges:bridge_fan_speed
-		setting:id$0:label_width$12:label$Internal bridges:internal_bridge_fan_speed
-	line:Overhangs Perimeter fan speed
-		setting:id$0:label_width$12:label$Overhangs:overhangs_fan_speed
-	line:Gap fill fan speed
-		setting:id$0:label_width$12:label$Gap fill:gap_fill_fan_speed
+group:Fan Speed
+	setting:id$0:label$Default Fan Speed:default_fan_speed
+	line:Perimeter Fan Speed
+		setting:id$0:label$Internal:perimeter_fan_speed
+		setting:id$0:label$External:external_perimeter_fan_speed
+	end_line
+	
 	line:Disable fan for the first
 		setting:id$0:width$5:label$_:sidetext_width$7:disable_fan_first_layers
 		setting:id$0:width$5:label_width$18:full_fan_speed_layer
 	end_line
 		
-group:Dynamic Overhangs fan speeds
-	line:Enable fan speed for a % overlap
-		setting:id$0:label$_:enable_dynamic_fan_speeds
-		setting:id$0:label$0% (bridge):overhang_fan_speed_0
-		setting:id$0:label$25%:overhang_fan_speed_1
-		setting:id$0:label$50%:overhang_fan_speed_2
-		setting:id$0:label$75%:overhang_fan_speed_3
+
+group:Infill Fan Speed
+	line:Top Solid Infill Fan Speed
+		setting:id$0:label$_:top_fan_speed
 	end_line
-group:Short layer time - began to increase base fan speed
+
+	line:Internal Infill Fan Speed
+		setting:id$0:label$_:infill_fan_speed
+	end_line
+
+	line:Solid Infill Fan Speed
+		setting:id$0:label$_:solid_infill_fan_speed
+	end_line
+
+
+group:Support Material Fan Speed
+	line:Support Material Fan Speed
+		setting:id$0:label_width$12:label$Default:support_material_fan_speed
+		setting:id$0:label_width$12:label$Interface:support_material_interface_fan_speed
+	end_line
+
+group:Bridges Fan Speed
+	line:Bridges Fan Speed
+		setting:id$0:label_width$12:label$Bridges:bridge_fan_speed
+		setting:id$0:label_width$12:label$Internal Bridges:internal_bridge_fan_speed
+	end_line
+
+group:Overhangs Fan Speed
+	line:Overhangs Perimeter Fan Speed
+		setting:id$0:label$_:overhangs_fan_speed
+	end_line
+
+group:Gap Fill Fan Speed
+	line:Gap Fill Fan Speed
+		setting:id$0:label$_:gap_fill_fan_speed
+	end_line
+
+#group:Dynamic Overhangs fan speeds
+#	line:Enable Fan speed for a % overlap
+#		setting:id$0:label$_:enable_dynamic_fan_speeds
+#		setting:id$0:label$0% (bridge):overhang_fan_speed_0
+#		setting:id$0:label$25%:overhang_fan_speed_1
+#		setting:id$0:label$50%:overhang_fan_speed_2
+#		setting:id$0:label$75%:overhang_fan_speed_3
+#	end_line
+
+group:Short Layer Time - Began To Increase Base Fan Speed
+	setting:id$0:label$Max Fan Speed:max_fan_speed
 	setting:id$0:fan_below_layer_time
-	setting:id$0:label$Max fan speed:max_fan_speed
-group:Very short layer time - began to decrease extrusion rate
-	setting:id$0:label$Layer time goal:slowdown_below_layer_time
-	setting:id$0:width$4:max_speed_reduction
-	setting:id$0:width$4:min_print_speed
+
+group:Very Short Layer Time - Began To Decrease Extrusion Rate
+	setting:id$0:label$Layer Time Goal:slowdown_below_layer_time
+	setting:id$0:label$Max Speed Reduction:max_speed_reduction
+	setting:id$0:label$Min Print Speed:min_print_speed
 group:Behavior
 	cooling_description
 
