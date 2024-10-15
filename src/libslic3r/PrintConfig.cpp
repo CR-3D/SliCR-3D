@@ -66,7 +66,7 @@ static t_config_enum_names enum_names_from_keys_map(const t_config_enum_values &
 static const t_config_enum_values s_keys_map_ArcFittingType {
     { "disabled",       int(ArcFittingType::Disabled) },
     { "bambu",          int(ArcFittingType::Bambu) },
-    { "emit_center",    int(ArcFittingType::EmitCenter) } // arwelder
+    { "emit_center",    int(ArcFittingType::ArcWelder) } // arcwelder
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(ArcFittingType)
 
@@ -2230,6 +2230,20 @@ void PrintConfigDef::init_fff_params()
     def->mode = comExpert | comPrusa;
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats { 0.0 });
+
+    def = this->add("filament_pressure_advance", coFloats);
+    def->label = L("Pressure advance");
+    def->tooltip = L("Pressure advance value (Linear advance factor for Marlin)."
+           " If enabled, the gcode will emit a pressure advance value for this filament."
+           "\nWith reprap and sprinter, 'M572 Dx Sx' is used."
+           "\nWith klipper, 'SET_PRESSURE_ADVANCE ADVANCE=x EXTRUDER=x' is used."
+           "\nWith other firmware 'M900 Kx' is used.");
+    def->category = OptionCategory::filament;
+    def->min = 0;
+    def->can_be_disabled = true;
+    def->mode = comAdvancedE | comSuSi;
+    def->is_vector_extruder = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloats({0.02}), true));
 
     def = this->add("filament_ramming_parameters", coStrings);
     def->label = L("Ramming parameters");
@@ -5713,8 +5727,7 @@ void PrintConfigDef::init_fff_params()
         " at and beyond which solid infill should no longer be added above/below. If this setting is equal or higher than "
         " the top/bottom solid layer count, it won't do anything. If this setting is set to 1, it will evict "
         " all solid fill above/below perimeters. "
-        "\nSet zero to disable."
-        "\n!! ensure_vertical_shell_thickness needs to be activated so this algorithm can work !!.");
+        "\nSet zero to disable.");
     def->min = 0;
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionInt(2));
@@ -9326,6 +9339,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "filament_max_wipe_tower_speed",
 "filament_melt_zone_pause",
 "filament_max_overlap",
+"filament_pressure_advance",
 "filament_retract_lift_before_travel",
 "filament_shrink",
 "filament_skinnydip_distance",
@@ -10076,7 +10090,6 @@ void DynamicPrintConfig::normalize_fdm()
             this->opt<ConfigOptionInt>("solid_over_perimeters")->value = 0;
             this->opt<ConfigOptionInt>("support_material_enforce_layers")->value = 0;
             // this->opt<ConfigOptionBool>("exact_last_layer_height", true)->value = false;
-            this->opt<ConfigOptionBool>("ensure_vertical_shell_thickness", true)->value = false;
             this->opt<ConfigOptionBool>("infill_dense", true)->value = false;
             this->opt<ConfigOptionBool>("extra_perimeters", true)->value = false;
             this->opt<ConfigOptionBool>("extra_perimeters_on_overhangs", true)->value = false;

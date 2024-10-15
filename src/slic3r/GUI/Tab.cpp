@@ -3418,11 +3418,12 @@ void TabFilament::toggle_options()
     }
 
     
+    /*
     if (m_active_page->title() == L("Filament")) {
-        bool pa = m_config->opt_bool("enable_pressure_advance", 0);
-        toggle_option("pressure_advance", pa);
+        bool pa = m_config->opt_bool("filament_pressure_advance", 0);
+        toggle_option("filament_pressure_advance", pa);
     }
-     
+*/
 
     //if (m_active_page->title() == "Advanced")
     {

@@ -619,7 +619,7 @@ ExPolygons Layer::merged(float offset_scaled) const
 	for (LayerRegion *layerm : m_regions) {
 		const PrintRegionConfig &config = layerm->region().config();
 		// Our users learned to bend Slic3r to produce empty volumes to act as subtracters. Only add the region if it is non-empty.
-		if (config.bottom_solid_layers > 0 || config.top_solid_layers > 0 || config.fill_density > 0. || config.perimeters > 0 || config.solid_infill_every_layers.value > 0)
+		if (config.bottom_solid_layers > 0 || config.top_solid_layers > 0 || config.fill_density > 0. || config.perimeters > 0 || (config.solid_infill_every_layers.value > 0 && config.fill_density.value > 0))
 			append(polygons, offset(layerm->slices().surfaces, offset_scaled));
 	}
     ExPolygons out = union_ex(polygons);
@@ -790,26 +790,27 @@ void Layer::make_perimeters()
                     this->m_object->print()->throw_if_canceled();
                     layerm_config->make_perimeters(new_slices, perimeter_and_gapfill_ranges, fill_expolygons, fill_expolygons_ranges);
 
-                    // TODO: review if it's not useless or creates bugs.
-                    // assign fill_expolygons to each LayerRegion
-                    if (!fill_expolygons.empty()) { 
-                        for (uint32_t layer_region_id : layer_region_ids) {
-                            LayerRegion &layerm = *m_regions[region_id];
-                            // Separate the fill surfaces.
-                            ExPolygons expp = intersection_ex(to_expolygons(new_slices.surfaces), fill_expolygons);
-                            layerm.m_fill_expolygons = expp;
-                            assert(layerm_config != m_regions[region_id]); // merill test
-                            layerm.m_fill_no_overlap_expolygons = (layerm_config)->fill_no_overlap_expolygons();
-                            //layerm.perimeters = (layerm_config)->perimeters;
-                            //layerm.thin_fills = (layerm_config)->thin_fills;
-                            layerm.set_fill_surfaces().clear();
-                            for (Surface &surf: new_slices.surfaces) {
-                                ExPolygons exp = intersection_ex(ExPolygons{ surf.expolygon }, fill_expolygons);
-                                assert_valid(exp);
-                                layerm.set_fill_surfaces().append(std::move(exp), surf);
-                            }
-                        }
-                    }
+                    //// TODO: review if it's not useless or creates bugs.
+                    //// assign fill_expolygons to each LayerRegion
+                    //if (!fill_expolygons.empty()) { 
+                    //    for (uint32_t layer_region_id : layer_region_ids) {
+                    //        LayerRegion &layerm = *m_regions[region_id];
+                    //        // Separate the fill surfaces.
+                    //        ExPolygons expp = intersection_ex(to_expolygons(new_slices.surfaces), fill_expolygons);
+                    //        layerm.m_fill_expolygons = expp;
+                    //        if (layerm_config != m_regions[region_id]) {
+                    //            layerm.m_fill_no_overlap_expolygons = (layerm_config)->fill_no_overlap_expolygons();
+                    //            // layerm.perimeters = (layerm_config)->perimeters;
+                    //            // layerm.thin_fills = (layerm_config)->thin_fills;
+                    //        }
+                    //        layerm.set_fill_surfaces().clear();
+                    //        for (Surface &surf: new_slices.surfaces) {
+                    //            ExPolygons exp = intersection_ex(ExPolygons{ surf.expolygon }, fill_expolygons);
+                    //            assert_valid(exp);
+                    //            layerm.set_fill_surfaces().append(std::move(exp), surf);
+                    //        }
+                    //    }
+                    //}
 
                     this->sort_perimeters_into_islands(new_slices, region_id_config, perimeter_and_gapfill_ranges, std::move(fill_expolygons), fill_expolygons_ranges, layer_region_ids);
                 }
@@ -990,8 +991,10 @@ void Layer::sort_perimeters_into_islands(
                 ExPolygons l_slices_exp = to_expolygons(l.slices().surfaces);
                 l.m_fill_expolygons = intersection_ex(l_slices_exp, fill_expolygons);
                 //copy m_fill_no_overlap_expolygons in sister LayerRegion. It will serve as a mask (with intersection). TODO: maybe to intersection(m_fill_no_overlap_expolygons, l.slices().surfaces)
-                assert(l.m_fill_no_overlap_expolygons.empty());
-                l.m_fill_no_overlap_expolygons = this_layer_region.m_fill_no_overlap_expolygons;
+                if (&this_layer_region != &l) {
+                    assert(l.m_fill_no_overlap_expolygons.empty());
+                    l.m_fill_no_overlap_expolygons = this_layer_region.m_fill_no_overlap_expolygons;
+                }
                 // ensure fill_surface is good (this was deleted in prusa2.7, i wonder if prusa ever used fill_surfaces after perimetergeneration)
                 l.set_fill_surfaces().clear();
                 for (const Surface &surf: slices) {

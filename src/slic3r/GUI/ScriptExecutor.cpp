@@ -64,29 +64,29 @@ void as_print_int(int i) { std::cout << i; }
 //    if (watching_keys != nullptr)
 //        watching_keys->push_back(key);
 //}
-std::pair<const PresetCollection *, const ConfigOption *> get_coll(const std::string &str)
-{
-    const PresetCollection *coll = nullptr;
-    const ConfigOption *    opt  = nullptr;
+std::pair<const PresetCollection*, const ConfigOption*> get_coll(const std::string& str) {
+    const PresetCollection* coll = nullptr;
+    const ConfigOption* opt = nullptr;
+    const bool is_reset = current_script && (current_script->is_reset(str));
     if (opt == nullptr && (current_script->tab()->get_printer_technology() & PrinterTechnology::ptFFF) != 0) {
         coll = &current_script->tab()->m_preset_bundle->fff_prints;
-        opt  = coll->get_edited_preset().config.option(str);
+        opt = is_reset ? coll->get_selected_preset().config.option(str) : coll->get_edited_preset().config.option(str);
         if (opt == nullptr) {
             coll = &current_script->tab()->m_preset_bundle->filaments;
-            opt  = coll->get_edited_preset().config.option(str);
+            opt = is_reset ? coll->get_selected_preset().config.option(str) : coll->get_edited_preset().config.option(str);
         }
     }
     if (opt == nullptr && (current_script->tab()->get_printer_technology() & PrinterTechnology::ptSLA) != 0) {
         coll = &current_script->tab()->m_preset_bundle->sla_prints;
-        opt  = coll->get_edited_preset().config.option(str);
+        opt = is_reset ? coll->get_selected_preset().config.option(str) : coll->get_edited_preset().config.option(str);
         if (opt == nullptr) {
             coll = &current_script->tab()->m_preset_bundle->sla_materials;
-            opt  = coll->get_edited_preset().config.option(str);
+            opt = is_reset ? coll->get_selected_preset().config.option(str) : coll->get_edited_preset().config.option(str);
         }
     }
     if (opt == nullptr) {
         coll = &current_script->tab()->m_preset_bundle->printers;
-        opt  = coll->get_edited_preset().config.option(str);
+        opt = is_reset ? coll->get_selected_preset().config.option(str) : coll->get_edited_preset().config.option(str);
     }
     return std::pair<const PresetCollection *, const ConfigOption *>{coll, opt};
 }
@@ -129,9 +129,9 @@ void _set_bool(DynamicPrintConfig &conf, const ConfigOption *opt, std::string &k
 
 void as_set_bool(std::string &key, bool b)
 {
-    if (!current_script->can_set())
-        return;
-    std::pair<const PresetCollection *, const ConfigOption *> result = get_coll(key);
+    assert(current_script);
+    if (!current_script->can_set()) return;
+    std::pair<const PresetCollection*, const ConfigOption*> result = get_coll(key);
     if (result.second == nullptr)
         throw NoDefinitionExceptionEmitLog("set_bool(): error, can't find bool option " + key);
     DynamicPrintConfig &conf = current_script->to_update()[result.first->type()];
@@ -140,6 +140,7 @@ void as_set_bool(std::string &key, bool b)
     } else {
         _set_bool(conf, result.second, key, -1, b);
     }
+    current_script->remove_from_reset(key);
 }
 
 int32_t as_get_int_idx_merill(std::string &key, int idx)
@@ -178,9 +179,9 @@ void _set_int(DynamicPrintConfig &conf, const ConfigOption *opt, std::string &ke
 }
 void as_set_int(std::string &key, int val)
 {
-    if (!current_script->can_set())
-        return;
-    std::pair<const PresetCollection *, const ConfigOption *> result = get_coll(key);
+    assert(current_script);
+    if (!current_script->can_set()) return;
+    std::pair<const PresetCollection*, const ConfigOption*> result = get_coll(key);
     if (result.second == nullptr)
         throw NoDefinitionExceptionEmitLog("set_int(): error, can't find int option " + key);
     DynamicPrintConfig &conf = current_script->to_update()[result.first->type()];
@@ -217,6 +218,7 @@ void as_set_int(std::string &key, int val)
         //}
         // BOOST_LOG_TRIVIAL(error) << "Error, can't access enum '" << key << "'";
     }
+    current_script->remove_from_reset(key);
 }
 float as_get_float_idx(std::string &key, int idx)
 {
@@ -410,9 +412,9 @@ void _set_float(DynamicPrintConfig &conf, const ConfigOption *opt, std::string &
 
 void as_set_float(std::string &key, float f_val)
 {
-    if (!current_script->can_set())
-        return;
-    std::pair<const PresetCollection *, const ConfigOption *> result = get_coll(key);
+    assert(current_script);
+    if (!current_script->can_set()) return;
+    std::pair<const PresetCollection*, const ConfigOption*> result = get_coll(key);
     if (result.second == nullptr)
         throw NoDefinitionExceptionEmitLog("set_float(): error, can't find float option " + key);
 
@@ -422,6 +424,7 @@ void as_set_float(std::string &key, float f_val)
     } else {
         _set_float(conf, result.second, key, -1, f_val);
     }
+    current_script->remove_from_reset(key);
 }
 bool as_is_percent_idx(std::string &key, int idx)
 {
@@ -501,6 +504,7 @@ void _set_percent(DynamicPrintConfig &conf, const ConfigOption *opt, std::string
 }
 void as_set_percent(std::string &key, float p_val)
 {
+    assert(current_script);
     if (!current_script->can_set())
         return;
     std::pair<const PresetCollection *, const ConfigOption *> result = get_coll(key);
@@ -512,6 +516,7 @@ void as_set_percent(std::string &key, float p_val)
     } else {
         _set_percent(conf, result.second, key, -1, p_val);
     }
+    current_script->remove_from_reset(key);
 }
 
 void as_get_string_idx(std::string &key, int idx, std::string &val)
@@ -560,11 +565,10 @@ void _set_string(DynamicPrintConfig &    conf,
         throw NoDefinitionExceptionEmitLog("set_string(): error, can't find string option (wrong type?) " + key);
     }
 }
-void as_set_string(std::string &key, std::string &val)
-{
-    if (!current_script->can_set())
-        return;
-    std::pair<const PresetCollection *, const ConfigOption *> result = get_coll(key);
+void as_set_string(std::string &key, std::string &val) {
+    assert(current_script);
+    if (!current_script->can_set()) return;
+    std::pair<const PresetCollection*, const ConfigOption*> result = get_coll(key);
     if (result.second == nullptr)
         throw NoDefinitionExceptionEmitLog("set_string(): error, can't find string option " + key);
     DynamicPrintConfig &conf = current_script->to_update()[result.first->type()];
@@ -573,6 +577,7 @@ void as_set_string(std::string &key, std::string &val)
     } else {
         _set_string(conf, result.first, result.second, key, -1, val);
     }
+    current_script->remove_from_reset(key);
 }
 
 //// vector vars ////
@@ -970,9 +975,15 @@ void as_back_custom_initial_value(int preset_type, std::string &key)
 
 /////// main script fucntions //////
 
-// TODO: add "unset" function, that revert to last value (befoer a scripted set) if a set has been made since last
-// not-scripted change.
-void ScriptContainer::init(const std::string &tab_key, Tab *tab)
+void ScriptContainer::remove_from_reset(const std::string &key) {
+    auto it = std::find(m_to_reset_initial.begin(), m_to_reset_initial.end(), key);
+    if (it != m_to_reset_initial.end()) {
+        m_to_reset_initial.erase(it);
+    }
+}
+
+//TODO: add "unset" function, that revert to last value (befoer a scripted set) if a set has been made since last not-scripted change.
+void ScriptContainer::init(const std::string& tab_key, Tab* tab)
 {
     m_tab                                        = tab;
     const boost::filesystem::path ui_script_file = Slic3r::GUI::get_app_config()->layout_config_path() /
@@ -1103,7 +1114,7 @@ void ScriptContainer::init(const std::string &tab_key, Tab *tab)
             m_script_engine.get()->RegisterGlobalFunction("void back_custom_initial_value(int, string &in)", WRAP_FN(as_back_custom_initial_value), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("void ask_for_refresh()", WRAP_FN(as_ask_for_refresh), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in, int)", WRAP_FN(as_is_enabled), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("bool as_is_widget_enabled(string &in)", WRAP_FN(as_is_widget_enabled), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_widget_enabled(string &in)", WRAP_FN(as_is_widget_enabled), AngelScript::asCALL_GENERIC);
 
 #else
             m_script_engine.get()->RegisterGlobalFunction("void print(string &in)", AngelScript::asFUNCTION(as_print),
@@ -1229,9 +1240,10 @@ void ScriptContainer::init(const std::string &tab_key, Tab *tab)
             m_script_engine.get()->RegisterGlobalFunction("float get_computed_float(string &in)",   AngelScript::asFUNCTION(as_get_computed_float), AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("void back_initial_value(string &in)",    AngelScript::asFUNCTION(as_back_initial_value), AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("void back_custom_initial_value(int, string &in)",    AngelScript::asFUNCTION(as_back_custom_initial_value), AngelScript::asCALL_CDECL);
+
             m_script_engine.get()->RegisterGlobalFunction("void ask_for_refresh()",                 AngelScript::asFUNCTION(as_ask_for_refresh),    AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in, int)",                        AngelScript::asFUNCTION(as_is_enabled), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool as_is_widget_enabled(string &in)",                        AngelScript::asFUNCTION(as_is_widget_enabled), AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_widget_enabled(string &in)",                        AngelScript::asFUNCTION(as_is_widget_enabled), AngelScript::asCALL_CDECL);
 #endif
         }
 

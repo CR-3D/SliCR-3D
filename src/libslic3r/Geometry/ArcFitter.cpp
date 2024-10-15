@@ -94,11 +94,12 @@ void ArcFitter::do_arc_fitting(const Points& points, std::vector<PathFittingData
     result.shrink_to_fit();
 }
 
-void ArcFitter::do_arc_fitting_and_simplify(Points& points, std::vector<PathFittingData>& result, double tolerance, double fit_circle_tolerance)
+void ArcFitter::do_arc_fitting_and_simplify(Points& points, std::vector<PathFittingData>& result, double tolerance, double fit_circle_tolerance, double fit_circle_percent_tolerance)
 {
     //BBS: 1 do arc fit first
     if (abs(tolerance) > SCALED_EPSILON)
-        ArcFitter::do_arc_fitting(points, result, fit_circle_tolerance, DEFAULT_ARC_LENGTH_PERCENT_TOLERANCE);
+        //ArcFitter::do_arc_fitting(points, result, fit_circle_tolerance, DEFAULT_ARC_LENGTH_PERCENT_TOLERANCE);
+        ArcFitter::do_arc_fitting(points, result, fit_circle_tolerance, fit_circle_percent_tolerance);
     else
         result.push_back(PathFittingData{ 0, points.size() - 1, EMovePathType::Linear_move, ArcSegment() });
 

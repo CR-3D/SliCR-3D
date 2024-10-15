@@ -477,8 +477,8 @@ public:
     // Create a new object, initialize it with this object using the move semantics.
     virtual ExtrusionEntity* clone_move() override { return new ExtrusionLoop(std::move(*this)); }
     double          area() const;
-    bool            is_counter_clockwise() const { return this->area() > 0; }
-    bool            is_clockwise() const { return this->area() < 0; }
+    bool            is_counter_clockwise() const;
+    bool            is_clockwise() const;
     // Used by PerimeterGenerator to reorient extrusion loops. (old make_clockwise() and make_counter_clockwise())
     void            reverse() override;
     const Point&    first_point() const override { return this->paths.front().polyline.front(); }

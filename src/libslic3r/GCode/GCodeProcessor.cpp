@@ -3206,15 +3206,15 @@ void GCodeProcessor::process_G2_G3(const GCodeReader::GCodeLine& line, bool cloc
     double radius = 0.0;
 #endif // NDEBUG
     if (fitting == EFitting::R) {
-        float r;
-        if (!line.has_value('R', r) || r == 0.0f)
+        float raw_radius;
+        if (!line.has_value('R', raw_radius) || raw_radius == 0.0f)
             return;
 #ifndef NDEBUG
-        radius = (double)std::abs(r);
+        radius = (double)std::abs(raw_radius);
 #endif // NDEBUG
         const Vec2f start_pos((float)m_start_position[X], (float)m_start_position[Y]);
         const Vec2f end_pos((float)end_position[X], (float)end_position[Y]);
-        const Vec2f c = Geometry::ArcWelder::arc_center(start_pos, end_pos, r, !clockwise);
+        const Vec2f c = Geometry::ArcWelder::arc_center(start_pos, end_pos, raw_radius, !clockwise);
         rel_center.x() = c.x() - m_start_position[X];
         rel_center.y() = c.y() - m_start_position[Y];
     }

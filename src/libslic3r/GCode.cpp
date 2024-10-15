@@ -4189,6 +4189,7 @@ void GCodeGenerator::split_at_seam_pos(ExtrusionLoop& loop, bool was_clockwise)
             //lower_layer_edge_grid ? lower_layer_edge_grid->get() : nullptr
             );
         // Because the G-code export has 1um resolution, don't generate segments shorter than "1.5 microns" (depends of gcode_precision_xyz)
+        //FIXME use settings
         if (!loop.split_at_vertex(seam_point, scaled<double>(0.0015))) {
             
 #if _DEBUG
@@ -4880,6 +4881,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
                     }
                     coordf_t radius = segment.radius;
                     if (radius > 0) {
+                        assert(path.polyline.is_valid());
                         center = Geometry::ArcWelder::arc_center_scalar<coord_t, coordf_t>(current_point, segment.point, segment.radius, segment.ccw());
                         // Don't extrude a degenerated circle.
                         if (center.coincides_with_epsilon(current_point))
@@ -4889,7 +4891,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
                         gcode += m_writer.travel_to_xy(this->point_to_gcode(segment.point), 0.0, "; extra wipe"sv);
                     } else {
                         const Vec2d center_offset = this->point_to_gcode(center) - this->point_to_gcode(current_point);
-                        coordf_t    angle         = Geometry::ArcWelder::arc_angle(current_point, segment.point, coord_t(radius));
+                        coordf_t    angle         = Geometry::ArcWelder::arc_angle(current_point, segment.point, coordf_t(radius));
                         assert(angle > 0);
                         const coordf_t line_length = angle * std::abs(radius);
                         gcode += m_writer.travel_arc_to_xy(this->point_to_gcode(segment.point), center_offset, segment.ccw(), 0.0, "; extra wipe"sv);
@@ -5947,22 +5949,25 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
                 last_pos = current_pos;
                 current_pos = polyline.get_point(idx);
             }
-        } else if (m_config.arc_fitting == ArcFittingType::Bambu /*bambu arc*/) {
+        } else {// if (m_config.arc_fitting == ArcFittingType::Bambu /*bambu arc*/) {
             // BBS: start to generate gcode from arc fitting data which includes line and arc
             Point last_pos    = polyline.front();
             Point current_pos = polyline.front();
-            coordf_t radius=  0;
+            coordf_t radius =  0;
             Point center;
+            assert(polyline.is_valid());
             for (size_t idx = 1; idx < polyline.size(); ++idx) {
                 const Geometry::ArcWelder::Segment &segment = polyline.get_arc(idx);
                 radius = segment.radius;
-                if (radius > 0) {
+                if (radius != 0) {
+                    assert(polyline.is_valid());
+                    // Calculate quantized IJ circle center offset.
                     center = Geometry::ArcWelder::arc_center_scalar<coord_t, coordf_t>(current_pos, segment.point, segment.radius, segment.ccw());
                     // Don't extrude a degenerated circle.
                     if (center.coincides_with_epsilon(current_pos))
                         radius = 0;
                 }
-                if(radius == 0){
+                if (radius == 0) {
                     // strait
                     if (!path.role().is_external_perimeter() || config().external_perimeter_cut_corners.value == 0) {
                         // normal & legacy pathcode
@@ -5972,8 +5977,8 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
                     }
                 } else {
                     const Vec2d  center_offset = this->point_to_gcode(center) - this->point_to_gcode(current_pos);
-                    double      angle         = Geometry::ArcWelder::arc_angle(current_pos, segment.point, radius);
-                    assert(angle > 0);
+                    double       angle         = Geometry::ArcWelder::arc_angle(current_pos, segment.point, radius);
+                    assert(angle != 0);
                     const coordf_t line_length = angle * std::abs(radius);
                     gcode += m_writer.extrude_arc_to_xy(this->point_to_gcode(segment.point), center_offset, e_per_mm * unscaled(line_length),
                                                         segment.ccw(), comment);
@@ -5981,57 +5986,60 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
                 last_pos    = current_pos;
                 current_pos = segment.point;
             }
-        } else /*arcwelder*/{
-            Geometry::ArcWelder::Path smooth_path = polyline.get_arc();
-            if (visitor_flipped)
-                Geometry::ArcWelder::reverse(smooth_path);
-            Vec2d prev_exact = this->point_to_gcode(smooth_path.front().point);
-            Vec2d prev = m_writer.get_default_gcode_formatter().quantize(prev_exact);
-            auto  it   = smooth_path.begin();
-            auto  end  = smooth_path.end();
-            for (++ it; it != end; ++ it) {
-                Vec2d p_exact = this->point_to_gcode(it->point);
-                Vec2d p       = m_writer.get_default_gcode_formatter().quantize(p_exact);
-                assert(p != prev);
-                if (p != prev) {
-                    // Center of the radius to be emitted into the G-code: Either by radius or by center offset.
-                    coordf_t radius = 0;
-                    Vec2d  ij;
-                    if (it->radius != 0) {
-                        // Extrude an arc.
-                        assert(m_config.arc_fitting == ArcFittingType::EmitCenter);
-                        radius = unscaled<coordf_t>(it->radius);
-                        {
-                            // Calculate quantized IJ circle center offset.
-                            ij = m_writer.get_default_gcode_formatter().quantize(
-                                Vec2d(
-                                    Geometry::ArcWelder::arc_center(prev_exact.cast<coordf_t>(), p_exact.cast<coordf_t>(), coordf_t(radius), it->ccw())
-                                    - prev));
-                            if (ij == Vec2d::Zero())
-                                // Don't extrude a degenerated circle.
-                                radius = 0;
-                        }
-                    }
-                    if (radius == 0) {
-                        // Extrude line segment.
-                        if (const double line_length = (p - prev).norm(); line_length > 0) {
-                            //path_length += line_length;
-                            gcode += m_writer.extrude_to_xy(p, e_per_mm * line_length, comment);
-                        }
-                    } else {
-                        double angle = Geometry::ArcWelder::arc_angle(prev.cast<coordf_t>(), p.cast<coordf_t>(), coordf_t(radius));
-                        assert(angle > 0);
-                        const double line_length = angle * std::abs(radius);
-                        //path_length += line_length;
-                        const double dE = e_per_mm * line_length;
-                        assert(dE > 0);
-                        gcode += m_writer.extrude_arc_to_xy(p, ij, it->ccw(), dE, comment);
-                    }
-                    prev = p;
-                    prev_exact = p_exact;
-                }
-            }
         }
+    // this one is made by prusa, but it's the same principle. The difference is that prusa works on unscaled gcode position, and sometimes quantized ones.
+    // I'm not a fan of that, and as such, an unit of difference in the least significant digit can appear between the two method (if precision 3, it may be 12.421 vs 12.422 when quantized)
+    //else /*arcwelder*/{
+    //        Geometry::ArcWelder::Path smooth_path = polyline.get_arc();
+    //        if (visitor_flipped)
+    //            Geometry::ArcWelder::reverse(smooth_path);
+    //        Vec2d prev_exact = this->point_to_gcode(smooth_path.front().point);
+    //        Vec2d prev = m_writer.get_default_gcode_formatter().quantize(prev_exact);
+    //        auto  it   = smooth_path.begin();
+    //        auto  end  = smooth_path.end();
+    //        for (++ it; it != end; ++ it) {
+    //            Vec2d p_exact = this->point_to_gcode(it->point);
+    //            Vec2d p       = m_writer.get_default_gcode_formatter().quantize(p_exact);
+    //            assert(p != prev);
+    //            if (p != prev) {
+    //                // Center of the radius to be emitted into the G-code: Either by radius or by center offset.
+    //                double radius = 0;
+    //                Vec2d  ij;
+    //                if (it->radius != 0) {
+    //                    // Extrude an arc.
+    //                    assert(m_config.arc_fitting == ArcFittingType::ArcWelder);
+    //                    radius = unscaled<double>(it->radius);
+    //                    {
+    //                        // Calculate quantized IJ circle center offset.
+    //                        ij = m_writer.get_default_gcode_formatter().quantize(
+    //                            Vec2d(
+    //                                Geometry::ArcWelder::arc_center(prev_exact.cast<coordf_t>(), p_exact.cast<coordf_t>(), coordf_t(radius), it->ccw())
+    //                                - prev));
+    //                        if (ij == Vec2d::Zero())
+    //                            // Don't extrude a degenerated circle.
+    //                            radius = 0;
+    //                    }
+    //                }
+    //                if (radius == 0) {
+    //                    // Extrude line segment.
+    //                    if (const double line_length = (p - prev).norm(); line_length > 0) {
+    //                        //path_length += line_length;
+    //                        gcode += m_writer.extrude_to_xy(p, e_per_mm * line_length, comment);
+    //                    }
+    //                } else {
+    //                    double angle = Geometry::ArcWelder::arc_angle(prev.cast<coordf_t>(), p.cast<coordf_t>(), coordf_t(radius));
+    //                    assert(angle > 0);
+    //                    const double line_length = angle * std::abs(radius);
+    //                    //path_length += line_length;
+    //                    const double dE = e_per_mm * line_length;
+    //                    assert(dE > 0);
+    //                    gcode += m_writer.extrude_arc_to_xy(p, ij, dE, it->ccw(), comment);
+    //                }
+    //                prev = p;
+    //                prev_exact = p_exact;
+    //            }
+    //        }
+    //    }
     }
     gcode += this->_after_extrude(path);
 
@@ -7193,6 +7201,7 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
     assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON));
 }
 
+// generate a travel in xyz
 std::string GCodeGenerator::generate_travel_gcode(
     const Points3& travel,
     const std::string& comment
@@ -7213,7 +7222,7 @@ std::string GCodeGenerator::generate_travel_gcode(
     for (const Vec3crd& point : travel) {
         const Vec3d gcode_point{this->point_to_gcode(point)};
 
-        assert(previous_point == this->m_writer.get_position());
+        assert((previous_point.head<2>() - this->m_writer.get_position().head<2>()).norm() < EPSILON);
         gcode += this->m_writer.travel_to_xyz(gcode_point, false, 0.0, comment);
         this->set_last_pos(point.head<2>());
         previous_point = gcode_point;
@@ -7615,8 +7624,8 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
             check_add_eol(gcode);
         }
 
-        if (m_config.enable_pressure_advance.get_at(extruder_id)) {
-            gcode += m_writer.set_pressure_advance(m_config.pressure_advance.get_at(extruder_id));
+        if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
+            gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
         }
 
         if (!no_toolchange) {
@@ -7698,10 +7707,10 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.enable_pressure_advance.get_at(extruder_id)) {
-        gcode += m_writer.set_pressure_advance(m_config.pressure_advance.get_at(extruder_id));
+    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
+        gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
     }
-    
+
     // The position is now known after the tool change.
     this->unset_last_pos();
     

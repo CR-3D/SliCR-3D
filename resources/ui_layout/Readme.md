@@ -206,7 +206,9 @@ These functions can only be called in a `set` or `reset` function. If you need t
  * void **set_string**(string &in key, string &in new_val))
     if an enum, it's one of the enum_value, as saved in a config file
  *  void **back_initial_value**(string &in key)
-    revert the setting to the last saved value (same as a click on the reset arrow)
+    revert the setting to the last saved value (same as a click on the reset arrow). You can get hte initial value by calling a get_XXX() method afterward.
+ *  void **back_custom_initial_value**(int, string &key)
+    revert the custom setting to the last saved value
 ### others
   * void **ask_for_refresh**()
     ask for a OPTNAME_set() after the current OPTNAME_get(), to be able to set settings.

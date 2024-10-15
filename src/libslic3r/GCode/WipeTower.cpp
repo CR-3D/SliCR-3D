@@ -101,21 +101,13 @@ public:
         return (*this);
     }
 
-    WipeTowerWriter&            disable_linear_advance() {
-        if (m_gcode_flavor == gcfRepRap || m_gcode_flavor == gcfSprinter) {
-            m_gcode += (std::string("M572 D") + std::to_string(this->m_current_tool) + " S0\n");
-        } else if (m_gcode_flavor == gcfKlipper) {
-            if (this->m_current_tool > 0 && this->m_current_tool < m_tool_name.size() && !m_tool_name[this->m_current_tool].empty()
-                // NOTE: this will probably break if there's more than 10 tools, as it's relying on the
-                // ASCII character table.
-                && m_tool_name[this->m_current_tool][0] != static_cast<char>(('0' + this->m_current_tool))) {
-                m_gcode += "SET_PRESSURE_ADVANCE ADVANCE=0 EXTRUDER=" + m_tool_name[this->m_current_tool] + "\n";
-            } else {
-                m_gcode += "SET_PRESSURE_ADVANCE ADVANCE=0\n";
-            }
-        } else {
-            m_gcode += std::string("M900 K0\n");
-        }
+    WipeTowerWriter &disable_linear_advance() {
+        m_gcode += "[toolchange_gcode_disable_linear_advance]\n";
+        return *this;
+    }
+
+    WipeTowerWriter &enable_linear_advance() {
+        m_gcode += "[toolchange_gcode_enable_linear_advance]\n";
         return *this;
     }
 
@@ -1025,10 +1017,12 @@ void WipeTower::toolchange_Unload(
 	float e_done = 0;									// measures E move done from each segment   
 
     const bool do_ramming = m_semm || m_filpar[m_current_tool].multitool_ramming;
+    bool pa_enabled = true;
 
     if (do_ramming) {
         writer.travel(ramming_start_pos); // move to starting position
         writer.disable_linear_advance();
+        pa_enabled = false;
     }
     else
         writer.set_position(ramming_start_pos);
@@ -1065,8 +1059,9 @@ void WipeTower::toolchange_Unload(
     
 
     // Disable linear/pressure advance for ramming, as it can mess up the ramming procedure
-    if (i < m_filpar[m_current_tool].ramming_speed.size()) {
+    if (pa_enabled && i < m_filpar[m_current_tool].ramming_speed.size()) {
         writer.disable_linear_advance();
+        pa_enabled = false;
     }
 
     // now the ramming itself:
@@ -1231,6 +1226,10 @@ void WipeTower::toolchange_Unload(
     else
         writer.set_position(pos);
 
+    if (!pa_enabled) {
+        writer.enable_linear_advance();
+    }
+
 	writer.resume_preview()
 		  .flush_planner_queue();
 }
@@ -1259,7 +1258,7 @@ void WipeTower::toolchange_Change(
                              + never_skip_tag() + "\n"
     );
 
-    writer.append("[deretraction_from_wipe_tower_generator]");
+    writer.append("[deretraction_from_wipe_tower_generator]\n");
 
     // The toolchange Tn command will be inserted later, only in case that the user does
     // not provide a custom toolchange gcode.

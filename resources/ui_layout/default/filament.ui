@@ -22,14 +22,13 @@ group:Temperature °C
 		setting:id$0:label:Other layers:bed_temperature
 	end_line
 	setting:id$0:chamber_temperature
-group:Pressure Advance
-	line:toggle$pressure_advance:toggle_default$30:Use Pressure Advance
-		setting:id$0:pressure_advance
+	setting:id$0:label$Idle:idle_temperature
 group:Filament properties
 	setting:id$0:width$7:filament_type
 	setting:id$0:filament_soluble
 	setting:id$0:filament_shrink
 	setting:id$0:filament_max_overlap
+	setting:id$0:label$pa:filament_pressure_advance
 group:Print speed override
 	setting:id$0:filament_max_speed
 	setting:id$0:filament_max_volumetric_speed

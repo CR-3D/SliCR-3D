@@ -768,10 +768,10 @@ static size_t avoid_perimeters_inner(const AvoidCrossingPerimeters::Boundary &bo
                 bad_one = best_pt;
                 return  min_dist_sqr < dist*dist;
             };
-            if (!find_better && pt_closest_start.contour_idx == size_t(-1) && pt_closest_end.contour_idx == size_t(-1)) {
+            if (!find_better && pt_closest_start.contour_idx == size_t(-1) && pt_closest_end.contour_idx != size_t(-1)) {
                 find_better = saerch_best_pt(pt_closest_end, start);
             }
-            if (!find_better && pt_closest_end.contour_idx == size_t(-1) && pt_closest_start.contour_idx == size_t(-1)) {
+            if (!find_better && pt_closest_end.contour_idx == size_t(-1) && pt_closest_start.contour_idx != size_t(-1)) {
                 find_better = saerch_best_pt(pt_closest_start, end);
             }
             if (!find_better) {

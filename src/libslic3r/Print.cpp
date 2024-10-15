@@ -107,8 +107,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "disable_fan_first_layers",
         "duplicate_distance",
         "overhangs_dynamic_fan_speed",
-        "enable_pressure_advance",
-        "pressure_advance",
+        "filament_pressure_advance",
         "enforce_retract_first_layer",
         "end_gcode",
         "end_filament_gcode",
@@ -1262,6 +1261,17 @@ void Print::process()
 #endif
     //simplify / make arc fitting
     {
+        
+#if _DEBUG
+        class GetLoopsVisitor : public ExtrusionVisitorRecursive {
+        public:
+            using ExtrusionVisitorRecursive::use;
+            std::vector<ExtrusionLoop*> loops;
+            virtual void use(ExtrusionLoop& loop) override {
+                loops.push_back(&loop);
+            }
+        } get_loops;
+#endif
         const bool spiral_mode = config().spiral_vase;
         const bool enable_arc_fitting = config().arc_fitting.value != ArcFittingType::Disabled && !spiral_mode;
         if (enable_arc_fitting) {
@@ -1284,6 +1294,10 @@ void Print::process()
             GetPathsVisitor visitor;
             this->m_skirt.visit(visitor);
             this->m_brim.visit(visitor);
+#if _DEBUG
+            this->m_skirt.visit(get_loops);
+            for (auto loop : get_loops.loops) assert(loop->is_counter_clockwise());
+#endif
             tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, visitor.paths.size() + visitor.paths3D.size()),
                 [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count](const tbb::blocked_range<size_t>& range) {
@@ -1300,6 +1314,13 @@ void Print::process()
                     }
                 }
             );
+#if _DEBUG
+            get_loops.loops.clear();
+            this->m_skirt.visit(get_loops);
+            for (auto loop : get_loops.loops) {
+                assert(loop->is_counter_clockwise());
+            }
+#endif
         }
     }
     

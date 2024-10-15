@@ -892,7 +892,6 @@ void PrintObject::calculate_overhanging_perimeters()
                             continue;
                         }
                         size_t prev_layer_id = l->lower_layer ? l->lower_layer->id() : size_t(-1);
-                        assert(layer_region->region().config().overhangs_width_speed.is_enabled());
                         const double nozzle_diameter_overhangs = layer_region->bridging_flow(frPerimeter).nozzle_diameter();
                         double max_width = -1;
                         if (layer_region->region().config().overhangs_width_speed.is_enabled()) {
@@ -1276,6 +1275,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "bridged_infill_margin"
                 || opt_key == "extra_perimeters"
                 || opt_key == "extra_perimeters_odd_layers"
+                || opt_key == "extra_perimeters_on_overhangs"
                 || opt_key == "external_infill_margin"
                 || opt_key == "external_perimeter_overlap"
                 || opt_key == "gap_fill_overlap"

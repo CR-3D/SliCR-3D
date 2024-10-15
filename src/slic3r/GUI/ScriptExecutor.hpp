@@ -54,6 +54,8 @@ public:
     bool                                        can_set() { return m_can_set; }
     void                                        request_refresh() { m_need_refresh = true; }
     void add_to_reset(const std::string &key) { m_to_reset_initial.push_back(key); }
+    void remove_from_reset(const std::string &key);
+    bool is_reset(const std::string &key) { return std::find(m_to_reset_initial.begin(), m_to_reset_initial.end(), key) != m_to_reset_initial.end(); }
 
     void init(const std::string &tab_key, Tab *tab);
     void call_script_function_set(const ConfigOptionDef &def, const boost::any &value);

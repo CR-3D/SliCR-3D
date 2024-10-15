@@ -629,8 +629,8 @@ std::string PresetHints::top_bottom_shell_thickness_explanation(const PresetBund
 
     int     top_solid_layers                = print_config.option("top_solid_layers")->get_int();
     int     bottom_solid_layers             = print_config.option("bottom_solid_layers")->get_int();
-    bool    has_top_layers 					= top_solid_layers > 0 || print_config.option("solid_infill_every_layers")->get_int() == 1;
-    bool    has_bottom_layers 				= bottom_solid_layers > 0 || print_config.option("solid_infill_every_layers")->get_int() == 1;
+    bool    has_top_layers 					= top_solid_layers > 0 || (print_config.option("solid_infill_every_layers")->get_int() == 1 && print_config.option("fill_density")->get_float() > 0);
+    bool    has_bottom_layers 				= bottom_solid_layers > 0 || (print_config.option("solid_infill_every_layers")->get_int() == 1 && print_config.option("fill_density")->get_float() > 0);
     double  top_solid_min_thickness        	= print_config.opt_float("top_solid_min_thickness");
     double  bottom_solid_min_thickness  	= print_config.opt_float("bottom_solid_min_thickness");
     double  layer_height                    = print_config.opt_float("layer_height");

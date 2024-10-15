@@ -192,6 +192,7 @@ void FillGyroid::_fill_surface_single(
     }
 
     if (! polylines.empty()) {
+        ensure_valid(polylines, params.fill_resolution);
         // connect lines
         size_t polylines_out_first_idx = polylines_out.size();
         if (params.connection == icNotConnected){

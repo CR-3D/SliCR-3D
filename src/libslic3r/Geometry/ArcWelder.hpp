@@ -100,34 +100,37 @@ inline Eigen::Matrix<Float, 2, 1, Eigen::DontAlign> arc_middle_point(
 // positive radius: take shorter arc
 // negative radius: take longer arc
 // radius must NOT be zero!
-template<typename Derived, typename Derived2>
-inline typename Derived::Scalar arc_angle(
+template<typename Derived, typename Derived2, typename Float>
+inline Float arc_angle(
     const Eigen::MatrixBase<Derived>   &start_pos,
     const Eigen::MatrixBase<Derived2>  &end_pos, 
-    const typename Derived::Scalar      radius)
+    const Float                         radius)
 {
     static_assert(Derived::IsVectorAtCompileTime && int(Derived::SizeAtCompileTime) == 2, "arc_angle(): first parameter is not a 2D vector");
     static_assert(Derived2::IsVectorAtCompileTime && int(Derived2::SizeAtCompileTime) == 2, "arc_angle(): second parameter is not a 2D vector");
     static_assert(std::is_same<typename Derived::Scalar, typename Derived2::Scalar>::value, "arc_angle(): Both vectors must be of the same type.");
     assert(radius != 0);
-    using Float = typename Derived::Scalar;
     Float a = Float(0.5) * (end_pos - start_pos).norm() / radius;
-    return radius > Float(0) ?
+    Float angle = radius > Float(0)  ?
         // acute angle:
-        (a > Float( 1.) ? Float(M_PI) : Float(2.) * std::asin(a)) :
+        (a >= Float( 1.) ? Float(M_PI) : Float(2.) * std::asin(a)) :
         // obtuse angle:
-        (a < Float(-1.) ? Float(M_PI) : Float(2. * M_PI) + Float(2.) * std::asin(a));
+        (a <= Float(-1.) ? Float(M_PI) : Float(2. * M_PI) + Float(2.) * std::asin(a));
+    double asina = 0;
+    if(a >-1 && a <1) asina = std::asin(a);
+    assert(angle >= 0 && angle <= Float(2. * M_PI));
+    return angle;
 }
 
 // Calculate positive length of an arc given two points and a radius.
 // positive radius: take shorter arc
 // negative radius: take longer arc
 // radius must NOT be zero!
-template<typename Derived, typename Derived2>
-inline typename Derived::Scalar arc_length(
+template<typename Derived, typename Derived2, typename Float>
+inline Float arc_length(
     const Eigen::MatrixBase<Derived>   &start_pos,
     const Eigen::MatrixBase<Derived2>  &end_pos,
-    const typename Derived::Scalar      radius)
+    const Float                         radius)
 {
     static_assert(Derived::IsVectorAtCompileTime && int(Derived::SizeAtCompileTime) == 2, "arc_length(): first parameter is not a 2D vector");
     static_assert(Derived2::IsVectorAtCompileTime && int(Derived2::SizeAtCompileTime) == 2, "arc_length(): second parameter is not a 2D vector");
@@ -137,8 +140,8 @@ inline typename Derived::Scalar arc_length(
 }
 
 // Calculate positive length of an arc given two points, center and orientation.
-template<typename Derived, typename Derived2, typename Derived3>
-inline typename Derived::Scalar arc_length(
+template<typename Derived, typename Derived2, typename Derived3, typename Float>
+inline Float arc_length(
     const Eigen::MatrixBase<Derived>   &start_pos,
     const Eigen::MatrixBase<Derived2>  &end_pos,
     const Eigen::MatrixBase<Derived3>  &center_pos,
@@ -149,7 +152,7 @@ inline typename Derived::Scalar arc_length(
     static_assert(Derived3::IsVectorAtCompileTime && int(Derived3::SizeAtCompileTime) == 2, "arc_length(): third parameter is not a 2D vector");
     static_assert(std::is_same<typename Derived::Scalar, typename Derived2::Scalar>::value &&
                   std::is_same<typename Derived::Scalar, typename Derived3::Scalar>::value, "arc_length(): All third points must be of the same type.");
-    using Float = typename Derived::Scalar;
+    //using Float = typename Derived::Scalar;
     auto  vstart = start_pos - center_pos;
     auto  vend   = end_pos - center_pos;
     Float radius = vstart.norm();
@@ -184,7 +187,7 @@ inline typename Eigen::Matrix<typename Derived::Scalar, 2, 1, Eigen::DontAlign> 
     static_assert(Derived3::IsVectorAtCompileTime && int(Derived3::SizeAtCompileTime) == 2, "arc_fit_center_algebraic_ls(): third parameter is not a 2D vector");
     static_assert(std::is_same<typename Derived::Scalar, typename Derived2::Scalar>::value &&
                   std::is_same<typename Derived::Scalar, typename Derived3::Scalar>::value, "arc_fit_center_algebraic_ls(): All third points must be of the same type.");
-    using Float  = typename Derived::Scalar;
+    using Float  = double;//typename Derived::Scalar;
     using Vector = Eigen::Matrix<Float, 2, 1, Eigen::DontAlign>;
     // Prepare a vector space to transform the fitting into:
     // center_pos, dir_x, dir_y
@@ -403,7 +406,7 @@ double arc_fit_variance(const Point &start_point, const Point &end_point, const 
 double arc_fit_max_deviation(const Point &start_point, const Point &end_point, const float radius, bool is_ccw,
     const Points::const_iterator begin, const Points::const_iterator end);
 
-// 1.2m diameter, maximum given by coord_t
+// 1.2m diameter, maximum given by coord_t in 32b
 //static_assert(sizeof(coord_t) == 4); // disabled, but keep the 1.2m max diameter, as it's enough I think.
 static constexpr const coordf_t default_scaled_max_radius = scaled(600.);
 // 0.05mm
@@ -433,15 +436,24 @@ struct Segment
     // Start point is provided by the preceding segment.
     Point       point;
     // Radius of a circular segment. Positive - take the shorter arc. Negative - take the longer arc. Zero - linear segment.
-    float       radius{ 0.f };
+    float       radius;
     // CCW or CW. Ignored for zero radius (linear segment).
-    Orientation orientation{ Orientation::CCW };
-
-    Segment() : point(0, 0), radius(0.f), orientation(Orientation::CCW) {}
-    Segment(const Point &pt, float fradius, Orientation orien) : point(pt), radius(fradius), orientation(orien) {}
-    Segment(Point &&pt, float fradius, Orientation orien) : point(std::move(pt)), radius(fradius), orientation(orien) {}
-    Segment(const Point &pt) : point(pt), radius(0.f), orientation(Orientation::CCW) {}
-    Segment(Point &&pt) : point(std::move(pt)), radius(0.f), orientation(Orientation::CCW) {}
+    Orientation orientation;
+#ifdef _DEBUG
+    coordf_t length = 0;
+    Point center = Point(0,0);
+#endif
+    Segment() : point(0, 0), radius(0.f), orientation(Orientation::Unknown) {}
+    Segment(const Point &pt, float fradius, Orientation orien) : point(pt), radius(fradius), orientation(orien) {
+        assert(radius != 0 || orientation == Orientation::Unknown);
+        assert(radius == 0 || orientation != Orientation::Unknown);
+    }
+    Segment(Point &&pt, float fradius, Orientation orien) : point(std::move(pt)), radius(fradius), orientation(orien) {
+        assert(radius != 0 || orientation == Orientation::Unknown);
+        assert(radius == 0 || orientation != Orientation::Unknown);
+    }
+    Segment(const Point &pt) : point(pt), radius(0.f), orientation(Orientation::Unknown) {}
+    Segment(Point &&pt) : point(std::move(pt)), radius(0.f), orientation(Orientation::Unknown) {}
 
     bool    linear() const { return radius == 0; }
     bool    ccw() const { return orientation == Orientation::CCW; }

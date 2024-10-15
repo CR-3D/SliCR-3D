@@ -85,10 +85,11 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
         // && config->opt_bool("exact_last_layer_height") == false
         && config->opt_bool("infill_dense") == false
         && config->opt_bool("extra_perimeters") == false
+        && config->opt_bool("extra_perimeters_on_overhangs") == false
         && config->opt_bool("extra_perimeters_odd_layers") == false
         && config->opt_bool("overhangs_reverse") == false
         && config->opt_bool("gap_fill_last") == false
-        && config->opt_bool("solid_infill_every_layers") == false
+        && config->opt_int("solid_infill_every_layers") == 0
         && config->opt_int("solid_over_perimeters") == 0
         && config->option("seam_notch_all")->get_float() == 0
         && config->option("seam_notch_inner")->get_float() == 0
@@ -104,7 +105,7 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             "- unchecked 'dense infill'\n"
             "- unchecked 'extra perimeters'"
             "- unchecked 'gap fill after last perimeter'"
-            "- unchecked 'solid infill every layers'"
+            "- set 'solid infill every layers' to 0"
             "- disabled  'no solid fill over X perimeters'"
             "- disabled 'seam notch'"));
         if (is_global_config)
@@ -133,6 +134,8 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
                 new_conf.set_key_value("infill_dense", new ConfigOptionBool(false));
             else if (this->local_config->get().optptr("extra_perimeters"))
                 new_conf.set_key_value("extra_perimeters", new ConfigOptionBool(false));
+            else if (this->local_config->get().optptr("extra_perimeters_on_overhangs"))
+                new_conf.set_key_value("extra_perimeters_on_overhangs", new ConfigOptionBool(false));
             else if (this->local_config->get().optptr("extra_perimeters_odd_layers"))
                 new_conf.set_key_value("extra_perimeters_odd_layers", new ConfigOptionBool(false));
             else if (this->local_config->get().optptr("overhangs_reverse"))
@@ -140,7 +143,7 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             else if (this->local_config->get().optptr("gap_fill_last"))
                 new_conf.set_key_value("gap_fill_last", new ConfigOptionBool(false));
             else if (this->local_config->get().optptr("solid_infill_every_layers"))
-                new_conf.set_key_value("solid_infill_every_layers", new ConfigOptionBool(false));
+                new_conf.set_key_value("solid_infill_every_layers", new ConfigOptionInt(0));
             else if (this->local_config->get().optptr("solid_over_perimeters"))
                 new_conf.set_key_value("solid_over_perimeters", new ConfigOptionInt(0));
             else if (this->local_config->get().optptr("seam_notch_all"))
@@ -159,10 +162,11 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             // new_conf.set_key_value("exact_last_layer_height", new ConfigOptionBool(false));
             new_conf.set_key_value("infill_dense", new ConfigOptionBool(false));
             new_conf.set_key_value("extra_perimeters", new ConfigOptionBool(false));
+            new_conf.set_key_value("extra_perimeters_on_overhangs", new ConfigOptionBool(false));
             new_conf.set_key_value("extra_perimeters_odd_layers", new ConfigOptionBool(false));
             new_conf.set_key_value("overhangs_reverse", new ConfigOptionBool(false));
             new_conf.set_key_value("gap_fill_last", new ConfigOptionBool(false));
-            new_conf.set_key_value("solid_infill_every_layers", new ConfigOptionBool(false));
+            new_conf.set_key_value("solid_infill_every_layers", new ConfigOptionInt(0));
             new_conf.set_key_value("solid_over_perimeters", new ConfigOptionInt(0));
             new_conf.set_key_value("seam_notch_all", new ConfigOptionFloatOrPercent(0, false));
             new_conf.set_key_value("seam_notch_inner", new ConfigOptionFloatOrPercent(0, false));
@@ -370,7 +374,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
     toggle_field("perimeter_bonding", config->opt_bool("external_perimeters_first") && !have_arachne && config->option("perimeter_overlap")->get_float() == 100.f && config->option("external_perimeter_overlap")->get_float() == 100.f);
 
-    for (auto el : {"perimeter_loop",
+    for (auto el : {"perimeter_loop", "extra_perimeters_on_overhangs",
         "thin_perimeters", "perimeter_round_corners"})
         toggle_field(el, have_perimeters && !have_arachne);
     
@@ -691,9 +695,9 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
                 _(L("Firmware Retraction")), wxICON_WARNING | wxYES | wxNO);
 
             if (dialog.ShowModal() == wxID_YES) {
-                new_conf.opt_bool("wipe", extruder_idx) = uint8_t(false);
+                new_conf.option<ConfigOptionBools>("wipe")->set_at(uint8_t(false), extruder_idx);
             } else {
-                new_conf.opt_bool("use_firmware_retraction") = false;
+                new_conf.option<ConfigOptionBool>("use_firmware_retraction")->value = false;
             }
             apply(config, &new_conf);
         }
