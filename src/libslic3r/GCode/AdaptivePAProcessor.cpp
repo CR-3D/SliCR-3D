@@ -39,22 +39,10 @@ AdaptivePAProcessor::AdaptivePAProcessor(GCodeGenerator &gcodegen, const std::ve
             auto interpolator = std::make_unique<AdaptivePAInterpolator>();
             // Get calibration values from extruder
             GraphData pa_calibration_values = m_config.adaptive_pressure_advance_model.get_at(tool);
-            // Setup the model and store it in the tool-interpolation model map
-            //GraphData graph = m_config.small_area_infill_flow_compensation_model.value;
             
-            interpolator->interpolate_graph(pa_calibration_values);
-            m_AdaptivePAInterpolators[tool] = std::move(pa);
+            m_AdaptivePAInterpolators[tool] = pa_calibration_values;
         }
     }
-}
-
-// Method to get the interpolator for a specific tool ID
-AdaptivePAInterpolator* AdaptivePAProcessor::getInterpolator(unsigned int tool_id) {
-    auto it = m_AdaptivePAInterpolators.find(tool_id);
-    if (it != m_AdaptivePAInterpolators.end()) {
-        return it->second.get();
-    }
-    return nullptr;  // Handle the case where the tool_id is not found
 }
 
 /**

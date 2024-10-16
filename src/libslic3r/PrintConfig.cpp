@@ -2279,13 +2279,15 @@ void PrintConfigDef::init_fff_params()
                      "3. Enter the triplets of PA values, Flow and Accelerations in the text box here and save your filament profile\n\n"
                      "");
     def->mode = comExpert;
-    //def->gui_flags = "serialized";
-    def->multiline = true;
-    def->full_width = true;
-    def->height = 15;
-    def->set_default_value(new ConfigOptionGraphs (GraphData(0,10, GraphData::GraphType::SPLINE,
-        {{0,0},{0.2,0.44},{0.4,0.61},{0.6,0.7},{0.8,0.76},{1.5,0.86},{2,0.89},{3,0.92},{5,0.95},{10,1}}
-    )));
+    def->set_default_value(new ConfigOptionGraphs(
+    GraphData(0, 4, GraphData::GraphType::SPLINE,
+    {
+        {0.04, 3.96},   // PA = 0.04, Flow = 3.96 (3000 acceleration)
+        {0.033, 3.96},  // PA = 0.033, Flow = 3.96 (10000 acceleration)
+        {0.029, 7.91},  // PA = 0.029, Flow = 7.91 (3000 acceleration)
+        {0.026, 7.91},  // PA = 0.026, Flow = 7.91 (10000 acceleration)
+    })
+));
 
     def = this->add("adaptive_pressure_advance_overhangs", coBools);
     def->label = L("Enable adaptive pressure advance for overhangs (beta)");

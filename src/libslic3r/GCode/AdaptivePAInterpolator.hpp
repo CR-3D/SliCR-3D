@@ -29,12 +29,6 @@ public:
      */
     int parseAndSetData(const std::string& data);
 
-
-    /**
-     * 
-     */
-    double interpolate_graph(double x_value) const;
-
     /**
      * @brief Interpolates the PA value for the given flow rate and acceleration.
      * @param flow_rate The flow rate at which to interpolate.

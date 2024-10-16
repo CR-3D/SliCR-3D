@@ -99,7 +99,6 @@ namespace Slic3r {
         size_t data_size() const;
 
         double interpolate(double x_value) const;
-
         //return false if data are not good
         bool validate() const;
         
