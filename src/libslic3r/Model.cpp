@@ -71,7 +71,9 @@ Model& Model::assign_copy(const Model &rhs)
     }
 
     // copy custom code per height
-    this->custom_gcode_per_print_z = rhs.custom_gcode_per_print_z;
+    this->custom_gcode_per_print_z_vector = rhs.custom_gcode_per_print_z_vector;
+    this->wipe_tower = rhs.wipe_tower;
+
     return *this;
 }
 
@@ -92,7 +94,9 @@ Model& Model::assign_copy(Model &&rhs)
     rhs.objects.clear();
 
     // copy custom code per height
-    this->custom_gcode_per_print_z = std::move(rhs.custom_gcode_per_print_z);
+    this->custom_gcode_per_print_z_vector = std::move(rhs.custom_gcode_per_print_z_vector);
+    this->wipe_tower = rhs.wipe_tower;
+
     return *this;
 }
 
@@ -137,10 +141,21 @@ bool Model::equals(const Model& rhs) const {
     }
 
     // copy custom code per height
-    if (this->custom_gcode_per_print_z != rhs.custom_gcode_per_print_z)
+   if (this->custom_gcode_per_print_z() != rhs.custom_gcode_per_print_z())
             return false;
     return true;
 }
+
+CustomGCode::Info& Model::custom_gcode_per_print_z()
+{
+    return const_cast<CustomGCode::Info&>(const_cast<const Model*>(this)->custom_gcode_per_print_z());
+}
+
+const CustomGCode::Info& Model::custom_gcode_per_print_z() const
+{
+    return custom_gcode_per_print_z_vector[s_multiple_beds.get_active_bed()];
+}
+
 
 // Loading model from a file, it may be a simple geometry file as STL or OBJ, however it may be a project file as well.
 Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
@@ -176,15 +191,18 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
 
     if (model.objects.empty())
         throw Slic3r::RuntimeError("The supplied file couldn't be read because it's empty");
-    
-    for (ModelObject *o : model.objects)
-        o->input_file = input_file;
-    
+
+    if (!boost::ends_with(input_file, ".printRequest"))
+        for (ModelObject *o : model.objects)
+            o->input_file = input_file;
+
     if (options & LoadAttribute::AddDefaultInstances)
         model.add_default_instances();
 
-    CustomGCode::update_custom_gcode_per_print_z_from_config(model.custom_gcode_per_print_z, config);
-    CustomGCode::check_mode_for_custom_gcode_per_print_z(model.custom_gcode_per_print_z);
+    for (CustomGCode::Info& info : model.custom_gcode_per_print_z_vector) {
+        CustomGCode::update_custom_gcode_per_print_z_from_config(info, config);
+        CustomGCode::check_mode_for_custom_gcode_per_print_z(info);
+    }
 
     config_substitutions->sort_and_remove_duplicates();
     return model;
@@ -226,8 +244,10 @@ Model Model::read_from_archive(const std::string& input_file, DynamicPrintConfig
     if (options & LoadAttribute::AddDefaultInstances)
         model.add_default_instances();
 
-    CustomGCode::update_custom_gcode_per_print_z_from_config(model.custom_gcode_per_print_z, config);
-    CustomGCode::check_mode_for_custom_gcode_per_print_z(model.custom_gcode_per_print_z);
+    for (CustomGCode::Info& info : model.custom_gcode_per_print_z_vector) {
+        CustomGCode::update_custom_gcode_per_print_z_from_config(info, config);
+        CustomGCode::check_mode_for_custom_gcode_per_print_z(info);
+    }
 
     handle_legacy_sla(*config);
 

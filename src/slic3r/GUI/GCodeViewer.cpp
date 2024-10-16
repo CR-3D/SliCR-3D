@@ -4616,7 +4616,7 @@ void GCodeViewer::render_legend(float& legend_height)
         }
         case EViewType::ColorPrint:
         {
-            const std::vector<CustomGCode::Item>& custom_gcode_per_print_z = wxGetApp().is_editor() ? wxGetApp().plater()->model().custom_gcode_per_print_z.gcodes : m_custom_gcode_per_print_z;
+           const std::vector<CustomGCode::Item>& custom_gcode_per_print_z = wxGetApp().is_editor() ? wxGetApp().plater()->model().custom_gcode_per_print_z().gcodes : m_custom_gcode_per_print_z;
             size_t total_items = 1;
             for (unsigned char i : m_extruder_ids) {
                 total_items += color_print_ranges(i, custom_gcode_per_print_z).size();
@@ -4712,7 +4712,7 @@ void GCodeViewer::render_legend(float& legend_height)
         auto generate_partial_times = [this, get_used_filament_from_volume](const TimesList& times, const std::vector<double>& used_filaments) {
             PartialTimes items;
 
-            std::vector<CustomGCode::Item> custom_gcode_per_print_z = wxGetApp().is_editor() ? wxGetApp().plater()->model().custom_gcode_per_print_z.gcodes : m_custom_gcode_per_print_z;
+           std::vector<CustomGCode::Item> custom_gcode_per_print_z = wxGetApp().is_editor() ? wxGetApp().plater()->model().custom_gcode_per_print_z().gcodes : m_custom_gcode_per_print_z;
             std::vector<ColorRGBA> last_color(m_extruders_count);
             for (size_t i = 0; i < m_extruders_count; ++i) {
                 last_color[i] = m_tool_colors[i];

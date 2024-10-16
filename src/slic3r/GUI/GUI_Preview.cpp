@@ -479,10 +479,10 @@ wxBoxSizer* Preview::create_layers_slider_sizer()
     Bind(DoubleSlider::wxCUSTOMEVT_TICKSCHANGED, [this](wxEvent&) {
         Model& model = wxGetApp().plater()->model();
         Info custom_gcode_per_print_z = m_layers_slider->GetTicksValues();
-        auto num_of_old_gcodes = model.custom_gcode_per_print_z.gcodes.size();
-        model.custom_gcode_per_print_z = custom_gcode_per_print_z;
-        std::string operation_message = (num_of_old_gcodes == model.custom_gcode_per_print_z.gcodes.size()) ? "Edit" :
-                                        (num_of_old_gcodes < model.custom_gcode_per_print_z.gcodes.size())  ? "Add" :
+        auto num_of_old_gcodes = model.custom_gcode_per_print_z().gcodes.size();
+        model.custom_gcode_per_print_z() = custom_gcode_per_print_z;
+        std::string operation_message = (num_of_old_gcodes == model.custom_gcode_per_print_z().gcodes.size()) ? "Edit" :
+                                        (num_of_old_gcodes < model.custom_gcode_per_print_z().gcodes.size())  ? "Add" :
                                                                                                               "Remove";
 
         m_schedule_background_process();
@@ -562,9 +562,9 @@ void Preview::update_layers_slider(const std::vector<double>& layers_z, bool sho
     update_layers_slider_mode();
     
     Plater* plater = wxGetApp().plater();
-    CustomGCode::Info ticks_info_from_model = plater->model().custom_gcode_per_print_z;
+     CustomGCode::Info ticks_info_from_model = plater->model().custom_gcode_per_print_z();
     if (wxGetApp().is_editor())
-        ticks_info_from_model = plater->model().custom_gcode_per_print_z;
+        ticks_info_from_model = plater->model().custom_gcode_per_print_z();
     else {
         ticks_info_from_model.mode = CustomGCode::Mode::SingleExtruder;
         ticks_info_from_model.gcodes = active_gcode_result()->custom_gcode_per_print_z;
@@ -906,7 +906,7 @@ void Preview::load_print_as_fff(bool keep_z_range)
 
         if (!gcode_preview_data_valid) {
             if (wxGetApp().is_editor())
-                color_print_values = wxGetApp().plater()->model().custom_gcode_per_print_z.gcodes;
+                color_print_values = wxGetApp().plater()->model().custom_gcode_per_print_z().gcodes;
             else
                 color_print_values = m_canvas->get_custom_gcode_per_print_z();
             colors.push_back("#808080"); // gray color for pause print or custom G-code 
@@ -983,7 +983,7 @@ void Preview::load_print_as_fff(bool keep_z_range)
                 m_canvas->get_gcode_extruders_count();
                 
             std::vector<Item> gcodes = wxGetApp().is_editor() ?
-                wxGetApp().plater()->model().custom_gcode_per_print_z.gcodes :
+           wxGetApp().plater()->model().custom_gcode_per_print_z().gcodes :
                 m_canvas->get_custom_gcode_per_print_z();
                 
             const bool contains_color_gcodes = std::any_of(std::begin(gcodes), std::end(gcodes),

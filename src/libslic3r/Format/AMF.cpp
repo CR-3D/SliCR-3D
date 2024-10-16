@@ -715,7 +715,7 @@ void AMFParserContext::endElement(const char * /* name */)
         CustomGCode::Type type  = static_cast<CustomGCode::Type>(atoi(m_value[3].c_str()));
         const std::string& extra= m_value[4];
 
-        m_model.custom_gcode_per_print_z.gcodes.push_back(CustomGCode::Item{print_z, type, extruder, color, extra});
+        m_model.custom_gcode_per_print_z().gcodes.push_back(CustomGCode::Item{print_z, type, extruder, color, extra});
 
         for (std::string& val: m_value)
             val.clear();
@@ -725,9 +725,9 @@ void AMFParserContext::endElement(const char * /* name */)
     case NODE_TYPE_CUSTOM_GCODE_MODE: {
         const std::string& mode = m_value[0];
 
-        m_model.custom_gcode_per_print_z.mode = mode == CustomGCode::SingleExtruderMode ? CustomGCode::Mode::SingleExtruder :
-                                                mode == CustomGCode::MultiAsSingleMode  ? CustomGCode::Mode::MultiAsSingle  :
-                                                                                          CustomGCode::Mode::MultiExtruder;
+        m_model.custom_gcode_per_print_z().mode = mode == CustomGCode::SingleExtruderMode ? CustomGCode::Mode::SingleExtruder :
+                                                    mode == CustomGCode::MultiAsSingleMode  ? CustomGCode::Mode::MultiAsSingle  :
+                                                                                              CustomGCode::Mode::MultiExtruder;
         for (std::string& val: m_value)
             val.clear();
         break;

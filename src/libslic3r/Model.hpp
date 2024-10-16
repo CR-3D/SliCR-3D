@@ -1280,9 +1280,15 @@ public:
     // Wipe tower object.
     ModelWipeTower	    wipe_tower;
 
+    CustomGCode::Info& custom_gcode_per_print_z();
+    const CustomGCode::Info& custom_gcode_per_print_z() const;
+    std::vector<CustomGCode::Info>& get_custom_gcode_per_print_z_vector() { return custom_gcode_per_print_z_vector; }
+
+private:
     // Extensions for color print
-    CustomGCode::Info custom_gcode_per_print_z;
-    
+    std::vector<CustomGCode::Info> custom_gcode_per_print_z_vector = std::vector<CustomGCode::Info>(MAX_NUMBER_OF_BEDS);
+
+public:
     // Default constructor assigns a new ID to the model.
     Model() { assert(this->id().valid()); }
     ~Model() { this->clear_objects(); this->clear_materials(); }
