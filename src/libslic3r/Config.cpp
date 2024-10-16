@@ -361,7 +361,7 @@ size_t GraphData::data_size() const
     return this->end_idx - this->begin_idx;
 }
 
-double GraphData::interpolate(double x_value) const{
+double GraphData::interpolate(double x_value) const {
     double y_value = 0.;
     if (this->data_size() < 1) {
         // nothing

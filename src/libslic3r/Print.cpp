@@ -94,6 +94,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "bed_temperature",
         "before_layer_gcode",
         "between_objects_gcode",
+        "enable_pressure_advance",
         "binary_gcode",
         "bridge_fan_speed",
         "chamber_temperature",

@@ -1060,6 +1060,15 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionString,              end_gcode))
     ((ConfigOptionStrings,             end_filament_gcode))
     ((ConfigOptionFloats,              filament_pressure_advance))
+    
+    // Orca: adaptive pressure advance and calibration model
+    ((ConfigOptionBools,               enable_pressure_advance))
+    ((ConfigOptionBools,               adaptive_pressure_advance))
+    ((ConfigOptionBools,               adaptive_pressure_advance_overhangs))
+    ((ConfigOptionGraphs,              adaptive_pressure_advance_model))
+    ((ConfigOptionFloats,              adaptive_pressure_advance_bridges))
+    //
+
     ((ConfigOptionFloat,               extra_loading_move))
     ((ConfigOptionGraphs,              extruder_extrusion_multiplier_speed))
     ((ConfigOptionPercents,            extruder_fan_offset))

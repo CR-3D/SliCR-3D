@@ -208,6 +208,7 @@ namespace Slic3r {
             Estimated_Printing_Time_Placeholder,
             Object_Start_Octoprint,
             Object_End_Octoprint,
+            PA_Change,
         };
 
         static const std::string& reserved_tag(ETags tag) { return Reserved_Tags[static_cast<unsigned char>(tag)]; }
