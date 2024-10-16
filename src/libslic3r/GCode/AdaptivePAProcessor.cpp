@@ -45,6 +45,17 @@ AdaptivePAProcessor::AdaptivePAProcessor(GCodeGenerator &gcodegen, const std::ve
     }
 }
 
+
+// Method to get the interpolator for a specific tool ID
+GraphData* AdaptivePAProcessor::getInterpolator(unsigned int tool_id) {
+    auto it = m_AdaptivePAInterpolators.find(tool_id);
+    if (it != m_AdaptivePAInterpolators.end()) {
+       return &(it->second);
+    }
+    return nullptr;  // Handle the case where the tool_id is not found
+}
+
+
 /**
  * @brief Processes a layer of G-code and applies adaptive pressure advance.
  *
@@ -202,7 +213,7 @@ std::string AdaptivePAProcessor::process_layer(std::string &&gcode) {
                 
                 // Calculate the predicted PA using the upcomming feature maximum feedrate
                 // Get the interpolator for the active tool
-                AdaptivePAInterpolator* interpolator = getInterpolator(m_last_extruder_id);
+                GraphData* interpolator = getInterpolator(m_last_extruder_id);
                 
                 double predicted_pa = 0;
                 double adaptive_PA_speed = 0;
@@ -211,7 +222,7 @@ std::string AdaptivePAProcessor::process_layer(std::string &&gcode) {
                     // Tool not found in the PA interpolator to tool map
                     predicted_pa = m_config.enable_pressure_advance.get_at(m_last_extruder_id) ? m_config.filament_pressure_advance.get_at(m_last_extruder_id) : 0;
                     if(m_config.gcode_comments) output << "; APA: Tool doesnt have APA enabled\n";
-                } else if (!interpolator->isInitialised() || (!m_config.adaptive_pressure_advance.get_at(m_last_extruder_id)) )
+                } else if (!m_config.adaptive_pressure_advance.get_at(m_last_extruder_id))
                     // Check if the model is not initialised by the constructor for the active extruder
                     // Also check that adaptive PA is enabled for that extruder. This should not be needed
                     // as the PA change flag should not be set upstream (in the GCode.cpp file) if adaptive PA is disabled

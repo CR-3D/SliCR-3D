@@ -77,7 +77,7 @@ private:
      * @param An integer with the tool ID for which the PA interpolation model is to be returned.
      * @return The Adaptive PA Interpolator object corresponding to that tool.
      */
-    AdaptivePAInterpolator* getInterpolator(unsigned int tool_id);
+    GraphData* getInterpolator(unsigned int tool_id);
 };
 
 } // namespace Slic3r
