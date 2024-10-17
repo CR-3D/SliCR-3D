@@ -815,6 +815,46 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
     }
 }
 
+void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config) {
+   
+   // PA
+   bool use_pressure_advance = config->opt_bool("enable_pressure_advance", 0);
+   for (auto el : {
+      "adaptive_pressure_advance",
+      "filament_pressure_advance"
+   })
+   toggle_field(el, use_pressure_advance, 0);
+   
+   // Adaptive PA
+   bool use_adaptive_pa = config->opt_bool("adaptive_pressure_advance", 0);
+   for (auto el : {
+      "adaptive_pressure_advance_overhangs",
+      "adaptive_pressure_advance_bridges",
+      "adaptive_pressure_advance_model"
+   })
+   toggle_field(el, use_adaptive_pa, 0);
+      
+      
+   toggle_field("min_print_speed",
+                config->opt_float("slowdown_below_layer_time", 0) > 0);
+   toggle_field("max_speed_reduction",
+                config->opt_float("slowdown_below_layer_time", 0) > 0);
+
+   toggle_field("max_fan_speed", 
+                config->opt_float("fan_below_layer_time", 0) > 0
+                || config->opt_float("slowdown_below_layer_time", 0) > 0, 0);
+
+   toggle_field("overhangs_fan_speed",
+                !config->is_enabled("overhangs_dynamic_fan_speed", 0),
+                0);
+
+   bool multitool_ramming = config->opt_bool("filament_multitool_ramming", 0);
+   toggle_field("filament_multitool_ramming_volume", multitool_ramming);
+   toggle_field("filament_multitool_ramming_flow", multitool_ramming);
+}
+
+
+
 void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
 {
     bool supports_en = config->opt_bool("supports_enable");
