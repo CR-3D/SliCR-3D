@@ -2282,7 +2282,7 @@ void PrintConfigDef::init_fff_params()
     def->multiline = true;
     def->full_width = true;
     def->height = 15;
-    def->set_default_value(new ConfigOptionStrings{"0,0,0\n0,0,0"});
+    def->set_default_value(new ConfigOptionStrings{"0,0,0"});
 
     def = this->add("adaptive_pressure_advance_overhangs", coBools);
     def->label = L("Enable adaptive pressure advance for overhangs (beta)");
