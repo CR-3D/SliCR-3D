@@ -68,6 +68,7 @@ const std::vector<std::string> GCodeProcessor::Reserved_Tags = {
     "_GP_ESTIMATED_PRINTING_TIME_PLACEHOLDER",
     " printing object",
     " stop printing object",
+    " PA_CHANGE:"
 };
 
 const float GCodeProcessor::Wipe_Width = 0.05f;

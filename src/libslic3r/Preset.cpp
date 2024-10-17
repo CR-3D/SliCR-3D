@@ -865,7 +865,9 @@ static std::vector<std::string> s_Preset_filament_options {
         //merill adds
         "filament_wipe_advanced_pigment",
         "chamber_temperature",
-        "filament_pressure_advance",
+        // SoftFever
+        "enable_pressure_advance",
+        "filament_pressure_advance", "adaptive_pressure_advance", "adaptive_pressure_advance_model", "adaptive_pressure_advance_overhangs", "adaptive_pressure_advance_bridges",
 };
 
 static std::vector<std::string> s_Preset_machine_limits_options {

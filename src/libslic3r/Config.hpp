@@ -49,7 +49,7 @@
 #include <boost/format/format_fwd.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/property_tree/ptree_fwd.hpp>
-
+#include "GCode/PchipInterpolatorHelper.hpp"
 #include <cereal/access.hpp>
 #include <cereal/types/base_class.hpp>
 
