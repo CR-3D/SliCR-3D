@@ -2262,7 +2262,7 @@ void PrintConfigDef::init_fff_params()
     def->set_default_value(new ConfigOptionBools{ false });
     
     // Orca: Adaptive pressure advance option and calibration values
-    def = this->add("adaptive_pressure_advance_model", coGraphs);
+    def = this->add("adaptive_pressure_advance_model", coStrings);
     def->label = L("Adaptive pressure advance measurements (beta)");
     def->tooltip = L("Add sets of pressure advance (PA) values, the volumetric flow speeds and accelerations they were measured at, separated by a comma. "
                      "One set of values per line. For example\n"
@@ -2279,50 +2279,10 @@ void PrintConfigDef::init_fff_params()
                      "3. Enter the triplets of PA values, Flow and Accelerations in the text box here and save your filament profile\n\n"
                      "");
     def->mode = comExpert;
-    def->set_default_value(new ConfigOptionGraphs(
-    GraphData(0, 4, GraphData::GraphType::SPLINE,
-    {
-        {3.96, 0.04},   // PA = 0.04, Flow = 3.96 (3000 acceleration)
-        {3.80, 0.033},  // PA = 0.033, Flow = 3.96 (10000 acceleration)
-        {7.50, 0.029},  // PA = 0.029, Flow = 7.91 (3000 acceleration)
-        {7.9, 0.026},  // PA = 0.026, Flow = 7.91 (10000 acceleration)
-    })
-));
-    def->graph_settings = std::make_shared<GraphSettings>();
-    def->graph_settings->title       = L("Adaptive Pressure Advance");
-    def->graph_settings->description = L("Add sets of pressure advance (PA) values, the volumetric flow speeds and accelerations they were measured at, separated by a comma. "
-                     "One set of values per line. For example\n"
-                     "0.04,3.96,3000\n0.033,3.96,10000\n0.029,7.91,3000\n0.026,7.91,10000\n\n"
-                     "How to calibrate:\n"
-                     "1. Run the pressure advance test for at least 3 speeds per acceleration value. It is recommended that the test is run "
-                     "for at least the speed of the external perimeters, the speed of the internal perimeters and the fastest feature "
-                     "print speed in your profile (usually its the sparse or solid infill). Then run them for the same speeds for the slowest and fastest print accelerations,"
-                     "and no faster than the recommended maximum acceleration as given by the klipper input shaper.\n"
-                     "2. Take note of the optimal PA value for each volumetric flow speed and acceleration. You can find the flow number by selecting "
-                     "flow from the color scheme drop down and move the horizontal slider over the PA pattern lines. The number should be visible "
-                     "at the bottom of the page. The ideal PA value should be decreasing the higher the volumetric flow is. If it is not, confirm that your extruder is functioning correctly."
-                     "The slower and with less acceleration you print, the larger the range of acceptable PA values. If no difference is visible, use the PA value from the faster test."
-                     "3. Enter the triplets of PA values, Flow and Accelerations in the text box here and save your filament profile\n\n"
-                     "");
-    def->graph_settings->x_label     = L("Flow");
-    def->graph_settings->y_label     = L("PA");
-    
-    def->graph_settings->null_label  = L("No compensation");
-    
-    def->graph_settings->label_min_x = L("Minimum Flow");
-    def->graph_settings->label_max_x = L("Maximum Flow");
-    
-    def->graph_settings->label_min_y = L("Minimum PA");
-    def->graph_settings->label_max_y = L("Maximum PA");
-    
-   def->graph_settings->min_y      = 0.02;
-    def->graph_settings->max_y       = 0.04;
-    def->graph_settings->step_y      = 0.1;
-    
-    def->graph_settings->min_x      = 3.9;
-    def->graph_settings->max_x       = 8;
-    def->graph_settings->step_x      = 0.1;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE};
+    def->multiline = true;
+    def->full_width = true;
+    def->height = 15;
+    def->set_default_value(new ConfigOptionStrings{"0,0,0\n0,0,0"});
 
     def = this->add("adaptive_pressure_advance_overhangs", coBools);
     def->label = L("Enable adaptive pressure advance for overhangs (beta)");

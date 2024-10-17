@@ -2251,10 +2251,10 @@ void GCodeGenerator::process_layers(
         });
         
     const auto pa_processor_filter = tbb::make_filter<std::string, std::string>(slic3r_tbb_filtermode::serial_in_order,
-        [this, &pa_processor_filter = *this->m_pa_processor.get()](std::string in) -> std::string {
+        [this, pa_processor_filter = this->m_pa_processor.get()](std::string in) -> std::string {
             this->m_throw_if_canceled();
             CNumericLocalesSetter locales_setter;
-       return pa_processor_filter.process_layer(std::move(in));
+       return pa_processor_filter->process_layer(std::move(in));
         });
         
     const auto cooling = tbb::make_filter<LayerResult, std::string>(slic3r_tbb_filtermode::serial_in_order,
@@ -2332,28 +2332,7 @@ void GCodeGenerator::process_layers(
 {
     // The pipeline is variable: The vase mode filter is optional.
     size_t layer_to_print_idx = 0;
-    // already done at the end of print(), with a real //
-    //const GCode::SmoothPathCache::InterpolationParameters interpolation_params = interpolation_parameters(print.config());
-    //const auto smooth_path_interpolator = tbb::make_filter<void, std::pair<size_t, GCode::SmoothPathCache>> (slic3r_tbb_filtermode::serial_in_order,
-    //    [this, &print, &layers_to_print, &layer_to_print_idx, interpolation_params](tbb::flow_control &fc) -> std::pair<size_t, GCode::SmoothPathCache> {
-    //        if (layer_to_print_idx >= layers_to_print.size()) {
-    //            if (layer_to_print_idx == layers_to_print.size() + (m_pressure_equalizer ? 1 : 0)) {
-    //                fc.stop();
-    //                return {};
-    //            } else {
-    //                // Pressure equalizer need insert empty input. Because it returns one layer back.
-    //                // Insert NOP (no operation) layer;
-    //                return { layer_to_print_idx ++, {} };
-    //            }
-    //        } else {
-    //            CNumericLocalesSetter locales_setter;
-    //            print.throw_if_canceled();
-    //            size_t idx = layer_to_print_idx ++;
-    //            GCode::SmoothPathCache smooth_path_cache;
-    //            GCodeGenerator::smooth_path_interpolate(layers_to_print[idx], interpolation_params, smooth_path_cache);
-    //            return { idx, std::move(smooth_path_cache) };
-    //        }
-    //    });
+
      const auto layer_select = tbb::make_filter<void, size_t>(slic3r_tbb_filtermode::serial_in_order,
         [this, &print, &layers_to_print, &layer_to_print_idx](tbb::flow_control &fc) -> size_t {
             if (layer_to_print_idx >= layers_to_print.size()) {
@@ -2406,12 +2385,21 @@ void GCodeGenerator::process_layers(
             spiral_vase->enable(in.spiral_vase_enable);
             return { spiral_vase->process_layer(std::move(in.gcode)), in.layer_id, in.spiral_vase_enable, in.cooling_buffer_flush };
         });
+        
     const auto pressure_equalizer = tbb::make_filter<LayerResult, LayerResult>(slic3r_tbb_filtermode::serial_in_order,
         [this, pressure_equalizer = this->m_pressure_equalizer.get()](LayerResult in) -> LayerResult {
              this->m_throw_if_canceled();
              CNumericLocalesSetter locales_setter;
              return pressure_equalizer->process_layer(std::move(in));
         });
+        
+    const auto pa_processor_filter = tbb::make_filter<std::string, std::string>(slic3r_tbb_filtermode::serial_in_order,
+        [this, pa_processor_filter = this->m_pa_processor.get()](std::string in) -> std::string {
+            this->m_throw_if_canceled();
+            CNumericLocalesSetter locales_setter;
+       return pa_processor_filter->process_layer(std::move(in));
+        });
+        
     const auto cooling = tbb::make_filter<LayerResult, std::string>(slic3r_tbb_filtermode::serial_in_order,
         [this, cooling_buffer = this->m_cooling_buffer.get()](LayerResult in)->std::string {
             if (in.nop_layer_result)
@@ -2453,7 +2441,7 @@ void GCodeGenerator::process_layers(
     if (m_pressure_equalizer)
         pipeline_to_layerresult = pipeline_to_layerresult & pressure_equalizer;
 
-    tbb::filter<LayerResult, std::string> pipeline_to_string = cooling & fan_mover;
+    tbb::filter<LayerResult, std::string> pipeline_to_string = cooling & fan_mover & pa_processor_filter;
     if (m_find_replace)
         pipeline_to_string = pipeline_to_string & find_replace;
 
@@ -4088,29 +4076,6 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
     // reset acceleration
     m_writer.set_acceleration((uint16_t)floor(get_default_acceleration(m_config) + 0.5));
 
-    //don't wipe here
-    //if (m_wipe.is_enabled())
-    //    m_wipe.path = paths.front().polyline;  // TODO: don't limit wipe to last path
-
-    //just continue on the perimeter a bit while retracting
-    //FIXME this doesn't work work, hence why it's commented
-    //coordf_t travel_length = std::min(length, EXTRUDER_CONFIG(nozzle_diameter) * 10);
-    //for (auto & path : paths){
-    //    for (const Line &line : path.polyline.lines()) {
-    //        if (unscaled(line.length()) > travel_length) {
-    //            // generate the travel move
-    //            gcode += m_writer.travel_to_xy(this->point_to_gcode(line.b), 0.0, "move inwards before travel");
-    //            travel_length -= unscaled(line.length());
-    //        }
-    //        else
-    //        {
-    //            gcode += m_writer.travel_to_xy(this->point_to_gcode(line.a) + (this->point_to_gcode(line.b) - this->point_to_gcode(line.a)) * (travel_length / unscaled(line.length())), 0.0, "move before travel");
-    //            travel_length = 0;
-    //            //double break;
-    //            goto FINISH_MOVE;
-    //        }
-    //    }
-    //}
     //FINISH_MOVE:
 
     // make a little move inwards before leaving loop
@@ -5999,8 +5964,6 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
 
     auto [/*double*/acceleration, /*double*/travel_acceleration] = _compute_acceleration(path);
 
-    unsigned int acceleration_i = 0;
-
     // calculate extrusion length per distance unit
     double e_per_mm = _compute_e_per_mm(path);
     ArcPolyline polyline = path.as_polyline();
@@ -6062,128 +6025,6 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
                 current_pos = segment.point;
             }
         }
-      acceleration_i = (unsigned int)floor(acceleration + 0.5);
-
-        
-    // Orca: Dynamic PA
-    // If adaptive PA is enabled, by default evaluate PA on all extrusion moves
-    bool evaluate_adaptive_pa = false;
-    bool role_change = (m_last_extrusion_role != extrusion_role_to_gcode_extrusion_role(path.role()));
-    
-    if(EXTRUDER_CONFIG(adaptive_pressure_advance) && EXTRUDER_CONFIG(enable_pressure_advance)){
-        evaluate_adaptive_pa = true;
-        // If we have already emmited a PA change because the m_multi_flow_segment_path_pa_set is set
-        // skip re-issuing the PA change tag.
-        if (m_multi_flow_segment_path_pa_set && evaluate_adaptive_pa)
-            evaluate_adaptive_pa = false;
-        // TODO: Explore forcing evaluation of PA if a role change is happening mid extrusion.
-        // TODO: This would enable adapting PA for overhang perimeters as they are part of the current loop
-        // TODO: The issue with simply enabling PA evaluation on a role change is that the speed change
-        // TODO: is issued before the overhang perimeter role change is triggered
-        // TODO: because for some reason (maybe path segmentation upstream?) there is a short path extruded
-        // TODO: with the overhang speed and flow before the role change is flagged in the path.role() function.
-        if(role_change)
-            evaluate_adaptive_pa = true;
-    }
-    // Orca: End of dynamic PA trigger flag segment
-   bool variable_speed = false;
-
-
-   char buf[64];
-   double F = speed * 60;
-
-   std::cout << acceleration_i << std::endl;
-
-    // Orca: Dynamic PA
-    // Post processor flag generation code segment when option to emit only at role changes is enabled
-    // Variables published to the post processor:
-    // 1) Tag to trigger a PA evaluation (because a role change was identified and the user has requested dynamic PA adjustments)
-    // 2) Current extruder ID (to identify the PA model for the currently used extruder)
-    // 3) mm3_per_mm value (to then multiply by the final model print speed after slowdown for cooling is applied)
-    // 4) the current acceleration (to pass to the model for evaluation)
-    // 5) whether this is an external perimeter (for future use)
-    // 6) whether this segment is triggered because of a role change (to aid in calculation of average speed for the role)
-    // This tag simplifies the creation of the gcode post processor while also keeping the feature decoupled from other tags.
-    if (evaluate_adaptive_pa) {
-       bool isOverhangPerimeter = (path.role() == ExtrusionRole::OverhangPerimeter);
-        if (m_multi_flow_segment_path_average_mm3_per_mm > 0) {
-            sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
-                    GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
-                    m_writer.tool()->id(),
-                    m_multi_flow_segment_path_average_mm3_per_mm,
-                    acceleration_i,
-                    ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
-                    role_change,
-                    isOverhangPerimeter);
-            gcode += buf;
-        } else if(speed > 0 ){ // Triggered when extruding a single segment path (like a line).
-                                    // Check if mm3_mm value is greater than zero as the wipe before external perimeter
-                                    // is a zero mm3_mm path to force de-retraction to happen and we dont want
-                                    // to issue a zero flow PA change command for this
-            sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
-                    GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
-                    m_writer.tool()->id(),
-                    speed,
-                    acceleration_i,
-                    ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
-                    role_change,
-                    isOverhangPerimeter);
-            gcode += buf;
-        }
-    }
-    
-if (!variable_speed) {
-        // F is mm per minute.
-       if( (std::abs(writer().get_speed_mm_s() - F) > EPSILON) || (std::abs(speed - m_last_mm3_mm) > EPSILON) ){
-            // ORCA: Adaptive PA code segment when adjusting PA within the same feature
-            // There is a speed change coming out of an overhang region
-            // or a flow change, so emit the flag to evaluate PA for the upcomming extrusion
-            // Emit tag before new speed is set so the post processor reads the next speed immediately and uses it.
-            // Dont emit tag if it has just already been emitted from a role change above
-            if(speed > 0 &&
-               EXTRUDER_CONFIG(adaptive_pressure_advance) &&
-               EXTRUDER_CONFIG(enable_pressure_advance) &&
-               EXTRUDER_CONFIG(adaptive_pressure_advance_overhangs) &&
-               !evaluate_adaptive_pa){
-               if(writer().get_speed_mm_s() > F){ // Ramping down speed - use overhang logic where the minimum speed is used between current and upcoming extrusion
-                    if(m_config.gcode_comments){
-                        sprintf(buf, "; Ramp down-non-variable\n");
-                        gcode += buf;
-                    }
-                    sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
-                            GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
-                            m_writer.tool()->id(),
-                            speed,
-                            acceleration_i,
-                            ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
-                            1, // Force a dummy "role change" & "overhang perimeter" for the post processor, as, while technically it is not a role change,
-                            // the properties of the extrusion in the overhang are different so it behaves similarly to a role
-                            // change for the Adaptive PA post processor.
-                            1);
-                }else{ // Ramping up speed - use baseline logic where max speed is used between current and upcoming extrusion
-                    if(m_config.gcode_comments){
-                        sprintf(buf, "; Ramp up-non-variable\n");
-                        gcode += buf;
-                    }
-                    sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
-                            GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
-                            m_writer.tool()->id(),
-                            speed,
-                            acceleration_i,
-                            ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
-                            1, // Force a dummy "role change" & "overhang perimeter" for the post processor, as, while technically it is not a role change,
-                            // the properties of the extrusion in the overhang are different so it is technically similar to a role
-                            // change for the Adaptive PA post processor.
-                            0);
-                }
-                gcode += buf;
-                m_last_mm3_mm = speed;
-            }
-            // ORCA: End of adaptive PA code segment
-        }
-    }
-
-
     }
     gcode += this->_after_extrude(path);
 
@@ -6861,6 +6702,7 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
                                                   m_writer.tool()->id(), &config)
             + "\n";
     }
+    
     if (m_enable_extrusion_role_markers) {
         assert(m_check_markers == 0);
         if (grole != m_last_extrusion_role) {
@@ -6910,7 +6752,15 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
    char buf[64];
    double F = speed_mm_s * 60;
 
-   std::cout << acceleration_i << std::endl;
+   auto _mm3_per_mm = (path.mm3_per_mm() * (this->config().print_extrusion_multiplier / 100));
+   
+   if (path.role() == ExtrusionRole::TopSolidInfill)
+      _mm3_per_mm *= m_config.fill_top_flow_ratio;
+   else if (path.role() == ExtrusionRole::BridgeInfill)
+      _mm3_per_mm *= m_config.first_layer_flow_ratio;
+   else if (path.role() == ExtrusionRole::InternalBridgeInfill)
+      _mm3_per_mm *= m_config.bridge_flow_ratio;
+   
 
     // Orca: Dynamic PA
     // Post processor flag generation code segment when option to emit only at role changes is enabled
@@ -6934,14 +6784,14 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
                     role_change,
                     isOverhangPerimeter);
             gcode += buf;
-        } else if(speed_mm_s > 0 ){ // Triggered when extruding a single segment path (like a line).
+        } else if(_mm3_per_mm > 0 ){ // Triggered when extruding a single segment path (like a line).
                                     // Check if mm3_mm value is greater than zero as the wipe before external perimeter
                                     // is a zero mm3_mm path to force de-retraction to happen and we dont want
                                     // to issue a zero flow PA change command for this
             sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
                     GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
                     m_writer.tool()->id(),
-                    speed_mm_s,
+                    _mm3_per_mm,
                     acceleration_i,
                     ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
                     role_change,
@@ -7000,7 +6850,7 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
                     sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
                             GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
                             m_writer.tool()->id(),
-                            speed_mm_s,
+                            _mm3_per_mm,
                             acceleration_i,
                             ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
                             1, // Force a dummy "role change" & "overhang perimeter" for the post processor, as, while technically it is not a role change,
@@ -7015,7 +6865,7 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
                     sprintf(buf, ";%sT%u MM3MM:%g ACCEL:%u BR:%d RC:%d OV:%d\n",
                             GCodeProcessor::reserved_tag(GCodeProcessor::ETags::PA_Change).c_str(),
                             m_writer.tool()->id(),
-                            speed_mm_s,
+                            _mm3_per_mm,
                             acceleration_i,
                             ((path.role() == ExtrusionRole::BridgeInfill) ||(path.role() == ExtrusionRole::OverhangPerimeter)),
                             1, // Force a dummy "role change" & "overhang perimeter" for the post processor, as, while technically it is not a role change,
@@ -7077,6 +6927,7 @@ void GCodeGenerator::_add_object_change_labels(std::string& gcode) {
         assert(m_gcode_label_objects_in_session);
         m_gcode_label_objects_in_session = false;
     }
+    
     if (!m_gcode_label_objects_start.empty()) {
         gcode += m_gcode_label_objects_start;
         m_gcode_label_objects_start = "";

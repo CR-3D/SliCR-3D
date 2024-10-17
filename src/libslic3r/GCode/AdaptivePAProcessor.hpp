@@ -56,7 +56,7 @@ public:
     
 private:
     GCodeGenerator &m_gcodegen; ///< Reference to the GCode object.
-    std::unordered_map<unsigned int, GraphData> m_AdaptivePAInterpolators; ///< Map between Interpolator objects and tool ID's
+    std::unordered_map<unsigned int, std::unique_ptr<AdaptivePAInterpolator>> m_AdaptivePAInterpolators; ///< Map between Interpolator objects and tool ID's
     const PrintConfig &m_config; ///< Reference to the print configuration.
     double m_last_predicted_pa; ///< Last predicted pressure advance value.
     double m_max_next_feedrate; ///< Maximum feed rate (speed) for the upcomming island. If no speed is found, the previous island speed is used.
@@ -77,7 +77,7 @@ private:
      * @param An integer with the tool ID for which the PA interpolation model is to be returned.
      * @return The Adaptive PA Interpolator object corresponding to that tool.
      */
-    GraphData* getInterpolator(unsigned int tool_id);
+    AdaptivePAInterpolator* getInterpolator(unsigned int tool_id);
 };
 
 } // namespace Slic3r

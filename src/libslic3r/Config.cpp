@@ -362,43 +362,6 @@ size_t GraphData::data_size() const
 }
 
 
-/**
- * @brief Interpolates the PA value for the given flow rate and acceleration.
- * @param flow_rate The flow rate at which to interpolate.
- * @param acceleration The acceleration at which to interpolate.
- * @return The interpolated PA value, or -1 if interpolation fails.
- */
-double GraphData::operator()(double flow_rate, double acceleration) {
-    std::vector<double> pa_values;
-    std::vector<double> acc_values;
-
-    // Estimate PA value for every flow to PA model for the given flow rate
-    for (const auto& kv : flow_interpolators_) {
-        double pa_value = kv.second.interpolate(flow_rate);
-        
-        // Check if the interpolated PA value is valid
-        if (pa_value != -1) {
-            pa_values.push_back(pa_value);
-            acc_values.push_back(kv.first);
-        }
-    }
-
-    // Check if there are enough acceleration values for interpolation
-    if (acc_values.size() < 2) {
-        // Special case: Only one acceleration value
-        if (acc_values.size() == 1) {
-            return std::round(pa_values[0] * 1000.0) / 1000.0; // Rounded to 3 decimal places
-        }
-        return -1; // Error: Not enough data points for interpolation
-    }
-
-    // Create a new PchipInterpolatorHelper for PA-acceleration interpolation
-    // Use the estimated PA values from the for loop above and their corresponding accelerations to
-    // generate the new PCHIP model. Then run this model to interpolate the PA value for the given acceleration value.
-    PchipInterpolatorHelper pa_accel_interpolator(acc_values, pa_values);
-    return std::round(pa_accel_interpolator.interpolate(acceleration) * 1000.0) / 1000.0; // Rounded to 3 decimal places
-}
-
 double GraphData::interpolate(double x_value) const {
     double y_value = 0.;
     if (this->data_size() < 1) {

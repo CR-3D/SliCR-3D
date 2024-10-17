@@ -99,14 +99,6 @@ namespace Slic3r {
         size_t data_size() const;
 
         double interpolate(double x_value) const;
-            /**
-         * @brief Interpolates the PA value for the given flow rate and acceleration.
-         * @param flow_rate The flow rate at which to interpolate.
-         * @param acceleration The acceleration at which to interpolate.
-         * @return The interpolated PA value, or -1 if interpolation fails.
-         */
-        double operator()(double flow_rate, double acceleration);
-        std::map<double, PchipInterpolatorHelper> flow_interpolators_; ///< Map each acceleration to a flow-rate-to-PA interpolator.
 
         //return false if data are not good
         bool validate() const;

@@ -1065,7 +1065,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBools,               enable_pressure_advance))
     ((ConfigOptionBools,               adaptive_pressure_advance))
     ((ConfigOptionBools,               adaptive_pressure_advance_overhangs))
-    ((ConfigOptionGraphs,              adaptive_pressure_advance_model))
+    ((ConfigOptionStrings,              adaptive_pressure_advance_model))
     ((ConfigOptionFloats,              adaptive_pressure_advance_bridges))
     //
 
