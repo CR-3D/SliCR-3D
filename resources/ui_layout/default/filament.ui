@@ -29,10 +29,28 @@ group:Temperature °C
 group:Filament properties
 	setting:id$0:width$7:filament_type
 	setting:id$0:filament_soluble
-	setting:id$0:label$Pressure Advance:filament_pressure_advance
-
 	setting:id$0:filament_shrink
 	setting:id$0:filament_max_overlap
+
+group:Pressure Advance (BETA)
+line:Enable Pressure Advance
+	setting:id$0:label$_:enable_pressure_advance
+end_line
+line:Filament Pressure Advance
+	setting:id$0:label$Pressure Advance:filament_pressure_advance
+end_line
+line:Adaptive Pressure Advance (beta)
+	setting:id$0:label$Adaptive Pressure Advance:adaptive_pressure_advance
+end_line
+line:Adaptive PA Overhangs
+	setting:id$0:label$Adaptive PA Overhangs:adaptive_pressure_advance_overhangs
+end_line
+line:Adaptive PA Bridges
+	setting:id$0:label$Adaptive PA Bridges:adaptive_pressure_advance_bridges
+end_line
+line:Adaptive PA Model
+	setting:id$0:label$Adapative PA Model:adaptive_pressure_advance_model
+end_line
 
 group:Print speed override
 	setting:id$0:filament_max_speed
@@ -65,7 +83,6 @@ group:Infill Fan Speed
 	line:Solid Infill Fan Speed
 		setting:id$0:label$_:solid_infill_fan_speed
 	end_line
-
 
 group:Support Material Fan Speed
 	line:Support Material Fan Speed

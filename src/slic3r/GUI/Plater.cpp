@@ -4624,6 +4624,7 @@ void Plater::set_physical_printer_config(DynamicPrintConfig* conf) {
             m_api_success = success;
             
             if (success) {
+            // TODO: Also add nozzle_type from server
                 auto tool_diameter_values = repetier->get_all_json_values(printer_config, "toolDiameter");
                 if (!tool_diameter_values.empty()) {
                     for (const auto& value : tool_diameter_values) {
@@ -8455,6 +8456,7 @@ void Plater::on_config_change(const DynamicConfig &config)
                 p->gcode_result.reset();
             }
         }
+        
         
         //FIXME also mills?
         if (opt_key == "filament_colour")

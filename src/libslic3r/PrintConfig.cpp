@@ -1749,8 +1749,22 @@ void PrintConfigDef::init_fff_params() {
     def->max = 2;
     def->mode = comAdvanced | comExpert;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloats{0.02}));
-
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloats { 0.02 }));
+    
+    // Nozzle TYPE
+    def = this->add("nozzle_type", coStrings);
+    def->label = L("Nozzle Type");
+    def->tooltip = L("The metallic material of nozzle. This determines the abrasive resistance of nozzle, and "
+                     "what kind of filament can be printed");
+    def->category = OptionCategory::extruders;
+    def->set_enum_values(ConfigOptionDef::GUIType::f_enum_open, {
+        { "plated_copper",      "Plated Copper" },
+        { "tungsten_carbide",   "Tungsten Carbide" },
+        { "dianoz",             "Dianoz" }
+    });
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionStrings { "Plated Copper" });
+    
     def = this->add("first_layer_extruder", coInt);
     def->gui_type = ConfigOptionDef::GUIType::i_enum_open;
     def->label = L("First layer extruder");
@@ -7589,6 +7603,7 @@ void PrintConfigDef::init_extruder_option_keys() {
         "travel_slope",
         "wipe",
         "wipe_extra_perimeter",
+        "nozzle_type",
         "wipe_inside_depth",
         "wipe_inside_end",
         "wipe_inside_start",

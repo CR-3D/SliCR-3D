@@ -752,6 +752,10 @@ group:Bridge Acceleration
 	end_line
 
 group:Other Extrusions Acceleration
+	line:Travel acceleration
+		setting:label$_:travel_acceleration
+	end_line
+	
 	line:Gap Fill Acceleration
 		setting:label$_:gap_fill_acceleration
 	end_line
@@ -762,9 +766,6 @@ group:Other Extrusions Acceleration
 		setting:label$_:ironing_acceleration
 	end_line
 
-	line:Travel acceleration
-		setting:label$_:travel_acceleration
-	end_line
 	line:Travel Deceleration Use Target
 		setting:label$_:travel_deceleration_use_target
 	end_line

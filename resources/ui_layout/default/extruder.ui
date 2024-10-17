@@ -1,8 +1,8 @@
 
 page:idx:Extruder:funnel
 group:Name And Size
-	setting:idx:nozzle_diameter
 	setting:idx:tool_name
+	setting:idx:nozzle_diameter
 	update_nozzle_diameter
 	setting:idx:nozzle_type
 	
@@ -21,6 +21,7 @@ group:Travel Lift
 	setting:idx:travel_ramping_lift
 	setting:idx:travel_max_lift
 	setting:idx:travel_slope
+	setting:idx:travel_lift_before_obstacle
 
 	line:Only Lift Z
 		setting:idx:retract_lift_above
@@ -33,9 +34,6 @@ group:Travel Lift
 	line:Lift Top On Surface
 		setting:idx:label$_:retract_lift_top
 	end_line
-	
-	setting:idx:travel_lift_before_obstacle
-
 
 group:Retraction
 	setting:idx:label$Retraction Length:retract_length
