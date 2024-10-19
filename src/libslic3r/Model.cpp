@@ -72,7 +72,7 @@ Model& Model::assign_copy(const Model &rhs)
 
     // copy custom code per height
     this->custom_gcode_per_print_z_vector = rhs.custom_gcode_per_print_z_vector;
-    this->wipe_tower = rhs.wipe_tower;
+    this->wipe_tower_vector = rhs.wipe_tower_vector;
 
     return *this;
 }
@@ -95,7 +95,7 @@ Model& Model::assign_copy(Model &&rhs)
 
     // copy custom code per height
     this->custom_gcode_per_print_z_vector = std::move(rhs.custom_gcode_per_print_z_vector);
-    this->wipe_tower = rhs.wipe_tower;
+    this->wipe_tower_vector = rhs.wipe_tower_vector;
 
     return *this;
 }
@@ -144,6 +144,16 @@ bool Model::equals(const Model& rhs) const {
    if (this->custom_gcode_per_print_z() != rhs.custom_gcode_per_print_z())
             return false;
     return true;
+}
+
+ModelWipeTower& Model::wipe_tower()
+{
+    return const_cast<ModelWipeTower&>(const_cast<const Model*>(this)->wipe_tower());
+}
+
+const ModelWipeTower& Model::wipe_tower() const
+{
+    return wipe_tower_vector[s_multiple_beds.get_active_bed()];
 }
 
 CustomGCode::Info& Model::custom_gcode_per_print_z()

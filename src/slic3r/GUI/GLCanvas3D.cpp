@@ -1228,6 +1228,7 @@ wxDEFINE_EVENT(EVT_GLCANVAS_RESET_SKEW, SimpleEvent);
 wxDEFINE_EVENT(EVT_GLCANVAS_INSTANCE_SCALED, SimpleEvent);
 wxDEFINE_EVENT(EVT_GLCANVAS_INSTANCE_MIRRORED, SimpleEvent);
 wxDEFINE_EVENT(EVT_GLCANVAS_FORCE_UPDATE, SimpleEvent);
+wxDEFINE_EVENT(EVT_GLCANVAS_WIPETOWER_TOUCHED, SimpleEvent);
 wxDEFINE_EVENT(EVT_GLCANVAS_WIPETOWER_MOVED, Vec3dEvent);
 wxDEFINE_EVENT(EVT_GLCANVAS_WIPETOWER_ROTATED, Vec3dEvent);
 wxDEFINE_EVENT(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, Event<bool>);
@@ -2783,11 +2784,10 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         const bool co = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"))->value;
 
         if (extruders_count > 1 && wt && !co) {
-
-            const float x = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_x"))->value;
-            const float y = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_y"))->value;
+            const float x = m_model->wipe_tower().position.x();
+            const float y = m_model->wipe_tower().position.y();
             const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-            const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
+            const float a = m_model->wipe_tower().rotation;
             const float bw = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_brim_width"))->value;
             const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
@@ -4406,8 +4406,10 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
     if (object_moved)
         post_event(SimpleEvent(EVT_GLCANVAS_INSTANCE_MOVED));
 
-    if (wipe_tower_origin != Vec3d::Zero())
-        post_event(Vec3dEvent(EVT_GLCANVAS_WIPETOWER_MOVED, std::move(wipe_tower_origin)));
+    if (wipe_tower_origin != Vec3d::Zero()) {
+        m_model->wipe_tower().position = Vec2d(wipe_tower_origin[0], wipe_tower_origin[1]);
+        post_event(SimpleEvent(EVT_GLCANVAS_WIPETOWER_TOUCHED));
+    }
 
     if (current_printer_technology() == ptFFF && fff_print()->config().complete_objects) {
         update_sequential_clearance(true);
@@ -4451,7 +4453,8 @@ void GLCanvas3D::do_rotate(const std::string& snapshot_type)
             const Vec3d offset = v->get_volume_offset();
             Vec3d rot_unit_x = v->get_volume_transformation().get_matrix().linear() * Vec3d::UnitX();
             double z_rot = std::atan2(rot_unit_x.y(), rot_unit_x.x());
-            post_event(Vec3dEvent(EVT_GLCANVAS_WIPETOWER_ROTATED, Vec3d(offset.x(), offset.y(), z_rot)));
+            m_model->wipe_tower().position = Vec2d(offset.x(), offset.y());
+            m_model->wipe_tower().rotation = (180./M_PI) * z_rot;
         }
         const int object_idx = v->object_idx();
         if (object_idx < 0 || (int)m_model->objects.size() <= object_idx)
@@ -4768,9 +4771,9 @@ GLCanvas3D::WipeTowerInfo GLCanvas3D::get_wipe_tower_info() const
     
     for (const std::unique_ptr<GLVolume> &vol : m_volumes.volumes) {
         if (vol->is_wipe_tower) {
-            wti.m_pos = Vec2d(m_config->opt_float("wipe_tower_x"),
-                            m_config->opt_float("wipe_tower_y"));
-            wti.m_rotation = (M_PI/180.) * m_config->opt_float("wipe_tower_rotation_angle");
+            wti.m_pos = Vec2d(m_model->wipe_tower().position.x(),
+                            m_model->wipe_tower().position.y());
+            wti.m_rotation = (M_PI/180.) * m_model->wipe_tower().rotation;
             const BoundingBoxf3& bb = vol->bounding_box();
             wti.m_bb = BoundingBoxf{to_2d(bb.min), to_2d(bb.max)};
             break;
@@ -8274,16 +8277,8 @@ const SLAPrint* GLCanvas3D::sla_print() const
 
 void GLCanvas3D::WipeTowerInfo::apply_wipe_tower(Vec2d pos, double rot)
 {
-    DynamicPrintConfig cfg;
-    cfg.opt<ConfigOptionFloat>("wipe_tower_x", true)->value = pos.x();
-    cfg.opt<ConfigOptionFloat>("wipe_tower_y", true)->value = pos.y();
-    cfg.opt<ConfigOptionFloat>("wipe_tower_rotation_angle", true)->value = (180./M_PI) * rot;
-    wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->load_config(cfg);
-}
-
-void GLCanvas3D::WipeTowerInfo::apply_wipe_tower() const
-{
-    apply_wipe_tower(m_pos, m_rotation);
+    wxGetApp().plater()->model().wipe_tower().position = pos;
+    wxGetApp().plater()->model().wipe_tower().rotation = (180. / M_PI) * rot;
 }
 
 void GLCanvas3D::RenderTimer::Notify()

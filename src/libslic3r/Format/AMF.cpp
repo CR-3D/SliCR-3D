@@ -1340,14 +1340,14 @@ bool store_amf(std::string &path, Model *model, const DynamicPrintConfig *config
         stream << "  </constellation>\n";
     }
 
-    if (!model->custom_gcode_per_print_z.gcodes.empty() && options.export_modifiers)
+   if (!model->custom_gcode_per_print_z().gcodes.empty() && options.export_modifiers)
     {
         std::string out = "";
         pt::ptree tree;
 
         pt::ptree& main_tree = tree.add("custom_gcodes_per_height", "");
 
-        for (const CustomGCode::Item& code : model->custom_gcode_per_print_z.gcodes)
+       for (const CustomGCode::Item& code : model->custom_gcode_per_print_z().gcodes)
         {
             pt::ptree& code_tree = main_tree.add("code", "");
             // store custom_gcode_per_print_z gcodes information 
@@ -1368,8 +1368,8 @@ bool store_amf(std::string &path, Model *model, const DynamicPrintConfig *config
         pt::ptree& mode_tree = main_tree.add("mode", "");
         // store mode of a custom_gcode_per_print_z 
         mode_tree.put("<xmlattr>.value", 
-                      model->custom_gcode_per_print_z.mode == CustomGCode::Mode::SingleExtruder ? CustomGCode::SingleExtruderMode : 
-                      model->custom_gcode_per_print_z.mode == CustomGCode::Mode::MultiAsSingle  ?
+                      model->custom_gcode_per_print_z().mode == CustomGCode::Mode::SingleExtruder ? CustomGCode::SingleExtruderMode : 
+                      model->custom_gcode_per_print_z().mode == CustomGCode::Mode::MultiAsSingle  ?
                       CustomGCode::MultiAsSingleMode  : CustomGCode::MultiExtruderMode);
 
         if (!tree.empty())

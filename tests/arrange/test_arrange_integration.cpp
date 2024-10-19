@@ -1001,7 +1001,7 @@ TEST_CASE("Test SceneBuilder", "[arrange2][integration]")
         arr2::SceneBuilder bld;
         Model mdl;
         bld.set_model(mdl);
-        bld.set_wipe_tower_handler(std::make_unique<arr2::MocWTH>(mdl.wipe_tower.id()));
+        bld.set_wipe_tower_handler(std::make_unique<arr2::MocWTH>(wipe_tower_instance_id(0)));
 
         WHEN("the selection mask is initialized as a fallback default in the created scene")
         {
@@ -1014,7 +1014,7 @@ TEST_CASE("Test SceneBuilder", "[arrange2][integration]")
 
                 bool wt_selected = false;
                 scene.model()
-                    .visit_arrangeable(mdl.wipe_tower.id(),
+                    .visit_arrangeable(wipe_tower_instance_id(0),
                                        [&wt_selected](
                                            const arr2::Arrangeable &arrbl) {
                                            wt_selected = arrbl.is_selected();

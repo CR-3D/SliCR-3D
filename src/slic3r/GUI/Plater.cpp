@@ -2937,7 +2937,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                     
                     if (load_config) {
                         this->model.get_custom_gcode_per_print_z_vector() = model.get_custom_gcode_per_print_z_vector();
-                        //this->model.wipe_tower = model.wipe_tower;
+                        this->model.get_wipe_tower_vector() = model.get_wipe_tower_vector();
                     }
                 }
                 
@@ -5227,20 +5227,13 @@ void Plater::priv::on_right_click(RBtnEvent &evt)
 
 void Plater::priv::on_wipetower_moved(Vec3dEvent &evt)
 {
-    DynamicPrintConfig cfg;
-    
-    cfg.opt<ConfigOptionFloat>("wipe_tower_x", true)->value = evt.data(0);
-    cfg.opt<ConfigOptionFloat>("wipe_tower_y", true)->value = evt.data(1);
-    wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->load_config(cfg);
+    model.wipe_tower().position = Vec2d(evt.data[0], evt.data[1]);
 }
 
 void Plater::priv::on_wipetower_rotated(Vec3dEvent &evt)
 {
-    DynamicPrintConfig cfg;
-    cfg.opt<ConfigOptionFloat>("wipe_tower_x", true)->value              = evt.data(0);
-    cfg.opt<ConfigOptionFloat>("wipe_tower_y", true)->value              = evt.data(1);
-    cfg.opt<ConfigOptionFloat>("wipe_tower_rotation_angle", true)->value = Geometry::rad2deg(evt.data(2));
-    wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->load_config(cfg);
+    model.wipe_tower().position = Vec2d(evt.data[0], evt.data[1]);
+    model.wipe_tower().rotation = Geometry::rad2deg(evt.data(2));
 }
 
 void Plater::priv::on_update_geometry(Vec3dsEvent<2> &)
@@ -5783,8 +5776,8 @@ void Plater::priv::take_snapshot(const std::string &snapshot_name, const UndoRed
     // not in the Print config.
     if (this->printer_technology == ptFFF) {
         const DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
-        model.wipe_tower.position        = Vec2d(config.opt_float("wipe_tower_x"), config.opt_float("wipe_tower_y"));
-        model.wipe_tower.rotation        = config.opt_float("wipe_tower_rotation_angle");
+       model.wipe_tower().position        = Vec2d(config.opt_float("wipe_tower_x"), config.opt_float("wipe_tower_y"));
+       model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
     }
     const GLGizmosManager &gizmos = view3D->get_canvas3d()->get_gizmos_manager();
     
@@ -5874,8 +5867,8 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
     // not in the Print config.
     if (this->printer_technology == ptFFF) {
         const DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
-        model.wipe_tower.position        = Vec2d(config.opt_float("wipe_tower_x"), config.opt_float("wipe_tower_y"));
-        model.wipe_tower.rotation        = config.opt_float("wipe_tower_rotation_angle");
+       model.wipe_tower().position        = Vec2d(config.opt_float("wipe_tower_x"), config.opt_float("wipe_tower_y"));
+       model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
     }
     const int layer_range_idx = it_snapshot->snapshot_data.layer_range_idx;
     // Flags made of Snapshot::Flags enum values.
@@ -5941,12 +5934,12 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
             Vec2d                     current_position(current_config.opt_float("wipe_tower_x"),
                                                        current_config.opt_float("wipe_tower_y"));
             double                    current_rotation = current_config.opt_float("wipe_tower_rotation_angle");
-            if (current_position != model.wipe_tower.position || current_rotation != model.wipe_tower.rotation) {
+           if (current_position != model.wipe_tower().position || current_rotation != model.wipe_tower().rotation) {
                 DynamicPrintConfig new_config;
-                new_config.set_key_value("wipe_tower_x", new ConfigOptionFloat(model.wipe_tower.position.x()));
-                new_config.set_key_value("wipe_tower_y", new ConfigOptionFloat(model.wipe_tower.position.y()));
+               new_config.set_key_value("wipe_tower_x", new ConfigOptionFloat(model.wipe_tower().position.x()));
+               new_config.set_key_value("wipe_tower_y", new ConfigOptionFloat(model.wipe_tower().position.y()));
                 new_config.set_key_value("wipe_tower_rotation_angle",
-                                         new ConfigOptionFloat(model.wipe_tower.rotation));
+                                         new ConfigOptionFloat(model.wipe_tower().rotation));
                 Tab *tab_print = wxGetApp().get_tab(Preset::TYPE_FFF_PRINT);
                 tab_print->load_config(new_config);
                 tab_print->update_dirty();

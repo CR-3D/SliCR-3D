@@ -636,7 +636,11 @@ WipeTower::ToolChangeResult WipeTower::construct_tcr(WipeTowerWriter& writer,
 
 
 
-WipeTower::WipeTower(const PrintConfig& config, const PrintObjectConfig& default_object_config, const PrintRegionConfig& default_region_config, const std::vector<std::vector<float>>& wiping_matrix, size_t initial_tool) :
+WipeTower::WipeTower(const PrintConfig& config,
+                     const PrintObjectConfig& default_object_config,
+                     const PrintRegionConfig& default_region_config,
+                     const std::vector<std::vector<float>>& wiping_matrix,
+                     size_t initial_tool) :
     m_config(&config),
     m_object_config(&default_object_config),
     m_region_config(&default_region_config),

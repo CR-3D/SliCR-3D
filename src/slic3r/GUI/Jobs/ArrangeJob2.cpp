@@ -180,7 +180,7 @@ arr2::SceneBuilder build_scene(Plater &plater, ArrangeSelectionMode mode)
     AnyPtr<WTH> wth;
 
     if (wti) {
-        wth = std::make_unique<WTH>(plater.model().wipe_tower.id(), wti);
+        wth = std::make_unique<WTH>(wipe_tower_instance_id(0), wti);
     }
 
     if (plater.config()) {

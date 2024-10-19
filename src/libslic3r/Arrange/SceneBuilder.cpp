@@ -556,7 +556,7 @@ void ArrangeableSlicerModel::for_each_arrangeable_(Self &&self, Fn &&fn)
 template<class Self, class Fn>
 void ArrangeableSlicerModel::visit_arrangeable_(Self &&self, const ObjectID &id, Fn &&fn)
 {
-    if (id == self.m_model->wipe_tower.id()) {
+    if (id == wipe_tower_instance_id(0)) {
         self.m_wth->visit(fn);
 
         return;

@@ -611,7 +611,7 @@ int GLVolumeCollection::load_wipe_tower_preview(
     v.set_volume_rotation(Vec3d(0., 0., (M_PI / 180.) * rotation_angle));
     v.composite_id = GLVolume::CompositeID(INT_MAX, 0, 0);
     v.geometry_id.first = 0;
-    v.geometry_id.second = wipe_tower_instance_id().id;
+    v.geometry_id.second = wipe_tower_instance_id(0).id;
     v.is_wipe_tower = true;
     v.shader_outside_printer_detection_enabled = !size_unknown;
     return int(volumes.size() - 1);
