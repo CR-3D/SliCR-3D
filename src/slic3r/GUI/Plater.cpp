@@ -555,7 +555,7 @@ void FreqChangedParams::init()
             
             bool is_running = wxGetApp().plater_->get_job_state_physical_printer(selected_printer_config);
             
-            if (is_running) {
+            if (is_running) {
                 m_preheat_button->Disable();
                 wxGetApp().plater_->get_notification_manager()->push_notification(_u8L("There is a job running, can´t preheat/cooldown printer!"));
             }
@@ -615,7 +615,7 @@ void FreqChangedParams::init()
         DynamicPrintConfig* selected_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
         bool is_running = wxGetApp().plater_->get_job_state_physical_printer(selected_printer_config);
         
-        if (is_running) {
+        if (is_running) {
             m_preheat_button->Disable();
         } else {
             ScalableBitmap preheat_off = ScalableBitmap(m_parent,
@@ -4651,7 +4651,8 @@ void Plater::set_physical_printer_config(DynamicPrintConfig* conf) {
                         }
                     }
                 }
-                if (is_running) {
+
+                if (is_running) {
                     preheat_button->Disable();
                     notification_manager->push_notification(_u8L("There is currently a job running, preheating/cooldown is disabled until the job is finished."));
                 } else {
