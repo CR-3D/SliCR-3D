@@ -14,3 +14,4 @@ min_slic3r_version = 2.3.0-alpha3
 0.0.13 updated to 2.6.0.5 profiles
 0.0.14 ABS ESD renamed
 0.0.15 time_toolchange set to 3
+0.0.16 set default_speed to mm/s and others to %
