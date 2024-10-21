@@ -4226,7 +4226,7 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
     DynamicPrintConfig* new_conf = tab_print->get_config();
     DynamicPrintConfig print_config = wxGetApp().preset_bundle->fff_prints.get_selected_preset().config;
     
-    if (filament_name == "Support VXL90" && idx_selected == 1) {
+    if (filament_name == "CR-3D Support VXL90" && idx_selected == 1) {
         // Set specific values in the new configuration
         new_conf->set_key_value("support_material", new ConfigOptionBool(true));
         new_conf->set_key_value("support_material_contact_distance_type", new ConfigOptionEnum<SupportZDistanceType>(zdNone));
@@ -4238,6 +4238,9 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         tab_print->load_config(*new_conf);
         tab_print->update_dirty();
         tab_print->reload_config();
+        return;
+    } else if (idx_selected == 0) {
+        // do nothing 
         return;
     }
 

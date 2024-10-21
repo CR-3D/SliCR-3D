@@ -797,20 +797,6 @@ void GUI_App::post_init()
             bool cw_showed = this->config_wizard_startup();
             this->app_version_check(true);
             this->preset_updater->sync(preset_bundle.get());
-            if (! cw_showed) {
-                // The CallAfter is needed as well, without it, GL extensions did not show.
-                // Also, we only want to show this when the wizard does not, so the new user
-                // sees something else than "we want something" on the first start.
-                // don't show_send_system_info_dialog_if_needed, only prusa has the server to receive the data anyway.
-                // show_send_system_info_dialog_if_needed();
-            }
-        #ifdef _WIN32
-            // Run external updater on Windows if version check is enabled.
-            if (this->preset_updater->version_check_enabled() && ! run_updater_win())
-                // "prusaslicer-updater.exe" was not started, run our own update check.
-        #endif // _WIN32
-
-                
         });
     }
 
