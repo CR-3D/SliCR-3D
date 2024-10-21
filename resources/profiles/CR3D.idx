@@ -17,4 +17,5 @@ min_slic3r_version = 2.3.0-alpha3
 0.0.16 Added CR-3D Support VXL90 correctly
 0.0.17 changed speed from mm to %
 0.0.18 Changed ASA-X to first_layer_temperature 270 & Soft PLA filament_max_speed to 50
+0.0.19 Changed default_speed to mm back.
 

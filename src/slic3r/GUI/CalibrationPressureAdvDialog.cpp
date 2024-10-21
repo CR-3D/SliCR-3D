@@ -29,30 +29,33 @@ static wxSize get_screen_size(wxWindow *window)
 
 namespace Slic3r { namespace GUI {
 
-void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer *buttons)
-{
-    const DynamicPrintConfig *printer_config = this->gui_app->get_tab(Preset::TYPE_PRINTER)->get_config();
-    GCodeFlavor               flavor         = printer_config->option<ConfigOptionEnum<GCodeFlavor>>("gcode_flavor")
-                             ->value; // there a better way to only load the flavor ?
+void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer *buttons) {
+    GCodeFlavor flavor = this->gui_app->get_tab(Preset::TYPE_PRINTER)
+                             ->get_config()
+                             ->option<ConfigOptionEnum<GCodeFlavor>>("gcode_flavor")
+                             ->value;
 
     wxString choices_first_layerPA[] = {"0.025", "0.030", "0.035", "0.040", "0.045", "0.050"};
     firstPa = new wxComboBox(this, wxID_ANY, wxString{"0.040"}, wxDefaultPosition, wxDefaultSize, 6,
                              choices_first_layerPA);
     firstPa->SetToolTip(_L("Select the first layer PA value to be used for the first layer only."));
-    firstPa->SetSelection(3); // starting at 0!
+    firstPa->SetForegroundColour(*wxBLACK); // Set text color to black
+    firstPa->SetSelection(3);
 
     wxString choices_start_PA[] = {"0.0", "0.010", "0.020", "0.030", "0.040", "0.050"};
     startPa = new wxComboBox(this, wxID_ANY, wxString{"0.0"}, wxDefaultPosition, wxDefaultSize, 6, choices_start_PA);
     startPa->SetToolTip(_L("Select the starting PA value to be used."));
+    startPa->SetForegroundColour(*wxBLACK); // Set text color to black
     startPa->SetSelection(0);
 
     wxString choices_end_PA[] = {"0.10", "0.20", "0.30", "0.40", "0.50", "0.60", "0.70", "0.80", "0.90", "1.00"};
     endPa = new wxComboBox(this, wxID_ANY, wxString{"0.10"}, wxDefaultPosition, wxDefaultSize, 10, choices_end_PA);
     endPa->SetToolTip(_L("Select the ending PA value to be used."));
+    endPa->SetForegroundColour(*wxBLACK); // Set text color to black
     endPa->SetSelection(0);
 
     wxString choices_increment_PA[] = {
-        "0.0010", /// 1000 hits
+        "0.0010", // 1000 hits
         "0.0025", "0.0035",
         "0.005", // 200 hits
         "0.006",  "0.007",
@@ -62,86 +65,98 @@ void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer *button
     paIncrement = new wxComboBox(this, wxID_ANY, wxString{"0.0025"}, wxDefaultPosition, wxDefaultSize, 8,
                                  choices_increment_PA);
     paIncrement->SetToolTip(_L("Select the PA increment amount."));
+    paIncrement->SetForegroundColour(*wxBLACK); // Set text color to black
     paIncrement->SetSelection(1);
 
-    wxString choices_extrusion_role[] = {
-        "InternalInfill",       "BridgeInfill",    "ExternalPerimeter",        "GapFill",
-        "InternalBridgeInfill", "Ironing",         "OverhangPerimeter",        "Perimeter",
-        "SolidInfill",          "SupportMaterial", "SupportMaterialInterface", "ThinWall",
-        "TopSolidInfill",       "FirstLayer",
-        //   "Verify"//if this selected, disable/hide other buttons?
-        // 'verify' this choice will require the user to manually add in the PA numbers with the GUI from their
-        // realworld tests.
-        //      the code will then load a 90_bend for each ER role, and give each bend seperate ER speed/width/ect
-        //      values when printed and user added in the PA numbers correctly. it should make it easy to spot what ER
-        //      roles need adjusting.
-        // TODO: once the main pressure advance feature is added, this can pull that values and insert here to save
-        // the manual adding in the numbers.
-        // supermerill: i don't understand, so I deactivated the feature for now.
-    };
+    wxString choices_extrusion_role[] =
+        {"InternalInfill",       "BridgeInfill",    "ExternalPerimeter",        "GapFill",
+         "InternalBridgeInfill", "Ironing",         "OverhangPerimeter",        "Perimeter",
+         "SolidInfill",          "SupportMaterial", "SupportMaterialInterface", "ThinWall",
+         "TopSolidInfill",       "FirstLayer"};
     erPa = new wxComboBox(this, wxID_ANY, wxString{"InternalInfill"}, wxDefaultPosition, wxDefaultSize, 14,
                           choices_extrusion_role);
     erPa->SetToolTip(_L("Select the extrusion role you want to generate a calibration for"));
+    erPa->SetForegroundColour(*wxBLACK); // Set text color to black
     erPa->SetSelection(0);
 
     wxString number_of_runs[] = {"1", "2", "3", "4", "5"};
     nbRuns = new wxComboBox(this, wxID_ANY, wxString{"1"}, wxDefaultPosition, wxDefaultSize, 5, number_of_runs);
-    nbRuns->SetToolTip(_L("Select the number of tests to generate, max 2 is reccomended due to bed size limits"));
+    nbRuns->SetToolTip(_L("Select the number of tests to generate, max 2 is recommended due to bed size limits"));
+    nbRuns->SetForegroundColour(*wxBLACK); // Set text color to black
     nbRuns->SetSelection(0);
 
     enableST = new wxCheckBox(this, wxID_ANY, _L(""), wxDefaultPosition, wxDefaultSize);
-    enableST->SetToolTip(_L("generate smooth time values"));
+    enableST->SetToolTip(_L("Generate smooth time values"));
+    enableST->SetForegroundColour(*wxBLACK); // Set text color to black
     enableST->SetValue(false);
 
-    // TODO : add another row of boxes for the 2nd/3rd ect of tests to create, user adjust parameters of new row for
-    // the 2nd/3rd test
-    //      this will allow multi plate PA tests to be run
 
-    std::string prefix = (gcfMarlinFirmware == flavor || gcfMarlinLegacy == flavor) ?
-                             " LA " :
-                             ((gcfKlipper == flavor || gcfRepRap == flavor) ? " PA " : "unsupported firmware type");
+std::string prefix = (gcfMarlinFirmware == flavor || gcfMarlinLegacy == flavor) ?
+        " LA " :
+        ((gcfKlipper == flavor || gcfRepRap == flavor) ? " PA " : "unsupported firmware type");
 
     if (prefix != "unsupported firmware type") {
-        wxBoxSizer *vertical      = new wxBoxSizer(wxVERTICAL);
+        wxBoxSizer *vertical = new wxBoxSizer(wxVERTICAL);
         wxBoxSizer *hsizer_common = new wxBoxSizer(wxHORIZONTAL);
-        wxBoxSizer *hsizer_pa     = new wxBoxSizer(wxHORIZONTAL);
-        wxBoxSizer *hsizer_speed  = new wxBoxSizer(wxHORIZONTAL);
+        wxBoxSizer *hsizer_pa = new wxBoxSizer(wxHORIZONTAL);
+        wxBoxSizer *hsizer_speed = new wxBoxSizer(wxHORIZONTAL);
         vertical->Add(hsizer_common);
         vertical->Add(hsizer_pa);
         vertical->Add(hsizer_speed);
 
-        hsizer_common->Add(new wxStaticText(this, wxID_ANY, _L("Number of tests: ")));
+        wxStaticText *labelNbTests = new wxStaticText(this, wxID_ANY, _L("Number of tests: "));
+        labelNbTests->SetForegroundColour(*wxBLACK); // Set text color to black
+        hsizer_common->Add(labelNbTests);
         hsizer_common->Add(nbRuns);
 
-        hsizer_pa->Add(new wxStaticText(this, wxID_ANY, _L("First Layers" + prefix + "value: ")));
+        wxStaticText *labelFirstLayerPA = new wxStaticText(this, wxID_ANY, _L("First Layers" + prefix + "value: "));
+        labelFirstLayerPA->SetForegroundColour(*wxBLACK); // Set text color to black
+        hsizer_pa->Add(labelFirstLayerPA);
         hsizer_pa->Add(firstPa);
         hsizer_pa->AddSpacer(15);
-        hsizer_pa->Add(new wxStaticText(this, wxID_ANY, _L("Starting" + prefix + "value: ")));
+
+        wxStaticText *labelStartingPA = new wxStaticText(this, wxID_ANY, _L("Starting" + prefix + "value: "));
+        labelStartingPA->SetForegroundColour(*wxBLACK); // Set text color to black
+        hsizer_pa->Add(labelStartingPA);
         hsizer_pa->Add(startPa);
         hsizer_pa->AddSpacer(15);
-        hsizer_pa->Add(new wxStaticText(this, wxID_ANY, _L("Ending" + prefix + "value: ")));
+
+        wxStaticText *labelEndingPA = new wxStaticText(this, wxID_ANY, _L("Ending" + prefix + "value: "));
+        labelEndingPA->SetForegroundColour(*wxBLACK); // Set text color to black
+        hsizer_pa->Add(labelEndingPA);
         hsizer_pa->Add(endPa);
         hsizer_pa->AddSpacer(15);
-        hsizer_pa->Add(new wxStaticText(this, wxID_ANY, _L(prefix + "increments: ")));
+
+        wxStaticText *labelPAIncrements = new wxStaticText(this, wxID_ANY, _L(prefix + "increments: "));
+        labelPAIncrements->SetForegroundColour(*wxBLACK); // Set text color to black
+        hsizer_pa->Add(labelPAIncrements);
         hsizer_pa->Add(paIncrement);
 
-        hsizer_speed->Add(new wxStaticText(this, wxID_ANY, _L("Extrusion role: ")));
+        wxStaticText *labelExtrusionRole = new wxStaticText(this, wxID_ANY, _L("Extrusion role: "));
+        labelExtrusionRole->SetForegroundColour(*wxBLACK); // Set text color to black
+        hsizer_speed->Add(labelExtrusionRole);
         hsizer_speed->Add(erPa);
+
         if (gcfKlipper == flavor) {
             hsizer_speed->AddSpacer(15);
-            hsizer_speed->Add(new wxStaticText(this, wxID_ANY, _L("Smooth time: ")));
+            wxStaticText *labelSmoothTime = new wxStaticText(this, wxID_ANY, _L("Smooth time: "));
+            labelSmoothTime->SetForegroundColour(*wxBLACK); // Set text color to black
+            hsizer_speed->Add(labelSmoothTime);
             hsizer_speed->Add(enableST);
         }
+
         hsizer_speed->AddSpacer(25);
 
         wxButton *bt = new wxButton(this, wxID_FILE1, _L("Generate"));
+        bt->SetForegroundColour(*wxBLACK); // Set text color to black
         bt->Bind(wxEVT_BUTTON, &CalibrationPressureAdvDialog::create_geometry, this);
 
         vertical->Add(bt);
-
         buttons->Add(vertical);
     } else {
-        buttons->Add(new wxStaticText(this, wxID_ANY, _L(prefix)));
+        wxStaticText *labelUnsupported = new wxStaticText(this, wxID_ANY, _L(prefix));
+        labelUnsupported->SetForegroundColour(*wxBLACK); // Set text color to black
+        buttons->Add(labelUnsupported);
     }
 }
 

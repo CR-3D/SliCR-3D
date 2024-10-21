@@ -27,50 +27,74 @@ namespace Slic3r {
 namespace GUI {
 
 void CalibrationRetractionDialog::create_buttons(wxStdDialogButtonSizer* buttons){
-    wxString choices_steps[] = { "0.1","0.2","0.5","1","2" };
-    steps = new wxComboBox(this, wxID_ANY, wxString{ "0.2" }, wxDefaultPosition, wxDefaultSize, 5, choices_steps);
-    steps->SetToolTip(_L("Each militer add this value to the retraction value."));
+    wxString choices_steps[] = {"0.1", "0.2", "0.5", "1", "2"};
+    steps = new wxComboBox(this, wxID_ANY, wxString{"0.2"}, wxDefaultPosition, wxDefaultSize, 5, choices_steps);
+    steps->SetToolTip(_L("Each milliliter adds this value to the retraction value."));
+    steps->SetForegroundColour(*wxBLACK); // Set text color to black
     steps->SetSelection(1);
-    wxString choices_nb[] = { "2","4","6","8","10","15","20","25" };
-    nb_steps = new wxComboBox(this, wxID_ANY, wxString{ "15" }, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
-    nb_steps->SetToolTip(_L("Select the number milimeters for the tower."));
+
+    wxString choices_nb[] = {"2", "4", "6", "8", "10", "15", "20", "25"};
+    nb_steps = new wxComboBox(this, wxID_ANY, wxString{"15"}, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    nb_steps->SetToolTip(_L("Select the number of millimeters for the tower."));
+    nb_steps->SetForegroundColour(*wxBLACK); // Set text color to black
     nb_steps->SetSelection(5);
-    //wxString choices_start[] = { "current","260","250","240","230","220","210" };
-    //start_step = new wxComboBox(this, wxID_ANY, wxString{ "current" }, wxDefaultPosition, wxDefaultSize, 7, choices_start);
-    //start_step->SetToolTip(_(L("Select the highest temperature to test for.")));
-    //start_step->SetSelection(0);
-    const DynamicPrintConfig* filament_config = this->gui_app->get_tab(Preset::TYPE_FFF_FILAMENT)->get_config();
+
+    // Uncomment and modify if you need to add this part back
+    // wxString choices_start[] = { "current", "260", "250", "240", "230", "220", "210" };
+    // start_step = new wxComboBox(this, wxID_ANY, wxString{ "current" }, wxDefaultPosition, wxDefaultSize, 7,
+    // choices_start); start_step->SetToolTip(_L("Select the highest temperature to test for."));
+    // start_step->SetForegroundColour(*wxBLACK); // Set text color to black
+    // start_step->SetSelection(0);
+
+    const DynamicPrintConfig *filament_config = this->gui_app->get_tab(Preset::TYPE_FFF_FILAMENT)->get_config();
     int temp = int((2 + filament_config->option<ConfigOptionInts>("temperature")->get_at(0)) / 5) * 5;
     auto size = wxSize(4 * em_unit(), wxDefaultCoord);
     temp_start = new wxTextCtrl(this, wxID_ANY, std::to_string(temp), wxDefaultPosition, size);
-    temp_start->SetToolTip(_L("Note that only Multiple of 5 can be engraved in the part"));
-    wxString choices_decr[] = { _L("one test"),_L("2x10°"),_L("3x10°"), _L("4x10°"), _L("3x5°"), _L("5x5°") };
-    decr_temp = new wxComboBox(this, wxID_ANY, wxString{ "current" }, wxDefaultPosition, wxDefaultSize, 6, choices_decr);
-    decr_temp->SetToolTip(_L("Select the number tower to print, and by how many degrees C to decrease each time."));
+    temp_start->SetToolTip(_L("Note that only multiples of 5 can be engraved in the part"));
+    temp_start->SetForegroundColour(*wxBLACK); // Set text color to black
+
+    wxString choices_decr[] = {_L("one test"), _L("2x10°"), _L("3x10°"), _L("4x10°"), _L("3x5°"), _L("5x5°")};
+    decr_temp = new wxComboBox(this, wxID_ANY, wxString{"current"}, wxDefaultPosition, wxDefaultSize, 6, choices_decr);
+    decr_temp->SetToolTip(
+        _L("Select the number of towers to print, and by how many degrees C to decrease each time."));
+    decr_temp->SetForegroundColour(*wxBLACK); // Set text color to black
     decr_temp->SetSelection(0);
     decr_temp->SetEditable(false);
 
-    buttons->Add(new wxStaticText(this, wxID_ANY, _L("Step:")));
+
+    wxStaticText *labelStep = new wxStaticText(this, wxID_ANY, _L("Step:"));
+    labelStep->SetForegroundColour(*wxBLACK); // Set text color to black
+    buttons->Add(labelStep);
     buttons->Add(steps);
     buttons->AddSpacer(15);
-    buttons->Add(new wxStaticText(this, wxID_ANY, _L("Height:")));
+
+    wxStaticText *labelHeight = new wxStaticText(this, wxID_ANY, _L("Height:"));
+    labelHeight->SetForegroundColour(*wxBLACK); // Set text color to black
+    buttons->Add(labelHeight);
     buttons->Add(nb_steps);
     buttons->AddSpacer(20);
 
-    buttons->Add(new wxStaticText(this, wxID_ANY, _L("Start temp:")));
+    wxStaticText *labelStartTemp = new wxStaticText(this, wxID_ANY, _L("Start temp:"));
+    labelStartTemp->SetForegroundColour(*wxBLACK); // Set text color to black
+    buttons->Add(labelStartTemp);
     buttons->Add(temp_start);
     buttons->AddSpacer(15);
-    buttons->Add(new wxStaticText(this, wxID_ANY, _L("Temp decr:")));
+
+    wxStaticText *labelTempDecr = new wxStaticText(this, wxID_ANY, _L("Temp decr:"));
+    labelTempDecr->SetForegroundColour(*wxBLACK); // Set text color to black
+    buttons->Add(labelTempDecr);
     buttons->Add(decr_temp);
     buttons->AddSpacer(20);
 
-    wxButton* bt = new wxButton(this, wxID_FILE1, _L("Remove fil. slowdown"));
+    wxButton *bt = new wxButton(this, wxID_FILE1, _L("Remove fil. slowdown"));
+    bt->SetForegroundColour(*wxBLACK); // Set text color to black
     bt->Bind(wxEVT_BUTTON, &CalibrationRetractionDialog::remove_slowdown, this);
     buttons->Add(bt);
 
     buttons->AddSpacer(30);
 
     bt = new wxButton(this, wxID_FILE1, _L("Generate"));
+    bt->SetForegroundColour(*wxBLACK); // Set text color to black
     bt->Bind(wxEVT_BUTTON, &CalibrationRetractionDialog::create_geometry, this);
     buttons->Add(bt);
 }

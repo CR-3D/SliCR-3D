@@ -1758,12 +1758,12 @@ void PrintConfigDef::init_fff_params() {
                      "what kind of filament can be printed");
     def->category = OptionCategory::extruders;
     def->set_enum_values(ConfigOptionDef::GUIType::f_enum_open, {
-        { "plated_copper",      "Plated Copper" },
+        { "plated_copper",      "Plated Copper" },
         { "tungsten_carbide",   "Tungsten Carbide" },
         { "dianoz",             "Dianoz" }
     });
     def->mode = comAdvanced | comExpert;
-    def->set_default_value(new ConfigOptionStrings { "Plated Copper" });
+    def->set_default_value(new ConfigOptionStrings { "Plated Copper" });
     
     def = this->add("first_layer_extruder", coInt);
     def->gui_type = ConfigOptionDef::GUIType::i_enum_open;

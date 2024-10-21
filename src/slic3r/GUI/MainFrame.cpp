@@ -2016,18 +2016,29 @@ void MainFrame::init_menubar_as_editor()
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Introduction")), _(L("How to use this menu and calibrations.")),
             [this](wxCommandEvent&) { wxGetApp().html_dialog(); });
         m_calibration_menu->AppendSeparator();
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Bed/Extruder Leveling")), _(L("Create a test print to help you to level your printer bed.")),
-            [this](wxCommandEvent&) { wxGetApp().bed_leveling_dialog(); });
+
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Filament Temperature Calibration")),
+                         _(L("Create a test print to help you to set your filament temperature.")),
+                         [this](wxCommandEvent &) { wxGetApp().filament_temperature_dialog(); });
+
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Filament Flow Calibration")),
+                         _(L("Create a test print to help you to set your filament extrusion multiplier.")),
+                         [this](wxCommandEvent &) { wxGetApp().flow_ratio_dialog(); });
+
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Pressure Advance Calibration")),
+                         _(L("Create a model for tuning Pressure Linear advance.")),
+                         [this](wxCommandEvent &) { wxGetApp().calibration_pressureadv_dialog(); });
+
+                append_menu_item(m_calibration_menu, wxID_ANY, _(L("Extruder Retraction Calibration")),
+                         _(L("Create a test print to help you to set your retraction length.")),
+                         [this](wxCommandEvent &) { wxGetApp().calibration_retraction_dialog(); });
+
         m_calibration_menu->AppendSeparator();
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Filament Flow Calibration")), _(L("Create a test print to help you to set your filament extrusion multiplier.")),
-            [this](wxCommandEvent&) { wxGetApp().flow_ratio_dialog(); });
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Filament Temperature Calibration")), _(L("Create a test print to help you to set your filament temperature.")),
-            [this](wxCommandEvent&) { wxGetApp().filament_temperature_dialog(); });
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Extruder Retraction Calibration")), _(L("Create a test print to help you to set your retraction length.")),
-            [this](wxCommandEvent&) { wxGetApp().calibration_retraction_dialog(); });
-            append_menu_item(m_calibration_menu, wxID_ANY, _(L("Pressure Advance Calibration")), _(L("Create a model for tuning Pressure Linear advance.")),
-            [this](wxCommandEvent&) { wxGetApp().calibration_pressureadv_dialog(); });
-        m_calibration_menu->AppendSeparator();
+
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Bed/Extruder Leveling")),
+                                 _(L("Create a test print to help you to level your printer bed.")),
+                                 [this](wxCommandEvent &) { wxGetApp().bed_leveling_dialog(); });
+
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Bridge Flow Calibration")), _(L("Create a test print to help you to set your bridge flow ratio.")),
             [this](wxCommandEvent&) { wxGetApp().bridge_tuning_dialog(); });
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Ironing Pattern Calibration")), _(L("Create a test print to help you to set your over-bridge flow ratio and ironing pattern.")),

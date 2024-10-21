@@ -302,7 +302,8 @@ wxPanel* BedShapePanel::init_texture_panel()
     boost::filesystem::path data_dir = boost::filesystem::path(Slic3r::data_dir());
     boost::filesystem::path resources_dir = boost::filesystem::path(Slic3r::resources_dir());
     
-    VendorProfile bundle = wxGetApp().preset_bundle->printers.get_edited_preset_with_vendor_profile().vendor->from_ini(data_dir / "vendor" / "CR3D.ini");
+    VendorProfile bundle = wxGetApp().preset_bundle->printers.get_edited_preset_with_vendor_profile().vendor->from_ini(
+        resources_dir / "profiles" / "CR3D.ini");
     std::string selected_name = wxGetApp().preset_bundle->printers.get_selected_preset_name();
     std::string base_selected_name = selected_name.substr(0, selected_name.find(" - "));  // Cut after the first " - " if present
 
