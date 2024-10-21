@@ -283,6 +283,10 @@ typedef std::vector<Polyline3> Polylines3;
 class ArcPolyline
 {
 protected:
+    // each segment is strait if it's radius ==0 (oriantation should be unknown in this case)
+    // radius is negative if the arc betweent he two point is the longest of the two. it's positive if it's the shortest.
+    // the sign of the radius and the orientation are two different way to get the same information. They MUST be in synch.
+    // note: first Segment in Path is always "strait", as it's the starting point of the following segment. 
     Geometry::ArcWelder::Path m_path;
     //bool cache_valid = true; // cache
     bool m_only_strait = true; // cache
@@ -309,7 +313,7 @@ public:
     void append(const ArcPolyline &src);
     void append(ArcPolyline &&src);
     void clear() { m_path.clear(); }
-    void swap(ArcPolyline &other) { m_path.swap(other.m_path); }
+    void swap(ArcPolyline &other) { m_path.swap(other.m_path); this->m_only_strait = other.m_only_strait; assert(is_valid()); }
     void reverse() { Geometry::ArcWelder::reverse(m_path); }
     
     // multipoint methods
@@ -320,7 +324,7 @@ public:
     bool         is_valid() const;
     bool         is_closed() const { return this->m_path.front().point == this->m_path.back().point; }
 
-    bool                                has_arc() const { return !m_only_strait; }
+    bool                                has_arc() const;
     // point count in the path
     size_t                              size() const { return m_path.size(); }
     const Geometry::ArcWelder::Path &   get_arc() const { return m_path; }
@@ -335,6 +339,8 @@ public:
     // need some work to work better on arc
     void                  set_front(const Point &p);
     void                  set_back(const Point &p);
+    // this one give you the index of the nearest point, or -1 if none is at epsilon.
+    // if on an arc, you may want to call foot_pt to have the projection
     int                   find_point(const Point &point, coordf_t epsilon) const;
 
 

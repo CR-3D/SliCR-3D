@@ -2801,7 +2801,7 @@ bool GUI_App::save_mode(const ConfigOptionMode mode) {
             str_serialized += str_serialized.empty() ? item.first : ("|" + item.first);
         }
     }
-    app_config->set("view_mode", "expert");
+    app_config->set("view_mode", str_serialized);
     update_mode();
     return true;
 }

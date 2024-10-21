@@ -962,7 +962,10 @@ void LayerRegion::prepare_fill_surfaces()
     // if no solid layers are requested, turn top/bottom surfaces to internal
     // For Lightning infill, infill_only_where_needed is ignored because both
     // do a similar thing, and their combination doesn't make much sense.
-    if (! spiral_vase && (this->region().config().top_solid_layers == 0 && this->region().config().solid_infill_every_layers.value != 1)) {
+    if (!spiral_vase &&
+        (this->region().config().top_solid_layers == 0 &&
+         (this->region().config().solid_infill_every_layers.value != 1 ||
+          this->region().config().fill_density.value == 0))) {
         for (Surface &surface : m_fill_surfaces)
             if (surface.has_pos_top())
                 surface.surface_type = (

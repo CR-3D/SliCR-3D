@@ -151,6 +151,8 @@ inline double abs_angle(double rad) {
 }
 
 // Angle from v1 to v2, returning double atan2(y, x) normalized to <-PI, PI>.
+// By rotating v1 by this angle in the CCW direction, you get the direction of v2
+// This rotation is CCW if the angle is >0.
 template<typename Derived, typename Derived2>
 inline double angle_ccw(const Eigen::MatrixBase<Derived> &v1, const Eigen::MatrixBase<Derived2> &v2) {
     static_assert(Derived::IsVectorAtCompileTime && int(Derived::SizeAtCompileTime) == 2, "angle(): first parameter is not a 2D vector");

@@ -179,7 +179,7 @@ void PrintRegion::collect_object_printing_extruders(const PrintConfig &print_con
     	emplace_extruder(region_config.perimeter_extruder);
     if (region_config.fill_density.value > 0)
     	emplace_extruder(region_config.infill_extruder);
-    if (region_config.top_solid_layers.value > 0 || region_config.bottom_solid_layers.value > 0 || region_config.solid_infill_every_layers.value > 0)
+    if (region_config.top_solid_layers.value > 0 || region_config.bottom_solid_layers.value > 0 || (region_config.solid_infill_every_layers.value > 0 && region_config.fill_density.value > 0))
     	emplace_extruder(region_config.solid_infill_extruder);
 }
 

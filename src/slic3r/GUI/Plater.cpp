@@ -1076,6 +1076,7 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox** combo, const int extr_i
     
     auto combo_and_btn_sizer = new wxBoxSizer(wxHORIZONTAL);
     {   // tool name
+    /*
         auto opt = wxGetApp().preset_bundle->printers.get_edited_preset().config.option<ConfigOptionStrings>("tool_name");
         assert(opt);
         std::string tool_name = opt? opt->get_at(extr_idx) : nullptr;
@@ -1088,6 +1089,9 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox** combo, const int extr_i
         (*combo)->label->SetFont(wxGetApp().small_font());
         combo_and_btn_sizer->Add((*combo)->label, 0, wxALIGN_LEFT | wxEXPAND | wxRIGHT, 4);
     }
+    */
+    }
+    
     combo_and_btn_sizer->Add(*combo, 1, wxEXPAND);
     assert((*combo)->edit_btn);
     combo_and_btn_sizer->Add((*combo)->edit_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT,
@@ -1150,6 +1154,7 @@ void Sidebar::update_all_preset_comboboxes()
         }
     
     if (print_tech == ptFFF) {
+    /*
         for (PlaterPresetComboBox* cb : p->combos_filament)
             for (size_t extr_idx = 0; extr_idx < p->combos_filament.size(); ++extr_idx) {
                 PlaterPresetComboBox *cb  = p->combos_filament[extr_idx];
@@ -1167,6 +1172,7 @@ void Sidebar::update_all_preset_comboboxes()
                     cb->label->SetLabel(wide_tool_name.empty() ? "" : (wide_tool_name + std::string(": ")));
                 }
             }
+            */
     }
 }
 
@@ -1179,10 +1185,7 @@ void Sidebar::update_presets(Preset::Type preset_type)
         case Preset::TYPE_FFF_FILAMENT: {
             const size_t extruder_cnt = print_tech != ptFFF ?
             1 :
-            dynamic_cast<ConfigOptionFloats *>(
-                                               preset_bundle.printers.get_edited_preset().config.option(
-                                                                                                        "nozzle_diameter"))
-            ->size();
+            dynamic_cast<ConfigOptionFloats *>(preset_bundle.printers.get_edited_preset().config.option("nozzle_diameter"))->size();
             const size_t filament_cnt = p->combos_filament.size() > extruder_cnt ? extruder_cnt :
             p->combos_filament.size();
             
@@ -4474,6 +4477,8 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
         new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
         new_conf->set_key_value("draft_shield", new ConfigOptionEnum<DraftShield>(dsEnabled));
+        new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
+        
         
         tab_print->load_config(*new_conf);
         tab_print->update_dirty();
@@ -4619,6 +4624,7 @@ void Plater::set_physical_printer_config(DynamicPrintConfig* conf) {
             m_api_success = success;
             
             if (success) {
+            // TODO: Also add nozzle_type from server
                 auto tool_diameter_values = repetier->get_all_json_values(printer_config, "toolDiameter");
                 if (!tool_diameter_values.empty()) {
                     for (const auto& value : tool_diameter_values) {
@@ -8451,6 +8457,7 @@ void Plater::on_config_change(const DynamicConfig &config)
                 p->gcode_result.reset();
             }
         }
+        
         
         //FIXME also mills?
         if (opt_key == "filament_colour")

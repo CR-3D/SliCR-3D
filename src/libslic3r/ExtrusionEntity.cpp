@@ -113,17 +113,33 @@ double ExtrusionLoop::area() const
     for (const ExtrusionPath &path : this->paths) {
         assert(path.size() >= 2);
         if (path.size() >= 2) {
-            // Assumming that the last point of one path segment is repeated at the start of the following path segment.
-            Point prev = path.polyline.front();
-            for (size_t idx = 1; idx < path.polyline.size(); ++idx) {
-                const Point &curr = path.polyline.get_point(idx);
-                a += cross2(prev.cast<double>(), curr.cast<double>());
-                prev = curr;
+            if (path.polyline.has_arc()) {
+                Polyline poly = path.polyline.to_polyline();
+                Point prev = poly.front();
+                for (size_t idx = 1; idx < poly.size(); ++idx) {
+                    const Point &curr = poly[idx];
+                    a += cross2(prev.cast<double>(), curr.cast<double>());
+                    prev = curr;
+                }
+            } else {
+                // Assumming that the last point of one path segment is repeated at the start of the following path segment.
+                Point prev = path.polyline.front();
+                for (size_t idx = 1; idx < path.polyline.size(); ++idx) {
+                    const Point &curr = path.polyline.get_point(idx);
+                    a += cross2(prev.cast<double>(), curr.cast<double>());
+                    prev = curr;
+                }
             }
         }
     }
     return a * 0.5;
 }
+
+bool ExtrusionLoop::is_counter_clockwise() const {
+    return this->area() > 0;
+}
+
+bool ExtrusionLoop::is_clockwise() const { return !is_counter_clockwise(); }
 
 void ExtrusionLoop::reverse()
 {
@@ -231,8 +247,9 @@ bool ExtrusionLoop::split_at_vertex(const Point &point, const double scaled_epsi
                 // if first path - nothign to change.
                 // else, then impossible as it's also the last point of the previous path.
                 assert(path == this->paths.begin());
-                assert(path->first_point().coincides_with_epsilon(point));
+                assert(path->first_point().distance_to(point) <= scaled_epsilon);
             }
+            assert(this->first_point().distance_to(point) <= scaled_epsilon);
             return true;
         }
     }
@@ -277,47 +294,53 @@ void ExtrusionLoop::split_at(const Point &point, bool prefer_non_overhang, const
         return;
     ExtrusionLoop::ClosestPathPoint close_p = get_closest_path_and_point(point, prefer_non_overhang);
     // Snap p to start or end of segment_idx if closer than scaled_epsilon.
-    {
-        const Point p1 = this->paths[close_p.path_idx].polyline.get_point(close_p.segment_idx);
-        const Point  p2   = this->paths[close_p.path_idx].polyline.get_point(close_p.segment_idx + 1);
+    //{
+        const Point pt1 = this->paths[close_p.path_idx].polyline.get_point(close_p.segment_idx);
+        const Point  pt2   = this->paths[close_p.path_idx].polyline.get_point(close_p.segment_idx + 1);
         // Use close_p.foot_pt instead of point for the comparison, as it's the one that will be used.
-        double       d2_1 = (close_p.foot_pt - p1).cast<double>().squaredNorm();
-        double       d2_2 = (close_p.foot_pt - p2).cast<double>().squaredNorm();
+        double       d2_1 = (close_p.foot_pt - pt1).cast<double>().squaredNorm();
+        double       d2_2 = (close_p.foot_pt - pt2).cast<double>().squaredNorm();
         const double thr2 = scaled_epsilon * scaled_epsilon;
         if (d2_1 < d2_2) {
             if (d2_1 < thr2)
-                close_p.foot_pt = p1;
+                close_p.foot_pt = pt1;
         } else {
             if (d2_2 < thr2)
-                close_p.foot_pt = p2;
+                close_p.foot_pt = pt2;
         }
-    }
+    //}
 
     // now split path_idx in two parts
     const ExtrusionPath &path = this->paths[close_p.path_idx];
+    assert(path.polyline.is_valid());
     ExtrusionPath        p1(path.attributes(), can_reverse());
     ExtrusionPath        p2(path.attributes(), can_reverse());
     path.polyline.split_at(close_p.foot_pt, p1.polyline, p2.polyline);
 
     if (this->paths.size() == 1) {
-        if (!p1.polyline.is_valid()) {
-            this->paths.front().polyline.swap(p2.polyline);
-        } else if (!p2.polyline.is_valid()) {
-            this->paths.front().polyline.swap(p1.polyline);
+        if (p1.polyline.size() < 2) {
+            this->paths.front().polyline = std::move(p2.polyline);
+        } else if (p2.polyline.size() < 2) {
+            this->paths.front().polyline = std::move(p1.polyline);
         } else {
             p2.polyline.append(std::move(p1.polyline));
-            this->paths.front().polyline.swap(p2.polyline);
+            this->paths.front().polyline = std::move(p2.polyline);
         }
     } else {
-        // erase the old path
-        this->paths.erase(this->paths.begin() + close_p.path_idx);
-        // install the two paths
-        if (p2.polyline.is_valid() && p2.polyline.length() > 0)
-            this->paths.insert(this->paths.begin() + close_p.path_idx, p2);
-        if (p1.polyline.is_valid() && p1.polyline.length() > 0)
-            this->paths.insert(this->paths.begin() + close_p.path_idx, p1);
-        // split at the new vertex
-        this->split_at_vertex(close_p.foot_pt, 0.);
+        // install the begining of the new paths
+        if (p2.polyline.size() >= 2) {
+            this->paths[close_p.path_idx].polyline = std::move(p2.polyline);
+        } else {
+            this->paths.erase(this->paths.begin() + close_p.path_idx);
+        }
+        //rotate
+        if (close_p.path_idx > 0) {
+            std::rotate(this->paths.begin(), this->paths.begin() + close_p.path_idx, this->paths.end());
+        }
+        // install the end
+        if (p1.polyline.size() >= 2) {
+            this->paths.push_back(std::move(p1));
+        }
     }
     // check if it's doing its job.
 #ifdef _DEBUG
@@ -328,7 +351,8 @@ void ExtrusionLoop::split_at(const Point &point, bool prefer_non_overhang, const
             assert(!path.polyline.get_point(i - 1).coincides_with_epsilon(path.polyline.get_point(i)));
         last_pt = path.last_point();
     }
-    assert(close_p.foot_pt == this->first_point());
+    assert(close_p.foot_pt.coincides_with_epsilon(this->first_point()));
+    //assert(point.distance_to(this->first_point()) <= scaled_epsilon); // can be false, still ok?
 #endif
 }
 

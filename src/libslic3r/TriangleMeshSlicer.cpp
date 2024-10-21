@@ -1047,15 +1047,12 @@ static void chain_lines_by_triangle_connectivity(IntersectionLines &lines, Polyg
                     // The current loop is complete. Add it to the output.
                     assert(first_line->a == last_line->b);
                     Points loop_pts_init = loop_pts;
-                    if (loop_pts.front().coincides_with(loop_pts.back())) {
-                        if (loop_pts.size() > 3) {
-                            loop_pts.pop_back();
-                            assert(!loop_pts.front().coincides_with(loop_pts.back()));
-    for(auto &loop : loops)
-        assert(!loop.points.front().coincides_with(loop.points.back()));
-                            loops.emplace_back(std::move(loop_pts));
-                        }
-                    } else {
+                    while (loop_pts.size() > 2 && loop_pts.front().coincides_with(loop_pts.back())) {
+                        loop_pts.pop_back();
+                    }
+                    for(auto &loop : loops)
+                        assert(!loop.points.front().coincides_with(loop.points.back()));
+                    if (loop_pts.size() > 2) {
     for(auto &loop : loops)
         assert(!loop.points.front().coincides_with(loop.points.back()));
                         loops.emplace_back(std::move(loop_pts));
@@ -1180,6 +1177,7 @@ static void chain_open_polylines_exact(std::vector<OpenPolyline> &open_polylines
                 //assert(opl->points.front().point_id == opl->points.back().point_id);
                 //assert(opl->points.front().edge_id  == opl->points.back().edge_id);
                 // Remove the duplicate last point.
+                assert(opl->points.front() == opl->points.back());
                 opl->points.pop_back();
                 if (opl->points.size() >= 3) {
                     if (try_connect_reversed && area(opl->points) < 0)
@@ -1256,6 +1254,7 @@ static void chain_open_polylines_close_gaps(std::vector<OpenPolyline> &open_poly
                 closest_end_point_lookup.erase(OpenPolylineEnd(opl, true));
                 if (current_loop_closing_distance2 == 0.) {
                     // Remove the duplicate last point.
+                    assert(opl->points.front() == opl->points.back());
                     opl->points.pop_back();
                 } else {
                     // The end points are different, keep both of them.

@@ -153,7 +153,10 @@ void simplify(Polygon &thiss, const int64_t smallest_line_segment_squared, const
                     current = intersection_point;
                     // If there was a previous point added, remove it.
                     if(!new_path.empty()) {
-                        new_path.points.pop_back();
+                        if (new_path.points.back().coincides_with_epsilon(new_path.points.front())) {
+                            assert(false); // shouldn't happen
+                            new_path.points.pop_back();
+                        }
                         previous = previous_previous;
                     }
                 }

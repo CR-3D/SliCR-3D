@@ -87,11 +87,11 @@ void init()
     key_translation_map["spiral_mode"]                      = "spiral_vase";
     
     // print
-    key_translation_map["alternate_extra_wall"]             = "extra_perimeters_odd_layers";
+    key_translation_map["alternate_extra_wall"]                     = "extra_perimeters_odd_layers";
     key_translation_map["is_infill_first"]                          = "infill_first";
     key_translation_map["bottom_shell_layers"]                      = "bottom_solid_layers";
     key_translation_map["bottom_shell_thickness"]                   = "bottom_solid_min_thickness";
-    key_translation_map["bottom_solid_infill_flow_ratio"]   = "first_layer_flow_ratio";
+    key_translation_map["bottom_solid_infill_flow_ratio"]           = "first_layer_flow_ratio";
     //key_translation_map["bridge_acceleration"]                      = "bridge_acceleration";
     //key_translation_map["bridge_angle"]                             = "bridge_angle";
     key_translation_map["bridge_density"]                           = "bridge_overlap_min";

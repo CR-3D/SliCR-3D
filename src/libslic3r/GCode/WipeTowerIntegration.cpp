@@ -110,6 +110,14 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
     // Insert the toolchange and deretraction gcode into the generated gcode.
     boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_from_wipe_tower_generator]", toolchange_gcode_str);
     boost::replace_first(tcr_rotated_gcode, "[deretraction_from_wipe_tower_generator]", deretraction_str);
+    boost::replace_first(tcr_rotated_gcode, "{layer_z}", to_string_nozero(gcodegen.writer().get_position().z(), 4));
+    boost::replace_first(tcr_rotated_gcode, "[[toolchange_gcode_disable_linear_advance]]", gcodegen.writer().set_pressure_advance(0));
+    if (gcodegen.config().filament_pressure_advance.is_enabled(new_extruder_id)) {
+        boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]",
+                             gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(new_extruder_id)));
+    } else {
+        boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]\n","");
+    }
     std::string tcr_gcode;
     unescape_string_cstyle(tcr_rotated_gcode, tcr_gcode);
     gcode += tcr_gcode;
@@ -125,14 +133,14 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
         gcode += gcodegen.writer().retract();
         gcode += gcodegen.writer().travel_to_z(current_z, "Travel back up to the topmost object layer.");
         // gcode += gcodegen.writer().unretract(); //why? it's done automatically later, where needed!
-    } else {
+    } else if(should_travel_to_tower) {
         // Prepare a future wipe.
         // Convert to a smooth path.
         Geometry::ArcWelder::Path path;
         path.reserve(tcr.wipe_path.size());
         std::transform(tcr.wipe_path.begin(), tcr.wipe_path.end(), std::back_inserter(path),
             [&gcodegen, &transform_wt_pt](const Vec2f &wipe_pt) { 
-                return Geometry::ArcWelder::Segment(wipe_tower_point_to_object_point(gcodegen, transform_wt_pt(wipe_pt)), 0, Geometry::ArcWelder::Orientation::CCW);
+                return Geometry::ArcWelder::Segment(wipe_tower_point_to_object_point(gcodegen, transform_wt_pt(wipe_pt)), 0, Geometry::ArcWelder::Orientation::Unknown);
             });
         // Pass to the wipe cache.
         assert(gcodegen.m_wipe.path().empty());

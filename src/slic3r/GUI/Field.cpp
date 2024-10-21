@@ -54,7 +54,7 @@ wxString double_to_string(double const value, const int max_precision /*= 6*/)
 // Style_NoTrailingZeroes does not work on OSX. It also does not work correctly with some locales on Windows.
 //	return wxNumberFormatter::ToString(value, max_precision, wxNumberFormatter::Style_NoTrailingZeroes);
 
-	wxString s = wxNumberFormatter::ToString(value, std::abs(value) < 0.0001 ? 10 : max_precision, wxNumberFormatter::Style_None);
+	wxString s = wxNumberFormatter::ToString(value, /*std::abs(value) < 0.0001 ? 10 :*/ max_precision, wxNumberFormatter::Style_None);
 
 	// The following code comes from wxNumberFormatter::RemoveTrailingZeroes(wxString& s)
 	// with the exception that here one sets the decimal separator explicitely to dot.

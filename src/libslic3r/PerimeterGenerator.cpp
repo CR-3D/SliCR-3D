@@ -402,7 +402,7 @@ static void fuzzy_extrusion_line(Arachne::ExtrusionLine &ext_lines, double fuzzy
 }
 
 ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Parameters &params,
-    const PerimeterGeneratorLoops &loops, ThickPolylines &thin_walls, int count_since_overhang /*= 0*/) const
+    const PerimeterGeneratorLoops &loops, ThickPolylines &thin_walls, int count_since_overhang /*= -1*/) const
 {
     // loops is an arrayref of ::Loop objects
     // turn each one into an ExtrusionLoop object
@@ -439,7 +439,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
         // detect overhanging/bridging perimeters
         ExtrusionPaths paths;
 
-        bool can_overhang = params.config.overhangs_width_speed.is_enabled()
+        bool can_overhang = (params.config.overhangs_width_speed.is_enabled() || params.config.overhangs_width.is_enabled())
             && params.layer->id() > params.object_config.raft_layers;
         if (params.object_config.support_material &&
             params.object_config.support_material_contact_distance_type.value == zdNone) {
@@ -583,7 +583,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
                         break;
                     }
                 }
-                if (has_overhang || params.config.overhangs_speed_enforce.value > count_since_overhang) {
+                if (has_overhang || ( count_since_overhang >= 0 && params.config.overhangs_speed_enforce.value > count_since_overhang)) {
                     //enforce
                     for (ExtrusionPath& path : eloop->paths) {
                         if (path.role() == ExtrusionRole::Perimeter) {
@@ -599,7 +599,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             for(auto ee : coll) if(ee) ee->visit(LoopAssertVisitor());
 #endif
             assert(thin_walls.empty());
-            ExtrusionEntityCollection children = this->_traverse_loops_classic(params, loop.children, thin_walls, has_overhang ? 1 : (count_since_overhang+1));
+            ExtrusionEntityCollection children = this->_traverse_loops_classic(params, loop.children, thin_walls, has_overhang ? 1 : (count_since_overhang < 0 ? -1 : (count_since_overhang+1)));
             coll[idx.first] = nullptr;
             bool has_steep_overhangs_this_loop = false;
             if (loop.is_steep_overhang && params.layer->id() % 2 == 1 && !params.config.perimeter_reverse) {
@@ -1426,7 +1426,8 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
 
         ExtrusionPaths paths;
         // detect overhanging/bridging perimeters
-        if (params.config.overhangs_width_speed.is_enabled() && params.layer->id() > params.object_config.raft_layers
+        if ( (params.config.overhangs_width_speed.is_enabled() || params.config.overhangs_width.is_enabled())
+            && params.layer->id() > params.object_config.raft_layers
             && !((params.object_config.support_material || params.object_config.support_material_enforce_layers > 0) &&
                 params.object_config.support_material_contact_distance.value == 0)) {
 
@@ -1519,6 +1520,24 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
             double fuzzy_skin_thickness = params.config.fuzzy_skin_thickness.get_abs_value(nozle_diameter);
             double fuzzy_skin_point_dist = params.config.fuzzy_skin_point_dist.get_abs_value(nozle_diameter);
            fuzzy_paths(paths, scale_d(fuzzy_skin_thickness), scale_d(fuzzy_skin_point_dist));
+        }
+
+        //set to overhang speed if any chunk is overhang
+        bool has_overhang = false;
+        if (params.config.overhangs_speed_enforce.value > 0) {
+            for (const ExtrusionPath& path : paths) {
+                if (path.role().is_overhang()) {
+                    has_overhang = true;
+                    break;
+                }
+            }
+            if (has_overhang) {
+                //enforce
+                for (ExtrusionPath& path : paths) {
+                    assert(path.role().is_perimeter());
+                    path.set_role(path.role() | ExtrusionRole::Bridge);
+                }
+            }
         }
 
         // Append paths to collection.
@@ -4090,7 +4109,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
         this->throw_if_canceled();
         // Add perimeters on overhangs : initialization
         ExPolygons overhangs_unsupported;
-        if ((/*params.config.extra_perimeters_overhangs || */(params.config.overhangs_reverse && params.layer->id() % 2 == 1))
+        if ((/*params.config.extra_perimeters_on_overhangs || */(params.config.overhangs_reverse && params.layer->id() % 2 == 1))
             && !last.empty() && this->lower_slices != NULL && !this->lower_slices->empty()) {
             //remove holes from lower layer, we only ant that for overhangs, not bridges!
             ExPolygons lower_without_holes;
@@ -4156,7 +4175,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
             // We can add more perimeters if there are uncovered overhangs
             // improvement for future: find a way to add perimeters only where it's needed.
             bool has_overhang = false;
-            // if (params.config.extra_perimeters_overhangs && !last.empty() && !overhangs_unsupported.empty()) {
+            // if (params.config.extra_perimeters_on_overhangs && !last.empty() && !overhangs_unsupported.empty()) {
                 // overhangs_unsupported = intersection_ex(overhangs_unsupported, last, ApplySafetyOffset::Yes);
                 // if (overhangs_unsupported.size() > 0) {
                     // //please don't stop adding perimeter yet.
@@ -5158,13 +5177,14 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                 poly_after.set_front(pt_front);
             }
             // same for first_part
-            if (first_part.size() > 1 && first_part.back().coincides_with_epsilon(first_part.get_point(first_part.size() - 2))) {
+            if (first_part.size() > 2 && first_part.back().coincides_with_epsilon(first_part.get_point(first_part.size() - 2))) {
                 Point pt_back = first_part.back();
                 first_part.pop_back();
                 first_part.set_back(pt_back);
             }
             assert(first_part.size() == 2 || first_part.is_valid());
             assert(poly_after.size() == 2 || poly_after.is_valid());
+            assert(first_part.length() > SCALED_EPSILON || poly_after.length() > SCALED_EPSILON);
 
             size_t idx_path_before = searcher.search_result.idx_path;
             size_t idx_path_to_add = idx_path_before + 1;
@@ -5175,9 +5195,10 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                 assert(first_part.size() == 2);
                 assert(searcher.search_result.loop->paths.size() > 1);
                 //not long enough, move point to first point and destroy it
+                // idx_path_before will be replaced anyway by poly_after
                 assert(!searcher.search_result.loop->paths[idx_path_before].empty());
-                point = searcher.search_result.loop->paths[idx_path_before].last_point();
-                assert(first_part.front().coincides_with_epsilon(poly_after.back()));
+                point = searcher.search_result.loop->paths[idx_path_before].first_point();
+                assert(first_part.front().coincides_with_epsilon(poly_after.front()));
                 poly_after.set_front(first_part.front());
                 first_part.clear();
                 point_moved = true;
@@ -5202,8 +5223,16 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                 point_moved = true;
             } else {
                 assert(poly_after.length() > SCALED_EPSILON);
-                searcher.search_result.loop->paths.insert(searcher.search_result.loop->paths.begin() + idx_path_to_add, 
-                    ExtrusionPath(poly_after, path_to_split.attributes(), path_to_split.can_reverse()));
+                if (first_part.empty()) {
+                    searcher.search_result.loop->paths[idx_path_before].polyline = poly_after;
+                    idx_path_to_add--;
+                    assert(idx_path_to_add < searcher.search_result.loop->paths.size());
+                    if (idx_path_to_add >= searcher.search_result.loop->paths.size())
+                        idx_path_to_add = searcher.search_result.loop->paths.size() - 1;
+                } else {
+                    searcher.search_result.loop->paths.insert(searcher.search_result.loop->paths.begin() + idx_path_to_add, 
+                        ExtrusionPath(poly_after, path_to_split.attributes(), path_to_split.can_reverse()));
+                }
             }
             assert(idx_path_before > searcher.search_result.loop->paths.size() || searcher.search_result.loop->paths[idx_path_before].polyline.size() > 1);
             assert(poly_after.size() > 0);
@@ -5251,10 +5280,14 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                 change_flow.first_point = &poly_after.front(); // end at the start of the next path
                 change_flow.percent_extrusion = 0.1f;
                 change_flow.use(tws); // tws_second); //does not need the deep copy if the change_flow copy the content instead of re-using it.
-                //force reverse
+                // force reverse
                 for (ExtrusionPath &path : change_flow.paths)
                     path.reverse();
                 std::reverse(change_flow.paths.begin(), change_flow.paths.end());
+                size_t idx_path_to_add_after = idx_path_to_add < searcher.search_result.loop->paths.size() ?
+                    idx_path_to_add :
+                    searcher.search_result.loop->paths.size() - 1;
+                assert(searcher.search_result.loop->paths[idx_path_to_add_after].polyline.front() == change_flow.paths.back().polyline.back());
                 //std::reverse(change_flow.paths.begin(), change_flow.paths.end());
                 searcher.search_result.loop->paths.insert(searcher.search_result.loop->paths.begin() + idx_path_to_add,
                     change_flow.paths.begin(), change_flow.paths.end()); //TODO 2.7:change role by a kind of thinwalltravel that won't be considered for seam
@@ -5267,6 +5300,10 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                 for (ExtrusionPath &path : change_flow.paths)
                     path.visit(loop_assert_visitor);
 #endif
+                size_t idx_path_to_add_before = (idx_path_to_add - 1) < searcher.search_result.loop->paths.size() ?
+                    (idx_path_to_add - 1) :
+                    searcher.search_result.loop->paths.size() - 1;
+                assert(searcher.search_result.loop->paths[idx_path_to_add_before].polyline.back() == change_flow.paths.front().polyline.front());
                 searcher.search_result.loop->paths.insert(searcher.search_result.loop->paths.begin() + idx_path_to_add,
                     change_flow.paths.begin(), change_flow.paths.end());
 #if _DEBUG
@@ -5493,7 +5530,7 @@ ExtrusionLoop PerimeterGenerator::_extrude_and_cut_loop(const Parameters &params
         }
 
         // detect overhanging/bridging perimeters
-        if ( params.config.overhangs_width_speed.is_enabled() && params.layer->id() > 0
+        if ( (params.config.overhangs_width_speed.is_enabled() || params.config.overhangs_width.is_enabled()) && params.layer->id() > 0
             && !(params.object_config.support_material && params.object_config.support_material_contact_distance_type.value == zdNone)) {
             ExtrusionPaths paths = this->create_overhangs_classic(params, initial_polyline, role, is_external);
             

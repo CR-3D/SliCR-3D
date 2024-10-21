@@ -1384,7 +1384,7 @@ void Layer::make_ironing()
             const PrintRegionConfig &config = layerm->region().config();
             if (config.ironing && 
                 (config.ironing_type == IroningType::AllSolid ||
-                     ((config.top_solid_layers > 0 || config.solid_infill_every_layers.value == 1) && 
+                     ((config.top_solid_layers > 0 || (config.solid_infill_every_layers.value == 1 && config.fill_density.value > 0)) && 
                         (config.ironing_type == IroningType::TopSurfaces ||
                          (config.ironing_type == IroningType::TopmostOnly && layerm->layer()->upper_layer == nullptr))))) {
                 if (config.perimeter_extruder == config.solid_infill_extruder || config.perimeters == 0) {

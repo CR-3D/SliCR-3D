@@ -892,7 +892,6 @@ void PrintObject::calculate_overhanging_perimeters()
                             continue;
                         }
                         size_t prev_layer_id = l->lower_layer ? l->lower_layer->id() : size_t(-1);
-                        assert(layer_region->region().config().overhangs_width_speed.is_enabled());
                         const double nozzle_diameter_overhangs = layer_region->bridging_flow(frPerimeter).nozzle_diameter();
                         double max_width = -1;
                         if (layer_region->region().config().overhangs_width_speed.is_enabled()) {
@@ -1088,19 +1087,21 @@ bool PrintObject::invalidate_state_by_config_options(
             // Return true if gap-fill speed has changed from zero value to non-zero or from non-zero value to zero.
             auto is_gap_fill_changed_state_due_to_speed = [&opt_key, &old_config, &new_config]() -> bool {
                 if (opt_key == "gap_fill_speed") {
-                    const auto *old_gap_fill_speed = old_config.option<ConfigOptionFloat>(opt_key);
-                    const auto *new_gap_fill_speed = new_config.option<ConfigOptionFloat>(opt_key);
+                
+                    const auto *old_gap_fill_speed = old_config.option<ConfigOptionFloatOrPercent>(opt_key);
+                    const auto *new_gap_fill_speed = new_config.option<ConfigOptionFloatOrPercent>(opt_key);
                     assert(old_gap_fill_speed && new_gap_fill_speed);
-                    return (old_gap_fill_speed->value > 0.f && new_gap_fill_speed->value == 0.f) ||
-                           (old_gap_fill_speed->value == 0.f && new_gap_fill_speed->value > 0.f);
-                }
+                    
+                        return (old_gap_fill_speed->value > 0.f && new_gap_fill_speed->value == 0.f) ||
+                               (old_gap_fill_speed->value == 0.f && new_gap_fill_speed->value > 0.f);
+                           }
                 return false;
             };
 
             // Filtering of unprintable regions in multi-material segmentation depends on if gap-fill is enabled or not.
             // So step posSlice is invalidated when gap-fill was enabled/disabled by option "gap_fill_enabled" or by
             // changing "gap_fill_speed" to force recomputation of the multi-material segmentation.
-            if (this->is_mm_painted() && (opt_key == "gap_fill_enabled" || (opt_key == "gap_fill_speed" && is_gap_fill_changed_state_due_to_speed())))
+       if (this->is_mm_painted() && (opt_key == "gap_fill_enabled" || (opt_key == "gap_fill_speed" && is_gap_fill_changed_state_due_to_speed())))
                 steps.emplace_back(posSlice);
             steps.emplace_back(posPerimeters);
         } else if (
@@ -1276,6 +1277,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "bridged_infill_margin"
                 || opt_key == "extra_perimeters"
                 || opt_key == "extra_perimeters_odd_layers"
+                || opt_key == "extra_perimeters_on_overhangs"
                 || opt_key == "external_infill_margin"
                 || opt_key == "external_perimeter_overlap"
                 || opt_key == "gap_fill_overlap"

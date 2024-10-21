@@ -150,6 +150,13 @@ enum class IroningType {
     Count,
 };
 
+enum NozzleType {
+    ntPlatedCopper = 0,
+    ntTungstenCarbide,
+    ntDianoz,
+    ntCount
+};
+
 enum PerimeterDirection {
    pdCCW_CW,
    pdCCW_CCW,
@@ -314,6 +321,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(BridgeType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(FuzzySkinType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(InfillPattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(IroningType)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NozzleType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PerimeterDirection)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SlicingMode)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialPattern)
@@ -1059,8 +1067,16 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              deretract_speed))
     ((ConfigOptionString,              end_gcode))
     ((ConfigOptionStrings,             end_filament_gcode))
+    ((ConfigOptionFloats,              filament_pressure_advance))
+    
+    // Orca: adaptive pressure advance and calibration model
     ((ConfigOptionBools,               enable_pressure_advance))
-    ((ConfigOptionFloats,              pressure_advance))
+    ((ConfigOptionBools,               adaptive_pressure_advance))
+    ((ConfigOptionBools,               adaptive_pressure_advance_overhangs))
+    ((ConfigOptionStrings,              adaptive_pressure_advance_model))
+    ((ConfigOptionFloats,              adaptive_pressure_advance_bridges))
+    //
+
     ((ConfigOptionFloat,               extra_loading_move))
     ((ConfigOptionGraphs,              extruder_extrusion_multiplier_speed))
     ((ConfigOptionPercents,            extruder_fan_offset))
@@ -1122,6 +1138,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,      gcode_min_resolution))
     ((ConfigOptionInt,                 gcode_precision_xyz))
     ((ConfigOptionInt,                 gcode_precision_e))
+    ((ConfigOptionStrings,             nozzle_type))
+
     // Triples of strings: "search pattern", "replace with pattern", "attribs"
     // where "attribs" are one of:
     //      r - regular expression

@@ -2,75 +2,118 @@
 page:General:printer
 group:Size and coordinates
 	bed_shape
-	line:build volume
+	line:Build Volume
 		setting:max_print_height
 		setting:init_z_rotate
 	end_line
-	line:z utilities
-		setting:z_step
-		setting:lift_min
+
+	line:Z Full Step
+		setting:label$_:z_step
+	end_line
+
+	line:Min Height For Travel
+		setting:label$_:lift_min
+	end_line
+
+	line:Z Offset
 		setting:z_offset
 	end_line
+
 group:extruders_count_event:milling_count_event:Capabilities
 	extruders_count
 	setting:single_extruder_multi_material
 	milling_count
 group:Print Host upload
 	print_host_upload_description
+
 group:silent_mode_event:filename_format_event:Firmware
 	setting:gcode_flavor
-    line:Supports
-        setting:silent_mode
-        setting:binary_gcode
+
+    line:Supports Stealth Mode
+        setting:label$_:silent_mode
 	end_line
-	line:Print remaining times
-		setting:label$:remaining_times
+	line:Supports Binary G-Code
+        setting:label$_:binary_gcode
+	end_line
+
+	line:Print Remaining Times
+		setting:label$_:remaining_times
 		setting:remaining_times_type
 	end_line
-	line:Gcode precision
-		setting:gcode_precision_xyz
-		setting:gcode_precision_e
+
+	line:GCode Precision XYZ
+		setting:label$_:gcode_precision_xyz
 	end_line
-	line:Processing limit
+
+	line:GCode Precision E
+		setting:label$_:gcode_precision_e
+	end_line
+
+	line:Processing Limit
 		setting:max_gcode_per_second
 		setting:gcode_command_buffer
 	end_line
-	line:Precision limits
-		setting:gcode_min_resolution
-		setting:gcode_min_length
+
+	line:Precision Min Resolution
+		setting:label$_:gcode_min_resolution
 	end_line
-	line:G2/G3 generation
-		setting:arc_fitting
-		setting:arc_fitting_algorithm
-		setting:arc_fitting_tolerance
+	line:Precision Min Extrusion Length
+		setting:label$_:gcode_min_length
 	end_line
+
 	line:Formatting
         setting:gcode_filename_illegal_char
         setting:gcode_ascii
 	end_line
-group:Cooling fan
+
+group:G2/G3 Generation
+	line:Arc Fitting
+		setting:label$_:arc_fitting
+	end_line
+	line:Arc Fitting Algorithm
+		setting:label$_:arc_fitting_algorithm
+	end_line
+	line:Arc Fitting Tolerance
+		setting:label$_:arc_fitting_tolerance
+	end_line
+
+group:Cooling Fan
 	setting:fan_printer_min_speed
-	line:Speedup time
+	line:Speedup Time
 		setting:label$:fan_speedup_time
-		setting:label$Only for overhangs:fan_speedup_overhangs
+		setting:label$Only For Overhangs:fan_speedup_overhangs
 	end_line
-	setting:label$Kickstart duration:fan_kickstart
+
 	setting:fan_percentage
+	setting:label$Kickstart Duration:fan_kickstart
+
 group:Thumbnails
-	line:Size for Gcode
-		setting:id$0:label$Small:thumbnails
-		setting:id$1:label$Big:thumbnails
+	line:Small Size For GCode
+		setting:id$0:label$_:thumbnails
 	end_line
-	line:Color override
+	line:Big Size For GCode
+		setting:id$1:label$_:thumbnails
+	end_line
+
+	line:Color Override
 		setting:label$:sidetext_width$1:thumbnails_custom_color
 		setting:label$:label_width$1:thumbnails_color
 	end_line
-	line:Thumbnail options
-		setting:thumbnails_format
-		setting:thumbnails_with_bed
-		setting:thumbnails_tag_format
-		setting:thumbnails_end_file
+
+	line:Thumbnail Format
+		setting:label$_:thumbnails_format
 	end_line
+
+	line:Show Bed Texture On Thumbnail
+		setting:label$_:thumbnails_with_bed
+	end_line
+	line:Write Thumbnail Type In GCode
+		setting:label$_:thumbnails_tag_format
+	end_line
+	line:Print Thumbnail Code At The End
+		setting:label$_:thumbnails_end_file
+	end_line
+
 group:Advanced
 	setting:use_relative_e_distances
 	setting:use_firmware_retraction

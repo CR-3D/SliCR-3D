@@ -537,7 +537,7 @@ public:
 enum class ArcFittingType {
     Disabled,
     Bambu,
-    EmitCenter // arcwelder
+    ArcWelder
 };
 
 #ifdef _DEBUG

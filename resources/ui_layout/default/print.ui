@@ -63,8 +63,10 @@ group:Quality
 
 	line:Perimeter Direction
 		setting:label$Default:width$18:perimeter_direction
-	line
-		setting:label$Reverse on Even layers:sidetext_width$2:perimeter_reverse
+	end_line
+
+	line:Perimeter Reverse On Even Layers
+		setting:label$_:perimeter_reverse
 	end_line
 
 group:Thin Walls
@@ -84,7 +86,6 @@ group:Thin Walls
 group:Avoid crossing perimeters
 	line:Activate
 		setting:label$_:avoid_crossing_perimeters
-		setting:sidetext_width$15:avoid_crossing_perimeters_max_detour
 	end_line
 
 	line:Modifiers
@@ -93,6 +94,10 @@ group:Avoid crossing perimeters
 
 	line:Avoid Crossing Top
         setting:avoid_crossing_top
+	end_line
+
+	line:Avoid Crossing Max Detour Length
+		setting:label$_:avoid_crossing_perimeters_max_detour
 	end_line
 
 	setting:avoid_crossing_curled_overhangs
@@ -311,24 +316,6 @@ group:Infill
 	line:Fill Pattern
 		setting:label$_:fill_pattern
 	end_line
-	line:Infill Connection
-		setting:label$_:infill_connection
-	end_line
-	line:Fill Aligned Z
-        setting:label$_:fill_aligned_z
-	end_line
-
-	line:Infill Connection Length
-		setting:label$_:infill_anchor_max
-	end_line
-	line:Perimeter Anchor
-		setting:label$_:infill_anchor
-	end_line
-
-	line:Solid Fill Pattern
-		setting:label$_:solid_fill_pattern
-		setting:label$Solid Infill Connection:infill_connection_solid
-	end_line
 
 	line:Top Fill Pattern
 		setting:label$_:top_fill_pattern
@@ -338,6 +325,26 @@ group:Infill
 	line:Bottom Fill Pattern
 		setting:label$_:bottom_fill_pattern
 		setting:label$Bottom Infill Connection:infill_connection_bottom
+	end_line
+
+	line:Infill Connection Length
+		setting:label$_:infill_anchor_max
+	end_line
+
+	line:Infill Connection
+		setting:label$_:infill_connection
+	end_line
+	line:Fill Aligned Z
+        setting:label$_:fill_aligned_z
+	end_line
+
+	line:Perimeter Anchor
+		setting:label$_:infill_anchor
+	end_line
+
+	line:Solid Fill Pattern
+		setting:label$_:solid_fill_pattern
+		setting:label$Solid Infill Connection:infill_connection_solid
 	end_line
 
 	line:Bridge Fill Pattern
@@ -399,6 +406,8 @@ group:Advanced
 
 	line:Only Retract When Crossing Perimeters
 		setting:label$_:only_retract_when_crossing_perimeters
+	end_line
+
 	Line:Retract On First Layer
 		setting:label$_:enforce_retract_first_layer
 	end_line
@@ -458,8 +467,8 @@ group:Brim
 		setting:width$3:sidetext_width$3:brim_ears_detection_length
 		setting:brim_ears_pattern
 	end_line
-	setting:brim_separation
 	setting:brim_per_object
+	setting:brim_separation
 
 page:Support material:support
 
@@ -639,18 +648,18 @@ group:Gap Fill Speed
 		setting:label$_:sidetext$% of perimeter flow:sidetext_width$20:gap_fill_flow_match_perimeter
 
 group:Other Speed
-	line:Thin Walls Speed
-		setting:label$_:thin_walls_speed
-	end_line
-	line:Ironing Speed
-		setting:label$_:ironing_speed
-	end_line
-
 	line:Wipe Tower Speed
 		setting:label$_:wipe_tower_speed
 	end_line
 	line:Wipe Starting Speed
 		setting:label$_:wipe_tower_wipe_starting_speed
+	end_line
+
+	line:Thin Walls Speed
+		setting:label$_:thin_walls_speed
+	end_line
+	line:Ironing Speed
+		setting:label$_:ironing_speed
 	end_line
 
 group:Travel Speed
@@ -665,14 +674,17 @@ group:First Layer Speed Modifiers
 	line:First Layer Min Speed
 		setting:label$_:first_layer_min_speed
 	end_line
+	
 	line:First Layer Speed
 		setting:label$_:first_layer_speed
 	end_line
-	line:First LayerInfill Speed
-		setting:label$_:first_layer_infill_speed
-	end_line
+	
 	line:First Layer Speed Over Raft
 		setting:label$_:first_layer_speed_over_raft
+	end_line
+	
+	line:First Layer Infill Speed
+		setting:label$_:first_layer_infill_speed
 	end_line
 	
 group:Small Perimeter Speed Modifiers
@@ -720,13 +732,14 @@ group:Support Material Acceleration
 	line:Support Material Acceleration
 		setting:label$_:support_material_acceleration
 	end_line
-	line:Support Material Interface Acceleration
-		setting:label$_:support_material_interface_acceleration
-	end_line
+
 	line:Brim Acceleration
 		setting:label$_:brim_acceleration
 	end_line
-
+	line:Support Material Interface Acceleration
+		setting:label$_:support_material_interface_acceleration
+	end_line
+	
 group:Bridge Acceleration
 	line:Bridge Acceleration
 		setting:label$_:bridge_acceleration
@@ -739,6 +752,10 @@ group:Bridge Acceleration
 	end_line
 
 group:Other Extrusions Acceleration
+	line:Travel acceleration
+		setting:label$_:travel_acceleration
+	end_line
+	
 	line:Gap Fill Acceleration
 		setting:label$_:gap_fill_acceleration
 	end_line
@@ -749,9 +766,6 @@ group:Other Extrusions Acceleration
 		setting:label$_:ironing_acceleration
 	end_line
 
-	line:Travel acceleration
-		setting:label$_:travel_acceleration
-	end_line
 	line:Travel Deceleration Use Target
 		setting:label$_:travel_deceleration_use_target
 	end_line
@@ -766,12 +780,11 @@ group:Other Extrusions Acceleration
 page:Width & Flow:width
 
 group:Extrusion Width
-	line:Default Extrusion Width
-		setting:label$_:extrusion_width
+	line:Default Extrusion
+		setting:sidetext_width$10:label$width:extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:extrusion_spacing
 	end_line
-
-group:First Layer Extrusion Width
+ayer Extrusion Width
 	line:First Layer
 		setting:sidetext_width$10:label$width:first_layer_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:first_layer_extrusion_spacing
@@ -816,32 +829,54 @@ group:Support Material Extrusion Width
 	recommended_extrusion_width_description
 
 group:Overlap
-	line:Perimeter overlap
-		setting:label_width$7:label$Default:perimeter_overlap
-		setting:label_width$7:label$External:external_perimeter_overlap
-		setting:label_width$7:label$Gap Fill:gap_fill_overlap
+	line:Perimeter Overlap
+		setting:label$_:perimeter_overlap
 	end_line
-    line:Solid infill ovelrap
-        setting:label$Inside:width$4:solid_infill_overlap
-        setting:label$Top:width$4:top_solid_infill_overlap
+	line:External Perimeter Overlap
+		setting:label$_:external_perimeter_overlap
 	end_line
-	line:Bridge lines density
-		setting:label_width$7:bridge_overlap_min
-		setting:label_width$7:bridge_overlap
+	line:Gap Fill Overlap
+		setting:label$_:gap_fill_overlap
 	end_line
-	setting:width$4:sidetext_width$7:infill_overlap
-group:sidetext_width$2:Flow
-	line:Flow ratio
-		setting:bridge_flow_ratio
-		setting:over_bridge_flow_ratio
-		setting:fill_top_flow_ratio
-		setting:first_layer_flow_ratio
+
+    line:Solid Infill Overlap
+        setting:label$_:solid_infill_overlap
 	end_line
+	line:Top Solid Infill Overlap
+        setting:label$_:top_solid_infill_overlap
+	end_line
+
+	line:Bridge Lines Density
+		setting:bridge_overlap_min
+		setting:bridge_overlap
+	end_line
+	line:Infill Overlap
+	setting:label$_:infill_overlap
+	end_line
+
+group:Flow
+	line:Bridge Flow Ratio
+		setting:label$_:bridge_flow_ratio
+	end_line
+	line:Over Bridge Flow Ratio
+		setting:label$_:over_bridge_flow_ratio
+	end_line
+
 	line:Bridge type
-		setting:bridge_type
+		setting:label$_:bridge_type
 		setting:script:bool:advanced:depends$bridge_type$bridge_overlap$layer_height$nozzle_diameter:label$ Simulate Prusa 'no thick bridge':label_width$0:tooltip$Change the bridge type and the bridge overlap to compute the same extrusions as when the PrusaSlicer 'thick bridge' isn't selected.\nAs long as it's selected, it will modify them.\nUnselect it to deactivate this enforcement.:s_not_thick_bridge
 	end_line
-	setting:external_perimeter_cut_corners
+
+	line:Fill Top Flow Ratio
+		setting:label$_:fill_top_flow_ratio
+	end_line
+	line:First Layer Flow Ratio
+		setting:label$_:first_layer_flow_ratio
+	end_line
+
+	line:Cutting Corners
+		setting:label$_:external_perimeter_cut_corners
+	end_line
 
 page:Multiple extruders:funnel
 group:Extruders
@@ -854,32 +889,43 @@ group:Extruders
 group:Ooze prevention
 	setting:ooze_prevention
 	setting:standby_temperature_delta
+
 group:Wipe tower
 	setting:wipe_tower
-	line:Wipe tower position
+	line:Wipe Tower Position
 		setting:label_width$3:width$5:sidetext$mm:wipe_tower_x
 		setting:label_width$3:width$5:sidetext$mm:wipe_tower_y
 	end_line
-	line:Width
-		setting:wipe_tower_width
-		setting:wipe_tower_brim_width
+
+	line:Wipe Tower Width
+		setting:label$_:wipe_tower_width
+		setting:label$From Brim:wipe_tower_brim_width
 	end_line
-	line:Angle
-		setting:wipe_tower_rotation_angle
-		setting:wipe_tower_cone_angle
+
+	line:Wipe Tower Rotation Angle
+		setting:label$_:wipe_tower_rotation_angle
 	end_line
+	line:Wipe Tower Cone Angle
+		setting:label$_:wipe_tower_cone_angle
+	end_line
+
 	setting:wipe_tower_bridging
-	setting:wipe_tower_extra_spacing
 	setting:wipe_tower_no_sparse_layers
 	line:Priming
         setting:single_extruder_multi_material_priming
         setting:priming_position
 	end_line
+	setting:wipe_tower_extra_spacing
+
+
 group:Advanced
 	setting:interface_shells
-	line:Segmented regions
-		setting:label$Maximum width:mmu_segmented_region_max_width
-		setting:label$Interlocking depth:mmu_segmented_region_interlocking_depth
+
+	line:Segmented Regions Max Width
+		setting:label$_:mmu_segmented_region_max_width
+	end_line
+	label:MMU Interlocking Depth
+		setting:label$_:mmu_segmented_region_interlocking_depth
 	end_line
 
 page:Output options:output+page_white
@@ -895,8 +941,8 @@ group:Sequential printing
 		setting:width$6:extruder_clearance_height
 	end_line
 group:Output file
-	setting:gcode_comments
 	setting:gcode_label_objects
+	setting:gcode_comments
 	setting:full_width:output_filename_format
 group:Other
     gcode_substitutions

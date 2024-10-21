@@ -591,6 +591,7 @@ namespace boost { namespace polygon {
         static inline Slic3r::ExPolygon& set_points(Slic3r::ExPolygon& expolygon, iT input_begin, iT input_end) {
             expolygon.contour.points.assign(input_begin, input_end);
             // skip last point since Boost will set last point = first point
+            assert(expolygon.contour.points.front() == expolygon.contour.points.back());
             expolygon.contour.points.pop_back();
             return expolygon;
         }

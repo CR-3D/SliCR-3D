@@ -224,6 +224,8 @@ public:
     ExtrusionAttributes& attributes_mutable() { return m_attributes; }
 
     void set_role(ExtrusionRole new_role) { m_attributes.role = new_role; }
+    bool is_force_no_extrusion() const { return m_no_extrusion; }
+
     // Produce a list of 2D polygons covered by the extruded paths, offsetted by the extrusion width.
     // Increase the offset by scaled_epsilon to achieve an overlap, so a union will produce no gaps.
     void polygons_covered_by_width(Polygons &out, const float scaled_epsilon) const override;
@@ -245,6 +247,7 @@ public:
 
 protected:
     void _inflate_collection(const Polylines &polylines, ExtrusionEntityCollection* collection) const;
+    bool m_no_extrusion = false;
 
     ExtrusionAttributes     m_attributes;
 };
@@ -477,8 +480,8 @@ public:
     // Create a new object, initialize it with this object using the move semantics.
     virtual ExtrusionEntity* clone_move() override { return new ExtrusionLoop(std::move(*this)); }
     double          area() const;
-    bool            is_counter_clockwise() const { return this->area() > 0; }
-    bool            is_clockwise() const { return this->area() < 0; }
+    bool            is_counter_clockwise() const;
+    bool            is_clockwise() const;
     // Used by PerimeterGenerator to reorient extrusion loops. (old make_clockwise() and make_counter_clockwise())
     void            reverse() override;
     const Point&    first_point() const override { return this->paths.front().polyline.front(); }

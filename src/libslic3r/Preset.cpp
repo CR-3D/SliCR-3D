@@ -489,7 +489,6 @@ static std::vector<std::string> s_Preset_print_options {
         "only_one_perimeter_first_layer",
         "only_one_perimeter_top",
         "only_one_perimeter_top_other_algo",
-//        "ensure_vertical_shell_thickness", 
         "allow_empty_layers",
         "avoid_crossing_perimeters", 
         "avoid_crossing_not_first_layer",
@@ -866,9 +865,9 @@ static std::vector<std::string> s_Preset_filament_options {
         //merill adds
         "filament_wipe_advanced_pigment",
         "chamber_temperature",
-        // Orca Adds
+        // SoftFever
         "enable_pressure_advance",
-        "pressure_advance",
+        "filament_pressure_advance", "adaptive_pressure_advance", "adaptive_pressure_advance_model", "adaptive_pressure_advance_overhangs", "adaptive_pressure_advance_bridges",
 };
 
 static std::vector<std::string> s_Preset_machine_limits_options {
@@ -947,6 +946,9 @@ static std::vector<std::string> s_Preset_printer_options {
     "time_cost",
     "time_start_gcode",
     "time_toolchange",
+
+    //ORCA
+    "nozzle_type",
 };
 
 static std::vector<std::string> s_Preset_sla_print_options {

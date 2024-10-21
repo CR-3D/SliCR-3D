@@ -83,9 +83,9 @@ struct CoolingLine
         TYPE_G2G3              = 1 << 20,
         //TYPE_G2                 = 1 << 20, == TYPE_G2G3_CW
         //TYPE_G3                 = 1 << 21, == TYPE_G2G3_CCW
-        TYPE_G2_CW              = 1 << 20, //TODO: review it with prusa code: seems like G2 & G2 can be of 2 different types: XYR or XYIJ
+        TYPE_G2_CW              = 1 << 21,
         // Arc interpolation, counter-clockwise.
-        TYPE_G3_CCW           = 1 << 21,
+        TYPE_G3_CCW           = 1 << 22,
         // Arc interpolation, arc defined by IJ (offset of arc center from its start position).
         TYPE_G2G3_IJ            = 1 << 23,
         // Arc interpolation, arc defined by R (arc radius, positive - smaller, negative - larger).
@@ -553,7 +553,7 @@ std::vector<PerExtruderAdjustments> CoolingBuffer::parse_layer_gcode(const std::
                 if (line.type & CoolingLine::TYPE_G2G3) {
                     // Measure arc length.
                     if (line.type & CoolingLine::TYPE_G2G3_IJ) {
-                        dxy2 = sqr(Geometry::ArcWelder::arc_length(
+                        dxy2 = sqr(Geometry::ArcWelder::arc_length<Vec2d,Vec2d,Vec2d,double>(
                             Vec2d(current_pos[AxisIdx::X], current_pos[AxisIdx::Y]),
                             Vec2d(new_pos[AxisIdx::X], new_pos[AxisIdx::Y]),
                             Vec2d(current_pos[AxisIdx::X] + new_pos[AxisIdx::I], current_pos[AxisIdx::Y] + new_pos[AxisIdx::J]),

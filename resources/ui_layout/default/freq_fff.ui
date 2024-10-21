@@ -1,15 +1,32 @@
 #logs
 page:Frequent settings:
 group:freq_settings_event:no_title:no_search:
-	line:
-		setting:simple:script:enum$none$None$bp$Support on build plate only$se$For support enforcers only$ev$Everywhere:depends$support_material$support_material_auto$support_material_buildplate_only:label$Supports:tooltip$Select what kind of support do you need:full_width:s_support_fff
-	end_line
-	line:
-#		setting:brim_width
-#		setting:label$Infill:width$8:sidetext$  :fill_density
+    line:
+        setting:simple:script:enum$none$None$bp$Support on build plate only$se$For support enforcers only$ev$Everywhere:depends$support_material$support_material_auto$support_material_buildplate_only:label_width$7:label$Supports_:tooltip$Select what kind of support do you need:full_width:s_support_fff
+    end_line
+    line:
+    freq_purging_volumes
+    end_line
+    line:
+        setting:label_width$7:label$Fill Pattern_:full_width:fill_pattern
+    end_line
+    line:
+        setting:label_left:label_width$7:label$Infill_:full_width:fill_density
+    end_line
+    line:
+        setting:label_left:label_width$7:label$Perimeters_:perimeters
+    end_line
+    line:Solid Layers
+         setting:label_width$7:label$Solid Layers Top_:top_solid_layers
+         setting:label_width$7:label$Bottom_ :bottom_solid_layers
+    end_line
+    line:
+        setting:simple:script:float:depends$nozzle_diameter[0]:label_width$7:label$Tool [0]_:tooltip$Value for nozzle[0]:full_width:s_nozzle_diameter_1
+        setting:simple:script:float:depends$nozzle_diameter[1]:label_width$7:label$Tool [1]_:tooltip$Value for nozzle[1]:full_width:s_nozzle_diameter_2
+    end_line
+    line:
+    preheat_printer
+    end_line
+    
 
-		setting:simple:script:percent:depends$fill_density$solid_infill_every_layers:hints$0$none$5$5$10$10$15$15 $25$25$35$35$50$50$75$75$100$solid:depends$fill_density$solid_infill_every_layers:label$Fill density:tooltip$Density of internal infill, expressed in the range 0% - 100%:width$6:sidetext$%:sidetext_width$4:label$Fill density:tooltip$Density of internal infill, expressed in the range 0% - 100%.\nSet 0 to remove any sparse infill.\nA value of 100% will activate 'solid_infill_every_layers' to have solid infill, with the solid infill pattern.:s_fill_density
-
-		setting:simple:script:bool:depends$brim_width:label$Brim:tooltip$Set the brim. Will be set to 5mm if nothing was previously set.:s_brim
-		freq_purging_volumes
-	end_line
+    

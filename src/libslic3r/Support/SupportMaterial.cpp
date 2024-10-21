@@ -1099,9 +1099,9 @@ namespace SupportMaterialInternal {
                     if (ep.size() >= 3) {
                         // This is a complete loop.
                         // Add the outer contour first.
+                        assert(ep.polyline.front() == ep.polyline.back());
                         Polygon polygon(ep.polyline.to_polyline().points);
-                        assert(polygon.front() == polygon.back());
-                        polygon.points.pop_back();
+                        assert(polygon.front() != polygon.back());
                         if (polygon.area() < 0)
                             polygon.reverse();
                         polygons_append(out, offset(polygon, exp, SUPPORT_SURFACES_OFFSET_PARAMETERS));
@@ -1110,6 +1110,7 @@ namespace SupportMaterialInternal {
                         polygons_append(out, holes);
                     }
                 } else if (ep.size() >= 2) {
+                    assert(ep.polyline.front() != ep.polyline.back());
                     // Offset the polyline.
                     polygons_append(out, offset(Polygon(ep.polyline.to_polyline().points), exp, SUPPORT_SURFACES_OFFSET_PARAMETERS));
                 }

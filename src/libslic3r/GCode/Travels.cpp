@@ -475,8 +475,13 @@ SmoothingParams get_smoothing_params(
         config.machine_max_acceleration_z.get_at(extruder_id);
     const double deceleration_xy_distance = deceleration_time * max_xy_velocity;
 
-    const double blend_width = slope_end > deceleration_xy_distance / 2.0 ? deceleration_xy_distance :
+    double blend_width = slope_end > deceleration_xy_distance / 2.0 ? deceleration_xy_distance :
                                                                           slope_end * 2.0;
+
+    // not possible to blend into not-existing travel
+    if (travel_length < slope_end + blend_width / 2.0) {
+        blend_width = (travel_length - slope_end) * 2;
+    }
 
     const unsigned points_count = blend_width > 0 ?
         std::ceil(max_z_velocity / config.machine_max_jerk_z.get_at(extruder_id)) :

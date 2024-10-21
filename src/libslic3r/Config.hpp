@@ -49,7 +49,7 @@
 #include <boost/format/format_fwd.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/property_tree/ptree_fwd.hpp>
-
+#include "GCode/PchipInterpolatorHelper.hpp"
 #include <cereal/access.hpp>
 #include <cereal/types/base_class.hpp>
 
@@ -2844,8 +2844,11 @@ public:
     template<typename TYPE>
     const TYPE*                 option(const t_config_option_key& opt_key) const
     {
-        const ConfigOption* opt = this->optptr(opt_key);
-        return (opt == nullptr || opt->type() != TYPE::static_type()) ? nullptr : static_cast<const TYPE*>(opt);
+        const ConfigOption *opt = this->optptr(opt_key);
+        const TYPE *opt_type = (opt == nullptr || opt->type() != TYPE::static_type()) ?
+            nullptr :
+            static_cast<const TYPE *>(opt);
+        return opt_type;
     }
 
     const ConfigOption*         option_throw(const t_config_option_key& opt_key) const
@@ -2921,7 +2924,8 @@ public:
     TYPE* option(const t_config_option_key &opt_key, bool create = false)
     {
         ConfigOption *opt = this->optptr(opt_key, create);
-        return (opt == nullptr || opt->type() != TYPE::static_type()) ? nullptr : static_cast<TYPE*>(opt);
+        TYPE* opt_type = (opt == nullptr || opt->type() != TYPE::static_type()) ? nullptr : static_cast<TYPE*>(opt);
+        return opt_type;
     }
 
     ConfigOption* option_throw(const t_config_option_key &opt_key, bool create = false)
@@ -3052,10 +3056,10 @@ public:
     template<typename ENUM>
     ENUM                opt_enum(const t_config_option_key &opt_key) const                      { return static_cast<ENUM>(this->option(opt_key)->get_int()); }
 
-    bool                opt_bool(const t_config_option_key &opt_key) const                      { return this->option<ConfigOptionBool>(opt_key)->value != 0; }
-    bool                opt_bool(const t_config_option_key &opt_key, size_t idx) const          { return this->option<ConfigOptionBools>(opt_key)->get_at(idx) != 0; }
-    bool&               opt_bool(const t_config_option_key &opt_key)                            { return this->option<ConfigOptionBool>(opt_key)->value; }
-    uint8_t&            opt_bool(const t_config_option_key &opt_key, size_t idx)          { return this->option<ConfigOptionBools>(opt_key)->get_at(idx); }
+    bool                opt_bool(const t_config_option_key &opt_key) const                      { auto opt = this->option<ConfigOptionBool>(opt_key); assert(opt); return opt->value;  }
+    bool                opt_bool(const t_config_option_key &opt_key, size_t idx) const          { auto opt = this->option<ConfigOptionBools>(opt_key); assert(opt); return opt->get_at(idx) != 0; }
+    //bool&               opt_bool(const t_config_option_key &opt_key)                            { return this->option<ConfigOptionBool>(opt_key)->value; }
+    //uint8_t&            opt_bool(const t_config_option_key &opt_key, size_t idx)          { return this->option<ConfigOptionBools>(opt_key)->get_at(idx); }
 
     void setenv_() const;
     ConfigSubstitutions load(const std::string &file, ForwardCompatibilitySubstitutionRule compatibility_rule);

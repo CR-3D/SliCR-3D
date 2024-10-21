@@ -1719,7 +1719,7 @@ void PageMode::serialize_mode(AppConfig *app_config) const {
     if (radio_advanced->GetValue()) { mode = "advanced"; }
     if (radio_expert->GetValue()) { mode = "expert"; }
 
-    app_config->set("view_mode", "expert");
+    app_config->set("view_mode", mode);
     app_config->set("use_inches", check_inch->GetValue() ? "1" : "0");
 }
 

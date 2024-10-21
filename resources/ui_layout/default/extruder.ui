@@ -1,40 +1,55 @@
 
 page:idx:Extruder:funnel
-group:Name and Size
+group:Name And Size
 	setting:idx:tool_name
 	setting:idx:nozzle_diameter
 	update_nozzle_diameter
-group:Layer height limits
+	setting:idx:nozzle_type
+	
+group:Layer Height Limits
 	setting:idx:min_layer_height
 	setting:idx:max_layer_height
+
 group:Offsets (for multi-extruder printers)
 	setting:idx:extruder_offset
 	setting:idx:extruder_temperature_offset
 	setting:idx:extruder_fan_offset
 	setting:idx:extruder_extrusion_multiplier_speed
-group:Travel lift
+
+group:Travel Lift
 	setting:idx:retract_lift
 	setting:idx:travel_ramping_lift
+	setting:idx:travel_max_lift
 	setting:idx:travel_slope
 	setting:idx:travel_lift_before_obstacle
-	line:Only lift Z
+
+	line:Only Lift Z
 		setting:idx:retract_lift_above
 		setting:idx:retract_lift_below
 	end_line
 
-	line:Lift z enforcement
-		setting:idx:retract_lift_first_layer
-		setting:idx:retract_lift_top
+	line:Lift Z First Layer
+		setting:idx:label$_:retract_lift_first_layer
 	end_line
+	line:Lift Top On Surface
+		setting:idx:label$_:retract_lift_top
+	end_line
+
 group:Retraction
-	setting:idx:retract_length
+	setting:idx:label$Retraction Length:retract_length
+
 	line:Retraction Speed
-		setting:idx:retract_speed
-		setting:idx:label$Deretraction:deretract_speed
+		setting:idx:label$_:retract_speed
 	end_line
-	line:Minimum travel after
-		setting:idx:label$Retraction:retract_before_travel
-		setting:idx:label$Lift:retract_lift_before_travel
+	line:Deretract Speed
+		setting:idx:label$_:deretract_speed
+	end_line
+
+	line:Minimum Travel After Retraction
+		setting:idx:label$_:retract_before_travel
+	end_line
+	line:Minimum Travel After Lift
+		setting:idx:label$_:retract_lift_before_travel
 	end_line
 
 group:Retraction wipe
@@ -44,17 +59,26 @@ group:Retraction wipe
 	setting:idx:wipe_speed
 	setting:idx:retract_before_wipe
 
-group:General wipe
-	line:Wipe inside
-		setting:idx:label$At start:wipe_inside_start
-		setting:idx:label$At end:wipe_inside_end
-		setting:idx:label$Depth:wipe_inside_depth
+group:General Wipe
+	line:Wipe Inside At Start
+		setting:idx:label$_:wipe_inside_start
 	end_line
+	line:Wipe Inside At End
+		setting:idx:label$_:wipe_inside_end
+	end_line
+	line:Wipe Inside Depth
+		setting:idx:label$_:wipe_inside_depth
+	end_line
+
 	setting:idx:wipe_extra_perimeter
-	line:Seam gap
-		setting:idx:label$_:sidetext_width$5:seam_gap
-		setting:idx:label$for external perimeters:sidetext_width$5:seam_gap_external
+
+	line:Seam Gap
+		setting:idx:label$_:seam_gap
 	end_line
+	line:Seam Gap For External Perimeters
+		setting:idx:label$_:seam_gap_external
+	end_line
+
 group:Retraction when tool is disabled (advanced settings for multi-extruder setups)
 	setting:label$Minimum retraction:idx:retract_length_toolchange
 	setting:label$Extra unretraction:idx:retract_restart_extra_toolchange

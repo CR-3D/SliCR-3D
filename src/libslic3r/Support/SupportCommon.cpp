@@ -397,21 +397,19 @@ SupportGeneratorLayersPtr generate_raft_base(
 
     Polygons interface_polygons;
     if (contacts != nullptr && ! contacts->polygons.empty()) {
-        polygons_append(interface_polygons, expand(contacts->polygons, inflate_factor_fine, SUPPORT_SURFACES_OFFSET_PARAMETERS));
         assert_valid(contacts->polygons);
-        ensure_valid(interface_polygons, support_params.resolution);
-        assert_valid(interface_polygons);
+        polygons_append(interface_polygons, expand(contacts->polygons, inflate_factor_fine, SUPPORT_SURFACES_OFFSET_PARAMETERS));
     }
     if (interfaces != nullptr && ! interfaces->polygons.empty()) {
-        polygons_append(interface_polygons, expand(interfaces->polygons, inflate_factor_fine, SUPPORT_SURFACES_OFFSET_PARAMETERS));
         assert_valid(interfaces->polygons);
-        assert_valid(interface_polygons);
+        polygons_append(interface_polygons, expand(interfaces->polygons, inflate_factor_fine, SUPPORT_SURFACES_OFFSET_PARAMETERS));
     }
     if (base_interfaces != nullptr && ! base_interfaces->polygons.empty()) {
-        polygons_append(interface_polygons, expand(base_interfaces->polygons, inflate_factor_fine, SUPPORT_SURFACES_OFFSET_PARAMETERS));
         assert_valid(base_interfaces->polygons);
-        assert_valid(interface_polygons);
+        polygons_append(interface_polygons, expand(base_interfaces->polygons, inflate_factor_fine, SUPPORT_SURFACES_OFFSET_PARAMETERS));
     }
+    ensure_valid(interface_polygons, support_params.resolution);
+    assert_valid(interface_polygons);
 
     // Output vector.
     SupportGeneratorLayersPtr raft_layers;

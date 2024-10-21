@@ -44,7 +44,7 @@ public:
     static void do_arc_fitting(const Points& points, std::vector<PathFittingData> &result, double tolerance, double fit_percent_tolerance);
     //BBS: this function is used to check the point list and return which part can fit as arc, which part should be line.
     //By the way, it also use DP simplify to reduce point of straight part and only keep the start and end point of arc.
-    static void do_arc_fitting_and_simplify(Points& points, std::vector<PathFittingData>& result, double tolerance, double fit_circle_tolerance);
+    static void do_arc_fitting_and_simplify(Points& points, std::vector<PathFittingData>& result, double tolerance, double fit_circle_tolerance, double fit_circle_percent_tolerance);
 };
 
 } } // namespace slic3r geometry

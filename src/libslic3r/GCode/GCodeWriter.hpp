@@ -99,6 +99,10 @@ public:
     std::string lift(int layer_id);
     std::string unlift();
 
+    // this 'de' should be too small to print, but should be be accounted for.
+    // for exemple, if the retraction miss this ammount, the unretraction mays be a little bit too far (by one unit)
+    void        add_de_delayed(double too_small_de) { m_de_left += too_small_de; }
+
     // Current position of the printer, in G-code coordinates.
     // Z coordinate of current position contains zhop. If zhop is applied (this->zhop() > 0),
     // then the print_z = this->get_position().z() - this->zhop().

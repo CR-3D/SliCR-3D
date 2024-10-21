@@ -170,6 +170,7 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
     }
     model.objects[objs_idx[0]]->config.set_key_value("brim_ears", new ConfigOptionBool(false));
     model.objects[objs_idx[0]]->config.set_key_value("perimeters", new ConfigOptionInt(1));
+    model.objects[objs_idx[0]]->config.set_key_value("extra_perimeters_on_overhangs", new ConfigOptionBool(true));
     model.objects[objs_idx[0]]->config.set_key_value("bottom_solid_layers", new ConfigOptionInt(2));
     model.objects[objs_idx[0]]->config.set_key_value("top_solid_layers", new ConfigOptionInt(3)); 
     model.objects[objs_idx[0]]->config.set_key_value("gap_fill_enabled", new ConfigOptionBool(false)); 
