@@ -1648,15 +1648,15 @@ bool GUI_App::dark_mode() {
 }
 
 const wxColour GUI_App::get_label_default_clr_system() {
-    return dark_mode() ? wxColour(115, 220, 103) : wxColour(255, 255, 255);
+    return wxColour(255, 255, 255);
 }
 
 const wxColour GUI_App::get_label_default_clr_modified() {
-    return dark_mode() ? wxColour(253, 111, 40) : wxColour(255, 255, 255);
+    return wxColour(255, 255, 255);
 }
 
 const wxColour GUI_App::get_label_default_clr_default() {
-    return dark_mode() ? wxColour(250, 250, 250) : wxColour(255, 255, 255);
+    return wxColour(255, 255, 255);
 }
 
 const wxColour GUI_App::get_label_default_clr_phony() {
