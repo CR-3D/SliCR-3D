@@ -52,6 +52,9 @@ void ArrangeSettingsDialogImgui::render(float pos_x, float pos_y)
 
     float dobj_min, dobj_max;
     float dbed_min, dbed_max;
+    
+    float default_dobj = 2.0f;
+    float default_dbed = 7.0f;
 
     m_db.distance_from_obj_range(dobj_min, dobj_max);
     m_db.distance_from_bed_range(dbed_min, dbed_max);
@@ -66,14 +69,28 @@ void ArrangeSettingsDialogImgui::render(float pos_x, float pos_y)
         m_db.set_distance_from_bed(settings.d_bed);
     }
 
-    if (m_imgui->slider_float(_L("Spacing"), &settings.d_obj, dobj_min,
-                              dobj_max, "%5.2f")) {
+    if (settings.d_obj == 0.0f) {
+        settings.d_obj = default_dobj;
+    }
+
+    if (settings.d_bed == 0.0f) {
+        settings.d_bed = default_dbed;
+    }
+
+    if (m_imgui->slider_float(_L("Spacing"), 
+                              &settings.d_obj, 
+                              dobj_min,
+                              dobj_max, 
+                              "%5.2f")) {
         settings.d_obj = std::max(dobj_min, settings.d_obj);
         m_db.set_distance_from_objects(settings.d_obj);
     }
 
-    if (m_imgui->slider_float(_L("Spacing from bed"), &settings.d_bed,
-                              dbed_min, dbed_max, "%5.2f")) {
+    if (m_imgui->slider_float(_L("Spacing from bed"), 
+                              &settings.d_bed,
+                              dbed_min,
+                              dbed_max,
+                              "%5.2f")) {
         settings.d_bed = std::max(dbed_min, settings.d_bed);
         m_db.set_distance_from_bed(settings.d_bed);
     }
