@@ -502,6 +502,7 @@ private:
     wxGLContext* m_context;
     SceneRaycaster m_scene_raycaster;
     Bed3D &m_bed;
+    int m_last_active_bed_id{ -1 };
 #if ENABLE_RETINA_GL
     std::unique_ptr<RetinaHelper> m_retina_helper;
 #endif

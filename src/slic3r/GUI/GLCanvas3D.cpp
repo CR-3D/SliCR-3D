@@ -2024,8 +2024,10 @@ void GLCanvas3D::allow_multisample(bool allow)
 void GLCanvas3D::zoom_to_bed()
 {
     BoundingBoxf3 box = m_bed.build_volume().bounding_volume();
+    box.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
     box.min.z() = 0.0;
     box.max.z() = 0.0;
+
     _zoom_to_box(box);
 }
 
@@ -2116,6 +2118,14 @@ void GLCanvas3D::render()
     }
 
     camera.apply_projection(_max_bounding_box(true, true));
+
+    const int curr_active_bed_id = s_multiple_beds.get_active_bed();
+    if (m_last_active_bed_id != curr_active_bed_id) {
+        const Vec3d bed_offset = s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed());
+        const Vec2d bed_center = m_bed.build_volume().bed_center() + Vec2d(bed_offset.x(), bed_offset.y());
+        camera.set_rotation_pivot({ bed_center.x(), bed_center.y(), 0.0f });
+        m_last_active_bed_id = curr_active_bed_id;
+    }
 
     wxGetApp().imgui()->new_frame();
 
@@ -6528,18 +6538,22 @@ void GLCanvas3D::_render_objects(GLVolumeCollection::ERenderType type)
         m_layers_editing.select_object(*m_model, this->is_layers_editing_enabled() ? m_selection.get_object_idx() : -1);
 
     if (const BuildVolume &build_volume = m_bed.build_volume(); build_volume.valid()) {
-        switch (build_volume.type()) {
+      const Vec3d bed_offset = s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed());
+      switch (build_volume.type()) {
         case BuildVolume::Type::Rectangle: {
             const BoundingBox3Base<Vec3d> bed_bb = build_volume.bounding_volume().inflated(BuildVolume::SceneEpsilon);
-            m_volumes.set_print_volume({ 0, // circle
-                { float(bed_bb.min.x()), float(bed_bb.min.y()), float(bed_bb.max.x()), float(bed_bb.max.y()) },
-                { 0.0f, float(build_volume.max_print_height()) } });
+            m_volumes.set_print_volume({ 0, // rectangle
+                { float(bed_bb.min.x() + bed_offset.x()), float(bed_bb.min.y() + bed_offset.y()),
+                  float(bed_bb.max.x() + bed_offset.x()), float(bed_bb.max.y() + bed_offset.y()) },
+                { float(0.0 + bed_offset.z()), float(build_volume.max_print_height() + bed_offset.z()) } });
             break;
         }
         case BuildVolume::Type::Circle: {
-            m_volumes.set_print_volume({ 1, // rectangle
-                { unscaled<float>(build_volume.circle().center.x()), unscaled<float>(build_volume.circle().center.y()), unscaled<float>(build_volume.circle().radius + BuildVolume::SceneEpsilon), 0.0f },
-                { 0.0f, float(build_volume.max_print_height() + BuildVolume::SceneEpsilon) } });
+            m_volumes.set_print_volume({ 1, // circle
+                { unscaled<float>(build_volume.circle().center.x() + bed_offset.x()),
+                  unscaled<float>(build_volume.circle().center.y() + bed_offset.y()),
+                  unscaled<float>(build_volume.circle().radius + BuildVolume::SceneEpsilon), 0.0f },
+                { float(0.0 + bed_offset.z()), float(build_volume.max_print_height() + bed_offset.z() + BuildVolume::SceneEpsilon) } });
             break;
         }
         default:

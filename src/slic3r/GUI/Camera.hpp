@@ -36,6 +36,7 @@ private:
     EType m_type{ EType::Perspective };
     bool m_update_config_on_type_change_enabled{ false };
     Vec3d m_target{ Vec3d::Zero() };
+    Vec3d m_rotation_pivot{ Vec3d::Zero() };
     float m_zenit{ 45.0f };
     double m_zoom{ 1.0 };
     // Distance between camera position and camera target measured along the camera Z axis
@@ -65,6 +66,9 @@ public:
 
     const Vec3d& get_target() const { return m_target; }
     void set_target(const Vec3d& target);
+
+    const Vec3d& get_rotation_pivot() const { return m_rotation_pivot; }
+    void set_rotation_pivot(const Vec3d& pivot) { m_rotation_pivot = pivot; }
 
     double get_distance() const { return (get_position() - m_target).norm(); }
     double get_gui_scale() const { return m_gui_scale; }

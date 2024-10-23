@@ -60,7 +60,10 @@ void Camera::set_target(const Vec3d& target)
     const Vec3d new_displacement = new_target - m_target;
     if (!new_displacement.isApprox(Vec3d::Zero())) {
         m_target = new_target;
-        m_view_matrix.translate(-new_displacement);
+        Transform3d inv_view_matrix = m_view_matrix.inverse();
+        inv_view_matrix.translation() = m_target - m_distance * get_dir_forward();
+        m_view_matrix = inv_view_matrix.inverse();
+        m_rotation_pivot = m_target;
     }
 }
 
@@ -347,11 +350,11 @@ void Camera::rotate_on_sphere(double delta_azimut_rad, double delta_zenit_rad, b
         }
     }
 
-    const Vec3d translation = m_view_matrix.translation() + m_view_rotation * m_target;
+    const Vec3d translation = m_view_matrix.translation() + m_view_rotation * m_rotation_pivot;
     const auto rot_z = Eigen::AngleAxisd(delta_azimut_rad, Vec3d::UnitZ());
     m_view_rotation *= rot_z * Eigen::AngleAxisd(delta_zenit_rad, rot_z.inverse() * get_dir_right());
     m_view_rotation.normalize();
-    m_view_matrix.fromPositionOrientationScale(m_view_rotation * (- m_target) + translation, m_view_rotation, Vec3d(1., 1., 1.));
+    m_view_matrix.fromPositionOrientationScale(m_view_rotation * (-m_rotation_pivot) + translation, m_view_rotation, Vec3d(1., 1., 1.));
 }
 
 // Virtual trackball, rotate around an axis, where the eucledian norm of the axis gives the rotation angle in radians.
@@ -359,11 +362,11 @@ void Camera::rotate_local_around_target(const Vec3d& rotation_rad)
 {
     const double angle = rotation_rad.norm();
     if (std::abs(angle) > EPSILON) {
-        const Vec3d translation = m_view_matrix.translation() + m_view_rotation * m_target;
+        const Vec3d translation = m_view_matrix.translation() + m_view_rotation * m_rotation_pivot;
         const Vec3d axis = m_view_rotation.conjugate() * rotation_rad.normalized();
         m_view_rotation *= Eigen::Quaterniond(Eigen::AngleAxisd(angle, axis));
         m_view_rotation.normalize();
-	    m_view_matrix.fromPositionOrientationScale(m_view_rotation * (-m_target) + translation, m_view_rotation, Vec3d(1., 1., 1.));
+	    m_view_matrix.fromPositionOrientationScale(m_view_rotation * (-m_rotation_pivot) + translation, m_view_rotation, Vec3d(1., 1., 1.));
 	    update_zenit();
 	}
 }
