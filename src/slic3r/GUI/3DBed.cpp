@@ -78,7 +78,6 @@ Bed3D::Bed3D()
             BOOST_LOG_TRIVIAL(warning) << "Fail loading the color file Path: '"<< path_colors.string()<<"'. Reason: " << err.what() ;
         }
     }
-
 }
 
 bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom)
@@ -155,6 +154,231 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
     // Let the calee to update the UI.
     return true;
 }
+
+// Orca: Exclude Areas Rendering
+
+//check whether instance is outside the plate or not
+bool Bed3D::check_outside(int obj_id, int instance_id, BoundingBoxf3* bounding_box)
+{
+	bool outside = true;
+
+	ModelObject* object = m_model->objects[obj_id];
+	ModelInstance* instance = object->instances[instance_id];
+
+	BoundingBoxf3 instance_box = bounding_box? *bounding_box: object->instance_convex_hull_bounding_box(instance_id);
+	Polygon hull = instance->convex_hull_2d();
+	BoundingBoxf3 plate_box = get_plate_box();
+	if (instance_box.max.z() > plate_box.min.z())
+		plate_box.min.z() += instance_box.min.z(); // not considering outsize if sinking
+
+	if (plate_box.contains(instance_box))
+	{
+		if (m_exclude_bounding_box.size() > 0)
+		{
+			Polygon hull = instance->convex_hull_2d();
+			int index;
+			for (index = 0; index < m_exclude_bounding_box.size(); index ++)
+			{
+				Polygon p = m_exclude_bounding_box[index].polygon(true);  // instance convex hull is scaled, so we need to scale here
+				if (intersection({ p }, { hull }).empty() == false)
+				//if (m_exclude_bounding_box[index].intersects(instance_box))
+				{
+					break;
+				}
+			}
+			if (index >= m_exclude_bounding_box.size())
+				outside = false;
+		}
+		else
+			outside = false;
+	}
+
+	return outside;
+}
+
+void Bed3D::render_exclude_area(bool force_default_color) {
+	if (force_default_color) //for thumbnail case
+		return;
+
+	ColorRGBA select_color{ 0.765f, 0.7686f, 0.7686f, 1.0f };
+	ColorRGBA unselect_color{ 0.9f, 0.9f, 0.9f, 1.0f };
+	//ColorRGBA default_color{ 0.9f, 0.9f, 0.9f, 1.0f };
+
+	// draw exclude area
+	glsafe(::glDepthMask(GL_FALSE));
+
+	if (m_selected) {
+		glsafe(::glColor4fv(select_color.data()));
+	}
+	else {
+		glsafe(::glColor4fv(unselect_color.data()));
+	}
+
+	m_exclude_triangles.set_color(m_selected ? select_color : unselect_color);
+    m_exclude_triangles.render();
+	glsafe(::glDepthMask(GL_TRUE));
+}
+
+
+
+void Bed3D::calc_exclude_triangles(const ExPolygon &poly)
+{
+    m_exclude_triangles.reset();
+
+    if (!init_model_from_poly(m_exclude_triangles, poly, GROUND_Z))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ":Unable to create exclude triangles\n";
+}
+
+void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
+{
+	auto compute_exclude_points = [&exclude_polygon](Vec2d& center, double radius, double start_angle, double stop_angle, int count)
+	{
+		double angle_steps;
+		angle_steps = (stop_angle - start_angle) / (count - 1);
+		for(int j = 0; j < count; j++ )
+		{
+			double angle = start_angle + j * angle_steps;
+			double x = center(0) + ::cos(angle) * radius;
+			double y = center(1) + ::sin(angle) * radius;
+			exclude_polygon.contour.append({ scale_(x), scale_(y) });
+		}
+	};
+
+	int points_count = 8;
+	if (m_exclude_area.size() == 4)
+	{
+			//rectangle case
+			for (int i = 0; i < 4; i++)
+			{
+				const Vec2d& p = m_exclude_area[i];
+				Vec2d center;
+				double start_angle, stop_angle, radius;
+				switch (i) {
+					case 0:
+						radius = 5.f;
+						center(0) = p(0) + radius;
+						center(1) = p(1) + radius;
+						start_angle = PI;
+						stop_angle = 1.5 * PI;
+						compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
+						break;
+					case 1:
+						exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+						break;
+					case 2:
+						radius = 3.f;
+						center(0) = p(0) - radius;
+						center(1) = p(1) - radius;
+						start_angle = 0;
+						stop_angle = 0.5 * PI;
+						compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
+						break;
+					case 3:
+						exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+						break;
+				}
+			}
+	}
+	else {
+		for (const Vec2d& p : m_exclude_area) {
+			exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+		}
+	}
+}
+
+bool Bed3D::preprocess_exclude_areas(arrangement::ArrangePolygons& unselected, int num_plates, float inflation) {
+	bool added = false;
+
+	if (m_exclude_areas.size() > 0)
+	{
+		//has exclude areas
+		PartPlate *plate = m_plate_list[0];
+
+		for (int index = 0; index < plate->m_exclude_bounding_box.size(); index ++)
+		{
+			Polygon ap({
+				{scaled(plate->m_exclude_bounding_box[index].min.x()), scaled(plate->m_exclude_bounding_box[index].min.y())},
+				{scaled(plate->m_exclude_bounding_box[index].max.x()), scaled(plate->m_exclude_bounding_box[index].min.y())},
+				{scaled(plate->m_exclude_bounding_box[index].max.x()), scaled(plate->m_exclude_bounding_box[index].max.y())},
+				{scaled(plate->m_exclude_bounding_box[index].min.x()), scaled(plate->m_exclude_bounding_box[index].max.y())}
+				});
+
+			for (int j = 0; j < num_plates; j++)
+			{
+				arrangement::ArrangePolygon ret;
+				ret.poly.contour = ap;
+				ret.translation  = Vec2crd(0, 0);
+				ret.rotation     = 0.0f;
+				ret.is_virt_object = true;
+				ret.bed_idx      = j;
+				ret.height      = 1;
+				ret.name = "ExcludedRegion" + std::to_string(index);
+				ret.inflation = inflation;
+
+				unselected.emplace_back(std::move(ret));
+			}
+			added = true;
+		}
+	}
+
+	return added;
+}
+
+bool Bed3D::set_shape(const Pointfs& shape, const Pointfs& exclude_areas, Vec2d position, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom)
+{
+    Pointfs new_shape, new_exclude_areas;
+	m_raw_shape = shape;
+
+	for (const Vec2d& p : shape) {
+		new_shape.push_back(Vec2d(p.x() + position.x(), p.y() + position.y()));
+	}
+
+	for (const Vec2d& p : exclude_areas) {
+		new_exclude_areas.push_back(Vec2d(p.x() + position.x(), p.y() + position.y()));
+	}
+	if (m_exclude_area == new_exclude_areas) {
+		BOOST_LOG_TRIVIAL(info) << "Plate same shape, skip directly";
+		return false;
+	}
+
+	if (m_exclude_area != new_exclude_areas)
+	{
+		m_exclude_area = std::move(new_exclude_areas);
+
+		calc_bounding_boxes();
+
+		ExPolygon logo_poly;
+		generate_logo_polygon(logo_poly);
+		m_logo_triangles.reset();
+		if (!init_model_from_poly(m_logo_triangles, logo_poly, GROUND_Z + 0.02f))
+			BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ":Unable to create logo triangles\n";
+
+		ExPolygon poly;
+
+		generate_print_polygon(poly);
+		calc_triangles(poly);
+        init_raycaster_from_model(m_triangles);
+
+		ExPolygon exclude_poly;
+
+		generate_exclude_polygon(exclude_poly);
+		calc_exclude_triangles(exclude_poly);
+
+		const BoundingBox& pp_bbox = poly.contour.bounding_box();
+		calc_gridlines(poly, pp_bbox);
+
+		if (m_plater) {
+			// calc vertex for plate name
+			generate_plate_name_texture();
+		}
+	}
+
+	calc_height_limit();
+
+	return true;
+}
+
+
 
 bool Bed3D::contains(const Point& point) const
 {

@@ -11998,6 +11998,28 @@ Points get_bed_shape(const PrintConfig &cfg) { return to_points(cfg.bed_shape.ge
 
 Points get_bed_shape(const SLAPrinterConfig &cfg) { return to_points(cfg.bed_shape.get_values()); }
 
+Polygon get_bed_shape_with_excluded_area(const PrintConfig& cfg)
+{
+    Polygon bed_poly;
+    bed_poly.points = get_bed_shape(cfg);
+
+    Points excluse_area_points = to_points(cfg.bed_shape.get_values());
+    Polygons exclude_polys;
+    Polygon exclude_poly;
+    for (int i = 0; i < excluse_area_points.size(); i++) {
+        auto pt = excluse_area_points[i];
+        exclude_poly.points.emplace_back(pt);
+        if (i % 4 == 3) {  // exclude areas are always rectangle
+            exclude_polys.push_back(exclude_poly);
+            exclude_poly.points.clear();
+        }
+    }
+    auto tmp = diff({ bed_poly }, exclude_polys);
+    if (!tmp.empty()) bed_poly = tmp[0];
+    return bed_poly;
+}
+
+
 std::string get_sla_suptree_prefix(const DynamicPrintConfig &config) {
     const auto *suptreetype = config.option<ConfigOptionEnum<sla::SupportTreeType>>("support_tree_type");
     std::string slatree = "";

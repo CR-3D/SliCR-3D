@@ -50,6 +50,10 @@ private:
     ExPolygon m_contour;
     // Slightly expanded print bed polygon, for collision detection.
     Polygon m_polygon;
+    Pointfs m_exclude_area;
+    Pointfs m_exclude_areas;
+    GLModel m_exclude_triangles;
+
     GLModel m_triangles;
     GLModel m_gridlines;
     GLModel m_gridlines_big;
@@ -76,6 +80,12 @@ public:
     //FIXME if the build volume max print height is updated, this function still returns zero
     // as this class does not use it, thus there is no need to update the UI.
     bool set_shape(const Pointfs& bed_shape, const double max_print_height, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom = false);
+    bool set_shape(const Pointfs& shape, const Pointfs& exclude_areas, Vec2d position, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom);
+    void generate_exclude_polygon(ExPolygon &exclude_polygon);
+    void calc_exclude_triangles(const ExPolygon &poly);
+    void render_exclude_area(bool force_default_color);
+    bool check_outside(int obj_id, int instance_id, BoundingBoxf3* bounding_box);
+    bool preprocess_exclude_areas(arrangement::ArrangePolygons& unselected, int num_plates, float inflation);
 
     // Build volume geometry for various collision detection tasks.
     const BuildVolume& build_volume() const { return m_build_volume; }
@@ -96,6 +106,9 @@ public:
     void render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor, bool show_texture);
     void render_axes();
     void render_for_picking(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor);
+
+    Pointfs get_exclude_area() { return m_exclude_areas; }
+
 
 private:
     // Calculate an extended bounding box from axes and current model for visualization purposes.

@@ -1452,6 +1452,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     if (!wxGetApp().is_editor()) {
         Pointfs bed_shape;
+        Pointfs bed_exclude_area = Pointfs();
         std::string texture;
         std::string model;
 
@@ -1466,8 +1467,15 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
                     texture = PresetUtils::system_printer_bed_texture(*preset);
                 }
             }
+
+            if (!gcode_result.bed_exclude_area.empty())
+                 bed_exclude_area = gcode_result.bed_exclude_area;
+
+            wxGetApp().plater()->set_bed_shape(bed_shape, bed_exclude_area, gcode_result.max_print_height, texture, model, gcode_result.bed_shape.empty());
+
         }
-        else {
+        /*else {
+
             // adjust printbed size in dependence of toolpaths bbox
             const double margin = 10.0;
             const Vec2d min(m_paths_bounding_box.min.x() - margin, m_paths_bounding_box.min.y() - margin);
@@ -1487,9 +1495,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
                 { min.x() + 0.4711325 * size.x(), max.y() + 10.0},
                 { min.x() + 0.442265 * size.x(), max.y()},
                 { min.x(), max.y() } };
-        }
-
-        wxGetApp().plater()->set_bed_shape(bed_shape, gcode_result.max_print_height, texture, model, gcode_result.bed_shape.empty());
+        }*/
     }
 
     m_print_statistics = gcode_result.print_statistics;

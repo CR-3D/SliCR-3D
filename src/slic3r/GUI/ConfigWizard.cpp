@@ -3413,7 +3413,7 @@ ConfigWizard::ConfigWizard(wxWindow *parent)
 
     p->load_vendors();
     p->custom_config.reset(DynamicPrintConfig::new_from_defaults_keys({
-        "gcode_flavor", "bed_shape", "bed_custom_texture", "bed_custom_model", "nozzle_diameter", "filament_diameter", "temperature", "bed_temperature",
+        "gcode_flavor", "bed_shape", "bed_exclude_area", "bed_custom_texture", "bed_custom_model", "nozzle_diameter", "filament_diameter", "temperature", "bed_temperature",
     }));
 
     p->index = new ConfigWizardIndex(this);

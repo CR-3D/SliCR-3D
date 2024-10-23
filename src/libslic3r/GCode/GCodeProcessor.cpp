@@ -478,6 +478,8 @@ void GCodeProcessor::UsedFilaments::process_caches(const GCodeProcessor* process
 void GCodeProcessorResult::reset() {
     moves = std::vector<GCodeProcessorResult::MoveVertex>();
     bed_shape = Pointfs();
+    // Exclude Area Orca
+    bed_exclude_area = Pointfs();
     max_print_height = 0.0f;
     z_offset = 0.0f;
     settings_ids.reset();
@@ -500,6 +502,8 @@ void GCodeProcessorResult::reset() {
     moves.clear();
     lines_ends.clear();
     bed_shape = Pointfs();
+    // Exclude Area Orca
+    bed_exclude_area = Pointfs();
     max_print_height = 0.0f;
     z_offset = 0.0f;
     settings_ids.reset();
@@ -742,6 +746,10 @@ void GCodeProcessor::apply_config(const DynamicPrintConfig& config)
     const ConfigOptionPoints* bed_shape = config.option<ConfigOptionPoints>("bed_shape");
     if (bed_shape != nullptr)
         m_result.bed_shape = bed_shape->get_values();
+
+    const ConfigOptionPoints* bed_exclude_area = config.option<ConfigOptionPoints>("bed_exclude_area");
+    if (bed_exclude_area != nullptr)
+        m_result.bed_exclude_area = bed_exclude_area->get_values();
 
     const ConfigOptionString* print_settings_id = config.option<ConfigOptionString>("print_settings_id");
     if (print_settings_id != nullptr)
