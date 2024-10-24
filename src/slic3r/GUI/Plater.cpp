@@ -5423,14 +5423,12 @@ void Plater::priv::set_bed_shape(const Pointfs&     shape,
         Vec3d min = bed.extended_bounding_box().min;
    // double z = config.opt_float("max_print_height");
 
-    bed.set_shape(shape, 
+    bed.set_shape(shape,
                   exclude_areas, 
                   max_print_height, 
                   custom_texture,
                   custom_model, 
                   force_as_custom);
-
-
 }
 
 bool Plater::priv::can_delete() const
@@ -6129,7 +6127,7 @@ void Plater::load_gcode(const wxString &filename)
         wxEndBusyCursor();
         p->gcode_result.reset();
         reset_gcode_toolpaths();
-        set_default_bed_shape();
+        //set_default_bed_shape();
         p->preview->reload_print(false);
         p->get_current_canvas3D()->render();
         MessageDialog(this, _L("The selected file") + ":\n" + filename + "\n" + _L("does not contain valid gcode."),

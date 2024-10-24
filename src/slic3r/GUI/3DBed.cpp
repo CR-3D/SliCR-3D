@@ -14,6 +14,7 @@
 #include "libslic3r/Geometry/Circle.hpp"
 #include "libslic3r/Tesselate.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Arrange.hpp"
 
 #include "GUI.hpp"
 #include "GUI_App.hpp"
@@ -36,6 +37,13 @@ static const Slic3r::ColorRGBA DEFAULT_MODEL_COLOR             = Slic3r::ColorRG
 static const Slic3r::ColorRGBA PICKING_MODEL_COLOR             = Slic3r::ColorRGBA::BLACK();
 static const Slic3r::ColorRGBA DEFAULT_SOLID_GRID_COLOR        = { 0.9f, 0.9f, 0.9f, 1.0f };
 static const Slic3r::ColorRGBA DEFAULT_TRANSPARENT_GRID_COLOR  = { 0.9f, 0.9f, 0.9f, 0.6f };
+static const Slic3r::ColorRGBA HEIGHT_LIMIT_TOP_COLOR		= { 0.6f, 0.6f, 1.0f, 1.0f };
+static const Slic3r::ColorRGBA HEIGHT_LIMIT_BOTTOM_COLOR	= { 0.4f, 0.4f, 1.0f, 1.0f };
+
+static const float GROUND_Z_GRIDLINE = -0.26f;
+static const float GRABBER_X_FACTOR = 0.20f;
+static const float GRABBER_Y_FACTOR = 0.03f;
+static const float GRABBER_Z_VALUE = 0.5f;
 
 namespace Slic3r {
 namespace GUI {
@@ -44,6 +52,7 @@ Bed3D::Bed3D()
 {
     this->m_model_color = DEFAULT_MODEL_COLOR;
     this->m_grid_color = DEFAULT_TRANSPARENT_GRID_COLOR;
+    m_selected = false;
     {
         //try to load color from ui file
         boost::property_tree::ptree tree_colors;
@@ -79,6 +88,51 @@ Bed3D::Bed3D()
         }
     }
 }
+
+bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z)
+{
+    if (poly.empty())
+        return false;
+
+    const std::vector<Vec2f> triangles = triangulate_expolygon_2f(poly, NORMALS_UP);
+    if (triangles.empty() || triangles.size() % 3 != 0)
+        return false;
+
+    GLModel::Geometry init_data;
+    init_data.format = { GLModel::Geometry::EPrimitiveType::Triangles, GLModel::Geometry::EVertexLayout::P3T2 };
+    init_data.reserve_vertices(triangles.size());
+    init_data.reserve_indices(triangles.size() / 3);
+
+    Vec2f min = triangles.front();
+    Vec2f max = min;
+    for (const Vec2f &v : triangles) {
+        min = min.cwiseMin(v).eval();
+        max = max.cwiseMax(v).eval();
+    }
+
+    const Vec2f size = max - min;
+    if (size.x() <= 0.0f || size.y() <= 0.0f)
+        return false;
+
+    Vec2f inv_size = size.cwiseInverse();
+    inv_size.y() *= -1.0f;
+
+    // vertices + indices
+    unsigned int vertices_counter = 0;
+    for (const Vec2f &v : triangles) {
+        const Vec3f p = {v.x(), v.y(), z};
+        init_data.add_vertex(p, (Vec2f)(v - min).cwiseProduct(inv_size).eval());
+        ++vertices_counter;
+        if (vertices_counter % 3 == 0)
+            init_data.add_triangle(vertices_counter - 3, vertices_counter - 2, vertices_counter - 1);
+    }
+
+    model.init_from(std::move(init_data));
+
+    return true;
+}
+
+
 
 bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom)
 {
@@ -161,13 +215,15 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
 bool Bed3D::check_outside(int obj_id, int instance_id, BoundingBoxf3* bounding_box)
 {
 	bool outside = true;
-
-	ModelObject* object = m_model->objects[obj_id];
+ 
+ Model& model = wxGetApp().plater_->model();
+ ModelObject* object = model.objects[obj_id];
 	ModelInstance* instance = object->instances[instance_id];
 
 	BoundingBoxf3 instance_box = bounding_box? *bounding_box: object->instance_convex_hull_bounding_box(instance_id);
 	Polygon hull = instance->convex_hull_2d();
 	BoundingBoxf3 plate_box = get_plate_box();
+   
 	if (instance_box.max.z() > plate_box.min.z())
 		plate_box.min.z() += instance_box.min.z(); // not considering outsize if sinking
 
@@ -181,7 +237,6 @@ bool Bed3D::check_outside(int obj_id, int instance_id, BoundingBoxf3* bounding_b
 			{
 				Polygon p = m_exclude_bounding_box[index].polygon(true);  // instance convex hull is scaled, so we need to scale here
 				if (intersection({ p }, { hull }).empty() == false)
-				//if (m_exclude_bounding_box[index].intersects(instance_box))
 				{
 					break;
 				}
@@ -218,8 +273,6 @@ void Bed3D::render_exclude_area(bool force_default_color) {
     m_exclude_triangles.render();
 	glsafe(::glDepthMask(GL_TRUE));
 }
-
-
 
 void Bed3D::calc_exclude_triangles(const ExPolygon &poly)
 {
@@ -286,37 +339,34 @@ void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
 	}
 }
 
-bool Bed3D::preprocess_exclude_areas(arrangement::ArrangePolygons& unselected, int num_plates, float inflation) {
+bool Bed3D::preprocess_exclude_areas(arrangement::ArrangePolygons& unselected, float inflation) {
 	bool added = false;
 
 	if (m_exclude_areas.size() > 0)
 	{
 		//has exclude areas
-		PartPlate *plate = m_plate_list[0];
+ // Plater *plate = wxGetApp().plater_;
 
-		for (int index = 0; index < plate->m_exclude_bounding_box.size(); index ++)
+		for (int index = 0; index < this->m_exclude_bounding_box.size(); index ++)
 		{
 			Polygon ap({
-				{scaled(plate->m_exclude_bounding_box[index].min.x()), scaled(plate->m_exclude_bounding_box[index].min.y())},
-				{scaled(plate->m_exclude_bounding_box[index].max.x()), scaled(plate->m_exclude_bounding_box[index].min.y())},
-				{scaled(plate->m_exclude_bounding_box[index].max.x()), scaled(plate->m_exclude_bounding_box[index].max.y())},
-				{scaled(plate->m_exclude_bounding_box[index].min.x()), scaled(plate->m_exclude_bounding_box[index].max.y())}
+				{scaled(this->m_exclude_bounding_box[index].min.x()), scaled(this->m_exclude_bounding_box[index].min.y())},
+				{scaled(this->m_exclude_bounding_box[index].max.x()), scaled(this->m_exclude_bounding_box[index].min.y())},
+				{scaled(this->m_exclude_bounding_box[index].max.x()), scaled(this->m_exclude_bounding_box[index].max.y())},
+				{scaled(this->m_exclude_bounding_box[index].min.x()), scaled(this->m_exclude_bounding_box[index].max.y())}
 				});
 
-			for (int j = 0; j < num_plates; j++)
-			{
 				arrangement::ArrangePolygon ret;
 				ret.poly.contour = ap;
 				ret.translation  = Vec2crd(0, 0);
 				ret.rotation     = 0.0f;
 				ret.is_virt_object = true;
-				ret.bed_idx      = j;
 				ret.height      = 1;
 				ret.name = "ExcludedRegion" + std::to_string(index);
 				ret.inflation = inflation;
 
 				unselected.emplace_back(std::move(ret));
-			}
+
 			added = true;
 		}
 	}
@@ -324,18 +374,16 @@ bool Bed3D::preprocess_exclude_areas(arrangement::ArrangePolygons& unselected, i
 	return added;
 }
 
-bool Bed3D::set_shape(const Pointfs& shape, const Pointfs& exclude_areas, Vec2d position, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom)
+bool Bed3D::set_shape(const Pointfs& shape,
+                   const Pointfs& exclude_areas,
+                   const double max_print_height,
+                   const std::string& custom_texture,
+                   const std::string& custom_model,
+                   bool force_as_custom)
 {
     Pointfs new_shape, new_exclude_areas;
 	m_raw_shape = shape;
 
-	for (const Vec2d& p : shape) {
-		new_shape.push_back(Vec2d(p.x() + position.x(), p.y() + position.y()));
-	}
-
-	for (const Vec2d& p : exclude_areas) {
-		new_exclude_areas.push_back(Vec2d(p.x() + position.x(), p.y() + position.y()));
-	}
 	if (m_exclude_area == new_exclude_areas) {
 		BOOST_LOG_TRIVIAL(info) << "Plate same shape, skip directly";
 		return false;
@@ -349,15 +397,11 @@ bool Bed3D::set_shape(const Pointfs& shape, const Pointfs& exclude_areas, Vec2d 
 
 		ExPolygon logo_poly;
 		generate_logo_polygon(logo_poly);
-		m_logo_triangles.reset();
-		if (!init_model_from_poly(m_logo_triangles, logo_poly, GROUND_Z + 0.02f))
-			BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ":Unable to create logo triangles\n";
 
 		ExPolygon poly;
 
 		generate_print_polygon(poly);
 		calc_triangles(poly);
-        init_raycaster_from_model(m_triangles);
 
 		ExPolygon exclude_poly;
 
@@ -366,16 +410,230 @@ bool Bed3D::set_shape(const Pointfs& shape, const Pointfs& exclude_areas, Vec2d 
 
 		const BoundingBox& pp_bbox = poly.contour.bounding_box();
 		calc_gridlines(poly, pp_bbox);
-
-		if (m_plater) {
-			// calc vertex for plate name
-			generate_plate_name_texture();
-		}
 	}
 
 	calc_height_limit();
 
 	return true;
+}
+
+void Bed3D::calc_triangles(const ExPolygon &poly)
+{
+    m_triangles.reset();
+
+    if (!init_model_from_poly(m_triangles, poly, GROUND_Z))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ":Unable to create plate triangles\n";
+}
+
+void Bed3D::render_height_limit(Bed3D::HeightLimitMode mode)
+{
+/*
+	if (m_print && m_print->config().print_sequence == PrintSequence::ByObject && mode != HEIGHT_LIMIT_NONE)
+	{
+		// draw lower limit
+		glsafe(::glLineWidth(3.0f * m_scale_factor));
+        m_height_limit_common.set_color(HEIGHT_LIMIT_BOTTOM_COLOR);
+        m_height_limit_common.render();
+
+		if ((mode == HEIGHT_LIMIT_BOTTOM) || (mode == HEIGHT_LIMIT_BOTH)) {
+			glsafe(::glLineWidth(3.0f * m_scale_factor));
+            m_height_limit_bottom.set_color(HEIGHT_LIMIT_BOTTOM_COLOR);
+            m_height_limit_bottom.render();
+		}
+
+		// draw upper limit
+		if ((mode == HEIGHT_LIMIT_TOP) || (mode == HEIGHT_LIMIT_BOTH)){
+            glsafe(::glLineWidth(3.0f * m_scale_factor));
+            m_height_limit_top.set_color(HEIGHT_LIMIT_TOP_COLOR);
+            m_height_limit_top.render();
+		}
+	}
+ */
+}
+
+void Bed3D::calc_height_limit() {
+    m_height_limit_common.reset();
+    m_height_limit_bottom.reset();
+    m_height_limit_top.reset();
+/*
+	Lines3 bottom_h_lines, top_lines, top_h_lines, common_lines;
+	int shape_count = m_shape.size();
+	float first_z = 0.02f;
+	for (int i = 0; i < shape_count; i++) {
+		auto &cur_p = m_shape[i];
+		Vec3crd p1(scale_(cur_p.x()), scale_(cur_p.y()), scale_(first_z));
+		Vec3crd p2(scale_(cur_p.x()), scale_(cur_p.y()), scale_(m_height_to_rod));
+		Vec3crd p3(scale_(cur_p.x()), scale_(cur_p.y()), scale_(m_height_to_lid));
+
+		common_lines.emplace_back(p1, p2);
+		top_lines.emplace_back(p2, p3);
+
+		Vec2d next_p;
+		if (i < (shape_count - 1)) {
+			next_p = m_shape[i+1];
+
+		}
+		else {
+			next_p = m_shape[0];
+		}
+		Vec3crd p4(scale_(cur_p.x()), scale_(cur_p.y()), scale_(m_height_to_rod));
+		Vec3crd p5(scale_(next_p.x()), scale_(next_p.y()), scale_(m_height_to_rod));
+		bottom_h_lines.emplace_back(p4, p5);
+
+		Vec3crd p6(scale_(cur_p.x()), scale_(cur_p.y()), scale_(m_height_to_lid));
+		Vec3crd p7(scale_(next_p.x()), scale_(next_p.y()), scale_(m_height_to_lid));
+		top_h_lines.emplace_back(p6, p7);
+	}
+	//std::copy(bottom_lines.begin(), bottom_lines.end(), std::back_inserter(bottom_h_lines));
+	std::copy(top_lines.begin(), top_lines.end(), std::back_inserter(top_h_lines));
+
+	if (!init_model_from_lines(m_height_limit_common, common_lines))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Unable to create height limit bottom lines\n";
+
+	if (!init_model_from_lines(m_height_limit_bottom, bottom_h_lines))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Unable to create height limit bottom lines\n";
+
+	if (!init_model_from_lines(m_height_limit_top, top_h_lines))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Unable to create height limit top lines\n";
+  */
+}
+
+void Bed3D::calc_gridlines(const ExPolygon& poly, const BoundingBox& pp_bbox) {
+    m_gridlines.reset();
+    m_gridlines_bolder.reset();
+
+	Polylines axes_lines, axes_lines_bolder;
+	int count = 0;
+	int step  = 10;
+	// Orca: use 500 x 500 bed size as baseline.
+    const Point grid_counts = pp_bbox.size() / ((coord_t) scale_(step * 50));
+    // if the grid is too dense, we increase the step
+    if (grid_counts.minCoeff() > 1) {
+        step = static_cast<int>(grid_counts.minCoeff() + 1) * 10;
+    }
+    for (coord_t x = pp_bbox.min(0); x <= pp_bbox.max(0); x += scale_(step)) {
+		Polyline line;
+		line.append(Point(x, pp_bbox.min(1)));
+		line.append(Point(x, pp_bbox.max(1)));
+
+		if ( (count % 5) == 0 )
+			axes_lines_bolder.push_back(line);
+		else
+			axes_lines.push_back(line);
+		count ++;
+	}
+	count = 0;
+	for (coord_t y = pp_bbox.min(1); y <= pp_bbox.max(1); y += scale_(step)) {
+		Polyline line;
+		line.append(Point(pp_bbox.min(0), y));
+		line.append(Point(pp_bbox.max(0), y));
+		axes_lines.push_back(line);
+
+		if ( (count % 5) == 0 )
+			axes_lines_bolder.push_back(line);
+		else
+			axes_lines.push_back(line);
+		count ++;
+	}
+
+	// clip with a slightly grown expolygon because our lines lay on the contours and may get erroneously clipped
+	Lines gridlines = to_lines(intersection_pl(axes_lines, offset(poly, (float)SCALED_EPSILON)));
+	Lines gridlines_bolder = to_lines(intersection_pl(axes_lines_bolder, offset(poly, (float)SCALED_EPSILON)));
+
+	// append bed contours
+	Lines contour_lines = to_lines(poly);
+	std::copy(contour_lines.begin(), contour_lines.end(), std::back_inserter(gridlines));
+
+/*
+	if (!init_model_from_lines(m_gridlines, gridlines, GROUND_Z_GRIDLINE))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Unable to create bed grid lines\n";
+
+	if (!init_model_from_lines(m_gridlines_bolder, gridlines_bolder, GROUND_Z_GRIDLINE))
+		BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Unable to create bed grid lines\n";
+  */
+  
+}
+
+void Bed3D::generate_print_polygon(ExPolygon &print_polygon)
+{
+	auto compute_points = [&print_polygon](Vec2d& center, double radius, double start_angle, double stop_angle, int count)
+	{
+		double angle_steps;
+		angle_steps = (stop_angle - start_angle) / (count - 1);
+		for(int j = 0; j < count; j++ )
+		{
+			double angle = start_angle + j * angle_steps;
+			double x = center(0) + ::cos(angle) * radius;
+			double y = center(1) + ::sin(angle) * radius;
+			print_polygon.contour.append({ scale_(x), scale_(y) });
+		}
+	};
+}
+
+
+void Bed3D::generate_logo_polygon(ExPolygon &logo_polygon)
+{
+	if (m_shape.size() == 4)
+	{
+        bool is_bbl_vendor = false;
+
+        //rectangle case
+		for (int i = 0; i < 4; i++)
+		{
+			const Vec2d& p = m_shape[i];
+			if ((i  == 0) || (i  == 1)) {
+                logo_polygon.contour.append({scale_(p(0)), scale_(is_bbl_vendor ? p(1) - 12.f : p(1))});
+            }
+			else {
+				logo_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+			}
+		}
+	}
+	else {
+		for (const Vec2d& p : m_shape) {
+			logo_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+		}
+	}
+}
+
+void Bed3D::calc_bounding_boxes() const {
+	BoundingBoxf3* bounding_box = const_cast<BoundingBoxf3*>(&m_bounding_box);
+	*bounding_box = BoundingBoxf3();
+   
+	for (const Vec2d& p : m_shape) {
+		bounding_box->merge({ p(0), p(1), 0.0 });
+	}
+
+	BoundingBoxf3* extended_bounding_box = const_cast<BoundingBoxf3*>(&m_extended_bounding_box);
+	*extended_bounding_box = m_bounding_box;
+
+	double half_x = bounding_box->size().x() * GRABBER_X_FACTOR;
+	double half_y = bounding_box->size().y() * 1.0f * GRABBER_Y_FACTOR;
+	double half_z = GRABBER_Z_VALUE;
+	Vec3d center(bounding_box->center().x(), bounding_box->min(1) -half_y, GROUND_Z);
+	m_grabber_box.min = Vec3d(center.x() - half_x, center.y() - half_y, center.z() - half_z);
+	m_grabber_box.max = Vec3d(center.x() + half_x, center.y() + half_y, center.z() + half_z);
+	m_grabber_box.defined = true;
+	extended_bounding_box->merge(m_grabber_box);
+
+    //calc exclude area bounding box
+    m_exclude_bounding_box.clear();
+    BoundingBoxf3 exclude_bb;
+    for (int index = 0; index < m_exclude_area.size(); index ++) {
+		const Vec2d& p = m_exclude_area[index];
+
+		if (index % 4 == 0)
+			exclude_bb = BoundingBoxf3();
+
+		exclude_bb.merge({ p(0), p(1), 0.0 });
+
+		if (index % 4 == 3)
+		{
+			exclude_bb.max(2) = m_depth;
+			exclude_bb.min(2) = GROUND_Z;
+			m_exclude_bounding_box.emplace_back(exclude_bb);
+		}
+	}
 }
 
 
@@ -653,9 +911,11 @@ void Bed3D::render_grid(bool bottom, bool has_model)
 
 void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture)
 {
-    if (!bottom)
+    if (!bottom) {
         render_model(view_matrix, projection_matrix);
-
+        render_exclude_area(false);
+    }
+   
     if (show_texture)
         render_texture(bottom, canvas, view_matrix, projection_matrix);
     else if (bottom)
@@ -824,9 +1084,11 @@ void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, co
         return;
     }
 
-    if (!bottom)
+    if (!bottom) {
         render_model(view_matrix, projection_matrix);
-
+        render_exclude_area(false);
+      }
+      
     if (show_texture)
         render_texture(bottom, canvas, view_matrix, projection_matrix);
     else if (bottom)

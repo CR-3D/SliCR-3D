@@ -111,6 +111,8 @@ template void BoundingBoxBase<Point, Points>::merge(const BoundingBoxBase<Point,
 template void BoundingBoxBase<Vec2f>::merge(const BoundingBoxBase<Vec2f> &bb);
 template void BoundingBoxBase<Vec2d>::merge(const BoundingBoxBase<Vec2d> &bb);
 
+
+
 template <class PointClass, typename APointsType>
 bool BoundingBoxBase<PointClass, APointsType>::cross(const Line &line) const
 {
@@ -178,6 +180,29 @@ BoundingBox3Base<PointType>::merge(const PointType &point)
 }
 template void BoundingBox3Base<Vec3f>::merge(const Vec3f &point);
 template void BoundingBox3Base<Vec3d>::merge(const Vec3d &point);
+
+//BBS
+template <class PointClass>
+Polygon BoundingBox3Base<PointClass>::polygon(bool is_scaled) const
+{
+    Polygon polygon;
+    polygon.points.clear();
+    polygon.points.resize(4);
+    double scale_factor = 1 / (is_scaled ? SCALING_FACTOR : 1);
+    polygon.points[0](0) = this->min(0) * scale_factor;
+    polygon.points[0](1) = this->min(1) * scale_factor;
+    polygon.points[1](0) = this->max(0) * scale_factor;
+    polygon.points[1](1) = this->min(1) * scale_factor;
+    polygon.points[2](0) = this->max(0) * scale_factor;
+    polygon.points[2](1) = this->max(1) * scale_factor;
+    polygon.points[3](0) = this->min(0) * scale_factor;
+    polygon.points[3](1) = this->max(1) * scale_factor;
+    return polygon;
+}
+template Polygon BoundingBox3Base<Vec3f>::polygon(bool is_scaled) const;
+template Polygon BoundingBox3Base<Vec3d>::polygon(bool is_scaled) const;
+
+
 
 template <class PointType> void
 BoundingBox3Base<PointType>::merge(const PointsType &points)

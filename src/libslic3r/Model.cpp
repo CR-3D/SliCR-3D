@@ -715,6 +715,24 @@ ModelObject& ModelObject::assign_copy(const ModelObject &rhs)
     return *this;
 }
 
+//BBS: add convex bounding box
+BoundingBoxf3 ModelObject::instance_convex_hull_bounding_box(size_t instance_idx, bool dont_translate) const
+{
+    return instance_convex_hull_bounding_box(this->instances[instance_idx], dont_translate);
+}
+
+BoundingBoxf3 ModelObject::instance_convex_hull_bounding_box(const ModelInstance* instance, bool dont_translate) const
+{
+    BoundingBoxf3 bb;
+    const Transform3d inst_matrix = dont_translate ? instance->get_transformation().get_matrix_no_offset() :
+                                                     instance->get_transformation().get_matrix();
+    for (ModelVolume* v : this->volumes) {
+        if (v->is_model_part())
+            bb.merge(v->get_convex_hull().transformed_bounding_box(inst_matrix * v->get_matrix()));
+    }
+    return bb;
+}
+
 // maintains the m_model pointer
 ModelObject& ModelObject::assign_copy(ModelObject &&rhs)
 {
@@ -1138,6 +1156,23 @@ BoundingBoxf3 ModelObject::instance_bounding_box(const ModelInstance & instance,
             bb.merge(v->mesh().transformed_bounding_box(inst_matrix * v->get_matrix()));
     }
     return bb;
+}
+
+//BBS: instance's convex_hull_2d
+Polygon ModelInstance::convex_hull_2d()
+{
+    { // this logic is not working right now, as moving instance doesn't update convex_hull
+        const Transform3d& trafo_instance = get_matrix();
+        convex_hull = get_object()->convex_hull_2d(trafo_instance);
+    }
+ 
+    return convex_hull;
+}
+
+//BBS: invalidate instance's convex_hull_2d
+void ModelInstance::invalidate_convex_hull_2d()
+{
+    convex_hull.clear();
 }
 
 // Calculate 2D convex hull of of a projection of the transformed printable volumes into the XY plane.

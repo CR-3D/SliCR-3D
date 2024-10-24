@@ -465,7 +465,7 @@ public:
                        const std::string &custom_model,
                        bool force_as_custom = false) const;
 
-    void set_default_bed_shape() const;
+    //void set_default_bed_shape() const;
 
     NotificationManager * get_notification_manager();
     const NotificationManager * get_notification_manager() const;

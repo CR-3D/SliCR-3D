@@ -2,6 +2,7 @@
 page:General:printer
 group:Size and coordinates
 	bed_shape
+	setting:bed_exclude_area
 	line:Build Volume
 		setting:max_print_height
 		setting:init_z_rotate

@@ -125,6 +125,8 @@ public:
         : BoundingBox3Base(points.begin(), points.end())
     {}
 
+    Polygon polygon(bool is_scaled = false) const;//BBS: 2D footprint polygon
+    
     void merge(const PointType &point);
     void merge(const PointsType &points);
     void merge(const BoundingBox3Base<PointType> &bb);

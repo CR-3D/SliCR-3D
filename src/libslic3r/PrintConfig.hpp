@@ -1805,6 +1805,7 @@ bool is_XL_printer(const PrintConfig &cfg);
 Points get_bed_shape(const DynamicPrintConfig &cfg);
 Points get_bed_shape(const PrintConfig &cfg);
 Points get_bed_shape(const SLAPrinterConfig &cfg);
+//Polygon get_bed_shape_with_excluded_area(const PrintConfig& cfg);
 
 std::string get_sla_suptree_prefix(const DynamicPrintConfig &config);
 

@@ -417,6 +417,10 @@ public:
     void                    delete_last_instance();
     void                    clear_instances();
 
+    //BBS: add instance convex hull bounding box
+    BoundingBoxf3 instance_convex_hull_bounding_box(size_t instance_idx, bool dont_translate = false) const;
+    BoundingBoxf3 instance_convex_hull_bounding_box(const ModelInstance* instance, bool dont_translate = false) const;
+    Polygon convex_hull_2d(const Transform3d& trafo_instance) const;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
     // Returns the bounding box of the transformed instances. This bounding box is approximate and not snug, it is being cached.
     const BoundingBoxf3&    bounding_box_approx() const;
     // Returns an exact bounding box of the transformed instances. The result it is being cached.
@@ -457,7 +461,7 @@ public:
     // Calculate 2D convex hull of of a projection of the transformed printable volumes into the XY plane.
     // This method is cheap in that it does not make any unnecessary copy of the volume meshes.
     // This method is used by the auto arrange function.
-    Polygon       convex_hull_2d(const Transform3d &trafo_instance) const;
+   // Polygon       convex_hull_2d(const Transform3d &trafo_instance) const;
 
     void center_around_origin(bool include_modifiers = true);
     void ensure_on_bed(bool allow_negative_z = false);
@@ -1178,6 +1182,8 @@ public:
     
     void set_mirror(const Vec3d& mirror) { m_transformation.set_mirror(mirror); }
     void set_mirror(Axis axis, double mirror) { m_transformation.set_mirror(axis, mirror); }
+    Polygon convex_hull_2d();
+    void invalidate_convex_hull_2d();
 
     // To be called on an external mesh
     void transform_mesh(TriangleMesh* mesh, bool dont_translate = false) const;
@@ -1210,6 +1216,7 @@ protected:
 private:
     // Parent object, owning this instance.
     ModelObject* object;
+    Polygon convex_hull; // BBS
 
     // Constructor, which assigns a new unique ID.
     explicit ModelInstance(ModelObject* object) : print_volume_state(ModelInstancePVS_Inside), object(object) { assert(this->id().valid()); }

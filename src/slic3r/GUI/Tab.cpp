@@ -990,7 +990,7 @@ void Tab::update_changed_tree_ui()
             bool sys_page = true;
             bool modified_page = false;
             if (page->title() == "General") {
-                std::initializer_list<const char*> optional_keys{ "extruders_count", "bed_shape" };
+                std::initializer_list<const char*> optional_keys{ "extruders_count", "bed_shape", "bed_exclude_area" };
                 for (auto &opt_key : optional_keys) {
                     get_sys_and_mod_flags(opt_key, sys_page, modified_page);
                 }

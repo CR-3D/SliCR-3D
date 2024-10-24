@@ -532,15 +532,6 @@ void PrintConfigDef::init_common_params() {
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionString(""));
 
-    // BBS: add "bed_exclude_area"
-    def = this->add("bed_exclude_area", coPoints);
-    def->label = L("Bed exclude area");
-    def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
-                     "filament during filament change. "
-                     "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
-    def->mode = comAdvanced;
-    def->set_default_value(new ConfigOptionPoints{Vec2d(0, 0), Vec2d(200, 0), Vec2d(200, 200), Vec2d(0, 200)});
-
     def = this->add("printhost_client_cert", coString);
     def->label = L("Client Certificate File");
     def->category = OptionCategory::general;
@@ -1889,6 +1880,17 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionPercents{0});
 
+    // BBS: add "bed_exclude_area"
+    def = this->add("bed_exclude_area", coPoints);
+    def->label = L("Bed exclude area");
+    def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
+                     "filament during filament change. "
+                     "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
+    def->mode = comAdvanced | comExpert;
+    def->category = OptionCategory::general;
+    def->set_default_value(new ConfigOptionPoints{ Vec2d(0, 0) });
+
+
     def = this->add("extrusion_axis", coString);
     def->label = L("Extrusion axis");
     def->category = OptionCategory::extruders;
@@ -2633,6 +2635,8 @@ void PrintConfigDef::init_fff_params() {
                              {"20", "20%"},
                              {"25", "25%"},
                              {"30", "30%"},
+                             {"35", "35%"},
+                             {"40", "40%"},
                              {"45", "45%"},
                              {"50", "50%"},
                              {"55", "55%"},
@@ -12018,7 +12022,6 @@ Polygon get_bed_shape_with_excluded_area(const PrintConfig& cfg)
     if (!tmp.empty()) bed_poly = tmp[0];
     return bed_poly;
 }
-
 
 std::string get_sla_suptree_prefix(const DynamicPrintConfig &config) {
     const auto *suptreetype = config.option<ConfigOptionEnum<sla::SupportTreeType>>("support_tree_type");
