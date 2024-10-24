@@ -2530,6 +2530,9 @@ public:
         // one_string,// it's now the default for vector without any idx. If you want to edit the first value, set the idx to 0
         // Close parameter, string value could be one of the list values.
         select_close,
+        // Vector value, but edited as a single string.
+        one_string,
+
     };
     static bool is_gui_type_enum_open(const GUIType gui_type) 
         { return gui_type == ConfigOptionDef::GUIType::i_enum_open || gui_type == ConfigOptionDef::GUIType::f_enum_open || gui_type == ConfigOptionDef::GUIType::select_open; }

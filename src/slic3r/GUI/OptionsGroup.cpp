@@ -60,6 +60,9 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
     case ConfigOptionDef::GUIType::legend: // StaticText
         m_fields.emplace(id, StaticText::Create<StaticText>(this->ctrl_parent(), opt, id));
         break;
+    case ConfigOptionDef::GUIType::one_string:
+        m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+        break;
     default:
         switch (opt.type) {
             case coFloatOrPercent:
