@@ -541,7 +541,7 @@ void PrintConfigDef::init_common_params() {
                      "filament during filament change. "
                      "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
     def->mode = comAdvanced | comExpert;
-   // def->gui_type = ConfigOptionDef::GUIType::one_string;
+    def->gui_type = ConfigOptionDef::GUIType::one_string;
     def->set_default_value(new ConfigOptionPoints{ Vec2d(0, 0) });
 
     def = this->add("printhost_client_cert", coString);

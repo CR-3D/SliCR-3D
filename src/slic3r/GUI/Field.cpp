@@ -922,8 +922,8 @@ void TextField::get_value_by_opt_type(wxString &str, const bool check_value /* =
                                 wxString y_str = _point.GetNextToken();
                                 if (y_str.ToDouble(&y) && !_point.HasMoreTokens()) {
                                     if (m_opt_id == "bed_exclude_area") {
-                                        if (0 <= x &&  0 <= y) {
-                                            out_values.push_back(Vec2d(x, y));
+                                        if (x >= 0 && y >= 0) {
+                                            out_values.push_back(Vec2d{x, y});
                                             continue;
                                         }
                                     }
@@ -956,6 +956,12 @@ void TextField::get_value_by_opt_type(wxString &str, const bool check_value /* =
                         wxString text_value;
                         show_error(m_parent, format_wxstr(_L("Invalid format. Expected vector format: \"%1%\""),"XxY, XxY, ..." ));
                     }
+                }
+
+                // Convert out_values to wxString if m_opt_id is "bed_exclude_area"
+                if (m_opt_id == "bed_exclude_area") {
+                    wxString out_values_str = get_points_string(out_values);
+                    wxLogMessage("Formatted output: %s", out_values_str); // Example output or use as needed
                 }
 
                 m_value = out_values;
