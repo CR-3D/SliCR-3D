@@ -556,7 +556,8 @@ void Layer::build_up_down_graph(Layer& below, Layer& above)
 
 static inline bool layer_needs_raw_backup(const Layer *layer)
 {
-    return ! (layer->regions().size() == 1 && (layer->id() > 0 || layer->object()->config().first_layer_size_compensation.value == 0));
+    return true;
+    // return ! (layer->regions().size() == 1 && (layer->id() >= layer->object()->config().first_layer_size_compensation_layers.value || layer->object()->config().first_layer_size_compensation.value == 0));
 }
 
 void Layer::backup_untyped_slices()
@@ -606,14 +607,14 @@ void Layer::restore_untyped_slices_no_extra_perimeters()
 //    }
 }
 
-ExPolygons Layer::merged(float offset_scaled) const
+ExPolygons Layer::merged(coordf_t offset_scaled) const
 {
     assert(offset_scaled >= 0.f);
     // If no offset is set, apply EPSILON offset before union, and revert it afterwards.
     float offset_scaled2 = 0;
     if (offset_scaled == 0.f) {
-        offset_scaled  = float(  EPSILON);
-        offset_scaled2 = float(- EPSILON);
+        offset_scaled  = float(  SCALED_EPSILON);
+        offset_scaled2 = float(- SCALED_EPSILON);
     }
     Polygons polygons;
 	for (LayerRegion *layerm : m_regions) {

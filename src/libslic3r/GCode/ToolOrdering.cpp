@@ -6,6 +6,7 @@
 #include "Print.hpp"
 #include "ToolOrdering.hpp"
 #include "Layer.hpp"
+#include "GCode.hpp"
 
 // #define SLIC3R_DEBUG
 
@@ -118,12 +119,57 @@ ToolOrdering::ToolOrdering(const PrintObject &object, uint16_t first_extruder, b
     double max_layer_height = calc_max_layer_height(object.print()->config(), object.config().layer_height);
 
     // Collect extruders required to print the layers.
-    this->collect_extruders(object, std::vector<std::pair<double, uint16_t>>(), std::vector<std::pair<double, uint16_t>>());
+    this->collect_extruders(object, {}, std::vector<std::pair<double, uint16_t>>(), std::vector<std::pair<double, uint16_t>>());
+
+    // Reorder the extruders to minimize tool switches.
+    this->reorder_extruders(first_extruder);
+    
+    // note: wipetower isn't compatible with print_objects_step anyway
+    this->fill_wipe_tower_partitions(object.print()->config(), object.layers().front()->print_z - object.layers().front()->height, max_layer_height);
+
+    this->collect_extruder_statistics(prime_multi_material);
+
+    this->mark_skirt_layers(object.print()->config(), max_layer_height);
+}
+
+// For the use case when some layers of each object is printed separately
+// (print.config().complete_objects is true).
+ToolOrdering::ToolOrdering(const PrintObject &object, const GCode::ObjectsLayerToPrint &layers, uint16_t first_extruder, bool prime_multi_material)
+{
+    if (object.layers().empty() || layers.empty())
+        return;
+
+    // Initialize the print layers for just a single object.
+    double bottom_z = -1;
+    {
+        std::vector<double> zs;
+        zs.reserve(layers.size() * 2);
+        for (auto o_s_layer : layers) {
+            if (o_s_layer.object_layer) {
+                zs.emplace_back(o_s_layer.object_layer->print_z);
+                if (bottom_z < 0 || bottom_z > o_s_layer.object_layer->print_z - o_s_layer.object_layer->height) {
+                    bottom_z = o_s_layer.object_layer->print_z - o_s_layer.object_layer->height;
+                }
+            }
+            if (o_s_layer.support_layer) {
+                zs.emplace_back(o_s_layer.support_layer->print_z);
+                if (bottom_z < 0 || bottom_z > o_s_layer.support_layer->print_z - o_s_layer.support_layer->height) {
+                    bottom_z = o_s_layer.support_layer->print_z - o_s_layer.support_layer->height;
+                }
+            }
+        }
+        this->initialize_layers(zs);
+    }
+    double max_layer_height = calc_max_layer_height(object.print()->config(), object.config().layer_height);
+
+    // Collect extruders required to print the layers.
+    this->collect_extruders(object, layers, std::vector<std::pair<double, uint16_t>>(), std::vector<std::pair<double, uint16_t>>());
 
     // Reorder the extruders to minimize tool switches.
     this->reorder_extruders(first_extruder);
 
-    this->fill_wipe_tower_partitions(object.print()->config(), object.layers().front()->print_z - object.layers().front()->height, max_layer_height);
+    // note: wipetower isn't compatible with print_objects_step anyway
+    this->fill_wipe_tower_partitions(object.print()->config(), bottom_z, max_layer_height);
 
     this->collect_extruder_statistics(prime_multi_material);
 
@@ -188,7 +234,7 @@ ToolOrdering::ToolOrdering(const Print &print, uint16_t first_extruder, bool pri
 
     // Collect extruders required to print the layers.
     for (auto object : print.objects())
-        this->collect_extruders(*object, per_layer_extruder_switches, per_layer_color_changes);
+        this->collect_extruders(*object, {}, per_layer_extruder_switches, per_layer_color_changes);
 
     // Reorder the extruders to minimize tool switches.
     this->reorder_extruders(first_extruder);
@@ -243,13 +289,14 @@ void ToolOrdering::initialize_layers(std::vector<double> &zs)
 // Collect extruders reuqired to print layers.
 void ToolOrdering::collect_extruders(
     const PrintObject                              &object,
+    const GCode::ObjectsLayerToPrint                      &layers,
     const std::vector<std::pair<double, uint16_t>> &per_layer_extruder_switches,
     const std::vector<std::pair<double, uint16_t>> &per_layer_color_changes
 ) {
     // Collect the support extruders.
-    for (auto support_layer : object.support_layers()) {
+    auto collect_support_layer = [&](const SupportLayer* support_layer) {
         if(!support_layer->has_extrusions())
-            continue;
+            return;
         LayerTools   *layer_tools = this->tools_for_layer(support_layer->print_z);
         ExtrusionRole role = support_layer->support_fills.role();
         bool         has_support        = role == ExtrusionRole::Mixed || role == ExtrusionRole::SupportMaterial;
@@ -262,6 +309,17 @@ void ToolOrdering::collect_extruders(
             layer_tools->extruders.push_back(extruder_interface);
         if ((has_support || has_interface) && layer_tools)
             layer_tools->has_support = true;
+    };
+    if (layers.empty()) {
+        for (auto support_layer : object.support_layers()) {
+            collect_support_layer(support_layer);
+        }
+    } else {
+        for (auto object_support_layer : layers) {
+            if (object_support_layer.support_layer) {
+                collect_support_layer(object_support_layer.support_layer);
+            }
+        }
     }
 
     // Extruder overrides are ordered by print_z.
@@ -270,10 +328,10 @@ void ToolOrdering::collect_extruders(
     uint16_t extruder_override = 0;
 
     // Collect the object extruders.
-    for (auto layer : object.layers()) {
+    auto collect_object_layer = [&](const Layer* layer) {
         LayerTools *layer_tools_ptr = this->tools_for_layer(layer->print_z);
         if (!layer_tools_ptr)
-            continue;
+            return;
         LayerTools &layer_tools = *layer_tools_ptr;
 
         // Override extruder with the next 
@@ -337,6 +395,17 @@ void ToolOrdering::collect_extruders(
             }
             if (has_solid_infill || has_infill)
                 layer_tools.has_object = true;
+        }
+    };
+    if (layers.empty()) {
+        for (auto layer : object.layers()) {
+            collect_object_layer(layer);
+        }
+    } else {
+        for (auto object_support_layer : layers) {
+            if (object_support_layer.object_layer) {
+                collect_object_layer(object_support_layer.object_layer);
+            }
         }
     }
 
@@ -691,7 +760,10 @@ const LayerTools* ToolOrdering::tools_for_layer(coordf_t print_z) const
         }
         dist_min = d;
     }
-    assert(dist_min < EPSILON);
+    // no layer found
+    if (dist_min > EPSILON) {
+        return nullptr;
+    }
     return &m_layer_tools[idx_lower_bound];
 }
 

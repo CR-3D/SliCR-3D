@@ -999,6 +999,45 @@ const PrintRegionConfig &PrintObject::default_region_config(const PrintRegionCon
     return from_print;
 }
 
+bool PrintObject::has_brim() const {
+    bool has_brim_volume = false;
+    for (const ModelVolume *volume : this->model_object()->volumes) {
+        if (volume->is_brim_patch()) {
+            has_brim_volume = true;
+        }
+    }
+    return has_brim_volume || ((this->config().brim_width.value > 0 && this->config().brim_width_interior.value > 0)
+        && !this->has_raft());
+}
+
+Polygons PrintObject::get_brim_patch(ModelVolumeType brim_type, const PrintInstance *instance /*= nullptr*/) const {
+    Polygons polys;
+    for (const ModelVolume *v : this->model_object()->volumes) {
+        assert(v);
+        if (v->type() == brim_type) {
+            if (instance == nullptr) {
+                for (const PrintInstance &inst : this->instances()) {
+                    Polygons vol_outline;
+                    auto transl = Transform3d::Identity();
+                    assert(inst.model_instance);
+                    vol_outline = project_mesh(v->mesh().its,
+                                               transl * inst.model_instance->get_matrix() * v->get_matrix(), [] {});
+                    append(polys, vol_outline);
+                }
+            } else {
+                Polygons vol_outline;
+                auto transl = Transform3d::Identity();
+                assert(instance->model_instance);
+                vol_outline = project_mesh(v->mesh().its,
+                                            transl * instance->model_instance->get_matrix() * v->get_matrix(), [] {});
+                append(polys, vol_outline);
+            }
+        }
+    }
+    coord_t scaled_brim_resolution = std::max(SCALED_EPSILON * 10, scale_t(this->print()->config().resolution.value));
+    return ensure_valid(union_(polys), scaled_brim_resolution);
+}
+
 void PrintObject::clear_layers()
 {
     for (Layer *l : m_layers)
@@ -1087,14 +1126,12 @@ bool PrintObject::invalidate_state_by_config_options(
             // Return true if gap-fill speed has changed from zero value to non-zero or from non-zero value to zero.
             auto is_gap_fill_changed_state_due_to_speed = [&opt_key, &old_config, &new_config]() -> bool {
                 if (opt_key == "gap_fill_speed") {
-                
-                    const auto *old_gap_fill_speed = old_config.option<ConfigOptionFloatOrPercent>(opt_key);
-                    const auto *new_gap_fill_speed = new_config.option<ConfigOptionFloatOrPercent>(opt_key);
-                    assert(old_gap_fill_speed && new_gap_fill_speed);
-                    
-                        return (old_gap_fill_speed->value > 0.f && new_gap_fill_speed->value == 0.f) ||
-                               (old_gap_fill_speed->value == 0.f && new_gap_fill_speed->value > 0.f);
-                           }
+                    assert(old_config.option<ConfigOptionFloatOrPercent>(opt_key) && new_config.option<ConfigOptionFloatOrPercent>(opt_key));
+                    const float old_gap_fill_speed = old_config.option(opt_key)->get_float();
+                    const float new_gap_fill_speed = new_config.option(opt_key)->get_float();
+                    return (old_gap_fill_speed > 0.f && new_gap_fill_speed == 0.f) ||
+                           (old_gap_fill_speed == 0.f && new_gap_fill_speed > 0.f);
+                }
                 return false;
             };
 
@@ -1116,6 +1153,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "elephant_foot_min_width" //sla ?
                 || opt_key == "first_layer_size_compensation"
                 || opt_key == "first_layer_size_compensation_layers"
+                || opt_key == "first_layer_size_compensation_no_collapse"
                 || opt_key == "first_layer_height"
                 || opt_key == "hole_size_compensation"
                 || opt_key == "hole_size_threshold"

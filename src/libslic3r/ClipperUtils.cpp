@@ -947,15 +947,42 @@ Polylines _clipper_pl_open(ClipperLib::ClipType clipType, PathsProvider1 &&subje
     scaleClipperPolygons(input_subject);
     scaleClipperPolygons(input_clip);
 
-    //perform y safing : if a line is on the same Y, clipper may not pick the good point.
-    //note: if not enough, next time, add some of the X coordinate (modulo it so it's contained in the scaling part)
+    //perform xy safing : if a line is on the same Y, clipper may not pick the good point.
     for (ClipperLib::Paths* input : { &input_subject, &input_clip }) {
         for (ClipperLib::Path& path : *input) {
+            coord_t lastx = 0;
             coord_t lasty = 0;
             for (ClipperLib::IntPoint& pt : path) {
-                if (lasty == pt.y()) {
-                    pt.y() += 2048;// well below CLIPPER_OFFSET_POWER_OF_2, need also to be high enough that it won't be reduce to 0 if cut near an end
+                {
+                    //add something from the x() to allow points to be equal even if in different collection
+                    ClipperLib::cInt dy = pt.x() & 0xFFFF;
+                    dy ^= ((pt.x()>>16) & 0xFFFF);
+#ifndef CLIPPERLIB_INT32
+                    dy ^= ((pt.x()>>32) & 0xFFFF);
+                    dy ^= ((pt.x()>>48) & 0xFFFF);
+#endif
+                    assert(dy >= 0 && dy <= 0xFFFF);
+                    ClipperLib::cInt dx = pt.y() & 0xFFFF;
+                    dx ^= ((pt.y()>>16) & 0xFFFF);
+#ifndef CLIPPERLIB_INT32
+                    dx ^= ((pt.y()>>32) & 0xFFFF);
+                    dx ^= ((pt.y()>>48) & 0xFFFF);
+#endif
+                    assert(dx >= 0 && dx <= 0xFFFF);
+                    pt.x() += dx;
+                    pt.y() += dy;
                 }
+                //just to be sure
+                if (lastx == pt.x()) {
+                    // this can create artifacts, as two identical point aren't identical anymore.
+                    // But it's better to have a little point returned instead of a wierd result.
+                    // note: it also trigger when x==y, but it's okay
+                    pt.x() += 2048;// well below CLIPPER_OFFSET_POWER_OF_2, need also to be high enough that it won't be reduce to 0 if cut near an end
+                }
+                if (lasty == pt.y()) {
+                    pt.y() += 2048;
+                }
+                lastx = pt.x();
                 lasty = pt.y();
             }
         }

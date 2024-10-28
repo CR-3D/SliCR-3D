@@ -103,8 +103,10 @@ group:Avoid crossing perimeters
 	setting:avoid_crossing_curled_overhangs
 
 group:label_width$12:Overhangs
-	line:Threshold For
-		setting:script:bool:advanced:depends$overhangs_width_speed$overhangs_width:label$_:label_width$0:tooltip$Simple widget to enable/disable the overhangs detection (using 55% and 75% for the two thresholds)\nUse the expert mode to get more detailled widgets:s_overhangs
+	line:Activate (threshold)
+		setting:script:bool:tags$Simple$Advanced$Prusa$SuSi:depends$overhangs_width_speed$overhangs_width:label$_:label_width$0:tooltip$Simple widget to enable/disable the overhangs detection (using 55% and 75% for the two thresholds)\nUse the expert mode to get more detailled widgets:s_overhangs
+		setting:label$for Bridge speed and fan:width$5:sidetext_width$0:overhangs_width_speed
+		setting:label_width$12:label$for Bridge flow:width$5:overhangs_width
 	end_line
 
 	line:Extrusion Direction Reverse On Even 
@@ -269,8 +271,10 @@ group:Modifying slices
 	line:XY Size Compensation
 		setting:label$_:xy_size_compensation
 	end_line
-	line:XY Inner Size Compensation
-		setting:label$_:xy_inner_size_compensation
+	line:XY First layer compensation
+		setting:width$6:first_layer_size_compensation
+		setting:width$6:first_layer_size_compensation_layers
+		setting:first_layer_size_compensation_no_collapse
 	end_line
 
 	line:Vertical Hole Shrinking Size Compensation
@@ -354,7 +358,6 @@ group:Infill
 
 group:Reducing Printing Time
 	setting:infill_every_layers
-	setting:infill_only_where_needed
 	line:Supporting dense layer
 		setting:tags$Advanced$Expert$SuSi:sidetext_width$0:label$_:infill_dense
 		setting:width$20:infill_dense_algo

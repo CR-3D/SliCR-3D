@@ -54,7 +54,6 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
 
     std::string tcr_rotated_gcode = post_process_wipe_tower_moves(tcr, wipe_tower_offset, wipe_tower_rotation);
 
-    gcode += gcodegen.writer().unlift();
     double current_z = gcodegen.writer().get_position().z();
 
     if (z == -1.) // in case no specific z was provided, print at current_z pos
@@ -88,6 +87,8 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
         gcode += gcodegen.writer().travel_to_z(z, "Travel down to the last wipe tower layer.");
         need_unretract = true;
     }
+    //now that we traveld and are ready to unretract, unlift.
+    gcode += gcodegen.writer().unlift();
     // only unretract when travel is finished
     if(need_unretract)
         gcode += gcodegen.unretract();
@@ -144,7 +145,7 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
             });
         // Pass to the wipe cache.
         assert(gcodegen.m_wipe.path().empty());
-        gcodegen.m_wipe.set_path(std::move(path));
+        gcodegen.m_wipe.set_path(std::move(path), false);
     }
 
     // Let the planner know we are traveling between objects.

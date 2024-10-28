@@ -2514,6 +2514,10 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
                                                                                            coordf_t                 scaled_resolution
 )
 {
+#ifdef EXTRA_PERIM_DEBUG_FILES
+    static int iRunst=0;
+    int iRun = iRunst++;
+#endif
     coord_t perimeter_depth = 0;
     if ((perimeter_count > 0)) {
         //max_margin = this->flow(frExternalPerimeter).scaled_width() + this->flow(frPerimeter).scaled_spacing() * (this->region().config().perimeters.value - 1);
@@ -2537,11 +2541,16 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
 
 #ifdef EXTRA_PERIM_DEBUG_FILES
     {
+        static int iInst=0;
         BoundingBox bbox = get_extents(inset_overhang_area);
         bbox.offset(scale_(1.));
-        ::Slic3r::SVG svg(debug_out_path("inset_overhang_area").c_str(), bbox);
-        for (const Line &line : to_lines(inset_anchors)) svg.draw(line, "purple", scale_(0.25));
-        for (const Line &line : to_lines(inset_overhang_area)) svg.draw(line, "red", scale_(0.15));
+        ::Slic3r::SVG svg(debug_out_path("%d_%d_%d_inset_overhang_area", params.layer->id(), iRun, iInst++).c_str(), bbox);
+        svg.draw(infill_area, "grey");
+        svg.draw(union_ex(params.lower_slices_bridge), "green");
+        svg.draw(union_ex(optimized_lower_slices), "teal");
+        svg.draw(to_polylines(overhangs), "orange", scale_(0.3));
+        svg.draw(to_polylines(inset_anchors), "purple", scale_(0.25));
+        svg.draw(to_polylines(inset_overhang_area), "red", scale_(0.2));
         svg.Close();
     }
 #endif
@@ -2573,16 +2582,16 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
 
 #ifdef EXTRA_PERIM_DEBUG_FILES
         {
+            static int iInst=0;
             BoundingBox bbox = get_extents(anchoring_convex_hull);
             bbox.offset(scale_(1.));
-            ::Slic3r::SVG svg(debug_out_path("bridge_check").c_str(), bbox);
-            for (const Line &line : to_lines(perimeter_polygon)) svg.draw(line, "purple", scale_(0.25));
-            for (const Line &line : to_lines(real_overhang)) svg.draw(line, "red", scale_(0.20));
-            for (const Line &line : to_lines(anchoring_convex_hull)) svg.draw(line, "green", scale_(0.15));
-            for (const Line &line : to_lines(anchoring)) svg.draw(line, "yellow", scale_(0.10));
-            for (const Line &line : to_lines(diff_ex(perimeter_polygon, {anchoring_convex_hull}))) svg.draw(line, "black", scale_(0.10));
-            for (const Line &line : to_lines(diff_pl(to_polylines(diff(real_overhang, anchors)), expand(anchors, float(SCALED_EPSILON)))))
-                svg.draw(line, "blue", scale_(0.30));
+            ::Slic3r::SVG svg(debug_out_path("%d_%d_%d_bridge_check", params.layer->id(), iRun, iInst++).c_str(), bbox);
+            svg.draw(to_polylines(perimeter_polygon), "purple", scale_(0.25));
+            svg.draw(to_polylines(real_overhang), "red", scale_(0.20));
+            svg.draw((anchoring_convex_hull.split_at_index(0)), "green", scale_(0.15));
+            svg.draw(to_polylines(anchoring), "yellow", scale_(0.10));
+            svg.draw(to_polylines(diff_ex(perimeter_polygon, {anchoring_convex_hull})), "black", scale_(0.10));
+            svg.draw((diff_pl(to_polylines(diff(real_overhang, anchors)), expand(anchors, float(SCALED_EPSILON)))), "blue", scale_(0.30));
             svg.Close();
         }
 #endif
@@ -2634,11 +2643,12 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
 #ifdef EXTRA_PERIM_DEBUG_FILES
                     BoundingBox bbox = get_extents(perimeter_polygon);
                     bbox.offset(scale_(5.));
-                    ::Slic3r::SVG svg(debug_out_path("perimeter_polygon").c_str(), bbox);
-                    for (const Line &line : to_lines(perimeter_polygon)) svg.draw(line, "blue", scale_(0.25));
-                    for (const Line &line : to_lines(overhang_to_cover)) svg.draw(line, "red", scale_(0.20));
-                    for (const Line &line : to_lines(real_overhang)) svg.draw(line, "green", scale_(0.15));
-                    for (const Line &line : to_lines(anchoring)) svg.draw(line, "yellow", scale_(0.10));
+                    static int iInst=0;
+                    ::Slic3r::SVG svg(debug_out_path("%d_%d_%d_perimeter_polygon", params.layer->id(), iRun, iInst++).c_str(), bbox);
+                    svg.draw(to_polylines(perimeter_polygon), "blue", scale_(0.25));
+                    svg.draw(to_polylines(overhang_to_cover), "red", scale_(0.20));
+                    svg.draw(to_polylines(union_ex(real_overhang)), "green", scale_(0.15));
+                    svg.draw(to_polylines(anchoring), "yellow", scale_(0.10));
                     svg.Close();
 #endif
                     break;
@@ -2652,11 +2662,12 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
 #ifdef EXTRA_PERIM_DEBUG_FILES
             BoundingBox bbox = get_extents(inset_overhang_area);
             bbox.offset(scale_(2.));
-            ::Slic3r::SVG svg(debug_out_path("pre_final").c_str(), bbox);
-            for (const Line &line : to_lines(perimeter_polygon)) svg.draw(line, "blue", scale_(0.05));
-            for (const Line &line : to_lines(anchoring)) svg.draw(line, "green", scale_(0.05));
-            for (const Line &line : to_lines(overhang_to_cover)) svg.draw(line, "yellow", scale_(0.05));
-            for (const Line &line : to_lines(inset_overhang_area_left_unfilled)) svg.draw(line, "red", scale_(0.05));
+            static int iInst=0;
+            ::Slic3r::SVG svg(debug_out_path("%d_%d_%d_pre_final", params.layer->id(), iRun, iInst++).c_str(), bbox);
+            svg.draw(to_polylines(perimeter_polygon), "blue", scale_(0.05));
+            svg.draw(to_polylines(anchoring), "green", scale_(0.05));
+            svg.draw(to_polylines(overhang_to_cover), "yellow", scale_(0.05));
+            svg.draw(to_polylines(inset_overhang_area_left_unfilled), "red", scale_(0.05));
             svg.Close();
 #endif
             overhang_region.erase(std::remove_if(overhang_region.begin(), overhang_region.end(),
@@ -2714,10 +2725,11 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
 #ifdef EXTRA_PERIM_DEBUG_FILES
     BoundingBox bbox = get_extents(inset_overhang_area);
     bbox.offset(scale_(2.));
-    ::Slic3r::SVG svg(debug_out_path(("final" + std::to_string(rand())).c_str()).c_str(), bbox);
-    for (const Line &line : to_lines(inset_overhang_area_left_unfilled)) svg.draw(line, "blue", scale_(0.05));
-    for (const Line &line : to_lines(inset_overhang_area)) svg.draw(line, "green", scale_(0.05));
-    for (const Line &line : to_lines(diff(inset_overhang_area, inset_overhang_area_left_unfilled))) svg.draw(line, "yellow", scale_(0.05));
+    static int iInst=0;
+    ::Slic3r::SVG svg(debug_out_path("%d_%d_%d_final", params.layer->id(), iRun, iInst++).c_str(), bbox);
+    svg.draw(to_polylines(inset_overhang_area_left_unfilled), "blue", scale_(0.05));
+    svg.draw(to_polylines(inset_overhang_area), "green", scale_(0.05));
+    svg.draw(to_polylines(diff(inset_overhang_area, inset_overhang_area_left_unfilled)), "yellow", scale_(0.05));
     svg.Close();
 #endif
     //{
@@ -3277,6 +3289,8 @@ void PerimeterGenerator::process(// Input:
         if (overhang_flow_enabled) {
             min_feature = min_feature == 0 ? overhangs_width_flow / 10 : std::min(min_feature, overhangs_width_flow / 10);
         }
+        // safe value
+        min_feature = std::min(min_feature, this->params.ext_perimeter_flow.scaled_width() / 2);
 
         //flow offset should be greater than speed offset because the flow apply also the speed.
         //check if overhangs_width_speed is low enough to be relevant (if flow is activated)

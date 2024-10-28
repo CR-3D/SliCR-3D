@@ -339,10 +339,8 @@ public:
     // Centering offset of the sliced mesh from the scaled and rotated mesh of the model.
     const Point& 			     center_offset() const  { return m_center_offset; }
 
-    bool                         has_brim() const       {
-        return (this->config().brim_width.value > 0 && this->config().brim_width_interior.value > 0)
-            && ! this->has_raft();
-    }
+    bool                         has_brim() const;
+    Polygons                     get_brim_patch(ModelVolumeType brim_type, const PrintInstance *instance = nullptr) const;
 
     // This is the *total* layer count (including support layers)
     // this value is not supposed to be compared with Layer::id

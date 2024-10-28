@@ -33,20 +33,11 @@ public:
     const Path&     path() const { return m_path; }
     bool            has_path() const { assert(m_path.empty() || m_path.size() > 1); return ! m_path.empty(); }
     void            reset_path() { m_path.clear(); m_offset = Point::Zero(); }
-    void            set_path(const Path &path) {
-        assert(path.empty() || path.size() > 1);
-        this->reset_path(); 
-        if (this->is_enabled() && path.size() > 1) 
-            m_path = path;
-    }
-    void            set_path(Path &&path) {
-        assert(path.empty() || path.size() > 1);
-        this->reset_path(); 
-        if (this->is_enabled() && path.size() > 1)
-            m_path = std::move(path);
-    }
-    void            set_path(const ExtrusionPaths &paths, bool reversed);
+    void            set_path(const Path &path, bool is_loop);
+    void            set_path(Path &&path, bool is_loop);
+    void            set_path(const ExtrusionPaths &paths, bool reversed, bool is_loop);
     void            offset_path(const Point &v) { m_offset += v; }
+    void            set_boundaries(const ExPolygons *slices) { this->boundaries = slices; }
 
     std::string     wipe(GCodeGenerator &gcodegen, bool toolchange);
 
@@ -71,8 +62,11 @@ private:
     // Maximum length of a path to accumulate. Only wipes shorter than this threshold will be requested.
     double  m_wipe_len_max{ 0. };
     Path    m_path;
+    bool    m_path_is_loop{ false };
     // Offset from m_path to the current PrintObject active.
     Point   m_offset{ Point::Zero() };
+    // boundaries of the current region, we can use it to have a wider wipe if needed.
+    const ExPolygons *boundaries;
 };
 
 // Make a little move inwards before leaving loop.

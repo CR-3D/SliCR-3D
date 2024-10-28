@@ -308,6 +308,10 @@ public:
         polyline.append(p);
         z_offsets.push_back(z_offset);
     }
+    void reverse() override {
+        this->polyline.reverse();
+        std::reverse(this->z_offsets.begin(), this->z_offsets.end());
+    }
 
     //TODO: simplify only for points that have the same z-offset
     void simplify(double tolerance, ArcFittingType use_arc_fitting, double fitting_arc_tolerance) override;

@@ -2389,6 +2389,27 @@ MedialAxis::build(ThickPolylines& polylines_out)
     //    std::cout << "\n";
     //}
 
+#if _DEBUG
+        //ensure valid
+        for (size_t i = 0; i < pp.size(); ++i) {
+            assert(pp[i].size() > 1);
+            //pp[i].douglas_peucker(this->m_resolution);
+            auto it_end = Slic3r::douglas_peucker(pp[i].points.begin(), pp[i].points.end(), pp[i].points.begin(), double(this->m_resolution));
+            assert(it_end <= pp[i].points.end());
+            pp[i].points.resize(std::distance(pp[i].points.begin(), it_end));
+            assert(pp[i].size() > 1);
+            if (pp[i].size() == 2 && pp[i].front().coincides_with_epsilon(pp[i].back())) {
+                pp.erase(pp.begin() + i);
+                --i;
+            }
+        }
+    for (auto &poly : pp) {
+        for (size_t idx_pt = 1; idx_pt < poly.size(); ++idx_pt) {
+            assert(!poly.points[idx_pt - 1].coincides_with_epsilon(poly.points[idx_pt]));
+        }
+    }
+#endif
+
     polylines_out.insert(polylines_out.end(), pp.begin(), pp.end());
 
 }

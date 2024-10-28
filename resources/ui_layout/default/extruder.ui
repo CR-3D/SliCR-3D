@@ -71,12 +71,14 @@ group:General Wipe
 	end_line
 
 	setting:idx:wipe_extra_perimeter
-
-	line:Seam Gap
-		setting:idx:label$_:seam_gap
+	line:Wipe lift
+		setting:idx:label$height:wipe_lift
+		setting:idx:label$length:wipe_lift_length
 	end_line
-	line:Seam Gap For External Perimeters
-		setting:idx:label$_:seam_gap_external
+	setting:idx:wipe_min
+	line:Seam gap
+		setting:idx:label$_:sidetext_width$5:seam_gap
+		setting:idx:label$for external perimeters:sidetext_width$5:seam_gap_external
 	end_line
 
 group:Retraction when tool is disabled (advanced settings for multi-extruder setups)

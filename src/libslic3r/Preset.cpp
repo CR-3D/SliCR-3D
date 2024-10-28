@@ -720,6 +720,7 @@ static std::vector<std::string> s_Preset_print_options {
         // compensation
         "first_layer_size_compensation",
         "first_layer_size_compensation_layers",
+        "first_layer_size_compensation_no_collapse",
         "xy_size_compensation",
         "xy_inner_size_compensation",
         "hole_size_compensation",
@@ -856,10 +857,15 @@ static std::vector<std::string> s_Preset_filament_options {
         // "filament_travel_max_lift",
         "filament_travel_ramping_lift",
         "filament_travel_slope",
-        "filament_wipe", "filament_wipe_only_crossing", "filament_wipe_extra_perimeter", "filament_wipe_speed",
+        "filament_wipe",
+        "filament_wipe_extra_perimeter",
+        "filament_wipe_only_crossing", "filament_wipe_speed",
         "filament_wipe_inside_depth",
         "filament_wipe_inside_end",
         "filament_wipe_inside_start",
+        "filament_wipe_lift",
+        "filament_wipe_lift_length",
+        "filament_wipe_min",
         // Profile compatibility
         "filament_vendor", "compatible_prints", "compatible_prints_condition", "compatible_printers", "compatible_printers_condition", "inherits",
         //merill adds

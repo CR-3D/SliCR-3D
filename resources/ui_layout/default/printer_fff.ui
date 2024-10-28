@@ -57,8 +57,9 @@ group:silent_mode_event:filename_format_event:Firmware
 	line:Precision Min Resolution
 		setting:label$_:gcode_min_resolution
 	end_line
-	line:Precision Min Extrusion Length
-		setting:label$_:gcode_min_length
+	line:G2/G3 generation
+		setting:arc_fitting
+		setting:arc_fitting_tolerance
 	end_line
 
 	line:Formatting

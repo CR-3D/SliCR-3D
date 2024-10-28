@@ -1466,48 +1466,43 @@ void PrintObject::slice_volumes()
 	                m_print->throw_if_canceled();
 	                Layer *layer = m_layers[layer_id];
 	                // Apply size compensation and perform clipping of multi-part objects.
-                    float outter_delta = float(scale_(m_config.xy_size_compensation.value));
-                    float inner_delta = float(scale_(m_config.xy_inner_size_compensation.value));
-                    float hole_delta = inner_delta + float(scale_(m_config.hole_size_compensation.value));
+                    coord_t outter_delta = scale_t(m_config.xy_size_compensation.value);
+                    coord_t inner_delta = scale_t(m_config.xy_inner_size_compensation.value);
+                    coord_t hole_delta = inner_delta + scale_t(m_config.hole_size_compensation.value);
                     //FIXME only apply the compensation if no raft is enabled.
-                    float first_layer_compensation = 0.f;
-                    int first_layers = m_config.first_layer_size_compensation_layers.value;
-                    if (layer_id < first_layers && m_config.raft_layers == 0 && m_config.first_layer_size_compensation.value != 0) {
+                    coord_t first_layer_compensation = 0;
+                    const int first_layers = m_config.first_layer_size_compensation_layers.value;
+                    if (layer_id < first_layers && layer_id >= m_config.raft_layers && m_config.first_layer_size_compensation.value != 0) {
                         // Only enable Elephant foot compensation if printing directly on the print bed.
-                        first_layer_compensation = float(scale_(m_config.first_layer_size_compensation.value));
+                        first_layer_compensation = scale_t(m_config.first_layer_size_compensation.value);
                         // reduce first_layer_compensation for every layer over the first one.
-                        first_layer_compensation = (first_layers - layer_id) * first_layer_compensation / float(first_layers);
+                        first_layer_compensation = coord_t( (coordf_t(first_layers - layer_id) * first_layer_compensation) / coordf_t(first_layers));
                         // simplify compensations if possible
-                        if (first_layer_compensation > 0) {
-                            outter_delta += first_layer_compensation;
-                            inner_delta += first_layer_compensation;
-                            hole_delta += first_layer_compensation;
-                            first_layer_compensation = 0;
-                        } else {
-                            float min_delta = std::min(outter_delta, std::min(inner_delta, hole_delta));
-                            if (min_delta > 0) {
-                                if (-first_layer_compensation < min_delta) {
-                                    outter_delta += first_layer_compensation;
-                                    inner_delta += first_layer_compensation;
-                                    hole_delta += first_layer_compensation;
-                                    first_layer_compensation = 0;
-                                } else {
-                                    first_layer_compensation += min_delta;
-                                    outter_delta -= min_delta;
-                                    inner_delta -= min_delta;
-                                    hole_delta -= min_delta;
-                                }
-                            }
-                        }
+                        outter_delta += first_layer_compensation;
+                        inner_delta += first_layer_compensation;
+                        hole_delta += first_layer_compensation;
+                        first_layer_compensation = 0;
+                    }
+                    // preparation to apply the elephant foot compensation: grow what will be shrunk
+                    if (layer_id < first_layers && layer_id >= m_config.raft_layers && m_config.first_layer_size_compensation_no_collapse.value) {
+                        first_layer_compensation = std::min(coord_t(0), std::min(hole_delta, std::min(inner_delta, outter_delta)));
+                        assert(first_layer_compensation <= 0);
+                        //hole_delta -= first_layer_compensation;
+                        //inner_delta -= first_layer_compensation;
+                        //outter_delta -= first_layer_compensation;
+                    } else {
+                        first_layer_compensation = 0;
                     }
                     
                     //remove the upscaling done by the slicing
-                    const float aleady_done_delta = is_mm_painted() ? 0.f : std::max(0.f, std::min(outter_delta, std::min(inner_delta, hole_delta)));
+                    const coord_t aleady_done_delta = is_mm_painted() ? coord_t(0) : std::max(coord_t(0), std::min(outter_delta, std::min(inner_delta, hole_delta)));
                     outter_delta -= aleady_done_delta;
                     inner_delta -= aleady_done_delta;
                     hole_delta -= aleady_done_delta;
-                    //TODO: test it's done for multi-region and not
 
+
+                    coord_t scaled_resolution = std::max(scale_t(m_print->config().resolution), SCALED_EPSILON);
+                    //TODO: test it's done for multi-region and not
 	                if (layer->regions().size() == 1) {
 	                    // Optimized version for a single region layer.
 	                    // Single region, growing or shrinking.
@@ -1516,79 +1511,125 @@ void PrintObject::slice_volumes()
                         ExPolygons expolygons = to_expolygons(std::move(layerm->m_slices.surfaces));
                         // Apply all three main XY compensation.
                         if (hole_delta > 0 || inner_delta > 0 || outter_delta > 0) {
-                            expolygons = _shrink_contour_holes(std::max(0.f, outter_delta), std::max(0.f, inner_delta), std::max(0.f, hole_delta), expolygons);
+                            expolygons = _shrink_contour_holes(std::max(coord_t(0), outter_delta), std::max(coord_t(0), inner_delta), std::max(coord_t(0), hole_delta), expolygons);
                         }
                         // Apply the elephant foot compensation.
-                        if (layer_id < first_layers && first_layer_compensation != 0.f) {
-                            expolygons = union_ex(Slic3r::elephant_foot_compensation(expolygons, layerm->flow(frExternalPerimeter),
-                                unscale<double>(-first_layer_compensation)));
-                        }
-                        // Apply all three main negative XY compensation.
-                        if (hole_delta < 0 || inner_delta < 0 || outter_delta < 0) {
-                            expolygons = _shrink_contour_holes(std::min(0.f, outter_delta), std::min(0.f, inner_delta), std::min(0.f, hole_delta), expolygons);
+                        if (first_layer_compensation < 0) {
+                            ExPolygons trim_first_layer = expolygons;
+                            expolygons = union_ex(Slic3r::elephant_foot_compensation(expolygons, layerm->flow(frExternalPerimeter), unscaled(-first_layer_compensation)));
+                            // regrow
+                            assert(first_layer_compensation <= std::min(hole_delta, std::min(inner_delta, outter_delta)));
+                            expolygons = _shrink_contour_holes(std::min(coord_t(0), outter_delta) - first_layer_compensation, std::min(coord_t(0), inner_delta) - first_layer_compensation, std::min(coord_t(0), hole_delta) - first_layer_compensation, expolygons);
+                            //trim
+                            expolygons = intersection_ex(expolygons, trim_first_layer);
+                        } else if (hole_delta < 0 || inner_delta < 0 || outter_delta < 0) {
+                            // Apply all three main negative XY compensation normally.
+                            expolygons = _shrink_contour_holes(std::min(coord_t(0), outter_delta), std::min(coord_t(0), inner_delta), std::min(coord_t(0), hole_delta), expolygons);
                         }
                         if (layer->regions().front()->region().config().curve_smoothing_precision > 0.f) {
                             //smoothing
                             expolygons = _smooth_curves(expolygons, layer->regions().front()->region().config());
                         }
-                        ensure_valid(expolygons, std::max(scale_t(m_print->config().resolution), SCALED_EPSILON));
+                        ensure_valid(expolygons, scaled_resolution);
                         assert_valid(expolygons);
                         layerm->m_slices.set(std::move(expolygons), stPosInternal | stDensSparse);
                         for(auto &srf : layerm->slices().surfaces) srf.expolygon.assert_valid();
                     } else {
+                        bool same_curve_smoothing = true;
+                        for (size_t region_id = 1; same_curve_smoothing && region_id < layer->regions().size(); ++region_id) {
+                            same_curve_smoothing = layer->regions()[region_id -1]->region().config().curve_smoothing_precision.value == layer->regions()[region_id -1]->region().config().curve_smoothing_precision.value
+                                && layer->regions()[region_id -1]->region().config().curve_smoothing_angle_concave.value == layer->regions()[region_id -1]->region().config().curve_smoothing_angle_concave.value
+                                && layer->regions()[region_id -1]->region().config().curve_smoothing_angle_convex.value == layer->regions()[region_id -1]->region().config().curve_smoothing_angle_convex.value
+                                && layer->regions()[region_id -1]->region().config().curve_smoothing_cutoff_dist.value == layer->regions()[region_id -1]->region().config().curve_smoothing_cutoff_dist.value;
+                        }
 
-                        float max_growth = std::max(hole_delta, std::max(inner_delta, outter_delta));
-                        float min_growth = std::min(hole_delta, std::min(inner_delta, outter_delta));
-                        ExPolygons merged_poly_for_holes_growing;
-                        if (max_growth > 0) {
+                        //growth
+                        if (hole_delta > 0 || inner_delta > 0 || outter_delta > 0) {
                             //merge polygons because region can cut "holes".
                             //then, cut them to give them again later to their region
-                            merged_poly_for_holes_growing = layer->merged(float(SCALED_EPSILON));
-                            merged_poly_for_holes_growing = _shrink_contour_holes(std::max(0.f, outter_delta), std::max(0.f, inner_delta), std::max(0.f, hole_delta), union_ex(merged_poly_for_holes_growing));
-                        }
-                        bool has_curve_smoothing = false;
-                        for (size_t region_id = 0; region_id < layer->regions().size() && !has_curve_smoothing; ++region_id) {
-                            LayerRegion* layerm = layer->regions()[region_id];
-                            has_curve_smoothing = layerm->region().config().curve_smoothing_precision > 0.f;
-                        }
-                        //note: ps has removed that step... (because no more clips?)
-                        if (max_growth > 0 || has_curve_smoothing) {
+                            ExPolygons merged_poly = layer->merged();
+                            ExPolygons trimming = merged_poly;
+                            trimming = _shrink_contour_holes(std::max(coord_t(0), outter_delta), std::max(coord_t(0), inner_delta), std::max(coord_t(0), hole_delta), union_ex(trimming));
                             // Multiple regions, growing or just clipping one region by the other.
                             // When clipping the regions, priority is given to the first regions.
-                            Polygons processed;
+                            if (same_curve_smoothing && layer->regions().front()->region().config().curve_smoothing_precision > 0.) {
+                                trimming = _smooth_curves(trimming, layer->regions().front()->region().config());
+                            }
+                            // trim surfaces
                             for (size_t region_id = 0; region_id < layer->regions().size(); ++region_id) {
                                 LayerRegion* layerm = layer->regions()[region_id];
+                                // get
                                 ExPolygons slices = to_expolygons(std::move(layerm->slices().surfaces));
-                                if (max_growth > 0.f) {
-                                    slices = intersection_ex(offset_ex(slices, max_growth), merged_poly_for_holes_growing);
+                                ExPolygons other_base_slices = diff_ex(merged_poly, slices);
+                                // clip with current growth
+                                coord_t max_growth = 0;
+                                max_growth += std::max(hole_delta, std::max(inner_delta, outter_delta));
+                                if (layerm->region().config().curve_smoothing_precision == 0. || same_curve_smoothing) {
+                                    slices = intersection_ex(offset_ex(slices, max_growth), trimming);
+                                } else {
+                                    //smooth curve
+                                    ExPolygons trimming_smooth_curve = _smooth_curves(trimming, layerm->region().config());
+                                    slices = intersection_ex(offset_ex(slices, max_growth + layerm->region().config().curve_smoothing_precision), trimming_smooth_curve);
                                 }
-                                // Apply the first_layer_compensation if >0.
-                                if (layer_id == 0 && first_layer_compensation > 0)
-                                    slices = offset_ex(std::move(slices), std::max(first_layer_compensation, 0.f));
-                                //smoothing
-                                if (layerm->region().config().curve_smoothing_precision > 0.f)
-                                    slices = _smooth_curves(slices, layerm->region().config());
-                                assert_valid(slices);
+                                // clip with other region areas
+                                slices = diff_ex(slices, other_base_slices);
+                                //store
+                                ensure_valid(slices, scaled_resolution);
                                 layerm->m_slices.set(std::move(slices), stPosInternal | stDensSparse);
                                 for(auto &srf : layerm->slices().surfaces) srf.expolygon.assert_valid();
                             }
                         }
-                        if (min_growth < 0.f || first_layer_compensation != 0.f) {
+                        //shrink
+                        if (hole_delta < 0 || inner_delta < 0 || outter_delta < 0 || first_layer_compensation < 0) {
                             // Apply the negative XY compensation. (the ones that is <0)
+                            ExPolygons merged_poly = layer->merged();
                             ExPolygons trimming;
-                            static const float eps = float(scale_(m_config.slice_closing_radius.value) * 1.5);
-                            if (layer_id < first_layers && first_layer_compensation < 0.f) {
-                                ExPolygons expolygons_first_layer = offset_ex(layer->merged(eps), -eps);
-                                trimming = Slic3r::elephant_foot_compensation(expolygons_first_layer,
-                                    layer->regions().front()->flow(frExternalPerimeter), unscale<double>(-first_layer_compensation));
+                            if (first_layer_compensation < 0) {
+                                const coord_t eps = scale_t(m_config.slice_closing_radius.value * 1.5);
+                                trimming = offset_ex(layer->merged(eps), -eps);
                             } else {
-                                trimming = layer->merged(float(SCALED_EPSILON));
+                                trimming = layer->merged();
                             }
-                            if (min_growth < 0)
-                                trimming = _shrink_contour_holes(std::min(0.f, outter_delta), std::min(0.f, inner_delta), std::min(0.f, hole_delta), trimming);
-                            //trim surfaces
+                            if (first_layer_compensation < 0) {
+                                Flow min_ext_peri_flow = layer->regions().front()->flow(frExternalPerimeter);
+                                for (size_t region_id = 1; region_id < layer->regions().size(); ++region_id) {
+                                    Flow ext_peri_flow = layer->regions()[region_id]->flow(frExternalPerimeter);
+                                    if (ext_peri_flow.width() < min_ext_peri_flow.width()) {
+                                        min_ext_peri_flow = ext_peri_flow;
+                                    }
+                                }
+                                ExPolygons trim_first_layer = trimming;
+                                trimming = union_ex(Slic3r::elephant_foot_compensation(trimming, min_ext_peri_flow, unscaled(-first_layer_compensation)));
+                                // regrow
+                                assert(first_layer_compensation <= std::min(hole_delta, std::min(inner_delta, outter_delta)));
+                                trimming = _shrink_contour_holes(std::min(coord_t(0), outter_delta) - first_layer_compensation, std::min(coord_t(0), inner_delta) - first_layer_compensation, std::min(coord_t(0), hole_delta) - first_layer_compensation, trimming);
+                                //trim
+                                trimming = intersection_ex(trimming, trim_first_layer);
+                            } else if (hole_delta < 0 || inner_delta < 0 || outter_delta < 0) {
+                                trimming = _shrink_contour_holes(std::min(coord_t(0), outter_delta), std::min(coord_t(0), inner_delta), std::min(coord_t(0), hole_delta), trimming);
+                            }
+                            if (same_curve_smoothing && layer->regions().front()->region().config().curve_smoothing_precision > 0.) {
+                                trimming = _smooth_curves(trimming, layer->regions().front()->region().config());
+                            }
+                            // trim surfaces
                             for (size_t region_id = 0; region_id < layer->regions().size(); ++region_id) {
-                                layer->regions()[region_id]->trim_surfaces(to_polygons(trimming));
+                                LayerRegion* layerm = layer->regions()[region_id];
+                                // get
+                                ExPolygons slices = to_expolygons(std::move(layerm->slices().surfaces));
+                                ExPolygons other_base_slices = diff_ex(merged_poly, slices);
+                                // clip
+                                if (layerm->region().config().curve_smoothing_precision == 0. || same_curve_smoothing) {
+                                    slices = intersection_ex(slices, trimming);
+                                }else{
+                                    //smooth curve
+                                    ExPolygons trimming_smooth_curve = _smooth_curves(trimming, layerm->region().config());
+                                    slices = intersection_ex(offset_ex(slices, layerm->region().config().curve_smoothing_precision), trimming_smooth_curve);
+                                }
+                                // clip with other region areas
+                                slices = diff_ex(slices, other_base_slices);
+                                //store
+                                ensure_valid(slices, scaled_resolution);
+                                layerm->m_slices.set(std::move(slices), stPosInternal | stDensSparse);
                             }
                         }
                     }

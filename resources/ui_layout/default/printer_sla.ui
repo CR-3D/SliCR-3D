@@ -39,7 +39,7 @@ group:Exposure
 	setting:min_initial_exposure_time
 	setting:max_initial_exposure_time
 group:Output
-	setting:sla_archive_format
+	setting:output_format
 	setting:sla_output_precision
 group:Output
     setting:output_format

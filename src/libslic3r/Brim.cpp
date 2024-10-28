@@ -898,6 +898,7 @@ void extrude_brim_from_tree(const Print& print, std::vector<std::vector<BrimLoop
                 //children->no_sort = true;
                 for (BrimLoop& child : to_cut.children)
                     (*extrude_ptr)(child, children);
+                DEBUG_VISIT(*children, LoopAssertVisitor())
                 //remove un-needed collection if possible
                 if (children->entities().size() == 1) {
                     print_me_first->append(*children->entities().front());
@@ -907,7 +908,6 @@ void extrude_brim_from_tree(const Print& print, std::vector<std::vector<BrimLoop
                 } else {
                     print_me_first->append(ExtrusionEntitiesPtr{ children });
                 }
-                DEBUG_VISIT(*children, LoopAssertVisitor())
             }
             assert(print_me_first->entities().size() > 0);
         }

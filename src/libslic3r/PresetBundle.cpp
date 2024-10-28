@@ -1475,10 +1475,6 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                         // Throws on parsing error. For system presets, no substituion is being done, but an exception is thrown.
                         t_config_option_key opt_key = kvp.first;
                         std::string value =  kvp.second.data();
-                        if ("gcode_label_objects" == opt_key) {
-                            std::string opt_key2 = kvp.first;
-                            std::string value2   = kvp.second.data();
-                        }
                         PrintConfigDef::handle_legacy(opt_key, value, true);
                         // don't throw for an unknown key, just ignore it
                         if (!opt_key.empty()) {

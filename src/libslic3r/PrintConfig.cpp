@@ -76,7 +76,9 @@ static const t_config_enum_values s_keys_map_PrinterTechnology{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(PrinterTechnology)
 
-static const t_config_enum_values s_keys_map_CompleteObjectSort{
+
+static const t_config_enum_values s_keys_map_CompleteObjectSort {
+    {"nearest", cosNearest},
     {"object", cosObject},
     {"lowy", cosY},
     {"lowz", cosZ},
@@ -1150,12 +1152,14 @@ void PrintConfigDef::init_fff_params() {
         "When printing multiple objects or copies on after another, this will help you to choose how it's ordered."
         "\nObject will sort them by the order of the right panel."
         "\nLowest Y will sort them by their lowest Y point. Useful for printers with a X-bar."
-        "\nLowest Z will sort them by their height, useful for delta printers.");
+        "\nLowest Z will sort them by their height, useful for delta printers."
+        "\nNearest will try to jump to the nearest.");
     def->mode = comAdvancedE | comSuSi;
     def->set_enum<CompleteObjectSort>({
-        {"object", L("Right panel")},
-        {"lowy", L("lowest Y")},
-        {"lowz", L("lowest Z")},
+        { "object", L("Right panel") },
+        { "lowy", L("lowest Y") },
+        { "lowz", L("lowest Z") },
+        { "nearest", L("Nearest") },
     });
     def->set_default_value(new ConfigOptionEnum<CompleteObjectSort>(cosObject));
 
@@ -2605,9 +2609,9 @@ void PrintConfigDef::init_fff_params() {
         " The first layer start with the first angle. If a new pattern is used in a modifier"
         ", it will choose the layer angle from the pattern as if it has started from the first layer."
         "Empty this settings to disable and recover the old behavior.");
-    def->sidetext = L("°");
-    def->min = 0;
-    def->max = 360;
+    def->sidetext   = L("°");
+    def->min        = -360;
+    def->max        = 360;
     def->full_width = true;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloats(0.));
@@ -2725,6 +2729,15 @@ void PrintConfigDef::init_fff_params() {
     def->max = 30;
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionInt(1));
+
+    def = this->add("first_layer_size_compensation_no_collapse", coBool);
+    def->label = L("No collapse");
+    def->full_label = L("XY First layer compensation: no collapse");
+    def->category = OptionCategory::slicing;
+    def->tooltip = L("The compensations won't shrink thin areas below a threshold for the first layer(s)."
+                    "\nThe layer(s) where this is activated depends on the 'first_layer_size_compensation_layers' setting.");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionBool(true));
 
     def = this->add("fill_smooth_width", coFloatOrPercent);
     def->label = L("Width");
@@ -4054,7 +4067,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nSet zero to disable.");
     def->min = 0;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloat(0 /*1500*/));
+    def->set_default_value(new ConfigOptionFloat(0/*1500*/));
 
     def = this->add("max_fan_speed", coInts);
     def->label = L("Max");
@@ -5139,7 +5152,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent(0 /*0.02*/, false));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0/*0.02*/, false));
     def->aliases = {"min_length"};
 
     def = this->add("gcode_min_resolution", coFloatOrPercent);
@@ -7022,6 +7035,17 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionBools{false});
 
+    def = this->add("wipe_extra_perimeter", coFloats);
+    def->category = OptionCategory::extruders;
+    def->label = L("Extra Wipe for external perimeters");
+    def->tooltip = L("When the external perimeter loop extrusion ends, a wipe is done, going slightly inside the print."
+        " The number in this settting increases the wipe by moving the nozzle along the loop again before the final wipe.");
+    def->min = 0;
+    def->sidetext = L("mm");
+    def->mode = comAdvancedE | comSuSi;
+    def->is_vector_extruder = true;
+    def->set_default_value(new ConfigOptionFloats{ 0.f });
+
     def = this->add("wipe_inside_start", coBools);
     def->label = L("Wipe inside at start");
     def->category = OptionCategory::extruders;
@@ -7055,7 +7079,35 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext = L("%");
     def->mode = comAdvancedE | comSuSi;
     def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionPercents{50});
+    def->set_default_value(new ConfigOptionPercents{ 50 });
+    
+    def = this->add("wipe_lift", coFloatsOrPercents);
+    def->label = L("Wipe lift");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("When wiping, it will lift gradually to this height, so the filament can be 'cut' more easily."
+        "\nCan be a percentage of the current layer height.");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloatsOrPercents{FloatOrPercent{0, false}});
+    
+    def = this->add("wipe_lift_length", coFloatsOrPercents);
+    def->label = L("Wipe lift length");
+    def->full_label = L("Wipe length with lift");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("Distance in the wipe that is used to lift."
+        " If higher than the wipe distance, then the lift began at the start of the wipe."
+        " If lower than the wipe distance, then the lift began after the start, so the end of the lift occur at the end of the wipe."
+        "\nCan be a percentage of the wipe distance.");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloatsOrPercents{FloatOrPercent{50, true}});
+
+    def = this->add("wipe_min", coFloatsOrPercents);
+    def->label = L("Minimum Wipe length");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("Ensure the nozzle will move at least this much."
+        "\nCan be a percentage of the needed travel for the retraction"
+        " (if this is set to 0, then it's posisble that the end of the retraction occur after the end of the wipe).");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloatsOrPercents{FloatOrPercent{150, true}});
 
     def = this->add("wipe_only_crossing", coBools);
     def->label = L("Wipe only when crossing perimeters");
@@ -7250,19 +7302,6 @@ void PrintConfigDef::init_fff_params() {
                      "Colours of the objects will be mixed as a result.");
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
-
-    def = this->add("wipe_extra_perimeter", coFloats);
-    def->category = OptionCategory::extruders;
-    def->label = L("Extra Wipe for external perimeters");
-    def->tooltip = L(
-        "When the external perimeter loop extrusion ends, a wipe is done, going slightly inside the print."
-        " The number in this settting increases the wipe by moving the nozzle along the loop again before the final "
-        "wipe.");
-    def->min = 0;
-    def->sidetext = L("mm");
-    def->mode = comAdvancedE | comSuSi;
-    def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionFloats{0.f});
 
     def = this->add("wipe_tower_bridging", coFloat);
     def->label = L("Maximal bridging distance");
@@ -7607,6 +7646,9 @@ void PrintConfigDef::init_extruder_option_keys() {
         "wipe_inside_depth",
         "wipe_inside_end",
         "wipe_inside_start",
+        "wipe_lift",
+        "wipe_lift_length",
+        "wipe_min",
         "wipe_only_crossing",
         "wipe_speed",
     };
@@ -7639,6 +7681,9 @@ void PrintConfigDef::init_extruder_option_keys() {
         "wipe_inside_depth",
         "wipe_inside_end",
         "wipe_inside_start",
+        "wipe_lift",
+        "wipe_lift_length",
+        "wipe_min",
         "wipe_only_crossing",
         "wipe_speed",
     };
@@ -7667,6 +7712,9 @@ void PrintConfigDef::init_extruder_option_keys() {
         "wipe_inside_depth",
         "wipe_inside_end",
         "wipe_inside_start",
+        "wipe_lift",
+        "wipe_lift_length",
+        "wipe_min",
         "wipe_only_crossing",
         "wipe_speed",
     };
@@ -8827,7 +8875,7 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
         if (value == "1")
             value = "50%";
         else
-            value = "0";
+            value = "!50%";
     }
     if (opt_key == "print_machine_envelope") {
         opt_key = "machine_limits_usage";
@@ -9089,8 +9137,8 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config,
         config.is_enabled("bridge_angle")) {
         config.option("bridge_angle")->set_enabled(false);
     }
-    if (old && config.has("overhangs_width_speed") && config.get_float("overhangs_width_speed") == 0 &&
-        config.is_enabled("overhangs_width_speed")) {
+    bool enabled = !config.has("overhangs_width_speed") || config.is_enabled("overhangs_width_speed");
+    if (old && config.has("overhangs_width_speed") && config.get_float("overhangs_width_speed") == 0 && config.is_enabled("overhangs_width_speed")) {
         config.option("overhangs_width_speed")->set_enabled(false);
     }
     if (old && config.has("overhangs_width") && config.get_float("overhangs_width") == 0 &&
@@ -9616,275 +9664,281 @@ void deserialize_maybe_from_prusa(std::map<t_config_option_key, std::string> set
 }
 
 std::unordered_set<std::string> prusa_export_to_remove_keys = {
-    "allow_empty_layers",
-    "arc_fitting_tolerance",
-    "avoid_crossing_not_first_layer",
-    "avoid_crossing_top",
-    "bridge_fill_pattern",
-    "bridge_precision",
-    "bridge_overlap",
-    "bridge_overlap_min",
-    "bridge_type",
-    "bridged_infill_margin",
-    "brim_acceleration",
-    "brim_ears_detection_length",
-    "brim_ears_max_angle",
-    "brim_ears_pattern",
-    "brim_ears",
-    "brim_inside_holes",
-    "brim_per_object",
-    "brim_speed",
-    "brim_width_interior",
-    "chamber_temperature",
-    "complete_objects_one_skirt",
-    "complete_objects_sort",
-    "curve_smoothing_angle_concave",
-    "curve_smoothing_angle_convex",
-    "curve_smoothing_cutoff_dist",
-    "curve_smoothing_precision",
-    "default_speed",
-    "enforce_full_fill_volume",
-    // "exact_last_layer_height",
-    "external_infill_margin",
-    "external_perimeter_cut_corners",
-    "external_perimeter_extrusion_spacing",
-    "external_perimeter_extrusion_change_odd_layers",
-    "external_perimeter_fan_speed",
-    "external_perimeter_overlap",
-    "external_perimeters_hole",
-    "external_perimeters_nothole",
-    "external_perimeters_vase",
-    "extra_perimeters_odd_layers",
-    "extruder_extrusion_multiplier_speed",
-    "extruder_fan_offset",
-    "extruder_temperature_offset",
-    "preheat_extruder",
-    "extrusion_spacing",
-    "fan_kickstart",
-    "fan_percentage",
-    "fan_printer_min_speed",
-    "fan_speedup_overhangs",
-    "fan_speedup_time",
-    "feature_gcode",
-    "filament_cooling_zone_pause",
-    "filament_custom_variables",
-    "filament_dip_extraction_speed",
-    "filament_dip_insertion_speed",
-    "filament_enable_toolchange_part_fan",
-    "filament_enable_toolchange_temp",
-    "filament_fill_top_flow_ratio",
-    "filament_first_layer_flow_ratio",
-    "filament_max_speed",
-    "filament_max_wipe_tower_speed",
-    "filament_melt_zone_pause",
-    "filament_max_overlap",
-    "filament_pressure_advance",
-    "filament_retract_lift_before_travel",
-    "filament_shrink",
-    "filament_skinnydip_distance",
-    "filament_toolchange_part_fan_speed",
-    "filament_toolchange_temp",
-    "filament_use_fast_skinnydip",
-    "filament_use_skinnydip",
-    "filament_wipe_advanced_pigment",
-    "fill_aligned_z",
-    "fill_angle_increment",
-    "fill_angle_cross",
-    "fill_angle_follow_model",
-    "fill_angle_template",
-    "fill_smooth_distribution",
-    "fill_smooth_width",
-    "fill_top_flow_ratio",
-    "fill_top_flow_ratio",
-    "first_layer_extrusion_spacing",
-    "first_layer_infill_extrusion_width",
-    "first_layer_infill_extrusion_spacing",
-    "first_layer_flow_ratio",
-    "first_layer_infill_speed",
-    "first_layer_min_speed",
-    "first_layer_size_compensation_layers",
-    "gcode_ascii",
-    "gcode_command_buffer",
-    "gcode_min_length",
-    "gcode_min_resolution",
-    "gap_fill_acceleration",
-    "gap_fill_extension",
-    "gap_fill_fan_speed",
-    "gap_fill_flow_match_perimeter",
-    "gap_fill_last",
-    "gap_fill_infill",
-    "gap_fill_min_area",
-    "gap_fill_max_width",
-    "gap_fill_min_length",
-    "gap_fill_min_width",
-    "gap_fill_overlap",
-    "gcode_filename_illegal_char",
-    "gcode_precision_e",
-    "gcode_precision_xyz",
-    "hole_size_compensation",
-    "hole_size_threshold",
-    "hole_to_polyhole_threshold",
-    "hole_to_polyhole_twisted",
-    "hole_to_polyhole",
-    "infill_connection",
-    "infill_connection_bottom",
-    "infill_connection_bridge",
-    "infill_connection_solid",
-    "infill_connection_top",
-    "infill_dense_algo",
-    "infill_dense",
-    "infill_extrusion_change_odd_layers",
-    "infill_extrusion_spacing",
-    "infill_fan_speed",
-    "init_z_rotate",
-    "internal_bridge_acceleration",
-    "internal_bridge_fan_speed",
-    "internal_bridge_speed",
-    "ironing_acceleration",
-    "ironing_angle",
-    "lift_min",
-    "max_gcode_per_second",
-    "max_speed_reduction",
-    "milling_after_z",
-    "milling_cutter",
-    "milling_diameter",
-    "milling_extra_size",
-    "milling_offset",
-    "milling_post_process",
-    "milling_speed",
-    "milling_toolchange_end_gcode",
-    "milling_toolchange_start_gcode",
-    "milling_z_lift",
-    "milling_z_offset",
-    "min_width_top_surface",
-    "model_precision",
-    "no_perimeter_unsupported_algo",
-    "object_gcode",
-    "only_one_perimeter_top_other_algo",
-    "only_one_perimeter_top",
-    "only_one_perimeter_first_layer",
-    "over_bridge_flow_ratio",
-    "overhangs_acceleration",
-    "overhangs_fan_speed",
-    "overhangs_max_slope",
-    "overhangs_bridge_threshold",
-    "overhangs_bridge_upper_layers",
-    "overhangs_reverse_threshold",
-    "overhangs_reverse",
-    "overhangs_speed_enforce",
-    "overhangs_width_speed",
-    "parallel_objects_step",
-    "perimeter_bonding",
-    "perimeter_extrusion_change_odd_layers",
-    "perimeter_extrusion_spacing",
-    "perimeter_direction",
-    "perimeter_fan_speed",
-    "perimeter_loop_seam",
-    "perimeter_loop",
-    "perimeter_overlap",
-    "perimeter_reverse",
-    "perimeter_round_corners",
-    "perimeters_hole",
-    "priming_position",
-    "print_extrusion_multiplier",
-    "print_first_layer_temperature",
-    "print_custom_variables",
-    "print_retract_length",
-    "print_retract_lift",
-    "print_temperature",
-    "printer_custom_variables",
-    "printhost_client_cert",
-    "printhost_client_cert_password",
-    "raft_layer_height",
-    "raft_interface_layer_height",
-    "region_gcode",
-    "remaining_times_type",
-    "resolution_internal",
-    "retract_lift_first_layer",
-    "retract_lift_top",
-    "retract_lift_before_travel",
-    "seam_angle_cost",
-    "seam_gap",
-    "seam_gap_external",
-    "solid_over_perimeters",
-    "filament_seam_gap",          // filament override
-    "filament_seam_gap_external", // filament override
-    "seam_notch_all",
-    "seam_notch_angle",
-    "seam_notch_inner",
-    "seam_notch_outer",
-    "seam_travel_cost",
-    "seam_visibility",
-    "skirt_brim",
-    "skirt_distance_from_brim",
-    "skirt_extrusion_width",
-    "small_area_infill_flow_compensation",
-    "small_area_infill_flow_compensation_model",
-    "small_perimeter_max_length",
-    "small_perimeter_min_length",
-    "solid_fill_pattern",
-    "solid_infill_extrusion_change_odd_layers",
-    "solid_infill_extrusion_spacing",
-    "solid_infill_fan_speed",
-    "solid_infill_overlap",
-    "start_gcode_manual",
-    "solid_infill_below_layer_area",
-    "solid_infill_below_width",
-    "support_material_angle_height",
-    "support_material_acceleration",
-    "support_material_contact_distance_type",
-    "support_material_fan_speed",
-    "support_material_interface_acceleration",
-    "support_material_interface_angle",
-    "support_material_interface_angle_increment",
-    "support_material_interface_fan_speed",
-    "support_material_interface_layer_height",
-    "support_material_bottom_interface_pattern",
-    "support_material_layer_height",
-    "thin_perimeters_all",
-    "thin_perimeters",
-    "thin_walls_acceleration",
-    "thin_walls_merge",
-    "thin_walls_min_width",
-    "thin_walls_overlap",
-    "thin_walls_speed",
-    "thumbnails_color",
-    "thumbnails_custom_color",
-    "thumbnails_end_file",
-    "thumbnails_tag_format",
-    "thumbnails_with_bed",
-    "thumbnails_with_support",
-    "time_cost",
-    "time_estimation_compensation",
-    "time_start_gcode",
-    "time_toolchange",
-    "tool_name",
-    "top_fan_speed",
-    "top_infill_extrusion_spacing",
-    "top_solid_infill_overlap",
-    "travel_acceleration",
-    "travel_deceleration_use_target",
-    "wipe_advanced_algo",
-    "wipe_advanced_multiplier",
-    "wipe_advanced_nozzle_melted_volume",
-    "wipe_advanced",
-    "wipe_extra_perimeter",
-    "wipe_inside_depth",
-    "wipe_inside_end",
-    "wipe_inside_start",
-    "wipe_only_crossing",
-    "wipe_speed",
-    "filament_wipe_extra_perimeter", // filament override
-    "filament_wipe_inside_depth",    // filament override
-    "filament_wipe_inside_end",      // filament override
-    "filament_wipe_inside_start",    // filament override
-    "filament_wipe_only_crossing",   // filament override
-    "filament_wipe_speed",           // filament override
-    "wipe_tower_speed",
-    "wipe_tower_wipe_starting_speed",
-    "xy_size_compensation",
-    "xy_inner_size_compensation",
-    "z_step",
+"allow_empty_layers",
+"arc_fitting_tolerance",
+"avoid_crossing_not_first_layer",
+"avoid_crossing_top",
+"bridge_fill_pattern",
+"bridge_precision",
+"bridge_overlap",
+"bridge_overlap_min",
+"bridge_type",
+"bridged_infill_margin",
+"brim_acceleration",
+"brim_ears_detection_length",
+"brim_ears_max_angle",
+"brim_ears_pattern",
+"brim_ears",
+"brim_inside_holes",
+"brim_per_object",
+"brim_speed",
+"brim_width_interior",
+"chamber_temperature",
+"complete_objects_one_skirt",
+"complete_objects_sort",
+"curve_smoothing_angle_concave",
+"curve_smoothing_angle_convex",
+"curve_smoothing_cutoff_dist",
+"curve_smoothing_precision",
+"default_speed",
+"enforce_full_fill_volume",
+// "exact_last_layer_height",
+"external_infill_margin",
+"external_perimeter_cut_corners",
+"external_perimeter_extrusion_spacing",
+"external_perimeter_extrusion_change_odd_layers",
+"external_perimeter_fan_speed",
+"external_perimeter_overlap",
+"external_perimeters_hole",
+"external_perimeters_nothole",
+"external_perimeters_vase",
+"extra_perimeters_odd_layers",
+"extruder_extrusion_multiplier_speed",
+"extruder_fan_offset",
+"extruder_temperature_offset",
+"extrusion_spacing",
+"fan_kickstart",
+"fan_percentage",
+"fan_printer_min_speed",
+"fan_speedup_overhangs",
+"fan_speedup_time",
+"feature_gcode",
+"filament_cooling_zone_pause",
+"filament_custom_variables",
+"filament_dip_extraction_speed",
+"filament_dip_insertion_speed",
+"filament_enable_toolchange_part_fan",
+"filament_enable_toolchange_temp",
+"filament_fill_top_flow_ratio",
+"filament_first_layer_flow_ratio",
+"filament_max_speed",
+"filament_max_wipe_tower_speed",
+"filament_melt_zone_pause",
+"filament_max_overlap",
+"filament_pressure_advance",
+"filament_retract_lift_before_travel",
+"filament_shrink",
+"filament_skinnydip_distance",
+"filament_toolchange_part_fan_speed",
+"filament_toolchange_temp",
+"filament_use_fast_skinnydip",
+"filament_use_skinnydip",
+"filament_wipe_advanced_pigment",
+"fill_aligned_z",
+"fill_angle_increment",
+"fill_angle_cross",
+"fill_angle_follow_model",
+"fill_angle_template",
+"fill_smooth_distribution",
+"fill_smooth_width",
+"fill_top_flow_ratio",
+"fill_top_flow_ratio",
+"first_layer_extrusion_spacing",
+"first_layer_infill_extrusion_width",
+"first_layer_infill_extrusion_spacing",
+"first_layer_flow_ratio",
+"first_layer_infill_speed",
+"first_layer_min_speed",
+"first_layer_size_compensation_layers",
+"first_layer_size_compensation_no_collapse",
+"gcode_ascii",
+"gcode_command_buffer",
+"gcode_min_length",
+"gcode_min_resolution",
+"gap_fill_acceleration",
+"gap_fill_extension",
+"gap_fill_fan_speed",
+"gap_fill_flow_match_perimeter",
+"gap_fill_last",
+"gap_fill_infill",
+"gap_fill_min_area",
+"gap_fill_max_width",
+"gap_fill_min_length",
+"gap_fill_min_width",
+"gap_fill_overlap",
+"gcode_filename_illegal_char",
+"gcode_precision_e",
+"gcode_precision_xyz",
+"hole_size_compensation",
+"hole_size_threshold",
+"hole_to_polyhole_threshold",
+"hole_to_polyhole_twisted",
+"hole_to_polyhole",
+"infill_connection",
+"infill_connection_bottom",
+"infill_connection_bridge",
+"infill_connection_solid",
+"infill_connection_top",
+"infill_dense_algo",
+"infill_dense",
+"infill_extrusion_change_odd_layers",
+"infill_extrusion_spacing",
+"infill_fan_speed",
+"init_z_rotate",
+"internal_bridge_acceleration",
+"internal_bridge_fan_speed",
+"internal_bridge_speed",
+"ironing_acceleration",
+"ironing_angle",
+"lift_min",
+"max_gcode_per_second",
+"max_speed_reduction",
+"milling_after_z",
+"milling_cutter",
+"milling_diameter",
+"milling_extra_size",
+"milling_offset",
+"milling_post_process",
+"milling_speed",
+"milling_toolchange_end_gcode",
+"milling_toolchange_start_gcode",
+"milling_z_lift",
+"milling_z_offset",
+"min_width_top_surface",
+"model_precision",
+"no_perimeter_unsupported_algo",
+"object_gcode",
+"only_one_perimeter_top_other_algo",
+"only_one_perimeter_top",
+"only_one_perimeter_first_layer",
+"over_bridge_flow_ratio",
+"overhangs_acceleration",
+"overhangs_fan_speed",
+"overhangs_max_slope",
+"overhangs_bridge_threshold",
+"overhangs_bridge_upper_layers",
+"overhangs_reverse_threshold",
+"overhangs_reverse",
+"overhangs_speed_enforce",
+"overhangs_width_speed",
+"parallel_objects_step",
+"perimeter_bonding",
+"perimeter_extrusion_change_odd_layers",
+"perimeter_extrusion_spacing",
+"perimeter_direction",
+"perimeter_fan_speed",
+"perimeter_loop_seam",
+"perimeter_loop",
+"perimeter_overlap",
+"perimeter_reverse",
+"perimeter_round_corners",
+"perimeters_hole",
+"priming_position",
+"print_extrusion_multiplier",
+"print_first_layer_temperature",
+"print_custom_variables",
+"print_retract_length",
+"print_retract_lift",
+"print_temperature",
+"printer_custom_variables",
+"printhost_client_cert",
+"printhost_client_cert_password",
+"raft_layer_height",
+"raft_interface_layer_height",
+"region_gcode",
+"remaining_times_type",
+"resolution_internal",
+"retract_lift_first_layer",
+"retract_lift_top",
+"retract_lift_before_travel",
+"seam_angle_cost",
+"seam_gap",
+"seam_gap_external",
+"solid_over_perimeters",
+"filament_seam_gap", // filament override
+"filament_seam_gap_external", // filament override
+"seam_notch_all",
+"seam_notch_angle",
+"seam_notch_inner",
+"seam_notch_outer",
+"seam_travel_cost",
+"seam_visibility",
+"skirt_brim",
+"skirt_distance_from_brim",
+"skirt_extrusion_width",
+"small_area_infill_flow_compensation",
+"small_area_infill_flow_compensation_model",
+"small_perimeter_max_length",
+"small_perimeter_min_length",
+"solid_fill_pattern",
+"solid_infill_extrusion_change_odd_layers",
+"solid_infill_extrusion_spacing",
+"solid_infill_fan_speed",
+"solid_infill_overlap",
+"start_gcode_manual",
+"solid_infill_below_layer_area",
+"solid_infill_below_width",
+"support_material_angle_height",
+"support_material_acceleration",
+"support_material_contact_distance_type",
+"support_material_fan_speed",
+"support_material_interface_acceleration",
+"support_material_interface_angle",
+"support_material_interface_angle_increment",
+"support_material_interface_fan_speed",
+"support_material_interface_layer_height",
+"support_material_bottom_interface_pattern",
+"support_material_layer_height",
+"thin_perimeters_all",
+"thin_perimeters",
+"thin_walls_acceleration",
+"thin_walls_merge",
+"thin_walls_min_width",
+"thin_walls_overlap",
+"thin_walls_speed",
+"thumbnails_color",
+"thumbnails_custom_color",
+"thumbnails_end_file",
+"thumbnails_tag_format",
+"thumbnails_with_bed",
+"thumbnails_with_support",
+"time_cost",
+"time_estimation_compensation",
+"time_start_gcode",
+"time_toolchange",
+"tool_name",
+"top_fan_speed",
+"top_infill_extrusion_spacing",
+"top_solid_infill_overlap",
+"travel_acceleration",
+"travel_deceleration_use_target",
+"wipe_advanced_algo",
+"wipe_advanced_multiplier",
+"wipe_advanced_nozzle_melted_volume",
+"wipe_advanced",
+"wipe_extra_perimeter",
+"wipe_inside_depth",
+"wipe_inside_end",
+"wipe_inside_start",
+"wipe_lift",
+"wipe_lift_length",
+"wipe_min",
+"wipe_only_crossing",
+"wipe_speed",
+"filament_wipe_extra_perimeter", // filament override
+"filament_wipe_inside_depth", // filament override
+"filament_wipe_inside_end", // filament override
+"filament_wipe_inside_start", // filament override
+"filament_wipe_lift", // filament override
+"filament_wipe_lift_length", // filament override
+"filament_wipe_min", // filament override
+"filament_wipe_only_crossing", // filament override
+"filament_wipe_speed", // filament override
+"wipe_tower_speed",
+"wipe_tower_wipe_starting_speed",
+"xy_size_compensation",
+"xy_inner_size_compensation",
+"z_step",
 
     "print_version",
 };
@@ -11179,9 +11233,9 @@ std::string validate(const FullPrintConfig &cfg) {
         return "Invalid value for --skirt-height";
 
     // extruder clearance
-    if (cfg.extruder_clearance_radius <= 0)
+    if (cfg.extruder_clearance_radius < 0)
         return "Invalid value for --extruder-clearance-radius";
-    if (cfg.extruder_clearance_height <= 0)
+    if (cfg.extruder_clearance_height < 0)
         return "Invalid value for --extruder-clearance-height";
 
     // --extrusion-multiplier

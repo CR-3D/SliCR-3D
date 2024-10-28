@@ -24,7 +24,7 @@ void s_brim_set(bool new_val)
 
 // quick settings fill_density
 
-float last_solid_every = -1;
+int last_solid_every = -1;
 
 float s_fill_density_get()
 {

@@ -138,7 +138,7 @@ public:
 
     void look_at(const Vec3d& position, const Vec3d& target, const Vec3d& up);
 
-    double max_zoom() const { return 250.0; }
+    double max_zoom() const { return 1000.0; }
     double min_zoom() const { return 0.7 * calc_zoom_to_bounding_box_factor(m_scene_box); }
 
 private:

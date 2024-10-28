@@ -22,6 +22,10 @@ class LayerTools;
 class ToolOrdering;
 namespace CustomGCode { struct Item; }
 class PrintRegion;
+namespace GCode {
+    struct ObjectLayerToPrint;
+    using ObjectsLayerToPrint = std::vector<ObjectLayerToPrint>;
+} // namespace GCode
 
 // Object of this class holds information about whether an extrusion is printed immediately
 // after a toolchange (as part of infill/perimeter wiping) or not. One extrusion can be a part
@@ -136,6 +140,10 @@ public:
     // (print.config.complete_objects is true).
     ToolOrdering(const PrintObject &object, uint16_t first_extruder, bool prime_multi_material = false);
 
+    // For the use case when each object is printed separately but only for some layers
+    // (print.config.parallel_objects_step > 0).
+    ToolOrdering(const PrintObject &object, const GCode::ObjectsLayerToPrint &layers, uint16_t first_extruder, bool prime_multi_material = false);
+
     // For the use case when all objects are printed at once.
     // (print.config.complete_objects is false).
     ToolOrdering(const Print &print, uint16_t first_extruder, bool prime_multi_material = false);
@@ -172,7 +180,7 @@ public:
 
 private:
     void				initialize_layers(std::vector<double> &zs);
-    void 				collect_extruders(const PrintObject &object, const std::vector<std::pair<double, uint16_t>> &per_layer_extruder_switches, const std::vector<std::pair<double, uint16_t>> &per_layer_color_changes);
+    void 				collect_extruders(const PrintObject &object, const GCode::ObjectsLayerToPrint &layers, const std::vector<std::pair<double, uint16_t>> &per_layer_extruder_switches, const std::vector<std::pair<double, uint16_t>> &per_layer_color_changes);
     void				reorder_extruders(uint16_t last_extruder_id);
     void 				fill_wipe_tower_partitions(const PrintConfig &config, coordf_t object_bottom_z, coordf_t max_layer_height);
     bool                insert_wipe_tower_extruder();

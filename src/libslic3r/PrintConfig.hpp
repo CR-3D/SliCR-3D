@@ -60,8 +60,9 @@
 namespace Slic3r {
 
 enum CompleteObjectSort {
-    cosObject, 
-    cosZ, 
+    cosNearest,
+    cosObject,
+    cosZ,
     cosY,
 };
 
@@ -762,6 +763,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                first_layer_min_speed))
     ((ConfigOptionFloat,                first_layer_size_compensation))  /* elefant_foot_compensation */
     ((ConfigOptionInt,                  first_layer_size_compensation_layers))
+    ((ConfigOptionBool,                 first_layer_size_compensation_no_collapse))
     ((ConfigOptionFloatOrPercent,       first_layer_speed))
     ((ConfigOptionFloatOrPercent,       first_layer_speed_over_raft))
     ((ConfigOptionFloat,                hole_size_compensation))
@@ -1194,10 +1196,13 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<WipeAlgo>,      wipe_advanced_algo))
     ((ConfigOptionFloat,               wipe_advanced_nozzle_melted_volume))
     ((ConfigOptionFloat,               wipe_advanced_multiplier))
+    ((ConfigOptionFloats,              wipe_extra_perimeter))
     ((ConfigOptionPercents,            wipe_inside_depth))
     ((ConfigOptionBools,               wipe_inside_end))
     ((ConfigOptionBools,               wipe_inside_start))
-    ((ConfigOptionFloats,              wipe_extra_perimeter))
+    ((ConfigOptionFloatsOrPercents,    wipe_lift))
+    ((ConfigOptionFloatsOrPercents,    wipe_lift_length))
+    ((ConfigOptionFloatsOrPercents,    wipe_min))
     ((ConfigOptionBools,               wipe_only_crossing))
     ((ConfigOptionFloats,              wipe_speed))
     ((ConfigOptionBool,                wipe_tower_no_sparse_layers))

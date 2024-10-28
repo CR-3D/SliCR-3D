@@ -2,23 +2,38 @@
 
 int s_overhangs_get()
 {
-	if (get_float("overhangs_width_speed") == 0) return 0;
-	float width = get_float("overhangs_width");
-	bool percent = is_percent("overhangs_width");
-	if((percent && width > 50.f) || ((!percent) && width > 0.2f)) return 1;
+	if (is_enabled("overhangs_width")) {
+		float width = get_float("overhangs_width");
+		bool percent = is_percent("overhangs_width");
+		if((percent && width > 50.f) || ((!percent) && width > 0.2f)) return 1;
+	}
+	if (!is_enabled("overhangs_width_speed") || get_float("overhangs_width_speed") == 0) {
+		return 0;
+	}
 	return -1;
 }
 
-void s_overhangs_set(bool set)
+void s_overhangs_set(bool is_set)
 {
-	if (set) {
-		set_percent("overhangs_width_speed", 55.f);
-		float width = get_float("overhangs_width");
-		bool percent = is_percent("overhangs_width");
-		if((percent && width < 50.f) || ((!percent) && width < 0.2f))
-			set_percent("overhangs_width", 75.f);
+	if (is_set) {
+		if (!is_enabled("overhangs_width")) {
+			set_enabled("overhangs_width", true);
+		}
+		if (!is_enabled("overhangs_width_speed")) {
+			set_enabled("overhangs_width_speed", true);
+		}
+		if (get_float("overhangs_width") == 0) {
+			float width = get_float("overhangs_width");
+			bool percent = is_percent("overhangs_width");
+			if((percent && width < 50.f) || ((!percent) && width < 0.2f))
+				set_percent("overhangs_width", 75.f);
+		}
+		if (get_float("overhangs_width_speed") == 0) {
+			set_percent("overhangs_width_speed", 55.f);
+		}
 	} else {
-		set_float("overhangs_width_speed", 0.);
+		set_enabled("overhangs_width", false);
+		set_enabled("overhangs_width_speed", false);
 	}
 }
 

@@ -302,6 +302,7 @@ public:
     ArcPolyline(ArcPolyline &&)      = default;
     ArcPolyline(const Polyline &other) : m_path(_from_polyline(other.points)) {}
     ArcPolyline(const Points &other) : m_path(_from_polyline(other)) {}
+    ArcPolyline(const Geometry::ArcWelder::Path &other);
     ArcPolyline &operator=(const ArcPolyline &) = default;
     ArcPolyline &operator=(ArcPolyline &&) = default;
 

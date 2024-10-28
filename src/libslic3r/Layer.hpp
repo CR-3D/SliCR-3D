@@ -193,6 +193,9 @@ public:
                                      || !this->ironings().empty() || !this->thin_fills().empty(); }
 
     void    simplify_extrusion_entity();
+
+    const ExPolygons &get_cached_slices() const { return m_raw_slices; }
+
 protected:
     friend class Layer;
     friend class PrintObject;
@@ -217,6 +220,7 @@ private:
     // Backed up slices before they are split into top/bottom/internal.
     // Only backed up for multi-region layers or layers with elephant foot compensation.
     //FIXME Review whether not to simplify the code by keeping the raw_slices all the time.
+    // superslicer -> layer_needs_raw_backup is now true, so evryone has their cache here.
     ExPolygons                  m_raw_slices;
 
 //FIXME make m_slices public for unit tests
@@ -409,7 +413,7 @@ public:
     // To improve robustness of detect_surfaces_type() when reslicing (working with typed slices), see GH issue #7442.
     void                    restore_untyped_slices_no_extra_perimeters();
     // Slices merged into islands, to be used by the elephant foot compensation to trim the individual surfaces with the shrunk merged slices.
-    ExPolygons              merged(float offset) const;
+    ExPolygons              merged(coordf_t offset_scaled = 0) const;
     void                    make_perimeters();
     void                    make_milling_post_process();
     void                    make_fills(FillAdaptive::Octree     *adaptive_fill_octree,

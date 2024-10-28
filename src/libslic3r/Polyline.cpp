@@ -595,6 +595,10 @@ bool not_arc(const ArcPolyline& arcs)
     return true;
 }
 
+ArcPolyline::ArcPolyline(const Geometry::ArcWelder::Path &other) : m_path(other) {
+    m_only_strait = not_arc(*this);
+}
+
 bool ArcPolyline::has_arc() const {
     assert(not_arc(*this) == m_only_strait);
     return !m_only_strait;
@@ -1022,13 +1026,13 @@ bool ArcPolyline::split_at_index(const size_t index, ArcPolyline &p1, ArcPolylin
     return true;
 }
 
-//TODO: find a way to avoid duplication of code below
+//TODO: find a way to avoid duplication of get_point_from_end / get_point_from_begin
 Point ArcPolyline::get_point_from_begin(coord_t distance) const {
     size_t idx = 1;
     while (distance > 0 && idx < m_path.size()) {
         const Geometry::ArcWelder::Segment last = m_path[idx - 1];
         const Geometry::ArcWelder::Segment current = m_path[idx];
-        if (last.linear()) {
+        if (current.linear()) {
             // Linear segment
             Vec2d  v    = (current.point - last.point).cast<double>();
             double lsqr = v.squaredNorm();
@@ -1039,14 +1043,14 @@ Point ArcPolyline::get_point_from_begin(coord_t distance) const {
             distance -= sqrt(lsqr);
         } else {
             // Circular segment
-            double angle = Geometry::ArcWelder::arc_angle(current.point.cast<double>(), last.point.cast<double>(), last.radius);
-            double len   = std::abs(last.radius) * angle;
+            double angle = Geometry::ArcWelder::arc_angle(last.point.cast<double>(), current.point.cast<double>(), current.radius);
+            double len   = std::abs(current.radius) * angle;
             if (len >= distance) {
-                // Rotate the segment end point in reverse towards the start point.
-                if (last.ccw())
+                // Rotate the segment end point towards the current point.
+                if (current.ccw())
                     angle *= -1.;
-                return last.point.rotated(angle * (distance / len),
-                        Geometry::ArcWelder::arc_center(current.point.cast<double>(), last.point.cast<double>(), double(last.radius), last.ccw()).cast<coord_t>());
+                return last.point.rotated( -angle * (distance / len),
+                        Geometry::ArcWelder::arc_center(last.point.cast<double>(), current.point.cast<double>(), double(current.radius), current.ccw()).cast<coord_t>());
             }
             distance -= len;
         }
@@ -1176,8 +1180,8 @@ Polyline ArcPolyline::to_polyline(coord_t deviation/*=0*/) const {
             }
         }
     }
-    for (int i = 1; i < poly_out.points.size(); ++i)
-        assert(!poly_out.points[i - 1].coincides_with_epsilon(poly_out.points[i]));
+    //for (int i = 1; i < poly_out.points.size(); ++i)
+    //    assert(!poly_out.points[i - 1].coincides_with_epsilon(poly_out.points[i]));
     return poly_out;
 }
 
