@@ -540,8 +540,9 @@ void PrintConfigDef::init_common_params() {
     def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
                      "filament during filament change. "
                      "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
-    def->mode = comAdvanced;
-    def->set_default_value(new ConfigOptionPoints{Vec2d(0, 0), Vec2d(200, 0), Vec2d(200, 200), Vec2d(0, 200)});
+    def->mode = comAdvanced | comExpert;
+   // def->gui_type = ConfigOptionDef::GUIType::one_string;
+    def->set_default_value(new ConfigOptionPoints{ Vec2d(0, 0) });
 
     def = this->add("printhost_client_cert", coString);
     def->label = L("Client Certificate File");

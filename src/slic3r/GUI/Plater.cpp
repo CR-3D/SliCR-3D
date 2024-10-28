@@ -2353,7 +2353,7 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
 , main_frame(main_frame)
 , config(Slic3r::DynamicPrintConfig::new_from_defaults_keys({
     // These keys are used by (at least) printconfig::min_object_distance
-    "bed_shape", "bed_custom_texture", "bed_custom_model",
+    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area",
     "brim_width", "brim_width_interior","brim_separation",
     "complete_objects",
     "parallel_objects_step",
