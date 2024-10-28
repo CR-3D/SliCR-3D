@@ -1150,12 +1150,8 @@ void ScriptContainer::init(const std::string& tab_key, Tab* tab)
             m_script_engine.get()->RegisterGlobalFunction("float get_computed_float(string &in)", WRAP_FN(as_get_computed_float), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("void back_initial_value(string &in)", WRAP_FN(as_back_initial_value), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("void back_custom_initial_value(int, string &in)", WRAP_FN(as_back_custom_initial_value), AngelScript::asCALL_GENERIC);
-
             m_script_engine.get()->RegisterGlobalFunction("void ask_for_refresh()", WRAP_FN(as_ask_for_refresh), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in)", WRAP_FN(as_is_enabled), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled_idx(string &in, int)", WRAP_FN(as_is_enabled_idx), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("void set_enabled(string &in, bool)", WRAP_FN(as_set_enabled), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("void set_enabled_idx(string &in, bool, int)", WRAP_FN(as_set_enabled_idx), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in, int)", WRAP_FN(as_is_enabled), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("bool is_widget_enabled(string &in)", WRAP_FN(as_is_widget_enabled), AngelScript::asCALL_GENERIC);
 
 #else
@@ -1196,34 +1192,63 @@ void ScriptContainer::init(const std::string& tab_key, Tab* tab)
                                                           AngelScript::asFUNCTION(as_set_nozzle),
                                                           AngelScript::asCALL_CDECL);
 
-            m_script_engine.get()->RegisterGlobalFunction("bool get_bool(string &in)",                          AngelScript::asFUNCTION(as_get_bool),   AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_bool(string &in, bool new_val)",            AngelScript::asFUNCTION(as_set_bool),   AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("int get_int(string &in)",                            AngelScript::asFUNCTION(as_get_int),    AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_int(string &in, int new_val)",              AngelScript::asFUNCTION(as_set_int),    AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("float get_float(string &in)",                        AngelScript::asFUNCTION(as_get_float),  AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_float(string &in, float new_val)",          AngelScript::asFUNCTION(as_set_float),  AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_percent(string &in)",                        AngelScript::asFUNCTION(as_is_percent), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_percent(string &in, float new_val)",        AngelScript::asFUNCTION(as_set_percent),AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void get_string(string &in, string &out get_val)",   AngelScript::asFUNCTION(as_get_string), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_string(string &in, string &in new_val)",    AngelScript::asFUNCTION(as_set_string), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in)",                            AngelScript::asFUNCTION(as_is_enabled), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_enabled(string &in, bool)",                     AngelScript::asFUNCTION(as_set_enabled), AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_int(string &in, int new_val)",
+                                                          AngelScript::asFUNCTION(as_set_int),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("float get_float(string &in)",
+                                                          AngelScript::asFUNCTION(as_get_float),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_float(string &in, float new_val)",
+                                                          AngelScript::asFUNCTION(as_set_float),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_percent(string &in)",
+                                                          AngelScript::asFUNCTION(as_is_percent),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_percent(string &in, float new_val)",
+                                                          AngelScript::asFUNCTION(as_set_percent),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void get_string(string &in, string &out get_val)",
+                                                          AngelScript::asFUNCTION(as_get_string),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_string(string &in, string &in new_val)",
+                                                          AngelScript::asFUNCTION(as_set_string),
+                                                          AngelScript::asCALL_CDECL);
 
             // for vector fields
-            m_script_engine.get()->RegisterGlobalFunction("int size(string &in)",                           AngelScript::asFUNCTION(as_size), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void clear(string &in)",                           AngelScript::asFUNCTION(as_clear), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool get_bool_idx(string &in, int idx)",                          AngelScript::asFUNCTION(as_get_bool_idx),   AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_bool_idx(string &in, int idx, bool new_val)",            AngelScript::asFUNCTION(as_set_bool_idx),   AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("int get_int_idx(string &in, int idx)",                            AngelScript::asFUNCTION(as_get_int_idx),    AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_int_idx(string &in, int idx, int new_val)",              AngelScript::asFUNCTION(as_set_int_idx),    AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("float get_float_idx(string &in, int idx)",           AngelScript::asFUNCTION(as_get_float_idx), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_float_idx(string &in, int idx, float new_val)", AngelScript::asFUNCTION(as_set_float_idx), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_percent_idx(string &in, int idx)",                        AngelScript::asFUNCTION(as_is_percent_idx), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_percent_idx(string &in, int idx, float new_val)",        AngelScript::asFUNCTION(as_set_percent_idx),AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void get_string_idx(string &in, int idx, string &out get_val)",   AngelScript::asFUNCTION(as_get_string_idx), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_string_idx(string &in, int idx, string &in new_val)",    AngelScript::asFUNCTION(as_set_string_idx), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled_idx(string &in, int)",                   AngelScript::asFUNCTION(as_is_enabled_idx), AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("void set_enabled_idx(string &in, bool, int)",            AngelScript::asFUNCTION(as_set_enabled_idx), AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("int size(string &in)", AngelScript::asFUNCTION(as_size),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void clear(string &in)", AngelScript::asFUNCTION(as_clear),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool get_bool_idx(string &in, int idx)",
+                                                          AngelScript::asFUNCTION(as_get_bool_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_bool_idx(string &in, int idx, bool new_val)",
+                                                          AngelScript::asFUNCTION(as_set_bool_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("int get_int_idx(string &in, int idx)",
+                                                          AngelScript::asFUNCTION(as_get_int_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_int_idx(string &in, int idx, int new_val)",
+                                                          AngelScript::asFUNCTION(as_set_int_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("float get_float_idx(string &in, int idx)",
+                                                          AngelScript::asFUNCTION(as_get_float_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_float_idx(string &in, int idx, float new_val)",
+                                                          AngelScript::asFUNCTION(as_set_float_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_percent_idx(string &in, int idx)",
+                                                          AngelScript::asFUNCTION(as_is_percent_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_percent_idx(string &in, int idx, float new_val)",
+                                                          AngelScript::asFUNCTION(as_set_percent_idx),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()
+                ->RegisterGlobalFunction("void get_string_idx(string &in, int idx, string &out get_val)",
+                                         AngelScript::asFUNCTION(as_get_string_idx), AngelScript::asCALL_CDECL);
+            m_script_engine.get()
+                ->RegisterGlobalFunction("void set_string_idx(string &in, int idx, string &in new_val)",
+                                         AngelScript::asFUNCTION(as_set_string_idx), AngelScript::asCALL_CDECL);
 
             m_script_engine.get()->RegisterGlobalFunction("bool get_custom_bool(int, string &in, bool &out)",
                                                           AngelScript::asFUNCTION(as_get_custom_bool),
@@ -1255,7 +1280,8 @@ void ScriptContainer::init(const std::string& tab_key, Tab* tab)
             m_script_engine.get()->RegisterGlobalFunction("void back_custom_initial_value(int, string &in)",    AngelScript::asFUNCTION(as_back_custom_initial_value), AngelScript::asCALL_CDECL);
 
             m_script_engine.get()->RegisterGlobalFunction("void ask_for_refresh()",                 AngelScript::asFUNCTION(as_ask_for_refresh),    AngelScript::asCALL_CDECL);
-            m_script_engine.get()->RegisterGlobalFunction("bool is_widget_enabled(string &in)",                     AngelScript::asFUNCTION(as_is_widget_enabled), AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in, int)",                        AngelScript::asFUNCTION(as_is_enabled), AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_widget_enabled(string &in)",                        AngelScript::asFUNCTION(as_is_widget_enabled), AngelScript::asCALL_CDECL);
 #endif
         }
 

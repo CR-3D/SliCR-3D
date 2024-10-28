@@ -2384,6 +2384,38 @@ void ObjectList::layers_editing()
     Expand(layers_item);
 }
 
+void ObjectList::layers_editing(int obj_idx)
+{
+    wxDataViewItem item = m_objects_model->GetItemById(obj_idx);
+
+    if (!item)
+        return;
+
+    const wxDataViewItem obj_item = m_objects_model->GetTopParent(item);
+    wxDataViewItem layers_item = m_objects_model->GetLayerRootItem(obj_item);
+
+    if (!layers_item.IsOk())
+    {
+        t_layer_config_ranges& ranges = object(obj_idx)->layer_config_ranges;
+
+        if (ranges.empty()) {
+            take_snapshot(_(L("Add Layers")));
+            ranges[{ 0.0f, 2.0f }].assign_config(get_default_layer_config(obj_idx));
+        }
+
+        layers_item = add_layer_root_item(obj_item);
+    }
+
+    if (!layers_item.IsOk())
+        return;
+
+    wxGetApp().obj_layers()->reset_selection();
+    wxGetApp().plater()->canvas3D()->handle_sidebar_focus_event("", false);
+
+    select_item(layers_item);
+    Expand(layers_item);
+}
+
 wxDataViewItem ObjectList::add_layer_root_item(const wxDataViewItem obj_item)
 {
     const int obj_idx = m_objects_model->GetIdByItem(obj_item);

@@ -46,7 +46,7 @@ CalibrationAbstractDialog::CalibrationAbstractDialog(GUI_App* app, MainFrame* ma
 
     }
 
-void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::string html_name, wxSize dialog_size){
+/*void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::string html_name, wxSize dialog_size, bool include_close_button){
 
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
     gui_app->app_config->set("autocenter", "1");
@@ -98,6 +98,85 @@ void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::s
     SetSizer(main_sizer);
     this->SetSize(dialog_size.x, dialog_size.y);
     gui_app->app_config->set("autocenter", "0");
+
+}*/
+
+void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::string html_name, wxSize dialog_size, bool include_close_button){
+
+    const AppConfig* app_config = get_app_config();
+    bool dark_mode = app_config->get_bool("dark_color_mode");
+    std::string user_color_text = app_config->get("color_dark");
+    wxColour text_color("#" + user_color_text);
+
+    std::string color_background = dark_mode ? "333233" : "ffffff";//dark grey and white. whats the offical dark mode color ?
+    wxColour background_color("#" + color_background);
+
+    // Create a panel for the entire content
+    wxPanel* main_panel = new wxPanel(this, wxID_ANY);
+    main_panel->SetBackgroundColour(background_color);
+
+    // Create the sizer for the panel's content
+    wxBoxSizer* panel_sizer = new wxBoxSizer(wxVERTICAL);
+    gui_app->app_config->set("autocenter", "1");
+    
+    //language
+    wxString language = wxGetApp().current_language_code();
+    boost::filesystem::path full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path/ (into_u8(language) + "_"+ html_name));
+    if (language == "en") {
+        full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (html_name));
+    }else if (!boost::filesystem::exists(full_file_path)) {
+        language = wxGetApp().current_language_code_safe();
+        full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (into_u8(language) + "_" + html_name));
+        if (!boost::filesystem::exists(full_file_path)) {
+            language = language.IsEmpty() ? "en" : language.BeforeFirst('_');
+            full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (into_u8(language) + "_" + html_name));
+            if (!boost::filesystem::exists(full_file_path)) {
+                full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (html_name));
+            }
+        }
+    }
+
+    // Create the HTML viewer and load the page
+    html_viewer = new wxHtmlWindow(main_panel, wxID_ANY,
+        wxDefaultPosition, wxDefaultSize, wxHW_SCROLLBAR_AUTO);
+    html_viewer->LoadPage(GUI::from_u8(full_file_path.string()));
+    // when using hyperlink, open the browser.
+    html_viewer->Bind(wxEVT_HTML_LINK_CLICKED, [this](wxHtmlLinkEvent& evt) {
+        wxLaunchDefaultBrowser(evt.GetLinkInfo().GetHref());
+    });
+    panel_sizer->Add(html_viewer, 1, wxEXPAND | wxALL, 5);
+
+    // Adjust the dialog size
+    wxDisplay display(wxDisplay::GetFromWindow(main_frame));
+    wxRect screen = display.GetClientArea();
+    dialog_size.x = std::min(int(dialog_size.x * this->scale_factor()), screen.width - 50);
+    dialog_size.y = std::min(int(dialog_size.y * this->scale_factor()), screen.height - 50);
+
+    // Create the button sizer and configure the "Close" button
+    wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
+    create_buttons(buttons);
+
+    if (!include_close_button) {
+        wxButton* close = new wxButton(main_panel, wxID_CLOSE, _L("Close"));
+        close->Bind(wxEVT_BUTTON, &CalibrationAbstractDialog::close_me, this);
+        buttons->AddButton(close);
+        close->SetDefault();
+        close->SetFocus();
+        SetAffirmativeId(wxID_CLOSE);
+    }
+
+    buttons->Realize();
+    panel_sizer->Add(buttons, 0, wxEXPAND | wxALL, 5);
+
+    // Set the panel's sizer and add the panel to the dialog
+    main_panel->SetSizer(panel_sizer);
+    wxBoxSizer* main_sizer = new wxBoxSizer(wxVERTICAL);
+    main_sizer->Add(main_panel, 1, wxEXPAND | wxALL, 0);
+
+    SetSizer(main_sizer);
+    this->SetSize(dialog_size.x, dialog_size.y);
+    gui_app->app_config->set("autocenter", "0");
+    main_panel->Lower();// this may break some calibration windows... willl have to call Raise() on other calibration windows that have a panel
 
 }
 
