@@ -79,7 +79,7 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
 
     //GLCanvas3D::set_warning_freeze(true);
     std::vector<size_t> objs_idx = plat->load_files(std::vector<std::string>{
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / "Smart_compact_temperature_calibration_item.amf").string()}, true, false, false, false);
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / "Smart_compact_temperature_calibration_item.amf").string()}, true, true, false, false);
 
     assert(objs_idx.size() == 1);
     const DynamicPrintConfig* print_config = this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->get_config();
@@ -87,8 +87,8 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
     const DynamicPrintConfig* printer_config = this->gui_app->get_tab(Preset::TYPE_PRINTER)->get_config();
 
     // -- get temps
-    const ConfigOptionInts* temperature_config = filament_config->option<ConfigOptionInts>("temperature");
-    const int first_layer_temperature = filament_config->option<ConfigOptionInts>("temperature")->get_at(0);
+    const ConfigOptionInts* temperature_config = filament_config->option<ConfigOptionInts>("first_layer_temperature");
+    const int first_layer_temperature = filament_config->option<ConfigOptionInts>("first_layer_temperature")->get_at(0);
     assert(temperature_config->size() >= 1);
     long nb_items_up = 1;
     if (!nb_up->GetValue().ToLong(&nb_items_up)) {

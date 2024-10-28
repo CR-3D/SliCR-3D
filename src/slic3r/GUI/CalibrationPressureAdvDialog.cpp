@@ -73,7 +73,7 @@ void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer *button
          "InternalBridgeInfill", "Ironing",         "OverhangPerimeter",        "Perimeter",
          "SolidInfill",          "SupportMaterial", "SupportMaterialInterface", "ThinWall",
          "TopSolidInfill",       "FirstLayer"};
-    erPa = new wxComboBox(this, wxID_ANY, wxString{"InternalInfill"}, wxDefaultPosition, wxDefaultSize, 14,
+    erPa = new wxComboBox(this, wxID_ANY, wxString{"ExternalPerimeter"}, wxDefaultPosition, wxDefaultSize, 14,
                           choices_extrusion_role);
     erPa->SetToolTip(_L("Select the extrusion role you want to generate a calibration for"));
     erPa->SetForegroundColour(*wxBLACK); // Set text color to black

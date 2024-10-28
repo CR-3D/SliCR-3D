@@ -2017,19 +2017,20 @@ void MainFrame::init_menubar_as_editor()
             [this](wxCommandEvent&) { wxGetApp().html_dialog(); });
         m_calibration_menu->AppendSeparator();
 
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Filament Temperature Calibration")),
-                         _(L("Create a test print to help you to set your filament temperature.")),
-                         [this](wxCommandEvent &) { wxGetApp().filament_temperature_dialog(); });
-
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Filament Flow Calibration")),
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("1. Filament Flow Calibration")),
                          _(L("Create a test print to help you to set your filament extrusion multiplier.")),
                          [this](wxCommandEvent &) { wxGetApp().flow_ratio_dialog(); });
 
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Pressure Advance Calibration")),
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("2. Filament Temperature Calibration")),
+                         _(L("Create a test print to help you to set your filament temperature.")),
+                         [this](wxCommandEvent &) { wxGetApp().filament_temperature_dialog(); });
+
+
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("3. Pressure Advance Calibration")),
                          _(L("Create a model for tuning Pressure Linear advance.")),
                          [this](wxCommandEvent &) { wxGetApp().calibration_pressureadv_dialog(); });
 
-                append_menu_item(m_calibration_menu, wxID_ANY, _(L("Extruder Retraction Calibration")),
+                append_menu_item(m_calibration_menu, wxID_ANY, _(L("4. Extruder Retraction Calibration")),
                          _(L("Create a test print to help you to set your retraction length.")),
                          [this](wxCommandEvent &) { wxGetApp().calibration_retraction_dialog(); });
 
@@ -2043,9 +2044,6 @@ void MainFrame::init_menubar_as_editor()
             [this](wxCommandEvent&) { wxGetApp().bridge_tuning_dialog(); });
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Ironing Pattern Calibration")), _(L("Create a test print to help you to set your over-bridge flow ratio and ironing pattern.")),
             [this](wxCommandEvent&) { wxGetApp().over_bridge_dialog(); });
-        m_calibration_menu->AppendSeparator();
-        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Calibration Cube")), _(L("Print a calibration cube, for various calibration goals.")),
-            [this](wxCommandEvent&) { wxGetApp().calibration_cube_dialog(); });
 
         m_calibration_menu->AppendSeparator();
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("CR3D Cube")),
