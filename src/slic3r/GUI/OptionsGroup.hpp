@@ -202,7 +202,7 @@ public:
     }
 	boost::any		get_value(const t_config_option_key& id) {
 							boost::any out; 
-    						if (m_fields.find(id) == m_fields.end()) ;
+       if (m_fields.find(id) == m_fields.end()) ;
 							else 
 								out = m_fields.at(id)->get_value();
 							return out;

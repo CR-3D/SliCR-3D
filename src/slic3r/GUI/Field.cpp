@@ -77,7 +77,6 @@ wxString double_to_string(double const value, const int max_precision /*= 6*/)
                 s.erase(s.length() -1);
 		}
 	}
-
     return s;
 }
 
@@ -921,13 +920,13 @@ void TextField::get_value_by_opt_type(wxString &str, const bool check_value /* =
                             if (x_str.ToDouble(&x) && _point.HasMoreTokens()) {
                                 wxString y_str = _point.GetNextToken();
                                 if (y_str.ToDouble(&y) && !_point.HasMoreTokens()) {
-                                    if (m_opt_id == "bed_exclude_area") {
+                                   if (m_opt.opt_key == "bed_exclude_area") {
                                         if (x >= 0 && y >= 0) {
                                             out_values.push_back(Vec2d{x, y});
                                             continue;
                                         }
                                     }
-                                    else if (m_opt_id == "printable_area") {
+                                    else if (m_opt.opt_key == "bed_shape") {
                                         if (0 <= x && x <= 1000 && 0 <= y && y <= 1000) {
                                             out_values.push_back(Vec2d(x, y));
                                             continue;
@@ -959,9 +958,9 @@ void TextField::get_value_by_opt_type(wxString &str, const bool check_value /* =
                 }
 
                 // Convert out_values to wxString if m_opt_id is "bed_exclude_area"
-                if (m_opt_id == "bed_exclude_area") {
+               if (m_opt.opt_key == "bed_exclude_area") {
                     wxString out_values_str = get_points_string(out_values);
-                    wxLogMessage("Formatted output: %s", out_values_str); // Example output or use as needed
+                    //wxLogMessage("Formatted output: %s", out_values_str); // Example output or use as needed
                 }
 
                 m_value = out_values;
