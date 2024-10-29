@@ -535,14 +535,18 @@ void PrintConfigDef::init_common_params() {
     def->set_default_value(new ConfigOptionString(""));
 
     // BBS: add "bed_exclude_area"
-    def = this->add("bed_exclude_area", coPoints);
+    def = this->add("bed_exclude_area", coString);
     def->label = L("Bed exclude area");
+    def->category = OptionCategory::general;
     def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
                      "filament during filament change. "
                      "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
     def->mode = comAdvanced | comExpert;
-    def->gui_type = ConfigOptionDef::GUIType::one_string;
-    def->set_default_value(new ConfigOptionPoints{Vec2d(0, 0)});
+    //def->multiline = true;
+    def->full_width = true;
+    def->height = 10;
+    //def->gui_type = ConfigOptionDef::GUIType::one_string;
+    def->set_default_value(new ConfigOptionString{""});
 
     def = this->add("printhost_client_cert", coString);
     def->label = L("Client Certificate File");

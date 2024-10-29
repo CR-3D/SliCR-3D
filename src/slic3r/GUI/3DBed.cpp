@@ -31,10 +31,10 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
-static const float GROUND_Z = -0.02f;
+static const float GROUND_Z = 0.5f;
 static const Slic3r::ColorRGBA DEFAULT_MODEL_COLOR             = Slic3r::ColorRGBA::DARK_GRAY();
 static const Slic3r::ColorRGBA PICKING_MODEL_COLOR             = Slic3r::ColorRGBA::BLACK();
-static const Slic3r::ColorRGBA DEFAULT_SOLID_GRID_COLOR        = { 0.9f, 0.9f, 0.9f, 1.0f };
+static const Slic3r::ColorRGBA DEFAULT_SOLID_GRID_COLOR        = { 0.5f, 0.5f, 0.5f, 1.0f };
 static const Slic3r::ColorRGBA DEFAULT_TRANSPARENT_GRID_COLOR  = { 0.9f, 0.9f, 0.9f, 0.6f };
 
 namespace Slic3r {
@@ -81,8 +81,23 @@ Bed3D::Bed3D()
 
 }
 
-bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom)
-{
+bool Bed3D::set_shape(const Pointfs& bed_shape,
+                      const Pointfs& exclude_areas,
+                      const double max_print_height,
+                      const std::string& custom_texture,
+                      const std::string& custom_model,
+                      bool force_as_custom) {
+
+    Pointfs new_shape, new_exclude_areas;
+    
+    for (const Vec2d& p : bed_shape) {
+     //new_shape.push_back(Vec2d(p.x() + position.x(), p.y() + position.y()));
+    }
+
+    for (const Vec2d& p : exclude_areas) {
+       new_exclude_areas.push_back(Vec2d(p.x(), p.y()));
+    }
+
     auto check_texture = [](const std::string& texture) {
         boost::system::error_code ec; // so the exists call does not throw (e.g. after a permission problem)
         return !texture.empty() && (boost::algorithm::iends_with(texture, ".png") || boost::algorithm::iends_with(texture, ".svg")) && boost::filesystem::exists(Slic3r::find_full_path(texture), ec);
@@ -92,7 +107,7 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
         boost::system::error_code ec;
         return !model.empty() && boost::algorithm::iends_with(model, ".stl") && boost::filesystem::exists(Slic3r::find_full_path(model), ec);
     };
-
+    
     Type type;
     std::string model;
     std::string texture;
@@ -123,6 +138,7 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
         // No change, no need to update the UI.
         return false;
 
+    m_exclude_area = std::move(new_exclude_areas);
     m_type = type;
     m_build_volume = BuildVolume { bed_shape, max_print_height };
     m_texture_filename = texture_filename;
@@ -132,11 +148,15 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
     m_extended_bounding_box = this->calc_extended_bounding_box();
 
     m_contour = ExPolygon(Polygon::new_scale(bed_shape));
+    ExPolygon exclude_poly;
+    generate_exclude_polygon(exclude_poly);
+    calc_exclude_triangles(exclude_poly);
+    
     const BoundingBox bbox = m_contour.contour.bounding_box();
     if (!bbox.defined)
         throw RuntimeError(std::string("Invalid bed shape"));
     m_polygon = offset(m_contour.contour, (float)bbox.radius() * 1.7f, jtRound, scale_(0.5)).front();
-
+    
     m_triangles.reset();
     m_gridlines.reset();
     m_gridlines_big.reset();
@@ -220,6 +240,131 @@ BoundingBoxf3 Bed3D::calc_extended_bounding_box() const
     return out;
 }
 
+// BBS: bed_exclude_area
+bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
+    if (poly.empty())
+        return false;
+
+    const std::vector<Vec2f> triangles = triangulate_expolygon_2f(poly, NORMALS_UP);
+    if (triangles.empty() || triangles.size() % 3 != 0)
+        return false;
+
+    GLModel::Geometry init_data;
+    init_data.format = { GLModel::Geometry::EPrimitiveType::Triangles, GLModel::Geometry::EVertexLayout::P3T2 };
+    init_data.reserve_more_vertices(triangles.size());
+    init_data.reserve_indices(triangles.size() / 3);
+
+    Vec2f min = triangles.front();
+    Vec2f max = min;
+    for (const Vec2f &v : triangles) {
+        min = min.cwiseMin(v).eval();
+        max = max.cwiseMax(v).eval();
+    }
+
+    const Vec2f size = max - min;
+    if (size.x() <= 0.0f || size.y() <= 0.0f)
+        return false;
+
+    Vec2f inv_size = size.cwiseInverse();
+    inv_size.y() *= 1.0f;
+
+    // vertices + indeces
+    unsigned int vertices_counter = 0;
+    for (const Vec2f &v : triangles) {
+        const Vec3f p = {v.x(), v.y(), z + 1};
+        init_data.add_vertex(p, (Vec2f)(v - min).cwiseProduct(inv_size).eval());
+        ++vertices_counter;
+        if (vertices_counter % 3 == 0)
+            init_data.add_triangle(vertices_counter - 3, vertices_counter - 2, vertices_counter - 1);
+    }
+
+    model.init_from(std::move(init_data));
+
+    return true;
+}
+
+void Bed3D::render_exclude_area(bool force_default_color) {
+    if (force_default_color)
+        return;
+            
+    ColorRGBA select_color{ 0.5f, 0.5f, 0.5f, 1.0f };
+
+    // draw exclude area
+    glsafe(::glColor4fv(select_color.data()));
+    //glsafe(::glDisable(GL_DEPTH_TEST));
+    glsafe(::glDisable(GL_BLEND));
+    m_exclude_triangles.set_color(select_color);
+    m_exclude_triangles.render();
+    //glsafe(::glEnable(GL_DEPTH_TEST));
+    glsafe(::glEnable(GL_BLEND));
+}
+
+void Bed3D::calc_exclude_triangles(const ExPolygon &poly) {
+    m_exclude_triangles.reset();
+
+    if (!init_model_from_poly(m_exclude_triangles, poly, GROUND_Z)) {
+      // Error
+    }
+}
+
+void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
+{
+	auto compute_exclude_points = [&exclude_polygon](Vec2d& center, double radius, double start_angle, double stop_angle, int count)
+	{
+		double angle_steps;
+		angle_steps = (stop_angle - start_angle) / (count - 1);
+		for(int j = 0; j < count; j++ )
+		{
+			double angle = start_angle + j * angle_steps;
+			double x = center(0) + ::cos(angle) * radius;
+			double y = center(1) + ::sin(angle) * radius;
+			exclude_polygon.contour.append({ scale_(x), scale_(y) });
+		}
+	};
+
+	int points_count = 8;
+	if (m_exclude_area.size() == 4)
+	{
+			//rectangle case
+			for (int i = 0; i < 4; i++)
+			{
+				const Vec2d& p = m_exclude_area[i];
+				Vec2d center;
+				double start_angle, stop_angle, radius;
+				switch (i) {
+					case 0:
+						radius = 5.f;
+						center(0) = p(0) + radius;
+						center(1) = p(1) + radius;
+						start_angle = PI;
+						stop_angle = 1.5 * PI;
+						compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
+						break;
+					case 1:
+						exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+						break;
+					case 2:
+						radius = 3.f;
+						center(0) = p(0) - radius;
+						center(1) = p(1) - radius;
+						start_angle = 0;
+						stop_angle = 0.5 * PI;
+						compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
+						break;
+					case 3:
+						exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+						break;
+				}
+			}
+	}
+	else {
+		for (const Vec2d& p : m_exclude_area) {
+			exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+		}
+	}
+}
+
+
 void Bed3D::init_triangles()
 {
     if (m_triangles.is_initialized())
@@ -265,6 +410,7 @@ void Bed3D::init_triangles()
         // register for picking
         register_raycasters_for_picking(init_data, Transform3d::Identity());
 
+    
     m_triangles.init_from(std::move(init_data));
     m_triangles.set_color(m_model_color);
 }
@@ -429,9 +575,11 @@ void Bed3D::render_grid(bool bottom, bool has_model)
 
 void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture)
 {
-    if (!bottom)
+    if (!bottom) {
         render_model(view_matrix, projection_matrix);
-
+        //render_exclude_area(false);
+    }
+    
     if (show_texture)
         render_texture(bottom, canvas, view_matrix, projection_matrix);
     else if (bottom)
@@ -520,8 +668,8 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
 
         if (bottom)
             glsafe(::glFrontFace(GL_CW));
-
-        // if m_texture_with_grid, show a grid on top of texture.                             
+        
+        // if m_texture_with_grid, show a grid on top of texture.
         if (this->m_texture_with_grid) {
             glsafe(::glDisable(GL_DEPTH_TEST));
             glsafe(::glDisable(GL_BLEND));
@@ -530,6 +678,10 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
             glsafe(::glEnable(GL_BLEND));
         }
 
+        if (!bottom) {
+            render_exclude_area(false);
+        }
+        
         // show the temporary texture while no compressed data is available
         GLuint tex_id = (GLuint)m_temp_texture.get_id();
         if (tex_id == 0)
@@ -576,6 +728,8 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
         // update extended bounding box
         m_extended_bounding_box = this->calc_extended_bounding_box();
     }
+    
+    //render_exclude_area(false);
 
     if (!m_model.model.get_filename().empty()) {
         GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
@@ -600,8 +754,10 @@ void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, co
         return;
     }
 
-    if (!bottom)
+    if (!bottom) {
         render_model(view_matrix, projection_matrix);
+        render_exclude_area(false);
+   }
 
     if (show_texture)
         render_texture(bottom, canvas, view_matrix, projection_matrix);
@@ -659,7 +815,9 @@ void Bed3D::render_contour(const Transform3d& view_matrix, const Transform3d& pr
         glsafe(::glEnable(GL_DEPTH_TEST));
         glsafe(::glEnable(GL_BLEND));
         glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-
+         
+       //render_exclude_area(false);
+       
         // draw contour
 #if ENABLE_GL_CORE_PROFILE
         if (!OpenGLManager::get_gl_info().is_core_profile())

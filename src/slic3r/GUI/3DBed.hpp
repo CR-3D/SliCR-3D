@@ -46,10 +46,15 @@ private:
     boost::filesystem::path m_model_path;
     // Print volume bounding box exteded with axes and model.
     BoundingBoxf3 m_extended_bounding_box;
+
     // Print bed polygon
     ExPolygon m_contour;
     // Slightly expanded print bed polygon, for collision detection.
     Polygon m_polygon;
+    GLModel m_exclude_triangles;
+    Pointfs m_exclude_areas;
+    Pointfs m_exclude_area;
+
     GLModel m_triangles;
     GLModel m_gridlines;
     GLModel m_gridlines_big;
@@ -75,7 +80,12 @@ public:
     // Return true if the bed shape changed, so the calee will update the UI.
     //FIXME if the build volume max print height is updated, this function still returns zero
     // as this class does not use it, thus there is no need to update the UI.
-    bool set_shape(const Pointfs& bed_shape, const double max_print_height, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom = false);
+    bool set_shape(const Pointfs& bed_shape,
+                   const Pointfs& exclude_areas,
+                   const double max_print_height,
+                   const std::string& custom_texture,
+                   const std::string& custom_model,
+                   bool force_as_custom = false);
 
     // Build volume geometry for various collision detection tasks.
     const BuildVolume& build_volume() const { return m_build_volume; }
@@ -96,6 +106,11 @@ public:
     void render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor, bool show_texture);
     void render_axes();
     void render_for_picking(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor);
+    void render_exclude_area(bool force_background_color);
+    void calc_exclude_triangles(const ExPolygon &poly);
+    void generate_exclude_polygon(ExPolygon &exclude_polygon);
+    void calc_bounding_boxes() const;
+    //bool init_model_from_poly(GLModel &model, const Expolygon &poly, float z);
 
 private:
     // Calculate an extended bounding box from axes and current model for visualization purposes.

@@ -47,8 +47,17 @@ using t_back_to_init = std::function<void(const std::string&)>;
 wxString double_to_string(double const value, const int max_precision = 6);
 wxString get_points_string(const std::vector<Vec2d>& values);
 // return {invalid_val, out_of_range_val}
-std::pair<bool, bool> get_strings_points(const wxString &str, double min, double max, std::vector<Vec2d> &out_values);
 
+std::pair<bool, bool> get_strings_points(const std::string &str,
+                                         double min,
+                                         double max,
+                                         std::vector<Vec2d> &out_values);
+
+std::pair<bool, bool> get_strings_points_vec(const std::vector<std::string>& str_vec,
+                                         double min,
+                                         double max,
+                                         std::vector<Vec2d>& out_values);
+                                         
 class UndoValueUIManager
 {
 protected:

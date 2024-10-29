@@ -5397,13 +5397,37 @@ bool Plater::priv::can_reload_from_disk() const
     return !paths.empty();
 }
 
-void Plater::priv::set_bed_shape(const Pointfs &    shape,
-                                 const double       max_print_height,
+void Plater::priv::set_bed_shape(const Pointfs&    shape,
+                                 const double      max_print_height,
                                  const std::string &custom_texture,
                                  const std::string &custom_model,
-                                 bool               force_as_custom)
+                                 bool              force_as_custom)
 {
-    bool new_shape = bed.set_shape(shape, max_print_height, custom_texture, custom_model, force_as_custom);
+
+    std::vector<Vec2d> points;
+    auto exclude_areas_strings = config->option<ConfigOptionString>("bed_exclude_area")->value;
+    
+    std::cout << exclude_areas_strings << std::endl;
+    auto [invalid, out_of_range] = get_strings_points(exclude_areas_strings, 0, 400, points);
+   
+    // Check for errors in parsing exclude areas
+    if (invalid) {
+        std::cerr << "Error: Invalid format in bed exclude area coordinates.\n";
+        return;
+    } else if (out_of_range) {
+        std::cerr << "Warning: Some bed exclude area coordinates are out of the allowed range (0 - 400).\n";
+    }
+
+    // Define the actual exclude areas based on parsed points
+    std::vector<Vec2d> exclude_areas = points;
+
+    bool new_shape = bed.set_shape(shape,
+                                   exclude_areas,
+                                   max_print_height,
+                                   custom_texture,
+                                   custom_model,
+                                   force_as_custom);
+                                   
     if (new_shape) {
         if (view3D)
             view3D->bed_shape_changed();

@@ -90,7 +90,7 @@ wxString get_points_string(const std::vector<Vec2d>& values)
     return ret_str;
 }
 
-std::pair<bool, bool> get_strings_points(const wxString &str, double min, double max, std::vector<Vec2d> &out_values)
+std::pair<bool, bool> get_strings_points(const std::string &str, double min, double max, std::vector<Vec2d> &out_values)
 {
     bool              invalid_val      = false;
     bool              out_of_range_val = false;
@@ -118,6 +118,38 @@ std::pair<bool, bool> get_strings_points(const wxString &str, double min, double
     }
     return {invalid_val, out_of_range_val};
 }
+
+std::pair<bool, bool> get_strings_points_vec(const std::vector<std::string>& str_vec, double min, double max, std::vector<Vec2d>& out_values)
+{
+    bool invalid_val = false;
+    bool out_of_range_val = false;
+
+    for (const auto& str : str_vec) {
+        double x, y;
+        wxStringTokenizer point(str, "x");
+
+        // Process the current string (point)
+        if (point.HasMoreTokens()) {
+            wxString x_str = point.GetNextToken();
+            if (x_str.ToDouble(&x) && point.HasMoreTokens()) {
+                wxString y_str = point.GetNextToken();
+                if (y_str.ToDouble(&y) && !point.HasMoreTokens()) {
+                    // Check if the point is within the specified range
+                    if (min <= x && x <= max && min <= y && y <= max) {
+                        out_values.push_back(Vec2d(x, y));
+                        continue;
+                    }
+                    out_of_range_val = true;
+                }
+            }
+        }
+        invalid_val = true;
+        break;  // Exit if any invalid format is detected
+    }
+
+    return {invalid_val, out_of_range_val};
+}
+
 
 const wxBitmapBundle *UndoValueUIManager::enable_bitmap() const {
     if (!has_enable_ui())
