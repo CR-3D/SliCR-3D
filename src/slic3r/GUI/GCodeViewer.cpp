@@ -1453,7 +1453,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
     if (!wxGetApp().is_editor()) {
         Pointfs bed_shape;
         //BBS: add bed exclude area
-        Pointfs bed_exclude_area = Pointfs();
+        std::string bed_exclude_area = std::string();
         std::string texture;
         std::string model;
 
