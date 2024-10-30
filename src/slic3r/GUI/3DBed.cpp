@@ -271,7 +271,7 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
     // vertices + indeces
     unsigned int vertices_counter = 0;
     for (const Vec2f &v : triangles) {
-        const Vec3f p = {v.x(), v.y(), z + 1};
+        const Vec3f p = {v.x(), v.y(), z + 0.03};
         init_data.add_vertex(p, (Vec2f)(v - min).cwiseProduct(inv_size).eval());
         ++vertices_counter;
         if (vertices_counter % 3 == 0)
@@ -283,20 +283,16 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
     return true;
 }
 
-void Bed3D::render_exclude_area(bool force_default_color) {
-    if (force_default_color)
-        return;
-            
-    ColorRGBA select_color{ 0.5f, 0.5f, 0.5f, 1.0f };
+void Bed3D::render_exclude_area() {
+
+    ColorRGBA select_color{ 0.3f, 0.3f, 0.3f, 1.0f };
 
     // draw exclude area
-    glsafe(::glColor4fv(select_color.data()));
-    //glsafe(::glDisable(GL_DEPTH_TEST));
     glsafe(::glDisable(GL_BLEND));
     m_exclude_triangles.set_color(select_color);
     m_exclude_triangles.render();
-    //glsafe(::glEnable(GL_DEPTH_TEST));
     glsafe(::glEnable(GL_BLEND));
+
 }
 
 void Bed3D::calc_exclude_triangles(const ExPolygon &poly) {
@@ -679,7 +675,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         }
 
         if (!bottom) {
-            render_exclude_area(false);
+            render_exclude_area();
         }
         
         // show the temporary texture while no compressed data is available
@@ -689,6 +685,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
 
         glsafe(::glBindTexture(GL_TEXTURE_2D, tex_id));
         m_triangles.render();
+
         glsafe(::glBindTexture(GL_TEXTURE_2D, 0));
 
         if (bottom)
@@ -756,7 +753,7 @@ void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, co
 
     if (!bottom) {
         render_model(view_matrix, projection_matrix);
-        render_exclude_area(false);
+        render_exclude_area();
    }
 
     if (show_texture)
@@ -771,6 +768,7 @@ void Bed3D::render_default(bool bottom, bool picking, bool show_texture, const T
 
     init_gridlines();
     init_triangles();
+    //render_exclude_area();
 
     GLShaderProgram* shader = wxGetApp().get_shader("flat");
     if (shader != nullptr) {

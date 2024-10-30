@@ -195,8 +195,7 @@ std::pair<float,float> calculate_overhang_speed(const ExtrusionAttributes &attri
     if(!attributes.overhang_attributes.has_value())
         return {-1, -1};
     float speed_ratio = 0; // 0: overhangs speed, 1= periemter/externalperiemter speed.
-    float fan_speed = -1;
-        //= {{100, ConfigOptionFloatOrPercent{default_speed, false}}};
+    float fan_speed = -1; //= {{100, ConfigOptionFloatOrPercent{default_speed, false}}};
     if (config.overhangs_dynamic_speed.is_enabled()) {
         GraphData graph = config.overhangs_dynamic_speed.value;
         // ensure it start at 0%, and ensure it ends at 100%
