@@ -457,7 +457,12 @@ public:
     Mouse3DController& get_mouse3d_controller();
 
 	void set_bed_shape() const;
-    void set_bed_shape(const Pointfs& shape, const double max_print_height, const std::string& custom_texture, const std::string& custom_model, bool force_as_custom = false) const;
+    void set_bed_shape(const Pointfs& shape,
+                       const std::string& bed_exclude_area,
+                       const double max_print_height, 
+                       const std::string& custom_texture, 
+                       const std::string& custom_model, 
+                       bool force_as_custom = false) const;
     void set_default_bed_shape() const;
 
     NotificationManager * get_notification_manager();

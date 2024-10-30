@@ -157,6 +157,7 @@ namespace Slic3r {
         // Ascii gcodes have only one list on ends of lines
         std::vector<std::vector<size_t>> lines_ends;
         Pointfs bed_shape;
+        Pointfs bed_exclude_area;
         float max_print_height;
         float z_offset;
         SettingsIds settings_ids;

@@ -1452,6 +1452,8 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     if (!wxGetApp().is_editor()) {
         Pointfs bed_shape;
+        //BBS: add bed exclude area
+        Pointfs bed_exclude_area = Pointfs();
         std::string texture;
         std::string model;
 
@@ -1466,31 +1468,19 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
                     texture = PresetUtils::system_printer_bed_texture(*preset);
                 }
             }
-        }
-        else {
-            // adjust printbed size in dependence of toolpaths bbox
-            const double margin = 10.0;
-            const Vec2d min(m_paths_bounding_box.min.x() - margin, m_paths_bounding_box.min.y() - margin);
-            const Vec2d max(m_paths_bounding_box.max.x() + margin, m_paths_bounding_box.max.y() + margin);
 
-            const Vec2d size = max - min;
-            bed_shape = {
-                { min.x(), min.y() },
-                { max.x(), min.y() },
-                { max.x(), min.y() + 0.442265 * size.y()},
-                { max.x() - 10.0, min.y() + 0.4711325 * size.y()},
-                { max.x() + 10.0, min.y() + 0.5288675 * size.y()},
-                { max.x(), min.y() + 0.557735 * size.y()},
-                { max.x(), max.y() },
-                { min.x() + 0.557735 * size.x(), max.y()},
-                { min.x() + 0.5288675 * size.x(), max.y() - 10.0},
-                { min.x() + 0.4711325 * size.x(), max.y() + 10.0},
-                { min.x() + 0.442265 * size.x(), max.y()},
-                { min.x(), max.y() } };
-        }
+            if (!gcode_result.bed_exclude_area.empty())
+                bed_exclude_area = gcode_result.bed_exclude_area;
 
-        wxGetApp().plater()->set_bed_shape(bed_shape, gcode_result.max_print_height, texture, model, gcode_result.bed_shape.empty());
+        wxGetApp().plater()->set_bed_shape(bed_shape,
+                                           bed_exclude_area,
+                                           gcode_result.max_print_height,
+                                           texture, model,
+                                           gcode_result.bed_shape.empty());
+        }
     }
+
+
 
     m_print_statistics = gcode_result.print_statistics;
 

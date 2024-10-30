@@ -2266,6 +2266,7 @@ struct Plater::priv
     // fills the m_bed.m_grid_lines and sets m_bed.m_origin.
     // Sets m_bed.m_polygon to limit the object placement.
     void set_bed_shape(const Pointfs &    shape,
+                       const std::string& bed_exclude_area,
                        const double       max_print_height,
                        const std::string &custom_texture,
                        const std::string &custom_model,
@@ -5398,6 +5399,7 @@ bool Plater::priv::can_reload_from_disk() const
 }
 
 void Plater::priv::set_bed_shape(const Pointfs&    shape,
+                                 const std::string &bed_exclude_area,
                                  const double      max_print_height,
                                  const std::string &custom_texture,
                                  const std::string &custom_model,
@@ -5405,10 +5407,8 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
 {
 
     std::vector<Vec2d> points;
-    auto exclude_areas_strings = config->option<ConfigOptionString>("bed_exclude_area")->value;
-    
-    std::cout << exclude_areas_strings << std::endl;
-    auto [invalid, out_of_range] = get_strings_points(exclude_areas_strings, 0, 400, points);
+
+    auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 400, points);
    
     // Check for errors in parsing exclude areas
     if (invalid) {
@@ -8489,7 +8489,6 @@ void Plater::on_config_change(const DynamicConfig &config)
             }
         }
         
-        
         //FIXME also mills?
         if (opt_key == "filament_colour")
         {
@@ -8512,9 +8511,14 @@ void Plater::on_config_change(const DynamicConfig &config)
             p->view3D->get_canvas3d()->reset_sequential_print_clearance();
             p->view3D->get_canvas3d()->set_sla_view_type(GLCanvas3D::ESLAViewType::Original);
         }
-        else if (opt_key == "bed_shape" || opt_key == "bed_custom_texture" || opt_key == "bed_custom_model") {
+        else if (opt_key == "bed_shape"
+              || opt_key == "bed_custom_texture"
+              || opt_key == "bed_custom_model"
+              || opt_key == "bed_exclude_area") {
+            std::cout << "changed" << std::endl;
             bed_shape_changed = true;
             update_scheduled  = true;
+            
         } else if (boost::starts_with(opt_key, "wipe_tower") ||
                    // opt_key == "filament_minimal_purge_on_wipe_tower" // ? #ys_FIXME
                    opt_key == "single_extruder_multi_material") {
@@ -8563,23 +8567,30 @@ void Plater::on_config_change(const DynamicConfig &config)
 void Plater::set_bed_shape() const
 {
     set_bed_shape(p->config->option<ConfigOptionPoints>("bed_shape")->get_values(),
+                  p->config->option<ConfigOptionString>("bed_exclude_area")->value,
                   p->config->option<ConfigOptionFloat>("max_print_height")->value,
                   p->config->option<ConfigOptionString>("bed_custom_texture")->value,
                   p->config->option<ConfigOptionString>("bed_custom_model")->value);
 }
 
 void Plater::set_bed_shape(const Pointfs &    shape,
+                           const std::string& bed_exclude_area,
                            const double       max_print_height,
                            const std::string &custom_texture,
                            const std::string &custom_model,
                            bool               force_as_custom) const
 {
-    p->set_bed_shape(shape, max_print_height, custom_texture, custom_model, force_as_custom);
+    p->set_bed_shape(shape,
+                     bed_exclude_area, 
+                     max_print_height, 
+                     custom_texture, 
+                     custom_model, 
+                     force_as_custom);
 }
 
 void Plater::set_default_bed_shape() const
 {
-    set_bed_shape({ { 0.0, 0.0 }, { 200.0, 0.0 }, { 200.0, 200.0 }, { 0.0, 200.0 } }, 0.0, {}, {}, true);
+    set_bed_shape({ { 0.0, 0.0 }, "", { 200.0, 0.0 }, { 200.0, 200.0 }, { 0.0, 200.0 } }, 0.0, {}, {}, true);
 }
 
 void Plater::force_filament_colors_update()
