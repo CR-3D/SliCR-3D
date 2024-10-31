@@ -22,7 +22,6 @@
 
 #include <oneapi/tbb/scalable_allocator.h>
 
-
 #include <Eigen/Geometry> 
 
 #include "LocalesUtils.hpp"

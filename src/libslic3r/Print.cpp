@@ -41,7 +41,6 @@
 #include "format.hpp"
 
 #include <float.h>
-
 #include <algorithm>
 #include <limits>
 #include <string>
@@ -547,15 +546,78 @@ bool Print::has_brim() const
     return !this->m_brim.empty() || std::any_of(m_objects.begin(), m_objects.end(), [](PrintObject* object) { return object->has_brim(); });
 }
 
+std::pair<bool, bool> get_strings_points(const std::string &str, double min, double max, std::vector<Vec2d> &out_values)
+{
+    bool invalid_val = false;
+    bool out_of_range_val = false;
+    std::stringstream points_stream(str);
+    std::string token;
+
+    // Split input string by commas to get individual point tokens
+    while (std::getline(points_stream, token, ',')) {
+        std::stringstream point_stream(token);
+        std::string x_str, y_str;
+
+        // Split each point by 'x' to separate x and y values
+        if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+            try {
+                double x = std::stod(x_str);
+                double y = std::stod(y_str);
+
+                // Check if values are within specified range
+                if (min <= x && x <= max && min <= y && y <= max) {
+                    out_values.emplace_back(x, y);
+                    continue;
+                } else {
+                    out_of_range_val = true;
+                    break;
+                }
+            } catch (const std::invalid_argument&) {
+                invalid_val = true;
+                break;
+            } catch (const std::out_of_range&) {
+                invalid_val = true;
+                break;
+            }
+        } else {
+            invalid_val = true;
+            break;
+        }
+    }
+    return {invalid_val, out_of_range_val};
+}
+
 bool Print::sequential_print_horizontal_clearance_valid(const Print &print, Polygons* polygons)
 {
     if (print.config().extruder_clearance_radius == 0) {
         return true;
     }
+    
+    std::string exclude_area_points_string = print.config().bed_exclude_area.value;
+    std::vector<Vec2d> points;
+    Polygons exclude_polys;
+    Polygon exclude_poly;
+    
+
+    // Define the actual exclude areas based on parsed points
+    std::vector<Vec2d> exclude_areas = points;
+    
+    for (int i = 0; i < exclude_areas.size(); i++) {
+      auto pt = exclude_areas[i];
+      exclude_poly.points.emplace_back(scale_(pt.x()), scale_(pt.y()));
+      if (i % 4 == 3) {
+         exclude_polys.push_back(exclude_poly);
+         exclude_poly.points.clear();
+       }
+    }
+    
     Polygons convex_hulls_other;
+    Polygons exclude_polys_other;
+    
     if (polygons != nullptr) {
         polygons->clear();
     }
+    
     std::vector<size_t> intersecting_idxs;
 
 	std::map<ObjectID, Polygon> map_model_object_to_convex_hull;
@@ -585,6 +647,7 @@ bool Print::sequential_print_horizontal_clearance_valid(const Print &print, Poly
             if (!offs_ch2d.empty())
                 it_convex_hull = map_model_object_to_convex_hull.emplace_hint(it_convex_hull, model_object_id, offs_ch2d.front());
         }
+        
         if (it_convex_hull != map_model_object_to_convex_hull.end()) {
             // Make a copy, so it may be rotated for instances.
             //FIXME seems like the rotation isn't taken into account
@@ -609,12 +672,23 @@ bool Print::sequential_print_horizontal_clearance_valid(const Print &print, Poly
                             intersecting_idxs.emplace_back(convex_hulls_other.size());
                         }
                     }
-                }
+                    
+               if (!intersection(exclude_polys[i], convex_hull).empty()) {
+                   if (polygons == nullptr) {
+                      throw SlicingError(instance.model_instance->get_object()->name + L(" is too close to exclusion area, there may be collisions when printing"));
+                      return false;
+                   } else {
+                      intersecting_idxs.emplace_back(i);
+                      intersecting_idxs.emplace_back(exclude_polys.size());
+                   }
+               }
+               
                 convex_hulls_other.emplace_back(std::move(convex_hull));
             }
         }
+      }
     }
-
+   
     if (!intersecting_idxs.empty()) {
         // use collected indices (inside convex_hulls_other) to update output
         std::sort(intersecting_idxs.begin(), intersecting_idxs.end());
@@ -672,6 +746,8 @@ double Print::get_min_first_layer_height() const
     return min_layer_height;
 }
 
+
+
 // Matches "G92 E0" with various forms of writing the zero and with an optional comment.
 boost::regex regex_g92e0 { "^[ \\t]*[gG]92[ \\t]*[eE](0(\\.0*)?|\\.0+)[ \\t]*(;.*)?$" };
 
@@ -697,8 +773,57 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
     if (extruders.empty())
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
+
+    if (!m_config.bed_exclude_area.empty()) {
+      std::vector<Vec2d> points;
+      std::string bed_exclude_area = m_config.bed_exclude_area.value;
+      auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 400, points);
+      std::vector<Vec2d> exclude_areas = points;
+      
+     // std::cout << exclude_areas << std::endl;
+      Polygons exclude_polys;
+      Polygon exclude_poly;
+    
+    for (int i = 0; i < exclude_areas.size(); i++) {
+      auto pt = exclude_areas[i];
+      exclude_poly.points.emplace_back(scale_(pt.x()), scale_(pt.y()));
+      if (i % 4 == 3) {
+         exclude_polys.push_back(exclude_poly);
+         exclude_poly.points.clear();
+       }
+    }
+    
+    exclude_poly.make_counter_clockwise();
+    Polygons contours;
+      
+       // Append the polys
+       for (const PrintObject* print_object : m_objects) {
+          for (const PrintInstance& instance : print_object->instances()) {
+             for (const ModelVolume* v : print_object->model_object()->volumes) {
+                ModelObject* model_object = instance.model_instance->object;
+                Polygons vol_outline;
+                auto transl = Transform3d::Identity();
+                vol_outline = project_mesh(v->mesh().its, transl * instance.model_instance->get_matrix() * v->get_matrix(), [] {});
+                append(contours, vol_outline);
+
+      if (!contours.empty()) {
+            for(Polygon &contour : contours) {
+                contour.make_counter_clockwise();
+            }
+
+            bool has_intersection = !intersection(exclude_polys, contours).empty();
+            if (has_intersection) {
+                std::string name = instance.model_instance->get_object()->name;
+                return { PrintBase::PrintValidationError::pveWrongSettings, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
+                  }
+               }
+             }
+          }
+       }
+   }
+
     if (m_config.complete_objects || m_config.parallel_objects_step > 0) {
-    	if (! sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
+    	if (!sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
             return { PrintBase::PrintValidationError::pveWrongPosition, _u8L("Some objects are too close; your extruder will collide with them.") };
         if (m_config.complete_objects && ! sequential_print_vertical_clearance_valid(*this))
             return { PrintBase::PrintValidationError::pveWrongPosition,_u8L("Some objects are too tall and cannot be printed without extruder collisions.") };
@@ -708,7 +833,8 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
 
     if (m_config.avoid_crossing_perimeters && m_config.avoid_crossing_curled_overhangs) {
         return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Avoid crossing perimeters option and avoid crossing curled overhangs option cannot be both enabled together.") };
-    }    
+    }
+    
 
     if (m_config.spiral_vase) {
         size_t total_copies_count = 0;
@@ -762,11 +888,13 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         [](const PrintObject *object) { return object->model_object()->has_custom_layering(); }) 
         != m_objects.end();
 
+
     // Custom layering is not allowed for tree supports as of now.
     for (size_t print_object_idx = 0; print_object_idx < m_objects.size(); ++ print_object_idx)
         if (const PrintObject &print_object = *m_objects[print_object_idx];
             print_object.has_support_material() && print_object.config().support_material_style.value == smsOrganic &&
             print_object.model_object()->has_custom_layering()) {
+
             if (const std::vector<coordf_t> &layers = layer_height_profile(print_object_idx); ! layers.empty())
                 if (! check_object_layers_fixed(print_object.slicing_parameters(), layers))
                     return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Variable layer height is not supported with Organic supports.") };

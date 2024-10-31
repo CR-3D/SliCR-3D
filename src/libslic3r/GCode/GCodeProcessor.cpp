@@ -478,6 +478,7 @@ void GCodeProcessor::UsedFilaments::process_caches(const GCodeProcessor* process
 void GCodeProcessorResult::reset() {
     moves = std::vector<GCodeProcessorResult::MoveVertex>();
     bed_shape = Pointfs();
+    bed_exclude_area = std::string();
     max_print_height = 0.0f;
     z_offset = 0.0f;
     settings_ids.reset();

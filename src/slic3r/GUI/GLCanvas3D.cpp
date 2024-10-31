@@ -1686,9 +1686,11 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
                 case BuildVolume::Type::Circle:
                 case BuildVolume::Type::Convex:
                 //FIXME doing test on convex hull until we learn to do test on non-convex polygons efficiently.
+
                 case BuildVolume::Type::Custom:
                     state = build_volume.object_state(volume_convex_mesh(*volume).its, volume->world_matrix().cast<float>(), volume_sinking(*volume));
                     break;
+                    
                 default:
                     // Ignore, don't produce any collision.
                     state = BuildVolume::ObjectState::Inside;

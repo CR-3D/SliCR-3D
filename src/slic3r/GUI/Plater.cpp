@@ -5409,14 +5409,6 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
     std::vector<Vec2d> points;
 
     auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 400, points);
-   
-    // Check for errors in parsing exclude areas
-    if (invalid) {
-        std::cerr << "Error: Invalid format in bed exclude area coordinates.\n";
-        return;
-    } else if (out_of_range) {
-        std::cerr << "Warning: Some bed exclude area coordinates are out of the allowed range (0 - 400).\n";
-    }
 
     // Define the actual exclude areas based on parsed points
     std::vector<Vec2d> exclude_areas = points;
