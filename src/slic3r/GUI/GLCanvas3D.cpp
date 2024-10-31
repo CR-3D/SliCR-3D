@@ -2512,7 +2512,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     m_reload_delayed = !m_canvas->IsShown() && !refresh_immediately && !force_full_scene_refresh;
 
     PrinterTechnology printer_technology = current_printer_technology();
-    int               volume_idx_wipe_tower_old = -1;
+    std::map<size_t, size_t>               volume_idxs_wipe_towers_old; // map from geometry_id.second to volume_id
 
     // Release invalidated volumes to conserve GPU memory in case of delayed refresh (see m_reload_delayed).
     // First initialize model_volumes_new_sorted & model_instances_new_sorted.
@@ -2585,12 +2585,10 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         if (mvs == nullptr || force_full_scene_refresh) {
             // This GLVolume will be released.
             if (volume->is_wipe_tower) {
-                // There is only one wipe tower.
-                assert(volume_idx_wipe_tower_old == -1);
-#if ENABLE_OPENGL_ES
-                m_wipe_tower_mesh.clear();
-#endif // ENABLE_OPENGL_ES
-                volume_idx_wipe_tower_old = (int)volume_id;
+#if SLIC3R_OPENGL_ES
+                m_wipe_tower_meshes.clear();
+#endif // SLIC3R_OPENGL_ES
+                volume_idxs_wipe_towers_old.emplace(std::make_pair(volume->geometry_id.second, volume_id));
             }
             if (!m_reload_delayed) {
                 deleted_volumes.emplace_back(volume.get(), volume_id);
@@ -2782,38 +2780,50 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
         const bool wt = dynamic_cast<const ConfigOptionBool*>(m_config->option("wipe_tower"))->value;
         const bool co = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"))->value;
-
-        if (extruders_count > 1 && wt && !co) {
-            const float x = m_model->wipe_tower().position.x();
-            const float y = m_model->wipe_tower().position.y();
+            
             const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-            const float a = m_model->wipe_tower().rotation;
             const float bw = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_brim_width"))->value;
             const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
-            const Print *print = m_process->fff_print();
-            //FIXME use real nozzle diameter
+        if (extruders_count > 1 && wt && !co) {
             const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
-            const float depth = print->wipe_tower_data(extruders_count, first_nozzle_diameter).depth;
-            const std::vector<std::pair<float, float>> z_and_depth_pairs = print->wipe_tower_data(extruders_count, first_nozzle_diameter).z_and_depth_pairs;
-            const float height_real = print->wipe_tower_data(extruders_count, first_nozzle_diameter).height; // -1.f = unknown
 
-            // Height of a print (Show at least a slab).
-            const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
+          // const double real_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(wxGetApp().preset_bundle->printers.get_selected_idx());
+            
+            for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_number_of_beds(); ++bed_idx) {
+                const Print *print = wxGetApp().plater()->get_fff_prints()[bed_idx].get();
+
+                const float x = m_model->get_wipe_tower_vector()[bed_idx].position.x();
+                const float y = m_model->get_wipe_tower_vector()[bed_idx].position.y();
+                const float a = m_model->get_wipe_tower_vector()[bed_idx].rotation;
+                
+                const float depth = print->wipe_tower_data(extruders_count, first_nozzle_diameter ).depth;
+                const std::vector<std::pair<float, float>> z_and_depth_pairs = print->wipe_tower_data(extruders_count, first_nozzle_diameter).z_and_depth_pairs;
+                const float height_real = print->wipe_tower_data(extruders_count, first_nozzle_diameter).height; // -1.f = unknown
+                
+                const bool is_wipe_tower_step_done = print->is_step_done(psWipeTower);
+
+                const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
 
             if (depth != 0.) {
-    #if ENABLE_OPENGL_ES
-                int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
-                    x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !print->is_step_done(psWipeTower),
-                    bw, &m_wipe_tower_mesh);
-    #else
-                int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
-                    x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !print->is_step_done(psWipeTower),
-                    bw);
-    #endif // ENABLE_OPENGL_ES
-                if (volume_idx_wipe_tower_old != -1)
-                    map_glvolume_old_to_new[volume_idx_wipe_tower_old] = volume_idx_wipe_tower_new;
+#if SLIC3R_OPENGL_ES
+                        if (bed_idx >= m_wipe_tower_meshes.size())
+                            m_wipe_tower_meshes.resize(bed_idx + 1);
+                        int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
+                            x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !is_wipe_tower_step_done,
+                            bw, bed_idx, &m_wipe_tower_meshes[bed_idx]);
+#else
+                        int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
+                            x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !is_wipe_tower_step_done,
+                            bw, bed_idx);
+#endif // SLIC3R_OPENGL_ES
+                        auto it = volume_idxs_wipe_towers_old.find(m_volumes.volumes.back()->geometry_id.second);
+                        if (it != volume_idxs_wipe_towers_old.end())
+                            map_glvolume_old_to_new[it->second] = volume_idx_wipe_tower_new;
+                        m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() + s_multiple_beds.get_bed_translation(bed_idx));
+                    }
             }
+            s_multiple_beds.ensure_wipe_towers_on_beds(wxGetApp().plater()->model(), wxGetApp().plater()->get_fff_prints());
         }
     }
 
@@ -4348,11 +4358,14 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
 
     std::set<std::pair<int, int>> done;  // keeps track of modified instances
     bool object_moved = false;
-    Vec3d wipe_tower_origin = Vec3d::Zero();
+    std::vector<Vec3d> wipe_tower_origin = std::vector<Vec3d>(s_multiple_beds.get_max_beds(), Vec3d::Zero());
 
     Selection::EMode selection_mode = m_selection.get_mode();
+    int vol_id = -1;
 
     for (const std::unique_ptr<GLVolume> &v : m_volumes.volumes) {
+        ++vol_id;
+
         int object_idx = v->object_idx();
         int instance_idx = v->instance_idx();
         int volume_idx = v->volume_idx();
@@ -4377,9 +4390,15 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
                 model_object->invalidate_bounding_box();
             }
         }
-        else if (m_selection.is_wipe_tower() && v->is_wipe_tower)
+        else if (m_selection.is_wipe_tower() && v->is_wipe_tower && m_selection.contains_volume(vol_id)) {
             // Move a wipe tower proxy.
-            wipe_tower_origin = v->get_volume_offset();
+            for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
+                if (v->geometry_id.second == wipe_tower_instance_id(bed_idx).id) {
+                    wipe_tower_origin[bed_idx] = v->get_volume_offset();
+                    break;
+                }
+            }
+        }
     }
 
     // Fixes flying instances
@@ -4406,8 +4425,9 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
     if (object_moved)
         post_event(SimpleEvent(EVT_GLCANVAS_INSTANCE_MOVED));
 
-    if (wipe_tower_origin != Vec3d::Zero()) {
-        m_model->wipe_tower().position = Vec2d(wipe_tower_origin[0], wipe_tower_origin[1]);
+    if (auto it = std::find_if(wipe_tower_origin.begin(), wipe_tower_origin.end(), [](const Vec3d& pos) { return pos != Vec3d::Zero(); }); it != wipe_tower_origin.end()) {
+        size_t bed_idx = it - wipe_tower_origin.begin();
+        m_model->get_wipe_tower_vector()[bed_idx].position = Vec2d((*it)[0] - s_multiple_beds.get_bed_translation(bed_idx).x(), (*it)[1] - s_multiple_beds.get_bed_translation(bed_idx).y());
         post_event(SimpleEvent(EVT_GLCANVAS_WIPETOWER_TOUCHED));
     }
 
@@ -4447,15 +4467,26 @@ void GLCanvas3D::do_rotate(const std::string& snapshot_type)
     std::set<std::pair<int, int>> done;  // keeps track of modified instances
 
     Selection::EMode selection_mode = m_selection.get_mode();
+    int v_id = -1;
 
     for (const std::unique_ptr<GLVolume> &v : m_volumes.volumes) {
+        ++v_id;
+
         if (v->is_wipe_tower) {
-            const Vec3d offset = v->get_volume_offset();
-            Vec3d rot_unit_x = v->get_volume_transformation().get_matrix().linear() * Vec3d::UnitX();
-            double z_rot = std::atan2(rot_unit_x.y(), rot_unit_x.x());
-            m_model->wipe_tower().position = Vec2d(offset.x(), offset.y());
-            m_model->wipe_tower().rotation = (180./M_PI) * z_rot;
+            if (m_selection.contains_volume(v_id)) {
+                for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
+                    if (v->geometry_id.second == wipe_tower_instance_id(bed_idx).id) {
+                        const Vec3d offset = v->get_volume_offset() - s_multiple_beds.get_bed_translation(bed_idx);
+                        Vec3d rot_unit_x = v->get_volume_transformation().get_matrix().linear() * Vec3d::UnitX();
+                        double z_rot = std::atan2(rot_unit_x.y(), rot_unit_x.x());
+                        m_model->get_wipe_tower_vector()[bed_idx].position = Vec2d(offset.x(), offset.y());
+                        m_model->get_wipe_tower_vector()[bed_idx].rotation = (180. / M_PI) * z_rot;
+                        break;
+                    }
+                }
+            }
         }
+
         const int object_idx = v->object_idx();
         if (object_idx < 0 || (int)m_model->objects.size() <= object_idx)
             continue;

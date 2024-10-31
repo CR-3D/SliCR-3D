@@ -507,12 +507,12 @@ int GLVolumeCollection::load_object_volume(
 #if ENABLE_OPENGL_ES
 int GLVolumeCollection::load_wipe_tower_preview(
     float pos_x, float pos_y, float width, float depth, const std::vector<std::pair<float, float>>& z_and_depth_pairs, float height, float cone_angle,
-    float rotation_angle, bool size_unknown, float brim_width, TriangleMesh* out_mesh)
+    float rotation_angle, bool size_unknown, float brim_width, size_t idx, TriangleMesh* out_mesh)
 #else
 int GLVolumeCollection::load_wipe_tower_preview(
     float pos_x, float pos_y, float width, float depth, const std::vector<std::pair<float, float>>& z_and_depth_pairs, float height, float cone_angle,
-    float rotation_angle, bool size_unknown, float brim_width)
-#endif // ENABLE_OPENGL_ES
+    float rotation_angle, bool size_unknown, float brim_width, size_t idx)
+#endif // SLIC3R_OPENGL_ES
 {
     if (height == 0.0f)
         height = 0.1f;
@@ -609,9 +609,9 @@ int GLVolumeCollection::load_wipe_tower_preview(
     v.set_convex_hull(mesh.convex_hull_3d());
     v.set_volume_offset(Vec3d(pos_x, pos_y, 0.0));
     v.set_volume_rotation(Vec3d(0., 0., (M_PI / 180.) * rotation_angle));
-    v.composite_id = GLVolume::CompositeID(INT_MAX, 0, 0);
+    v.composite_id = GLVolume::CompositeID(INT_MAX - idx, 0, 0);
     v.geometry_id.first = 0;
-    v.geometry_id.second = wipe_tower_instance_id(0).id;
+    v.geometry_id.second = wipe_tower_instance_id(idx).id;
     v.is_wipe_tower = true;
     v.shader_outside_printer_detection_enabled = !size_unknown;
     return int(volumes.size() - 1);

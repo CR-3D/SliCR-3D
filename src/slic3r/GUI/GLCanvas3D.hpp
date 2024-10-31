@@ -528,7 +528,7 @@ private:
     GLVolumeCollection m_volumes;
     bool m_show_gcode = true;
 #if ENABLE_OPENGL_ES
-    TriangleMesh m_wipe_tower_mesh;
+    std::vector<TriangleMesh> m_wipe_tower_mesh;
 #endif // ENABLE_OPENGL_ES
     GCodeViewer m_gcode_viewer;
 

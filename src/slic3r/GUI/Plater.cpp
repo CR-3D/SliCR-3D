@@ -3189,7 +3189,10 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
     GLGizmoSimplify::add_simplify_suggestion_notification(
         obj_idxs, model.objects, *notification_manager);
 
-    if (s_multiple_beds.update_after_load_or_arrange(model, q->build_volume(), [this]() {q->canvas3D()->check_volumes_outside_state(); }))
+    if (s_multiple_beds.update_after_load_or_arrange(model, q->build_volume(), [this]() {
+            q->canvas3D()->check_volumes_outside_state();
+            s_multiple_beds.ensure_wipe_towers_on_beds(model, fff_prints);
+         }))
         update();
 
     return obj_idxs;
@@ -8913,7 +8916,10 @@ void Plater::arrange(Worker &w, bool selected)
                                                                       concat_strings(names, "\n")));
         }
 
-        s_multiple_beds.update_after_load_or_arrange(model(), build_volume(), [this]() { canvas3D()->check_volumes_outside_state(); });
+        s_multiple_beds.update_after_load_or_arrange(model(), build_volume(), [this]() {
+            canvas3D()->check_volumes_outside_state();
+            s_multiple_beds.ensure_wipe_towers_on_beds(model(), get_fff_prints());
+        });
 
         update(static_cast<unsigned int>(UpdateParams::FORCE_FULL_SCREEN_REFRESH));
         wxGetApp().obj_manipul()->set_dirty();
@@ -9310,6 +9316,11 @@ bool Plater::PopupMenu(wxMenu *menu, const wxPoint &pos)
     return out;
 }
 void Plater::bring_instance_forward() { p->bring_instance_forward(); }
+
+std::vector<std::unique_ptr<Print>>& Plater::get_fff_prints()
+{
+    return p->fff_prints;
+}
 
 wxMenu* Plater::object_menu()           { return p->menus.object_menu();            }
 wxMenu* Plater::part_menu()             { return p->menus.part_menu();              }

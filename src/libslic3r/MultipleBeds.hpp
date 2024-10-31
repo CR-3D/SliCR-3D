@@ -12,6 +12,7 @@ namespace Slic3r {
 class Model;
 class BuildVolume;
 class PrintBase;
+class Print;
 
 extern bool s_reload_preview_after_switching_beds;
 extern bool s_beds_just_switched;
@@ -48,6 +49,7 @@ public:
 	bool   get_loading_project_flag() const { return m_loading_project; }
 
 	void   update_build_volume(const BoundingBoxf& build_volume_bb, const BoundingBoxf& build_volume_bb_incl_model) { m_build_volume_bb = build_volume_bb; m_build_volume_bb_incl_model = build_volume_bb_incl_model; }
+	void   ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints);
 
 
 

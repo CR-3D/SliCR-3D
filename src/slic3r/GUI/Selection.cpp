@@ -23,6 +23,7 @@
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/BuildVolume.hpp"
+#include "libslic3r/MultipleBeds.hpp"
 
 #include <GL/glew.h>
 
@@ -147,7 +148,7 @@ void Selection::add(unsigned int volume_idx, bool as_single_selection, bool chec
         return;
 
     // wipe tower is already selected
-    if (is_wipe_tower() && volume->is_wipe_tower)
+    if (is_wipe_tower() && volume->is_wipe_tower && contains_volume(volume_idx))
         return;
 
     bool keep_instance_mode = (m_mode == Instance) && !as_single_selection;

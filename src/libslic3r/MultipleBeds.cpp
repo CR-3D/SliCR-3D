@@ -2,6 +2,7 @@
 
 #include "BuildVolume.hpp"
 #include "Model.hpp"
+#include "Print.hpp"
 
 #include <cassert>
 
@@ -212,6 +213,23 @@ bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume&
     return true;
 }
 
+
+
+void MultipleBeds::ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints)
+{
+    for (size_t bed_idx = 0; bed_idx < get_number_of_beds(); ++bed_idx) {
+        ModelWipeTower& mwt = model.get_wipe_tower_vector()[bed_idx];
+        double depth = prints[bed_idx]->wipe_tower_data().depth;
+        double width = prints[bed_idx]->wipe_tower_data().width;
+        double brim  = prints[bed_idx]->wipe_tower_data().brim_width;
+
+        Polygon plg(Points{Point::new_scale(-brim,-brim), Point::new_scale(brim+width, -brim), Point::new_scale(brim+width, brim+depth), Point::new_scale(-brim, brim+depth)});
+        plg.rotate(Geometry::deg2rad(mwt.rotation));
+        plg.translate(scaled(mwt.position));
+        if (std::all_of(plg.points.begin(), plg.points.end(), [this](const Point& pt) { return !m_build_volume_bb.contains(unscale(pt)); }))
+            mwt.position = 2*brim*Vec2d(1.,1.);
+    }
+}
 
 
 }

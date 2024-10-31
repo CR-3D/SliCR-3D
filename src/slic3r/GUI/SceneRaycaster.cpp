@@ -162,7 +162,7 @@ SceneRaycaster::HitResult SceneRaycaster::hit(const Vec2d& mouse_pos, const Came
         const std::vector<std::shared_ptr<SceneRaycasterItem>>* raycasters = get_raycasters(type);
         const Vec3f camera_forward = camera.get_dir_forward().cast<float>();
         HitResult current_hit = { type };
-        for (std::shared_ptr<SceneRaycasterItem> item : *raycasters) {
+        for (const std::shared_ptr<SceneRaycasterItem>& item : *raycasters) {
             if (!item->is_active())
                 continue;
 
