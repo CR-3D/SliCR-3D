@@ -28,9 +28,13 @@ class GUISelectionMask: public arr2::SelectionMask {
 public:
     explicit GUISelectionMask(const Selection *sel) : m_sel{sel} {}
 
-    bool is_wipe_tower() const override
+    bool is_wipe_tower_selected(int wipe_tower_index) const override
     {
-        return m_sel->is_wipe_tower();
+        const GLVolume *volume{GUI::get_selected_gl_volume(*m_sel)};
+        if (volume != nullptr && volume->wipe_tower_bed_index == wipe_tower_index) {
+            return true;
+        }
+        return false;
     }
 
     std::vector<bool> selected_objects() const override
@@ -69,6 +73,91 @@ public:
     }
 };
 
+class BedSelectionMask: public arr2::SelectionMask {
+    const int m_bed_index;
+    std::vector<std::vector<bool>> m_selected_instances;
+    std::vector<bool> m_selected_objects;
+
+public:
+    explicit BedSelectionMask(const int bed_index, const ModelObjectPtrs &objects, const std::set<ObjectID> &instances_on_bed):
+        m_bed_index{bed_index},
+        m_selected_instances(get_selected_instances(objects, instances_on_bed)),
+        m_selected_objects(get_selected_objects(this->m_selected_instances))
+        {}
+
+    bool is_wipe_tower_selected(int wipe_tower_index) const override
+    {
+        return wipe_tower_index == m_bed_index;
+    }
+
+    std::vector<bool> selected_objects() const override
+    {
+        return this->m_selected_objects;
+    }
+
+    std::vector<bool> selected_instances(int obj_id) const override {
+        return this->m_selected_instances[obj_id];
+    }
+
+private:
+    static std::vector<bool> get_selected_objects(
+        const std::vector<std::vector<bool>> &selected_instances
+    ) {
+        std::vector<bool> result;
+
+        std::transform(
+            selected_instances.begin(),
+            selected_instances.end(),
+            std::back_inserter(result),
+            [&](const std::vector<bool> &object_selected_instances) {
+                return std::any_of(
+                    object_selected_instances.begin(),
+                    object_selected_instances.end(),
+                    [](const bool is_selected){ return is_selected; }
+                );
+            }
+        );
+
+        return result;
+    }
+
+    std::vector<bool> get_selected_instances(
+        const ModelObject &object,
+        const std::set<ObjectID> &instances_on_bed
+    ) {
+        std::vector<bool> result;
+        std::transform(
+            object.instances.begin(),
+            object.instances.end(),
+            std::back_inserter(result),
+            [&](const ModelInstance *instance) {
+                const auto instance_bed_index{instances_on_bed.find(instance->id())};
+                if(instance_bed_index != instances_on_bed.end()) {
+                    return true;
+                }
+                return false;
+            }
+        );
+        return result;
+    }
+
+    std::vector<std::vector<bool>> get_selected_instances(
+        const ModelObjectPtrs &objects,
+        const std::set<ObjectID> &instances_on_bed
+    ) {
+        std::vector<std::vector<bool>> result;
+        std::transform(
+            objects.begin(),
+            objects.end(),
+            std::back_inserter(result),
+            [&](const ModelObject *object){
+                return get_selected_instances(*object, instances_on_bed);
+            }
+        );
+        return result;
+    }
+};
+
 static Polygon get_wtpoly(const GLCanvas3D::WipeTowerInfo &wti)
 {
 
@@ -97,9 +186,9 @@ class ArrangeableWT: public arr2::ArrangeableWipeTowerBase
 public:
     explicit ArrangeableWT(const ObjectID                  &oid,
                            const GLCanvas3D::WipeTowerInfo &wti,
-                           std::function<bool()>            sel_pred,
+                           std::function<bool(int)>            sel_pred,
                            const BoundingBox                xl_bb = {})
-        : arr2::ArrangeableWipeTowerBase{oid, get_wtpoly(wti), std::move(sel_pred)}
+        : arr2::ArrangeableWipeTowerBase{oid, get_wtpoly(wti), wti.bed_index(), std::move(sel_pred)}
         , m_orig_tr{wti.pos()}
         , m_orig_rot{wti.rotation()}
         , m_xl_bb{xl_bb}
@@ -108,7 +197,7 @@ public:
     // Rotation is disabled for wipe tower in arrangement
     void transform(const Vec2d &transl, double /*rot*/) override
     {
-        GLCanvas3D::WipeTowerInfo::apply_wipe_tower(m_orig_tr + transl, m_orig_rot);
+        GLCanvas3D::WipeTowerInfo::apply_wipe_tower(m_orig_tr + transl, m_orig_rot, this->bed_index);
     }
 
     void imbue_data(arr2::AnyWritable &datastore) const override
@@ -132,12 +221,12 @@ struct WTH : public arr2::WipeTowerHandler
 {
     GLCanvas3D::WipeTowerInfo wti;
     ObjectID oid;
-    std::function<bool()> sel_pred;
+    std::function<bool(int)> sel_pred;
     BoundingBox xl_bb;
 
     WTH(const ObjectID &objid,
         const GLCanvas3D::WipeTowerInfo &w,
-        std::function<bool()> sel_predicate = [] { return false; })
+        std::function<bool(int)> sel_predicate = [](int){ return false; })
         : wti(w), oid{objid}, sel_pred{std::move(sel_predicate)}
     {}
 
@@ -158,9 +247,13 @@ struct WTH : public arr2::WipeTowerHandler
         visit_(*this, fn);
     }
 
-    void set_selection_predicate(std::function<bool()> pred) override
+    void set_selection_predicate(std::function<bool(int)> pred) override
     {
         sel_pred = std::move(pred);
+    }
+
+    ObjectID get_id() const override {
+        return this->oid;
     }
 };
 
@@ -168,29 +261,63 @@ arr2::SceneBuilder build_scene(Plater &plater, ArrangeSelectionMode mode)
 {
     arr2::SceneBuilder builder;
 
+    const int current_bed{s_multiple_beds.get_active_bed()};
     if (mode == ArrangeSelectionMode::SelectionOnly) {
         auto sel = std::make_unique<GUISelectionMask>(&plater.get_selection());
         builder.set_selection(std::move(sel));
+    } else if (mode == ArrangeSelectionMode::CurrentBedSelectionOnly) {
+        arr2::BedConstraints constraints;
+        for (const ModelObject *object : plater.model().objects) {
+            for (const ModelInstance *instance : object->instances) {
+                constraints.insert({instance->id(), current_bed});
+            }
+        }
+        builder.set_bed_constraints(std::move(constraints));
+
+        auto gui_selection{std::make_unique<GUISelectionMask>(&plater.get_selection())};
+        builder.set_selection(std::move(gui_selection));
+    } else if (mode == ArrangeSelectionMode::CurrentBedFull) {
+        std::set<ObjectID> instances_on_bed;
+        arr2::BedConstraints constraints;
+        for (const auto &instance_bed : s_multiple_beds.get_inst_map()) {
+            if (instance_bed.second == current_bed) {
+                instances_on_bed.emplace(instance_bed.first);
+                constraints.emplace(instance_bed);
+            }
+        }
+        builder.set_bed_constraints(std::move(constraints));
+
+        auto bed_selection{std::make_unique<BedSelectionMask>(
+            current_bed,
+            plater.model().objects,
+            instances_on_bed
+        )};
+        builder.set_selection(std::move(bed_selection));
     }
 
     builder.set_arrange_settings(plater.canvas3D()->get_arrange_settings_view());
 
-    auto wti = plater.canvas3D()->get_wipe_tower_info();
+    const auto wipe_tower_infos = plater.canvas3D()->get_wipe_tower_infos();
 
-    AnyPtr<WTH> wth;
+    std::vector<AnyPtr<arr2::WipeTowerHandler>> handlers;
 
-    if (wti) {
-        wth = std::make_unique<WTH>(wipe_tower_instance_id(0), wti);
-    }
-
-    if (plater.config()) {
-        builder.set_bed(*plater.config());
-        if (wth && is_XL_printer(*plater.config())) {
-            wth->xl_bb = bounding_box(get_bed_shape(*plater.config()));
+    for (const auto &info : wipe_tower_infos) {
+        if (info) {
+            auto handler{std::make_unique<WTH>(wipe_tower_instance_id(info.bed_index()), info)};
+            if (plater.config() && is_XL_printer(*plater.config())) {
+                handler->xl_bb = bounding_box(get_bed_shape(*plater.config()));
+            }
+            handlers.push_back(std::move(handler));
         }
     }
 
-    builder.set_wipe_tower_handler(std::move(wth));
+    if (plater.config()) {
+        const BedsGrid::Gap gap{s_multiple_beds.get_bed_gap()};
+        builder.set_bed(*plater.config(), gap);
+    }
+
+    builder.set_wipe_tower_handlers(std::move(handlers));
+
     builder.set_model(plater.model());
 
     if (plater.printer_technology() == ptSLA)

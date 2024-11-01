@@ -139,6 +139,10 @@ void arrange(
         int bedidx = 0;
         while (!was_packed && !is_cancelled()) {
             for (; !was_packed && !is_cancelled(); bedidx++) {
+                const std::optional<int> bed_constraint{get_bed_constraint(*it)};
+                if (bed_constraint && bedidx != *bed_constraint) {
+                    continue;
+                }
                 set_bed_index(*it, bedidx);
 
                 auto remaining = Range{std::next(static_cast<SConstIt>(it)),
@@ -157,6 +161,10 @@ void arrange(
                     sel.on_arranged_fn(*it, bed, packed_range, remaining);
                 } else {
                     set_bed_index(*it, Unarranged);
+                    if (bed_constraint && bedidx == *bed_constraint) {
+                        // Leave the item as is as it does not fit on the enforced bed.
+                        was_packed = true;
+                    }
                 }
             }
         }

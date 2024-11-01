@@ -141,6 +141,7 @@ private:
 
     int m_bed_idx{Unarranged}; // To which logical bed does this item belong
     int m_priority{0};         // For sorting
+    std::optional<int> m_bed_constraint;
 
 public:
     ArrangeItem() = default;
@@ -167,9 +168,11 @@ public:
 
     int bed_idx() const { return m_bed_idx; }
     int priority() const { return m_priority; }
+    std::optional<int> bed_constraint() const { return m_bed_constraint; };
 
     void bed_idx(int v) { m_bed_idx = v; }
     void priority(int v) { m_priority = v; }
+    void bed_constraint(std::optional<int> v) { m_bed_constraint = v; }
 
     const ArbitraryDataStore &datastore() const { return m_datastore; }
     ArbitraryDataStore &datastore() { return m_datastore; }
@@ -226,6 +229,11 @@ template<> struct ArrangeItemTraits_<ArrangeItem>
         return itm.priority();
     }
 
+    static std::optional<int> get_bed_constraint(const ArrangeItem &itm)
+    {
+        return itm.bed_constraint();
+    }
+
     // Setters:
 
     static void set_translation(ArrangeItem &itm, const Vec2crd &v)
@@ -241,6 +249,11 @@ template<> struct ArrangeItemTraits_<ArrangeItem>
     static void set_bed_index(ArrangeItem &itm, int v)
     {
         itm.bed_idx(v);
+    }
+
+    static void set_bed_constraint(ArrangeItem &itm, std::optional<int> v)
+    {
+        itm.bed_constraint(v);
     }
 };
 

@@ -82,6 +82,8 @@ public:
     // objects are arranged first.
     virtual int  priority() const { return 0; }
 
+    virtual std::optional<int> bed_constraint() const { return std::nullopt; }
+
     // Any implementation specific properties can be passed to the arrangement
     // core by overriding this method. This implies that the specific Arranger
     // will be able to interpret these properties. An example usage is to mark
@@ -173,6 +175,14 @@ inline BoundingBox bounding_box(const ExtendedBed &bed)
     return bedbb;
 }
 
+inline BedsGrid::Gap bed_gap(const ExtendedBed &bed)
+{
+    BedsGrid::Gap gap;
+    visit_bed([&gap](auto &rawbed) { gap = bed_gap(rawbed); }, bed);
+
+    return gap;
+}
+
 class Scene;
 
 // SceneBuilderBase is intended for Scene construction. A simple constructor
@@ -221,9 +231,9 @@ public:
         return std::move(static_cast<Subclass&>(*this));
     }
 
-    Subclass &&set_bed(const Points &pts)
+    Subclass &&set_bed(const Points &pts, const BedsGrid::Gap &gap)
     {
-        m_bed = arr2::to_arrange_bed(pts);
+        m_bed = arr2::to_arrange_bed(pts, gap);
         return std::move(static_cast<Subclass&>(*this));
     }
 

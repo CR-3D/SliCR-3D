@@ -31,6 +31,11 @@ template<class ArrItem, class En = void> struct ArrangeItemTraits_ {
 
     static int get_bed_index(const ArrItem &ap) { return ap.get_bed_index(); }
 
+    static std::optional<int> get_bed_constraint(const ArrItem &ap)
+    {
+        return ap.get_bed_constraint();
+    }
+
     static int get_priority(const ArrItem &ap) { return ap.get_priority(); }
 
     // Setters:
@@ -43,6 +48,11 @@ template<class ArrItem, class En = void> struct ArrangeItemTraits_ {
     static void set_rotation(ArrItem &ap, double v) { ap.set_rotation(v); }
 
     static void set_bed_index(ArrItem &ap, int v) { ap.set_bed_index(v); }
+
+    static void set_bed_constraint(ArrItem &ap, std::optional<int> v)
+    {
+        ap.set_bed_constraint(v);
+    }
 };
 
 template<class T> using ArrangeItemTraits = ArrangeItemTraits_<StripCVRef<T>>;
@@ -69,6 +79,11 @@ template<class T> int get_priority(const T &itm)
     return ArrangeItemTraits<T>::get_priority(itm);
 }
 
+template<class T> std::optional<int> get_bed_constraint(const T &itm)
+{
+    return ArrangeItemTraits<T>::get_bed_constraint(itm);
+}
+
 // Setters:
 
 template<class T> void set_translation(T &itm, const Vec2crd &v)
@@ -84,6 +99,11 @@ template<class T> void set_rotation(T &itm, double v)
 template<class T> void set_bed_index(T &itm, int v)
 {
     ArrangeItemTraits<T>::set_bed_index(itm, v);
+}
+
+template<class T> void set_bed_constraint(T &itm, std::optional<int> v)
+{
+    ArrangeItemTraits<T>::set_bed_constraint(itm, v);
 }
 
 // Helper functions for arrange items

@@ -12,17 +12,86 @@ MultipleBeds s_multiple_beds;
 bool s_reload_preview_after_switching_beds = false;
 bool s_beds_just_switched = false;
 
+namespace BedsGrid {
+Index grid_coords_abs2index(GridCoords coords) {
+    coords = {std::abs(coords.x()), std::abs(coords.y())};
 
+   const int x{static_cast<int>(coords.x() + 1)};
+   const int y{static_cast<int>(coords.y() + 1)};
+    const int a{std::max(x, y)};
+
+    if (x == a && y == a) {
+        return a*a - 1;
+    } else if (x == a) {
+        return a*a - 2 * (a - 1) + coords.y() - 1;
+    } else {
+        assert(y == a);
+        return a*a - (a - 1) + coords.x() - 1;
+    }
+}
+
+const int quadrant_offset{std::numeric_limits<int>::max() / 4};
+
+Index grid_coords2index(const GridCoords &coords) {
+    const int index{grid_coords_abs2index(coords)};
+
+    if (index >= quadrant_offset) {
+        throw std::runtime_error("Object is too far from center!");
+    }
+
+    if (coords.x() >= 0 && coords.y() >= 0) {
+        return index;
+    } else if (coords.x() >= 0 && coords.y() < 0) {
+        return quadrant_offset + index;
+    } else if (coords.x() < 0 && coords.y() >= 0) {
+        return 2*quadrant_offset + index;
+    } else {
+        return 3*quadrant_offset + index;
+    }
+}
+
+GridCoords index2grid_coords(Index index) {
+    if (index < 0) {
+        throw std::runtime_error{"Negative bed index cannot be translated to coords!"};
+    }
+
+    const int quadrant{index / quadrant_offset};
+    index = index % quadrant_offset;
+
+    GridCoords result{GridCoords::Zero()};
+    if (index == 0) {
+        return result;
+    }
+
+    int id = index;
+    ++id;
+    int a = 1;
+    while ((a+1)*(a+1) < id)
+        ++a;
+    id = id - a*a;
+    result.x()=a;
+    result.y()=a;
+    if (id <= a)
+        result.y() = id-1;
+    else
+        result.x() = id-a-1;
+
+    if (quadrant == 1) {
+        result.y() = -result.y();
+    } else if (quadrant == 2) {
+        result.x() = -result.x();
+    } else if (quadrant == 3) {
+        result.y() = -result.y();
+        result.x() = -result.x();
+    } else if (quadrant != 0){
+        throw std::runtime_error{"Impossible bed index > max int!"};
+    }
+    return result;
+}
+}
 
 Vec3d MultipleBeds::get_bed_translation(int id) const
 {
-    // The x value is bed gap as multiples of the actual printable area bounding box,
-    // so it can be matched to how the old slicer arranged things (in SceneBuilder.cpp).
-    // The y value is a multiple of the larger of printable area BB and bed model BB -
-    // this is to make sure that the bed models do not overlap.
-    const double bed_gap_x = 2./10;
-    const double bed_gap_y = 2./10;
-
     if (id == 0)
         return Vec3d::Zero();
     int x = 0;
@@ -30,27 +99,12 @@ Vec3d MultipleBeds::get_bed_translation(int id) const
     if (m_layout_linear)
         x = id;
     else {
-        // Grid layout.
-        ++id;
-        int a = 1;
-        while ((a+1)*(a+1) < id)
-            ++a;
-        id = id - a*a;
-        x=a;
-        y=a;
-        if (id <= a)
-            y = id-1;
-        else
-            x=id-a-1;
+        BedsGrid::GridCoords coords{BedsGrid::index2grid_coords(id)};
+        x = coords.x();
+        y = coords.y();
     }
     return Vec3d(x * m_build_volume_bb_incl_model.size().x() * (1. + bed_gap_x), y * m_build_volume_bb_incl_model.size().y() * (1. + bed_gap_y), 0.);
 }
-
-
-
-
-
-
 
 void MultipleBeds::clear_inst_map()
 {
@@ -137,6 +191,21 @@ bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx,
     return (m_bed_for_thumbnails_generation < 0 || it->second == m_bed_for_thumbnails_generation);
 }
 
+void MultipleBeds::update_shown_beds(Model& model, const BuildVolume& build_volume) {
+    const int original_number_of_beds = m_number_of_beds;
+    const int stash_active = get_active_bed();
+    m_number_of_beds = get_max_beds();
+    model.update_print_volume_state(build_volume);
+    const int max_bed{std::accumulate(
+        this->m_inst_to_bed.begin(), this->m_inst_to_bed.end(), 0,
+        [](const int max_so_far, const std::pair<ObjectID, int> &value){
+            return std::max(max_so_far, value.second);
+        }
+    )};
+    m_number_of_beds = std::min(this->get_max_beds(), max_bed + 1);
+    model.update_print_volume_state(build_volume);
+    set_active_bed(m_number_of_beds != original_number_of_beds ? 0 : stash_active);
+}
 
 // Beware! This function is also needed for proper update of bed when normal grid project is loaded!
 bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn)
@@ -214,6 +283,12 @@ bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume&
 }
 
 
+BedsGrid::Gap MultipleBeds::get_bed_gap() const {
+    const Vec2d size_with_gap{
+        m_build_volume_bb_incl_model.size().cwiseProduct(
+            Vec2d::Ones() + Vec2d{bed_gap_x, bed_gap_y})};
+    return scaled(Vec2d{(size_with_gap - m_build_volume_bb.size()) / 2.0});
+};
 
 void MultipleBeds::ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints)
 {

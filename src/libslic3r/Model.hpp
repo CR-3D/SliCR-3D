@@ -1272,9 +1272,10 @@ public:
 
     ModelWipeTower& wipe_tower();
     const ModelWipeTower& wipe_tower() const;
+    const ModelWipeTower& wipe_tower(const int bed_index) const;
+    ModelWipeTower& wipe_tower(const int bed_index);
     std::vector<ModelWipeTower>& get_wipe_tower_vector() { return wipe_tower_vector; }
     const std::vector<ModelWipeTower>& get_wipe_tower_vector() const { return wipe_tower_vector; }
-    
 
     CustomGCode::Info& custom_gcode_per_print_z();
     const CustomGCode::Info& custom_gcode_per_print_z() const;

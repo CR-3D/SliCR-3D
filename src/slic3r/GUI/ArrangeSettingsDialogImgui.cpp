@@ -33,7 +33,7 @@ ArrangeSettingsDialogImgui::ArrangeSettingsDialogImgui(
     : m_imgui{imgui}, m_db(db)
 {}
 
-void ArrangeSettingsDialogImgui::render(float pos_x, float pos_y)
+void ArrangeSettingsDialogImgui::render(float pos_x, float pos_y, bool current_bed)
 {
     assert(m_imgui);
 
@@ -147,9 +147,11 @@ void ArrangeSettingsDialogImgui::render(float pos_x, float pos_y)
 
     ImGui::SameLine();
 
-    if (m_imgui->button(_L("Arrange")) && m_on_arrange_btn) {
-        m_db.set_previous_distance_from_objects(m_db.get_distance_from_objects());
+    if (!current_bed && m_imgui->button(_u8L("Arrange")) && m_on_arrange_btn) {
         m_on_arrange_btn();
+    }
+    if (current_bed && m_imgui->button(_u8L("Arrange bed")) && m_on_arrange_bed_btn) {
+        m_on_arrange_bed_btn();
     }
 
     m_imgui->end();

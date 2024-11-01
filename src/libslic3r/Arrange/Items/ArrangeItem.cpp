@@ -159,6 +159,7 @@ ArrangeItem &ArrangeItem::operator=(const ArrangeItem &other)
     m_datastore = other.m_datastore;
     m_bed_idx = other.m_bed_idx;
     m_priority = other.m_priority;
+    m_bed_constraint = other.m_bed_constraint;
 
     if (other.m_envelope.get() == &other.m_shape)
         m_envelope = &m_shape;
@@ -190,6 +191,7 @@ ArrangeItem &ArrangeItem::operator=(ArrangeItem &&other) noexcept
     m_datastore = std::move(other.m_datastore);
     m_bed_idx = other.m_bed_idx;
     m_priority = other.m_priority;
+    m_bed_constraint = other.m_bed_constraint;
 
     if (other.m_envelope.get() == &other.m_shape)
         m_envelope = &m_shape;

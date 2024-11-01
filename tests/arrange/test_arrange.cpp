@@ -386,7 +386,7 @@ template<> inline Slic3r::arr2::RectangleBed init_bed<Slic3r::arr2::RectangleBed
 
 template<> inline Slic3r::arr2::CircleBed init_bed<Slic3r::arr2::CircleBed>()
 {
-    return Slic3r::arr2::CircleBed{Slic3r::Point::Zero(), scaled(300.)};
+    return Slic3r::arr2::CircleBed{Slic3r::Point::Zero(), scaled(300.), Slic3r::BedsGrid::Gap{0, 0}};
 }
 
 template<> inline Slic3r::arr2::IrregularBed init_bed<Slic3r::arr2::IrregularBed>()
@@ -640,6 +640,7 @@ struct RectangleItem {
 
     void set_bed_index(int idx) { bed_index = idx; }
     int  get_bed_index() const noexcept { return bed_index; }
+    std::optional<int> get_bed_constraint() const { return std::nullopt; }
 
     void set_translation(const Vec2crd &tr) { translation = tr; }
     const Vec2crd & get_translation() const noexcept { return translation; }

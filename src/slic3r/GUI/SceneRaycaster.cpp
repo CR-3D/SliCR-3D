@@ -117,7 +117,7 @@ SceneRaycaster::HitResult SceneRaycaster::hit(const Vec2d& mouse_pos, const Came
             const Selection& selection = wxGetApp().plater()->get_selection();
             if (selection.is_single_volume() || selection.is_single_modifier()) {
                 const GLVolume* volume = selection.get_first_volume();
-                if (!volume->is_wipe_tower && !volume->is_sla_pad() && !volume->is_sla_support())
+                if (!volume->is_wipe_tower() && !volume->is_sla_pad() && !volume->is_sla_support())
                     m_selected_volume_id = *selection.get_volume_idxs().begin();
             }
         }

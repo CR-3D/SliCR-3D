@@ -159,6 +159,7 @@ wxDECLARE_EVENT(EVT_GLCANVAS_SCHEDULE_BACKGROUND_PROCESS, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_RIGHT_CLICK, RBtnEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_REMOVE_OBJECT, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_ARRANGE, SimpleEvent);
+wxDECLARE_EVENT(EVT_GLCANVAS_ARRANGE_CURRENT_BED, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_SELECT_ALL, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_QUESTION_MARK, SimpleEvent);
 wxDECLARE_EVENT(EVT_GLCANVAS_INCREASE_INSTANCES, Event<int>); // data: +1 => increase, -1 => decrease
@@ -530,6 +531,8 @@ private:
 #if ENABLE_OPENGL_ES
     std::vector<TriangleMesh> m_wipe_tower_mesh;
 #endif // ENABLE_OPENGL_ES
+    std::array<std::optional<BoundingBoxf>, MAX_NUMBER_OF_BEDS> m_wipe_tower_bounding_boxes;
+
     GCodeViewer m_gcode_viewer;
 
     RenderTimer m_render_timer;
@@ -920,30 +923,32 @@ public:
     int get_move_volume_id() const { return m_mouse.drag.move_volume_idx; }
     int get_first_hover_volume_idx() const { return m_hover_volume_idxs.empty() ? -1 : m_hover_volume_idxs.front(); }
     void set_selected_extruder(int extruder) { m_selected_extruder = extruder;}
-    
+
     class WipeTowerInfo {
     protected:
         Vec2d m_pos = {NaNd, NaNd};
         double m_rotation = 0.;
         BoundingBoxf m_bb;
+        int m_bed_index{0};
         friend class GLCanvas3D;
 
-    public:        
+    public:
         inline operator bool() const {
             return !std::isnan(m_pos.x()) && !std::isnan(m_pos.y());
         }
-        
+
         inline const Vec2d& pos() const { return m_pos; }
         inline double rotation() const { return m_rotation; }
         inline const Vec2d bb_size() const { return m_bb.size(); }
         inline const BoundingBoxf& bounding_box() const { return m_bb; }
         
         void apply_wipe_tower() const;
+        inline const int bed_index() const { return m_bed_index; }
 
-        static void apply_wipe_tower(Vec2d pos, double rot);
+        static void apply_wipe_tower(Vec2d pos, double rot, int bed_index);
     };
-    
-    WipeTowerInfo get_wipe_tower_info() const;
+
+    std::vector<WipeTowerInfo> get_wipe_tower_infos() const;
 
     // Returns the view ray line, in world coordinate, at the given mouse position.
     Linef3 mouse_ray(const Point& mouse_pos);
@@ -1098,7 +1103,7 @@ private:
     void _render_selection_sidebar_hints();
     bool _render_undo_redo_stack(const bool is_undo, float pos_x);
     bool _render_search_list(float pos_x);
-    bool _render_arrange_menu(float pos_x);
+    bool _render_arrange_menu(float pos_x, bool current_bed);
     void _render_3d_navigator();
     const float get_scale() const;
     

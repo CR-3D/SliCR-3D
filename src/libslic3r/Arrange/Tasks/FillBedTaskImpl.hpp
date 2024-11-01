@@ -21,8 +21,8 @@ int calculate_items_needed_to_fill_bed(const ExtendedBed &bed,
 {
     double poly_area  = fixed_area(prototype_item);
 
-    auto area_sum_fn = [](double s, const auto &itm) {
-        return s + (get_bed_index(itm) == 0) * fixed_area(itm);
+    auto area_sum_fn = [&](double s, const auto &itm) {
+        return s + (get_bed_index(itm) == get_bed_constraint(prototype_item)) * fixed_area(itm);
     };
 
     double unsel_area = std::accumulate(fixed.begin(),
@@ -82,20 +82,24 @@ void extract(FillBedTask<ArrItem> &task,
                 prototype_item_shrinked = itm_conv.convert(arrbl, -SCALED_EPSILON);
         });
 
+    const int bed_constraint{get_bed_index(*task.prototype_item)};
+    set_bed_constraint(*task.prototype_item, bed_constraint);
     set_bed_index(*task.prototype_item, Unarranged);
 
     auto collect_task_items = [&prototype_geometry_id, &task,
-                               &itm_conv](const Arrangeable &arrbl) {
+                               &itm_conv, &bed_constraint](const Arrangeable &arrbl) {
         try {
-            if (arrbl.geometry_id() == prototype_geometry_id) {
-                if (arrbl.is_printable()) {
-                    auto itm = itm_conv.convert(arrbl);
-                    raise_priority(itm);
-                    task.selected.emplace_back(std::move(itm));
+            if (arrbl.bed_constraint() == bed_constraint) {
+                if (arrbl.geometry_id() == prototype_geometry_id) {
+                    if (arrbl.is_printable()) {
+                        auto itm = itm_conv.convert(arrbl);
+                        raise_priority(itm);
+                        task.selected.emplace_back(std::move(itm));
+                    }
+                } else {
+                    auto itm = itm_conv.convert(arrbl, -SCALED_EPSILON);
+                    task.unselected.emplace_back(std::move(itm));
                 }
-            } else {
-                auto itm = itm_conv.convert(arrbl, -SCALED_EPSILON);
-                task.unselected.emplace_back(std::move(itm));
             }
         } catch (const EmptyItemOutlineError &ex) {
             BOOST_LOG_TRIVIAL(error)
@@ -170,7 +174,7 @@ std::unique_ptr<FillBedTaskResult> FillBedTask<ArrItem>::process_native(
         void on_packed(ArrItem &itm) override
         {
             // Stop at the first filler that is not on the physical bed
-            do_stop = get_bed_index(itm) > PhysicalBedId && get_priority(itm) == 0;
+            do_stop = get_bed_index(itm) > get_bed_constraint(itm) && get_priority(itm) == 0;
         }
 
     } subctl(ctl, *this);
@@ -194,12 +198,13 @@ std::unique_ptr<FillBedTaskResult> FillBedTask<ArrItem>::process_native(
     auto to_add_range = Range{selected.begin() + selected_existing_count,
                               selected.end()};
 
-    for (auto &itm : to_add_range)
-        if (get_bed_index(itm) == PhysicalBedId)
+    for (auto &itm : to_add_range) {
+        if (get_bed_index(itm) == get_bed_constraint(itm))
             result->add_new_item(itm);
+    }
 
     for (auto &itm : selected_fillers)
-        if (get_bed_index(itm) == PhysicalBedId)
+        if (get_bed_index(itm) == get_bed_constraint(itm))
             result->add_new_item(itm);
 
     return result;

@@ -10,6 +10,8 @@
 #include <boost/log/trivial.hpp>
 
 #include "ArrangeTask.hpp"
+#include "libslic3r/Arrange/Items/ArrangeItem.hpp"
+#include "libslic3r/SVG.hpp"
 
 namespace Slic3r { namespace arr2 {
 
@@ -42,12 +44,6 @@ void extract_selected(ArrangeTask<ArrItem> &task,
                     << "ObjectID " << std::to_string(arrbl.id().id) << ": " << ex.what();
             }
         });
-
-    // If the selection was empty arrange everything
-    if (task.printable.selected.empty() && task.unprintable.selected.empty()) {
-        task.printable.selected.swap(task.printable.unselected);
-        task.unprintable.selected.swap(task.unprintable.unselected);
-    }
 }
 
 template<class ArrItem>

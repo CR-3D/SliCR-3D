@@ -156,6 +156,16 @@ const ModelWipeTower& Model::wipe_tower() const
     return wipe_tower_vector[s_multiple_beds.get_active_bed()];
 }
 
+const ModelWipeTower& Model::wipe_tower(const int bed_index) const
+{
+    return wipe_tower_vector[bed_index];
+}
+
+ModelWipeTower& Model::wipe_tower(const int bed_index)
+{
+    return wipe_tower_vector[bed_index];
+}
+
 CustomGCode::Info& Model::custom_gcode_per_print_z()
 {
     return const_cast<CustomGCode::Info&>(const_cast<const Model*>(this)->custom_gcode_per_print_z());

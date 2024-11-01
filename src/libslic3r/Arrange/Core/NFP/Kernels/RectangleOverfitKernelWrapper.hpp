@@ -74,7 +74,7 @@ struct RectangleOverfitKernelWrapper {
         for (auto &fitm : all_items_range(packing_context))
             pilebb.merge(fixed_bounding_box(fitm));
 
-        return KernelTraits<Kernel>::on_start_packing(k, itm, RectangleBed{binbb},
+        return KernelTraits<Kernel>::on_start_packing(k, itm, RectangleBed{binbb, BedsGrid::Gap::Zero()},
                                                       packing_context,
                                                       remaining_items);
     }

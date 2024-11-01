@@ -29,6 +29,7 @@ class SimpleArrangeItem {
     double  m_rotation = 0.;
     int     m_priority = 0;
     int     m_bed_idx = Unarranged;
+    std::optional<int> m_bed_constraint;
 
     std::vector<double> m_allowed_rotations = {0.};
     ObjectID m_obj_id;
@@ -42,11 +43,15 @@ public:
     double get_rotation() const noexcept { return m_rotation; }
     int get_priority() const noexcept { return m_priority; }
     int get_bed_index() const noexcept { return m_bed_idx; }
+    std::optional<int> get_bed_constraint() const noexcept {
+        return m_bed_constraint;
+    }
 
     void set_translation(const Vec2crd &v) { m_translation = v; }
     void set_rotation(double v) noexcept { m_rotation = v; }
     void set_priority(int v) noexcept { m_priority = v; }
     void set_bed_index(int v) noexcept { m_bed_idx = v; }
+    void set_bed_constraint(std::optional<int> v) noexcept { m_bed_constraint = v; }
 
     const Polygon &shape() const { return m_shape; }
     Polygon outline() const;

@@ -76,6 +76,7 @@ class NotificationManager;
 struct Camera;
 class GLToolbar;
 class PlaterPresetComboBox;
+enum class ArrangeSelectionMode;
 
 using t_optgroups = std::vector <std::shared_ptr<ConfigOptionsGroup>>;
 
@@ -385,9 +386,12 @@ public:
     GLCanvas3D* canvas3D();
     const GLCanvas3D * canvas3D() const;
     GLCanvas3D* get_current_canvas3D();
-    
+
+    void render_sliders(GLCanvas3D& canvas);
+
     void arrange();
-    void arrange(Worker &w, bool selected);
+    void arrange_current_bed();
+    void arrange(Worker &w, const ArrangeSelectionMode &selected);
 
     void set_current_canvas_as_dirty();
     void unbind_canvas_event_handlers();

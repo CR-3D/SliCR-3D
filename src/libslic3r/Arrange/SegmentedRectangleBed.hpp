@@ -20,14 +20,16 @@ template<class SegX = void, class SegY = void, class Pivot = void>
 struct SegmentedRectangleBed {
     Vec<2, size_t> segments = Vec<2, size_t>::Ones();
     BoundingBox bb;
+    BedsGrid::Gap gap;
     RectPivots pivot = RectPivots::Center;
 
     SegmentedRectangleBed() = default;
     SegmentedRectangleBed(const BoundingBox &bb,
                           size_t segments_x,
                           size_t segments_y,
+                          const BedsGrid::Gap &gap,
                           const RectPivots pivot = RectPivots::Center)
-        : segments{segments_x, segments_y}, bb{bb}, pivot{pivot}
+        : segments{segments_x, segments_y}, bb{bb}, gap{gap}, pivot{pivot}
     {}
 
     size_t segments_x() const noexcept { return segments.x(); }
@@ -41,13 +43,16 @@ struct SegmentedRectangleBed<std::integral_constant<size_t, SegX>,
                              std::integral_constant<size_t, SegY>>
 {
     BoundingBox bb;
+    BedsGrid::Gap gap;
     RectPivots pivot = RectPivots::Center;
 
     SegmentedRectangleBed() = default;
 
     explicit SegmentedRectangleBed(const BoundingBox &b,
+                                   const BedsGrid::Gap &gap,
                                    const RectPivots pivot = RectPivots::Center)
-        : bb{b}
+        : bb{b},
+          gap{gap}
     {}
 
     size_t segments_x() const noexcept { return SegX; }
@@ -62,10 +67,11 @@ struct SegmentedRectangleBed<std::integral_constant<size_t, SegX>,
                              std::integral_constant<RectPivots, pivot>>
 {
     BoundingBox bb;
+    BedsGrid::Gap gap;
 
     SegmentedRectangleBed() = default;
 
-    explicit SegmentedRectangleBed(const BoundingBox &b) : bb{b} {}
+    explicit SegmentedRectangleBed(const BoundingBox &b, const BedsGrid::Gap &gap) : bb{b}, gap{gap} {}
 
     size_t segments_x() const noexcept { return SegX; }
     size_t segments_y() const noexcept { return SegY; }
@@ -90,6 +96,12 @@ template<class...Args>
 auto bounding_box(const SegmentedRectangleBed<Args...> &bed)
 {
     return bed.bb;
+}
+
+template<class...Args>
+auto bed_gap(const SegmentedRectangleBed<Args...> &bed)
+{
+    return bed.gap;
 }
 
 template<class...Args>
