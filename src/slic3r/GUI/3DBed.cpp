@@ -271,7 +271,8 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
     // vertices + indeces
     unsigned int vertices_counter = 0;
     for (const Vec2f &v : triangles) {
-        const Vec3f p = {v.x(), v.y(), z + 0.03};
+        const Vec3f p = {static_cast<float>(v.x()), static_cast<float>(v.y()), static_cast<float>(z + 0.03)};
+
         init_data.add_vertex(p, (Vec2f)(v - min).cwiseProduct(inv_size).eval());
         ++vertices_counter;
         if (vertices_counter % 3 == 0)

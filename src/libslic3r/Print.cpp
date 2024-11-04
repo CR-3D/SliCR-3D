@@ -91,6 +91,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "avoid_crossing_not_first_layer",
         "bed_shape",
         "bed_temperature",
+        "bed_exclude_area",
         "before_layer_gcode",
         "between_objects_gcode",
         "enable_pressure_advance",

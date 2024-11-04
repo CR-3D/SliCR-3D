@@ -388,6 +388,20 @@ void PrintConfigDef::init_common_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionPoints{Vec2d(0, 0), Vec2d(200, 0), Vec2d(200, 200), Vec2d(0, 200)});
 
+    // BBS: add "bed_exclude_area"
+    def = this->add("bed_exclude_area", coString);
+    def->label = L("Bed exclude area");
+    def->category = OptionCategory::general;
+    def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
+                     "filament during filament change. "
+                     "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
+    def->mode = comAdvanced | comExpert;
+    //def->multiline = true;
+    def->full_width = true;
+    def->height = 5;
+    //def->gui_type = ConfigOptionDef::GUIType::one_string;
+    def->set_default_value(new ConfigOptionString{"0x0, 0x0"});
+
     def = this->add("bed_custom_texture", coString);
     def->label = L("Bed custom texture");
     def->category = OptionCategory::general;
@@ -533,20 +547,6 @@ void PrintConfigDef::init_common_params() {
     def->mode = comAdvancedE | comPrusa;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionString(""));
-
-    // BBS: add "bed_exclude_area"
-    def = this->add("bed_exclude_area", coString);
-    def->label = L("Bed exclude area");
-    def->category = OptionCategory::general;
-    def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
-                     "filament during filament change. "
-                     "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
-    def->mode = comAdvanced | comExpert;
-    //def->multiline = true;
-    def->full_width = true;
-    def->height = 10;
-    //def->gui_type = ConfigOptionDef::GUIType::one_string;
-    def->set_default_value(new ConfigOptionString{""});
 
     def = this->add("printhost_client_cert", coString);
     def->label = L("Client Certificate File");
@@ -8774,14 +8774,6 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
         value = oss.str();
     }
 
-    if (opt_key == "bed_exclude_area" && !value.empty()) {
-        opt_key = "bed_exclude_area";
-        ConfigOptionPoint p;
-        p.deserialize(value, ForwardCompatibilitySubstitutionRule::Disable);
-        std::ostringstream oss;
-        oss << "0x0," << p.value(0) << "x0," << p.value(0) << "x" << p.value(1) << ",0x" << p.value(1);
-        value = oss.str();
-    }
     // if ((opt_key == "perimeter_acceleration" && value == "25")
     //     || (opt_key == "infill_acceleration" && value == "50")) {
     //     /*  For historical reasons, the world's full of configs having these very low values;
