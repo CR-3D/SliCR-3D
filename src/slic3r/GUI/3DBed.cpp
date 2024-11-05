@@ -268,7 +268,7 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
     // vertices + indeces
     unsigned int vertices_counter = 0;
     for (const Vec2f &v : triangles) {
-        const Vec3f p = {static_cast<float>(v.x()), static_cast<float>(v.y()), static_cast<float>(z + 0.03)};
+        const Vec3f p = {static_cast<float>(v.x()), static_cast<float>(v.y()), static_cast<float>(z + 0.02)};
 
         init_data.add_vertex(p, (Vec2f)(v - min).cwiseProduct(inv_size).eval());
         ++vertices_counter;
@@ -315,8 +315,6 @@ void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
       }
    }
 }
-
-
 
 void Bed3D::init_triangles()
 {
@@ -385,6 +383,7 @@ void Bed3D::init_gridlines()
     while (bed_bbox.radius() > step * 100) {
         step *= 10;
     }
+    
     for (coord_t x = bed_bbox.min.x(), idx= 0; x <= bed_bbox.max.x(); x += step, idx++) {
         Polyline line;
         line.append(Point(x, bed_bbox.min.y()));
