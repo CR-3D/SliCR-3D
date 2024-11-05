@@ -398,7 +398,7 @@ void PrintConfigDef::init_common_params() {
     def->mode = comAdvanced | comExpert;
     def->full_width = true;
     def->height = 3;
-    def->set_default_value(new ConfigOptionString{"0x0, 0x0"});
+    def->set_default_value(new ConfigOptionString{"0x0, 0x0, 0x0, 0x0"});
 
     def = this->add("bed_custom_texture", coString);
     def->label = L("Bed custom texture");
