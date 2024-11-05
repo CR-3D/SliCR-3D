@@ -396,10 +396,8 @@ void PrintConfigDef::init_common_params() {
                      "filament during filament change. "
                      "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
     def->mode = comAdvanced | comExpert;
-    //def->multiline = true;
     def->full_width = true;
-    def->height = 5;
-    //def->gui_type = ConfigOptionDef::GUIType::one_string;
+    def->height = 3;
     def->set_default_value(new ConfigOptionString{"0x0, 0x0"});
 
     def = this->add("bed_custom_texture", coString);

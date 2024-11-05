@@ -148,7 +148,6 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     ExPolygon exclude_poly;
     generate_exclude_polygon(exclude_poly);
     calc_exclude_triangles(exclude_poly);
-    //render_exclude_area();
     
     const BoundingBox bbox = m_contour.contour.bounding_box();
     if (!bbox.defined)
@@ -284,7 +283,7 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
 
 void Bed3D::render_exclude_area() {
 
-    ColorRGBA select_color{ 0.4f, 0.4f, 0.4f, 1.0f };
+    ColorRGBA select_color{ 0.15f, 0.15f, 0.15f, 1.0f };
 
     // draw exclude area
     glsafe(::glDepthMask(GL_FALSE));
@@ -571,7 +570,6 @@ void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, co
 {
     if (!bottom) {
         render_model(view_matrix, projection_matrix);
-        //render_exclude_area();
     }
     
     if (show_texture)
@@ -743,8 +741,6 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
         m_extended_bounding_box = this->calc_extended_bounding_box();
     }
     
-    //render_exclude_area(false);
-
     if (!m_model.model.get_filename().empty()) {
         GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
         if (shader != nullptr) {
@@ -770,7 +766,6 @@ void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, co
 
     if (!bottom) {
         render_model(view_matrix, projection_matrix);
-        //render_exclude_area();
    }
 
     if (show_texture)
@@ -805,9 +800,6 @@ void Bed3D::render_default(bool bottom, bool picking, bool show_texture, const T
             glsafe(::glDepthMask(GL_TRUE));
         }
         
-        //if (!bottom)
-           // render_exclude_area();
-
         if (show_texture) {
             render_grid(bottom, has_model);
         } else
@@ -833,8 +825,6 @@ void Bed3D::render_contour(const Transform3d& view_matrix, const Transform3d& pr
         glsafe(::glEnable(GL_BLEND));
         glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
          
-       // render_exclude_area();
-
         // draw contour
 #if ENABLE_GL_CORE_PROFILE
         if (!OpenGLManager::get_gl_info().is_core_profile())

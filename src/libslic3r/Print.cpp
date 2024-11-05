@@ -594,26 +594,7 @@ bool Print::sequential_print_horizontal_clearance_valid(const Print &print, Poly
         return true;
     }
     
-    std::string exclude_area_points_string = print.config().bed_exclude_area.value;
-    std::vector<Vec2d> points;
-    Polygons exclude_polys;
-    Polygon exclude_poly;
-    
-
-    // Define the actual exclude areas based on parsed points
-    std::vector<Vec2d> exclude_areas = points;
-    
-    for (int i = 0; i < exclude_areas.size(); i++) {
-      auto pt = exclude_areas[i];
-      exclude_poly.points.emplace_back(scale_(pt.x()), scale_(pt.y()));
-      if (i % 4 == 3) {
-         exclude_polys.push_back(exclude_poly);
-         exclude_poly.points.clear();
-       }
-    }
-    
     Polygons convex_hulls_other;
-    Polygons exclude_polys_other;
     
     if (polygons != nullptr) {
         polygons->clear();
@@ -673,16 +654,6 @@ bool Print::sequential_print_horizontal_clearance_valid(const Print &print, Poly
                             intersecting_idxs.emplace_back(convex_hulls_other.size());
                         }
                     }
-                    
-               if (!intersection(exclude_polys[i], convex_hull).empty()) {
-                   if (polygons == nullptr) {
-                      throw SlicingError(instance.model_instance->get_object()->name + L(" is too close to exclusion area, there may be collisions when printing"));
-                      return false;
-                   } else {
-                      intersecting_idxs.emplace_back(i);
-                      intersecting_idxs.emplace_back(exclude_polys.size());
-                   }
-               }
                
                 convex_hulls_other.emplace_back(std::move(convex_hull));
             }
@@ -778,13 +749,15 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
     if (!m_config.bed_exclude_area.empty()) {
       std::vector<Vec2d> points;
       std::string bed_exclude_area = m_config.bed_exclude_area.value;
-      auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 400, points);
+      auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 1000, points);
       std::vector<Vec2d> exclude_areas = points;
       
-     // std::cout << exclude_areas << std::endl;
       Polygons exclude_polys;
       Polygon exclude_poly;
     
+    if (exclude_areas.size() < 4)
+      return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
+
     for (int i = 0; i < exclude_areas.size(); i++) {
       auto pt = exclude_areas[i];
       exclude_poly.points.emplace_back(scale_(pt.x()), scale_(pt.y()));
@@ -815,7 +788,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
             bool has_intersection = !intersection(exclude_polys, contours).empty();
             if (has_intersection) {
                 std::string name = instance.model_instance->get_object()->name;
-                return { PrintBase::PrintValidationError::pveWrongSettings, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
+                return { PrintBase::PrintValidationError::pveWrongPosition, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
                   }
                }
              }

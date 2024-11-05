@@ -7213,23 +7213,6 @@ void Plater::set_number_of_copies()
     }
 }
 
-Pointfs Plater::get_exclude_areas() {
-   
-   std::string bed_exclude_area_string = config()->option<ConfigOptionString>("bed_exclude_area")->value;
-  // Pointfs bed_shape = config()->option<ConfigOptionPoints>("bed_shape")->get_values();
-   
-   std::vector<Vec2d> points;
-   
-   auto [invalid, out_of_range_val ] = get_strings_points(bed_exclude_area_string, 0, 1000, points);
-   
-   std::vector<Vec2d> bed_exclude_areas = points;
-   
-   return bed_exclude_areas;
-   
-}
-
-
-
 void Plater::fill_bed_with_instances()
 {
     auto &w = get_ui_job_worker();
