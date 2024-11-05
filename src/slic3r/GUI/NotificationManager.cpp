@@ -9,6 +9,7 @@
 #include "ImGuiWrapper.hpp"
 #include "PrintHostDialogs.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "MainFrame.hpp"
 
 #include "wxExtensions.hpp"
 #include "ObjectDataViewModel.hpp"
@@ -1407,8 +1408,10 @@ void NotificationManager::PrintHostUploadNotification::set_percentage(float perc
 
 void NotificationManager::PrintHostUploadNotification::complete() 
 { 
-	m_uj_state = UploadJobState::PB_COMPLETED; 
-	m_has_cancel_button = false; 
+	m_uj_state = UploadJobState::PB_COMPLETED;
+    if (m_uj_state == UploadJobState::PB_COMPLETED)
+        wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpDevice, false);
+	m_has_cancel_button = false;
 	init(); 
 }
 
