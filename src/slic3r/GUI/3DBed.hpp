@@ -111,6 +111,7 @@ public:
     void generate_exclude_polygon(ExPolygon &exclude_polygon);
     void calc_bounding_boxes() const;
     //bool init_model_from_poly(GLModel &model, const Expolygon &poly, float z);
+    Pointfs get_exclude_area() { return m_exclude_area; }
 
 private:
     // Calculate an extended bounding box from axes and current model for visualization purposes.

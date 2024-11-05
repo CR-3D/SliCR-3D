@@ -364,7 +364,9 @@ public:
     void on_activate();
     std::vector<std::string> get_extruder_colors_from_plater_config(std::optional<std::reference_wrapper<const GCodeProcessorResult>> result = {}) const;
     std::vector<std::string> get_colors_for_color_print(std::optional<std::reference_wrapper<const GCodeProcessorResult>> result = {}) const;
-
+    
+    Pointfs get_exclude_areas();
+   
     void update_menus();
     void show_action_buttons(const bool is_ready_to_slice) const;
     void show_action_buttons() const;

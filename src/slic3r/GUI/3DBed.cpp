@@ -88,10 +88,12 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
                       const std::string& custom_model,
                       bool force_as_custom) {
 
+    //m_exclude_area = exclude_areas;
+    
     Pointfs new_shape, new_exclude_areas;
     
     for (const Vec2d& p : bed_shape) {
-     //new_shape.push_back(Vec2d(p.x() + position.x(), p.y() + position.y()));
+       //new_shape.push_back(Vec2d(p.x(), p.y()));
     }
 
     for (const Vec2d& p : exclude_areas) {
@@ -133,11 +135,6 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
         model_filename.clear();
     }
 
-    
-    if (m_build_volume.bed_shape() == bed_shape && m_build_volume.max_print_height() == max_print_height && m_type == type && m_texture_filename == texture_filename && m_model_filename == model_filename)
-        // No change, no need to update the UI.
-        return false;
-
     m_exclude_area = std::move(new_exclude_areas);
     m_type = type;
     m_build_volume = BuildVolume { bed_shape, max_print_height };
@@ -151,6 +148,7 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     ExPolygon exclude_poly;
     generate_exclude_polygon(exclude_poly);
     calc_exclude_triangles(exclude_poly);
+    //render_exclude_area();
     
     const BoundingBox bbox = m_contour.contour.bounding_box();
     if (!bbox.defined)
@@ -306,59 +304,59 @@ void Bed3D::calc_exclude_triangles(const ExPolygon &poly) {
 
 void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
 {
-	auto compute_exclude_points = [&exclude_polygon](Vec2d& center, double radius, double start_angle, double stop_angle, int count)
-	{
-		double angle_steps;
-		angle_steps = (stop_angle - start_angle) / (count - 1);
-		for(int j = 0; j < count; j++ )
-		{
-			double angle = start_angle + j * angle_steps;
-			double x = center(0) + ::cos(angle) * radius;
-			double y = center(1) + ::sin(angle) * radius;
-			exclude_polygon.contour.append({ scale_(x), scale_(y) });
-		}
-	};
-
-	int points_count = 8;
-	if (m_exclude_area.size() == 4)
-	{
-			//rectangle case
-			for (int i = 0; i < 4; i++)
-			{
-				const Vec2d& p = m_exclude_area[i];
-				Vec2d center;
-				double start_angle, stop_angle, radius;
-				switch (i) {
-					case 0:
-						radius = 5.f;
-						center(0) = p(0) + radius;
-						center(1) = p(1) + radius;
-						start_angle = PI;
-						stop_angle = 1.5 * PI;
-						compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
-						break;
-					case 1:
-						exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-						break;
-					case 2:
-						radius = 3.f;
-						center(0) = p(0) - radius;
-						center(1) = p(1) - radius;
-						start_angle = 0;
-						stop_angle = 0.5 * PI;
-						compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
-						break;
-					case 3:
-						exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-						break;
-				}
-			}
-	}
-	else {
-		for (const Vec2d& p : m_exclude_area) {
-			exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-		}
-	}
+   auto compute_exclude_points = [&exclude_polygon](Vec2d& center, double radius, double start_angle, double stop_angle, int count)
+   {
+      double angle_steps;
+      angle_steps = (stop_angle - start_angle) / (count - 1);
+      for(int j = 0; j < count; j++ )
+      {
+         double angle = start_angle + j * angle_steps;
+         double x = center(0) + ::cos(angle) * radius;
+         double y = center(1) + ::sin(angle) * radius;
+         exclude_polygon.contour.append({ scale_(x), scale_(y) });
+      }
+   };
+   
+   int points_count = 8;
+   if (m_exclude_area.size() == 4)
+   {
+      //rectangle case
+      for (int i = 0; i < 4; i++)
+      {
+         const Vec2d& p = m_exclude_area[i];
+         Vec2d center;
+         double start_angle, stop_angle, radius;
+         switch (i) {
+         case 0:
+            radius = 5.f;
+            center(0) = p(0) + radius;
+            center(1) = p(1) + radius;
+            start_angle = PI;
+            stop_angle = 1.5 * PI;
+            compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
+            break;
+         case 1:
+            exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+            break;
+         case 2:
+            radius = 3.f;
+            center(0) = p(0) - radius;
+            center(1) = p(1) - radius;
+            start_angle = 0;
+            stop_angle = 0.5 * PI;
+            compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
+            break;
+         case 3:
+            exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+            break;
+         }
+      }
+   }
+   else {
+      for (const Vec2d& p : m_exclude_area) {
+         exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+      }
+   }
 }
 
 
@@ -574,7 +572,7 @@ void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, co
 {
     if (!bottom) {
         render_model(view_matrix, projection_matrix);
-        //render_exclude_area(false);
+        //render_exclude_area();
     }
     
     if (show_texture)
@@ -676,7 +674,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         }
 
         if (!bottom) {
-            render_exclude_area();
+         render_exclude_area();
         }
         
         // show the temporary texture while no compressed data is available
@@ -754,7 +752,7 @@ void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, co
 
     if (!bottom) {
         render_model(view_matrix, projection_matrix);
-        render_exclude_area();
+        //render_exclude_area();
    }
 
     if (show_texture)
@@ -769,7 +767,6 @@ void Bed3D::render_default(bool bottom, bool picking, bool show_texture, const T
 
     init_gridlines();
     init_triangles();
-    //render_exclude_area();
 
     GLShaderProgram* shader = wxGetApp().get_shader("flat");
     if (shader != nullptr) {
@@ -789,6 +786,9 @@ void Bed3D::render_default(bool bottom, bool picking, bool show_texture, const T
             m_triangles.render();
             glsafe(::glDepthMask(GL_TRUE));
         }
+        
+        //if (!bottom)
+           // render_exclude_area();
 
         if (show_texture) {
             render_grid(bottom, has_model);
@@ -815,8 +815,8 @@ void Bed3D::render_contour(const Transform3d& view_matrix, const Transform3d& pr
         glsafe(::glEnable(GL_BLEND));
         glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
          
-       //render_exclude_area(false);
-       
+       // render_exclude_area();
+
         // draw contour
 #if ENABLE_GL_CORE_PROFILE
         if (!OpenGLManager::get_gl_info().is_core_profile())

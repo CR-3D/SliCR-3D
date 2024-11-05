@@ -5407,8 +5407,7 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
 {
 
     std::vector<Vec2d> points;
-
-    auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 400, points);
+    auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 1000, points);
 
     // Define the actual exclude areas based on parsed points
     std::vector<Vec2d> exclude_areas = points;
@@ -5419,7 +5418,11 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
                                    custom_texture,
                                    custom_model,
                                    force_as_custom);
-                                   
+    
+    Pointfs prev_exclude_areas = bed.get_exclude_area();
+    
+    new_shape |= (prev_exclude_areas != exclude_areas);
+
     if (new_shape) {
         if (view3D)
             view3D->bed_shape_changed();
@@ -7211,6 +7214,23 @@ void Plater::set_number_of_copies()
     }
 }
 
+Pointfs Plater::get_exclude_areas() {
+   
+   std::string bed_exclude_area_string = config()->option<ConfigOptionString>("bed_exclude_area")->value;
+  // Pointfs bed_shape = config()->option<ConfigOptionPoints>("bed_shape")->get_values();
+   
+   std::vector<Vec2d> points;
+   
+   auto [invalid, out_of_range_val ] = get_strings_points(bed_exclude_area_string, 0, 1000, points);
+   
+   std::vector<Vec2d> bed_exclude_areas = points;
+   
+   return bed_exclude_areas;
+   
+}
+
+
+
 void Plater::fill_bed_with_instances()
 {
     auto &w = get_ui_job_worker();
@@ -8507,7 +8527,6 @@ void Plater::on_config_change(const DynamicConfig &config)
               || opt_key == "bed_custom_texture"
               || opt_key == "bed_custom_model"
               || opt_key == "bed_exclude_area") {
-            std::cout << "changed" << std::endl;
             bed_shape_changed = true;
             update_scheduled  = true;
             
