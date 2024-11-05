@@ -284,14 +284,13 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
 
 void Bed3D::render_exclude_area() {
 
-    ColorRGBA select_color{ 0.3f, 0.3f, 0.3f, 1.0f };
+    ColorRGBA select_color{ 0.4f, 0.4f, 0.4f, 1.0f };
 
     // draw exclude area
-    glsafe(::glDisable(GL_BLEND));
+    glsafe(::glDepthMask(GL_FALSE));
     m_exclude_triangles.set_color(select_color);
     m_exclude_triangles.render();
-    glsafe(::glEnable(GL_BLEND));
-
+    glsafe(::glDepthMask(GL_TRUE));
 }
 
 void Bed3D::calc_exclude_triangles(const ExPolygon &poly) {
@@ -645,7 +644,8 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
     }
 
     init_triangles();
-
+    init_gridlines();
+    
     GLShaderProgram* shader = wxGetApp().get_shader("printbed");
     if (shader != nullptr) {
         shader->start_using();
@@ -672,10 +672,6 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
             glsafe(::glEnable(GL_DEPTH_TEST));
             glsafe(::glEnable(GL_BLEND));
         }
-
-        if (!bottom) {
-         render_exclude_area();
-        }
         
         // show the temporary texture while no compressed data is available
         GLuint tex_id = (GLuint)m_temp_texture.get_id();
@@ -696,6 +692,28 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
 
         shader->stop_using();
     }
+
+    glsafe(::glEnable(GL_DEPTH_TEST));
+
+    GLShaderProgram *shader_flat = wxGetApp().get_shader("flat");
+    if (shader_flat != nullptr) {
+        shader_flat->start_using();
+        glsafe(::glEnable(GL_BLEND));
+        glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
+        shader_flat->set_uniform("view_model_matrix", view_matrix);
+        shader_flat->set_uniform("projection_matrix", projection_matrix);
+
+        if (!bottom) {
+            render_exclude_area();
+        }
+
+        glsafe(::glDisable(GL_BLEND));
+        shader_flat->stop_using();
+    }
+    
+   glsafe(::glDisable(GL_DEPTH_TEST));
+
 }
 
 void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix)
