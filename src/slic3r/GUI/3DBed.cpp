@@ -302,60 +302,20 @@ void Bed3D::calc_exclude_triangles(const ExPolygon &poly) {
 
 void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
 {
-   auto compute_exclude_points = [&exclude_polygon](Vec2d& center, double radius, double start_angle, double stop_angle, int count)
-   {
-      double angle_steps;
-      angle_steps = (stop_angle - start_angle) / (count - 1);
-      for(int j = 0; j < count; j++ )
-      {
-         double angle = start_angle + j * angle_steps;
-         double x = center(0) + ::cos(angle) * radius;
-         double y = center(1) + ::sin(angle) * radius;
-         exclude_polygon.contour.append({ scale_(x), scale_(y) });
+   if (m_exclude_area.size() == 4) {
+      // Rectangle case with no rounded corners
+      for (int i = 0; i < 4; i++) {
+          const Vec2d& p = m_exclude_area[i];
+          exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
       }
-   };
-   
-   int points_count = 8;
-   if (m_exclude_area.size() == 4)
-   {
-      //rectangle case
-      for (int i = 0; i < 4; i++)
-      {
-         const Vec2d& p = m_exclude_area[i];
-         Vec2d center;
-         double start_angle, stop_angle, radius;
-         switch (i) {
-         case 0:
-            radius = 5.f;
-            center(0) = p(0) + radius;
-            center(1) = p(1) + radius;
-            start_angle = PI;
-            stop_angle = 1.5 * PI;
-            compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
-            break;
-         case 1:
-            exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-            break;
-         case 2:
-            radius = 3.f;
-            center(0) = p(0) - radius;
-            center(1) = p(1) - radius;
-            start_angle = 0;
-            stop_angle = 0.5 * PI;
-            compute_exclude_points(center, radius, start_angle, stop_angle, points_count);
-            break;
-         case 3:
-            exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-            break;
-         }
-      }
-   }
-   else {
+   } else {
+      // If not a rectangle, just add all points in m_exclude_area
       for (const Vec2d& p : m_exclude_area) {
-         exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+          exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
       }
    }
 }
+
 
 
 void Bed3D::init_triangles()
