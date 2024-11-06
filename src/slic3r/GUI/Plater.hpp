@@ -194,6 +194,7 @@ public:
     bool m_api_success = false;
     bool new_project(std::string project_name = "");
     std::vector<std::unique_ptr<Print>>& get_fff_prints();
+    const std::vector<GCodeProcessorResult>& get_gcode_results() const;
 
    // void new_project();
     void load_project();

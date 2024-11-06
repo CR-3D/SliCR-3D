@@ -108,10 +108,10 @@ static bool show_imgui_demo_window = false;
 namespace Slic3r {
 namespace GUI {
 
-void GLCanvas3D::select_bed(int i)
+void GLCanvas3D::select_bed(int i, bool triggered_by_user)
 {
     int old_bed = s_multiple_beds.get_active_bed();
-    if (i == old_bed || i == -1)
+    if ((i == old_bed  && !s_multiple_beds.is_autoslicing()) || i == -1)
         return;
     wxGetApp().plater()->canvas3D()->m_process->stop();
     m_sequential_print_clearance.m_evaluating = true;
@@ -121,7 +121,7 @@ void GLCanvas3D::select_bed(int i)
     // Among else, on_process_completed would be called, which would stop slicing of
     // the new bed. We need to stop the process, pump all the events out of the queue
     // and then switch the beds.
-    wxGetApp().CallAfter([i, old_bed]() {
+    wxGetApp().CallAfter([i, old_bed, triggered_by_user]() {
         wxYield();
         s_multiple_beds.set_active_bed(i);
         s_beds_just_switched = true;
@@ -131,6 +131,8 @@ void GLCanvas3D::select_bed(int i)
             wxGetApp().plater()->get_camera().translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
         }
         wxGetApp().plater()->schedule_background_process();
+        if (s_multiple_beds.is_autoslicing() && triggered_by_user)
+            s_multiple_beds.stop_autoslice(false);
     });
 }
 
@@ -2180,64 +2182,50 @@ void GLCanvas3D::render()
 #endif // SHOW_IMGUI_DEMO_WINDOW
 
 
-    {
-        if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
-            ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_NoResize);
-            for (int i = 0; i < s_multiple_beds.get_number_of_beds(); ++i) {
-                bool inactive = i != s_multiple_beds.get_active_bed();
-                if (inactive)
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
-                if (ImGui::ImageButton((void*)(int64_t)s_th_tex_id[i], ImVec2(100, 100), ImVec2(0, 1), ImVec2(1, 0)))
-                    select_bed(i);
-                if (inactive)
-                    ImGui::PopStyleColor();
-            }
-            ImGui::End();
-        }
-    }
+    
+
 
     const bool is_looking_downward = camera.is_looking_downward();
 
     // draw scene
     glsafe(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
     _render_background();
-    // render bed first as grid lines may be rendred without GL_DEPTH
-    _render_bed_axes();
-    if (is_looking_downward)
-        _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), false);
-    if(m_show_objects)
+
+    if (! s_multiple_beds.is_autoslicing()) {
         _render_objects(GLVolumeCollection::ERenderType::Opaque);
-    _render_sla_slices();
-    _render_selection();
+        _render_sla_slices();
+        _render_selection();
+        _render_bed_axes();
+        if (is_looking_downward)
+            _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), false);
+        if (!m_main_toolbar.is_enabled() && current_printer_technology() != ptSLA)
+            _render_gcode();
+        _render_objects(GLVolumeCollection::ERenderType::Transparent);
 
-    if (m_show_gcode && !m_main_toolbar.is_enabled() && current_printer_technology() != ptSLA)
-        _render_gcode();
-    _render_objects(GLVolumeCollection::ERenderType::Transparent);
+        _render_sequential_clearance();
+    #if ENABLE_RENDER_SELECTION_CENTER
+        _render_selection_center();
+    #endif // ENABLE_RENDER_SELECTION_CENTER
+        if (!m_main_toolbar.is_enabled())
+            _render_gcode_cog();
 
-    _render_sequential_clearance();
-#if ENABLE_RENDER_SELECTION_CENTER
-    _render_selection_center();
-#endif // ENABLE_RENDER_SELECTION_CENTER
-    if (!m_main_toolbar.is_enabled())
-        _render_gcode_cog();
+        // we need to set the mouse's scene position here because the depth buffer
+        // could be invalidated by the following gizmo render methods
+        // this position is used later into on_mouse() to drag the objects
+        if (m_picking_enabled)
+            m_mouse.scene_position = _mouse_to_3d(m_mouse.position.cast<coord_t>());
 
-    // we need to set the mouse's scene position here because the depth buffer
-    // could be invalidated by the following gizmo render methods
-    // this position is used later into on_mouse() to drag the objects
-    if (m_picking_enabled)
-        m_mouse.scene_position = _mouse_to_3d(m_mouse.position.cast<coord_t>());
+        // sidebar hints need to be rendered before the gizmos because the depth buffer
+        // could be invalidated by the following gizmo render methods
+        _render_selection_sidebar_hints();
+        _render_current_gizmo();
+        if (!is_looking_downward)
+            _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), true);
 
-    // sidebar hints need to be rendered before the gizmos because the depth buffer
-    // could be invalidated by the following gizmo render methods
-    _render_selection_sidebar_hints();
-    _render_current_gizmo();
-    if (!is_looking_downward)
-        _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), true);
-
-#if ENABLE_RAYCAST_PICKING_DEBUG
-    if (m_picking_enabled && !m_mouse.dragging && !m_gizmos.is_dragging() && !m_rectangle_selection.is_dragging())
-        m_scene_raycaster.render_hit(camera);
-#endif // ENABLE_RAYCAST_PICKING_DEBUG
+    #if ENABLE_RAYCAST_PICKING_DEBUG
+        if (m_picking_enabled && !m_mouse.dragging && !m_gizmos.is_dragging() && !m_rectangle_selection.is_dragging())
+            m_scene_raycaster.render_hit(camera);
+    #endif // ENABLE_RAYCAST_PICKING_DEBUG
 
 #if ENABLE_SHOW_CAMERA_TARGET
     _render_camera_target();
@@ -2245,11 +2233,74 @@ void GLCanvas3D::render()
     _render_camera_target_validation_box();
 #endif // ENABLE_SHOW_CAMERA_TARGET
 
-    if (m_picking_enabled && m_rectangle_selection.is_dragging())
-        m_rectangle_selection.render(*this);
+        if (m_picking_enabled && m_rectangle_selection.is_dragging())
+            m_rectangle_selection.render(*this);
+    } else {
+        // Autoslicing.        
+        // Render the combined statistics if all is ready.
+        bool valid = true;
+        double total_g = 0;
+        for (size_t i=0; i<s_multiple_beds.get_number_of_beds(); ++i) {
+            const Print* print = wxGetApp().plater()->get_fff_prints()[i].get();
+            if (!print->finished()) {
+            // TODO: Only active bed invalidation can be detected here.
+                valid = false;
+                break;
+            }
+            total_g += print->print_statistics().total_used_filament;
+        }
+        ImGui::Begin("Total stats");
+        if (valid)
+            ImGui::Text("%s", std::to_string(total_g).c_str());
+        else
+            ImGui::Text("Wait until all beds are sliced...");
+        ImGui::End();
 
-    // draw overlays
-    _render_overlays();
+        if (!valid) {
+            if (fff_print()->finished())
+                s_multiple_beds.autoslice_next_bed();
+            else
+                wxGetApp().plater()->schedule_background_process();
+        }
+    }
+        // draw overlays
+        _render_overlays();
+
+    {
+        if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
+            ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_NoResize);
+            for (int i = 0; i < s_multiple_beds.get_number_of_beds(); ++i) {
+                bool inactive = i != s_multiple_beds.get_active_bed() || s_multiple_beds.is_autoslicing();
+                if (inactive)
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
+                if (bool clicked = (i >= int(s_th_tex_id.size()))
+                    ? ImGui::Button(std::to_string(i).c_str(), ImVec2(100,100))
+                    : ImGui::ImageButton((void*)(int64_t)s_th_tex_id[i], ImVec2(100, 100), ImVec2(0, 1), ImVec2(1, 0));
+                    clicked)
+                    select_bed(i, true);
+                if (inactive)
+                    ImGui::PopStyleColor();
+
+                std::string status_text;
+                if (wxGetApp().plater()->get_fff_prints()[i]->finished())
+                    status_text = "finished";
+                else if (m_process->fff_print() == wxGetApp().plater()->get_fff_prints()[i].get() && m_process->running())
+                    status_text = "running";
+                else
+                    status_text = "idle";
+                ImGui::SameLine();
+                ImGui::Text("%s", status_text.c_str());
+                
+
+            }
+            if (ImGui::Button("ALL", ImVec2(105, 105))) {
+                if (! s_multiple_beds.is_autoslicing())
+                    s_multiple_beds.start_autoslice([this](int i, bool user) { this->select_bed(i, user); });
+            }
+            ImGui::End();
+        }
+    }
+
 
 
 #if ENABLE_PROJECT_DIRTY_STATE_DEBUG_WINDOW
@@ -2313,6 +2364,9 @@ void GLCanvas3D::render()
     wxGetApp().plater()->get_mouse3d_controller().render_settings_dialog(*this);
 
     wxGetApp().plater()->get_notification_manager()->render_notifications(*this, get_overlay_window_width());
+
+    if (! s_multiple_beds.is_autoslicing())
+        wxGetApp().plater()->render_sliders(*this);
 
     wxGetApp().imgui()->render();
 
@@ -4067,7 +4121,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                         m_dirty = true;
                     }
                 } else if (evt.LeftDown()) {
-                    select_bed(s_multiple_beds.get_last_hovered_bed());
+                    select_bed(s_multiple_beds.get_last_hovered_bed(), true);
                 }
             }
 

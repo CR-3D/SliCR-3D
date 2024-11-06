@@ -318,6 +318,44 @@ void MultipleBeds::ensure_wipe_towers_on_beds(Model& model, const std::vector<st
     }
 }
 
+#ifdef SLIC3R_GUI
+
+void MultipleBeds::start_autoslice(std::function<void(int, bool)> select_bed_fn)
+{
+    if (is_autoslicing())
+        return;
+    m_select_bed_fn = select_bed_fn;
+
+    m_autoslicing_original_bed = get_active_bed();
+
+    m_autoslicing = true;
+}
+
+
+
+void MultipleBeds::stop_autoslice(bool restore_original)
+{
+    if (! is_autoslicing())
+        return;
+    m_autoslicing = false;
+
+    if (restore_original)
+        m_select_bed_fn(m_autoslicing_original_bed, false);
+}
+
+
+
+void MultipleBeds::autoslice_next_bed()
+{
+    if (! is_autoslicing())
+        return;
+    int next_bed = s_multiple_beds.get_active_bed() + 1;
+    if (next_bed >= s_multiple_beds.get_number_of_beds())
+        next_bed = 0;
+    m_select_bed_fn(next_bed, false);
+}
+#endif // SLIC3R_GUI
+
 
 }
 

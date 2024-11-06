@@ -1011,6 +1011,28 @@ void Preview::load_print_as_fff(bool keep_z_range)
     }
 }
 
+void Preview::render_sliders(GLCanvas3D& canvas)
+{
+    const Size  cnv_size        = canvas.get_canvas_size();
+    const int   canvas_width    = cnv_size.get_width();
+    const int   canvas_height   = cnv_size.get_height();
+    const float extra_scale     = cnv_size.get_scale_factor();
+
+    GLToolbar& collapse_toolbar = wxGetApp().plater()->get_collapse_toolbar();
+#if ENABLE_HACK_GCODEVIEWER_SLOW_ON_MAC
+    // When the application is run as GCodeViewer the collapse toolbar is enabled but invisible, as it is renderer
+    // outside of the screen
+    const bool  is_collapse_btn_shown = wxGetApp().is_editor() ? collapse_toolbar.is_enabled() : false;
+#else
+    const bool  is_collapse_btn_shown = collapse_toolbar.is_enabled();
+#endif // ENABLE_HACK_GCODEVIEWER_SLOW_ON_MAC
+
+  //  if (m_layers_slider)
+    //    m_layers_slider->render(canvas_width, canvas_height, extra_scale, is_collapse_btn_shown ? collapse_toolbar.get_height() : 0.f);
+    //if (m_moves_slider)
+      //  m_moves_slider->Render(canvas_width, canvas_height, extra_scale);
+}
+
 void Preview::reset_gcode_toolpaths()
 {
     if (current_force_state == ForceState::NoForce)

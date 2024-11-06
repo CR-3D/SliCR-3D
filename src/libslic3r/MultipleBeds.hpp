@@ -68,6 +68,11 @@ public:
 	Vec2crd get_bed_gap() const;
 	void   ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints);
 
+	void   start_autoslice(std::function<void(int,bool)>);
+	void   stop_autoslice(bool restore_original);
+	bool   is_autoslicing() const { return m_autoslicing; }
+	void   autoslice_next_bed();
+
 private:
 	bool   is_instance_on_active_bed(ObjectID id) const;
 
@@ -82,6 +87,9 @@ private:
 	bool m_legacy_layout = false;
 	bool m_loading_project = false;
 
+	bool m_autoslicing = false;
+	int  m_autoslicing_original_bed = 0;
+	std::function<void(int, bool)> m_select_bed_fn;
 };
 
 extern MultipleBeds s_multiple_beds;

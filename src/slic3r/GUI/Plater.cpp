@@ -2151,6 +2151,7 @@ struct Plater::priv
     std::set<uint16_t> m_previous_extruders;
     std::set<uint16_t> m_extruders_used;
     
+    void render_sliders(GLCanvas3D& canvas);
     void select_all();
     void deselect_all();
     void remove(size_t obj_idx);
@@ -3405,6 +3406,12 @@ const Selection &Plater::priv::get_selection() const { return view3D->get_canvas
 
 Selection &Plater::priv::get_selection() { return view3D->get_canvas3d()->get_selection(); }
 
+void Plater::render_sliders(GLCanvas3D& canvas)
+{
+    p->render_sliders(canvas);
+}
+
+
 int Plater::priv::get_selected_object_idx() const
 {
     const int idx = get_selection().get_object_idx();
@@ -3771,10 +3778,6 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         glsafe(glBindTexture(GL_TEXTURE_2D, curr_bound_texture));
         glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, curr_unpack_alignment));
     }
-
-
-
-
 
     // Just redraw the 3D canvas without reloading the scene to consume the update of the layer height profile.
     if (view3D->is_layers_editing_enabled())
@@ -4542,6 +4545,14 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
         current_panel->get_canvas3d()->bind_event_handlers();
 
     if (current_panel == view3D) {
+
+        s_multiple_beds.stop_autoslice(true);
+
+        if (old_panel == preview)
+            preview->get_canvas3d()->unbind_event_handlers();
+
+        view3D->get_canvas3d()->bind_event_handlers();
+
         if (view3D->is_reload_delayed()) {
             // Delayed loading of the 3D scene.
             if (printer_technology == ptSLA) {
@@ -5352,6 +5363,12 @@ GLCanvas3D *Plater::priv::get_current_canvas3D()
 {
     return (current_panel == view3D) ? view3D->get_canvas3d() :
     ((current_panel == preview) ? preview->get_canvas3d() : nullptr);
+}
+
+void Plater::priv::render_sliders(GLCanvas3D& canvas)
+{
+    if (current_panel == preview)
+        preview->render_sliders(canvas);
 }
 
 void Plater::priv::unbind_canvas_event_handlers()
@@ -9345,6 +9362,11 @@ void Plater::bring_instance_forward() { p->bring_instance_forward(); }
 std::vector<std::unique_ptr<Print>>& Plater::get_fff_prints()
 {
     return p->fff_prints;
+}
+
+const std::vector<GCodeProcessorResult>& Plater::get_gcode_results() const
+{
+    return p->gcode_results;
 }
 
 wxMenu* Plater::object_menu()           { return p->menus.object_menu();            }

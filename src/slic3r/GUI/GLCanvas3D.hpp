@@ -543,8 +543,12 @@ private:
     Selection m_selection;
     const DynamicPrintConfig* m_config;
     Model* m_model;
+public:
     BackgroundSlicingProcess *m_process;
+private:
     bool m_requires_check_outside_state{ false };
+
+    void select_bed(int i, bool triggered_by_user);
 
     std::array<unsigned int, 2> m_old_size{ 0, 0 };
 
@@ -759,8 +763,6 @@ private:
     // returns true if all the volumes are completely contained in the print volume
     // returns the containment state in the given out_state, if non-null
     bool check_volumes_outside_state(GLVolumeCollection& volumes, ModelInstanceEPrintVolumeState* out_state, bool selection_only = true) const;
-
-    void select_bed(int i);
 
 public:
     void init_gcode_viewer() { m_gcode_viewer.init(); }

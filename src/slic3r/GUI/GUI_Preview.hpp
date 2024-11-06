@@ -170,6 +170,8 @@ public:
 
     bool is_loaded() const { return m_loaded; }
 
+    void render_sliders(GLCanvas3D& canvas);
+
     void update_moves_slider();
     void enable_moves_slider(bool enable);
     void move_moves_slider(wxKeyEvent& evt);
