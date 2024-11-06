@@ -301,6 +301,9 @@ void Repetier::get_printer_config(const CompletionHandler& handler) const {
     auto http = Http::get(std::move(url));
     set_auth(http);
 
+    http.timeout_max(1000);
+   // http.set_timeout(3000);  // Adjust the timeout value as needed
+
     http.form_add("a", "getPrinterConfig")
         .on_complete([&](std::string body, unsigned status) {
             json_response = json::parse(body);

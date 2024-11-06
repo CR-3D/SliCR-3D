@@ -142,8 +142,8 @@ std::unique_ptr<CurlGlobalInit> CurlGlobalInit::instance;
 struct Http::priv
 {
 	enum {
-		DEFAULT_TIMEOUT_CONNECT = 10,
-        DEFAULT_TIMEOUT_MAX = 0,
+		DEFAULT_TIMEOUT_CONNECT = 1,
+        DEFAULT_TIMEOUT_MAX = 1,
 		DEFAULT_SIZE_LIMIT = 5 * 1024 * 1024,
 	};
 
