@@ -91,10 +91,10 @@ GLGizmosManager::EType GLGizmosManager::get_gizmo_from_mouse(const Vec2d &mouse_
 bool GLGizmosManager::init()
 {
     m_background_texture.metadata.filename = "toolbar_background.png";
-    m_background_texture.metadata.left = 16;
-    m_background_texture.metadata.top = 16;
-    m_background_texture.metadata.right = 16;
-    m_background_texture.metadata.bottom = 16;
+    m_background_texture.metadata.left = 8;
+    m_background_texture.metadata.top = 8;
+    m_background_texture.metadata.right = 8;
+    m_background_texture.metadata.bottom = 8;
 
     if (!m_background_texture.metadata.filename.empty())
     {

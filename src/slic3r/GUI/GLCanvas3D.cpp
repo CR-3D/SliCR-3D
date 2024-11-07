@@ -6718,12 +6718,10 @@ void GLCanvas3D::_render_current_gizmo() const
 void GLCanvas3D::_render_gizmos_overlay()
 {
 #if ENABLE_RETINA_GL
-//     m_gizmos.set_overlay_scale(m_retina_helper->get_scale_factor());
-    const float scale = m_retina_helper->get_scale_factor()*wxGetApp().toolbar_icon_scale();
+
+    const float scale = m_retina_helper->get_scale_factor() * wxGetApp().toolbar_icon_scale() / 1.3;
     m_gizmos.set_overlay_scale(scale); //! #ys_FIXME_experiment
 #else
-//     m_gizmos.set_overlay_scale(m_canvas->GetContentScaleFactor());
-//     m_gizmos.set_overlay_scale(wxGetApp().em_unit()*0.1f);
     const float size = int(GLGizmosManager::Default_Icons_Size * wxGetApp().toolbar_icon_scale());
     m_gizmos.set_overlay_icon_size(size); //! #ys_FIXME_experiment
 #endif /* __WXMSW__ */
