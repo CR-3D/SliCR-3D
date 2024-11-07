@@ -210,6 +210,7 @@ enum class OptionCategory : int
     skirtBrim,
     support,
     speed,
+    acceleration,
     width,
     extruders,
     output,

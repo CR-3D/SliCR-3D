@@ -244,7 +244,7 @@ public:
     void remove_printer_webview_tab();
     bool m_printer_webview_added {false};
     void add_printer_webview_tab(const wxString &url);
-    void show_printer_webview_tab(DynamicPrintConfig* dpc);
+    void show_printer_webview_tab(DynamicPrintConfig* dpc, bool uploaded = false);
 
     bool can_save() const;
     bool can_save_as() const;

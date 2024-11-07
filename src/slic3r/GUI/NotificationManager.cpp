@@ -1410,7 +1410,9 @@ void NotificationManager::PrintHostUploadNotification::complete()
 { 
 	m_uj_state = UploadJobState::PB_COMPLETED;
     if (m_uj_state == UploadJobState::PB_COMPLETED)
+        wxGetApp().mainframe->show_printer_webview_tab(wxGetApp().preset_bundle->physical_printers.get_selected_printer_config(), true);
         wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpDevice, false);
+        
 	m_has_cancel_button = false;
 	init(); 
 }
@@ -1422,7 +1424,7 @@ void NotificationManager::PrintHostUploadNotification::complete_with_warning()
 	init();
 }
 
-void NotificationManager::PrintHostUploadNotification::render_text(ImGuiWrapper& imgui,const float win_size_x, const float win_size_y,const float win_pos_x, const float win_pos_y) 
+void NotificationManager::PrintHostUploadNotification::render_text(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y,const float win_pos_x, const float win_pos_y) 
 {
 	// If not completed, the text rendering is very similar to progressbar notification except it doesnt use m_multiline to decide.
 	// If completed, whole text is part of m_text_1 and is rendered by PopNotification function.

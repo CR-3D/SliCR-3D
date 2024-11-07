@@ -103,10 +103,8 @@ group:Avoid crossing perimeters
 	setting:avoid_crossing_curled_overhangs
 
 group:label_width$12:Overhangs
-	line:Activate (threshold)
-		setting:script:bool:tags$Simple$Advanced$Prusa$SuSi:depends$overhangs_width_speed$overhangs_width:label$_:label_width$0:tooltip$Simple widget to enable/disable the overhangs detection (using 55% and 75% for the two thresholds)\nUse the expert mode to get more detailled widgets:s_overhangs
-		setting:label$for Bridge speed and fan:width$5:sidetext_width$0:overhangs_width_speed
-		setting:label_width$12:label$for Bridge flow:width$5:overhangs_width
+	line:Threshold For
+		setting:script:bool:advanced:depends$overhangs_width_speed$overhangs_width:label$_:label_width$0:tooltip$Simple widget to enable/disable the overhangs detection (using 55% and 75% for the two thresholds)\nUse the expert mode to get more detailled widgets:s_overhangs
 	end_line
 
 	line:Extrusion Direction Reverse On Even 
@@ -203,7 +201,6 @@ group:Fuzzy Skin
 
 group:External perimeter first
 	setting:label$Activate:external_perimeters_first
-	setting:external_perimeters_first_force
 	line:Apply on
 		setting:external_perimeters_nothole
 		setting:external_perimeters_hole
@@ -272,10 +269,8 @@ group:Modifying slices
 	line:XY Size Compensation
 		setting:label$_:xy_size_compensation
 	end_line
-	line:XY First layer compensation
-		setting:width$6:first_layer_size_compensation
-		setting:width$6:first_layer_size_compensation_layers
-		setting:first_layer_size_compensation_no_collapse
+	line:XY Inner Size Compensation
+		setting:label$_:xy_inner_size_compensation
 	end_line
 
 	line:Vertical Hole Shrinking Size Compensation
@@ -359,6 +354,7 @@ group:Infill
 
 group:Reducing Printing Time
 	setting:infill_every_layers
+	setting:infill_only_where_needed
 	line:Supporting dense layer
 		setting:tags$Advanced$Expert$SuSi:sidetext_width$0:label$_:infill_dense
 		setting:width$20:infill_dense_algo
@@ -710,6 +706,7 @@ group:Pressure equalizer (experimental)
 	setting:max_volumetric_extrusion_rate_slope_positive
 	setting:max_volumetric_extrusion_rate_slope_negative
 
+page:Acceleration:acceleration
 group:Acceleration Control (Advanced)
 	line:Default Acceleration
 		setting:label$_:default_acceleration
@@ -782,13 +779,12 @@ group:Other Extrusions Acceleration
 	end_line
 
 page:Width & Flow:width
-
 group:Extrusion Width
 	line:Default Extrusion
 		setting:sidetext_width$10:label$width:extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:extrusion_spacing
 	end_line
-ayer Extrusion Width
+Layer Extrusion Width
 	line:First Layer
 		setting:sidetext_width$10:label$width:first_layer_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:first_layer_extrusion_spacing

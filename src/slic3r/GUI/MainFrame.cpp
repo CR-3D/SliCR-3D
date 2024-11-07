@@ -1167,6 +1167,7 @@ void MainFrame::init_tabpanel()
 
         m_webViewPanel->load_url(url);
     });
+        
     create_preset_tabs();
 
     m_plater->init_after_tabs();
@@ -1223,19 +1224,23 @@ void MainFrame::remove_printer_webview_tab()
      m_tabpanel->RemovePage(m_tabpanel->FindPage(m_webViewPanel));
  }
 
-void MainFrame::show_printer_webview_tab(DynamicPrintConfig *dpc) {
+void MainFrame::show_printer_webview_tab(DynamicPrintConfig *dpc, bool uploaded) {
 
     if (dpc && dpc->option<ConfigOptionEnum<PrintHostType>>("host_type")->value != htPrusaConnect) {
         std::string url = dpc->opt_string("print_host");
+    
+        if (url.find("http://") == std::string::npos && url.find("https://") == std::string::npos) {
+            url = "http://" + url;
+        }
         
-    if (url.find("http://") == std::string::npos && url.find("https://") == std::string::npos)
-        url = "http://" + url;
-        
+        if (uploaded) {
+            std::string print_host_port = dpc->opt_string("printhost_port");
+            url += "/#!/printer/" + print_host_port + "/camera";
+        }
+                
         load_printer_url(url);
         add_printer_webview_tab(url);
-        //select_tab(TabPosition::tpDevice, false);
-        //this->m_plater->Raise();
-        //this->m_plater->SetFocus();
+
         if (m_tabpanel->GetCurrentPage() == m_webViewPanel) 
             select_tab(TabPosition::tpDevice, true);
         

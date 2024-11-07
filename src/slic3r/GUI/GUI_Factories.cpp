@@ -136,6 +136,7 @@ std::map<Slic3r::OptionCategory, std::string> SettingsFactory::CATEGORY_ICON =
     {OptionCategory::fuzzy_skin,    "fuzzy_skin"},
     {OptionCategory::support,       "support"},
     {OptionCategory::speed,         "time"},
+    {OptionCategory::acceleration,  "acceleration"},
     {OptionCategory::extruders,     "funnel"},
     {OptionCategory::width,         "width"},
     {OptionCategory::wipe,          "funnel"},
