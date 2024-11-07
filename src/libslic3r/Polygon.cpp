@@ -112,7 +112,7 @@ void Polygon::douglas_peucker(coord_t tolerance)
     this->points.push_back(this->points.front());
     MultiPoint::douglas_peucker(tolerance);
     assert(this->points.size() > 1);
-    if (points.size() == 2) {
+    if (points.size() <= 2) {
         // not a good polygon : too small. clear it
         points.clear();
     } else {

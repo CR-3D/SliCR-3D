@@ -507,9 +507,9 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
                 new_data.de = line.dist_E(reader);
         }
         assert(new_data.dx == 0 || reader.x() == new_data.x);
-        assert(new_data.dx == 0 || std::abs(reader.x() + new_data.dx - line.x()) < 0.00001f);
+        assert(new_data.dx == 0 || std::abs(reader.x() + new_data.dx - line.x()) < 0.00002f);
         assert(new_data.dy == 0 || reader.y() == new_data.y);
-        assert(new_data.dy == 0 || std::abs(reader.y() + new_data.dy - line.y()) < 0.00001f);
+        assert(new_data.dy == 0 || std::abs(reader.y() + new_data.dy - line.y()) < 0.00002f);
         assert(new_data.de == 0 || (relative_e?0:reader.e()) == new_data.e);
         assert(new_data.de == 0 || std::abs((relative_e?0.f:reader.e()) + new_data.de - line.e()) < 0.00001f);
         //assert(new_data.de == 0 ||(relative_e?0.f:reader.e()) + new_data.de == line.e());

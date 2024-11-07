@@ -14,6 +14,9 @@ static inline Point wipe_tower_point_to_object_point(GCodeGenerator &gcodegen, c
 
 std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id, double z) const
 {
+    // has previosu pos, or it's first layer.
+    assert(gcodegen.last_pos_defined() || gcodegen.layer()->lower_layer == nullptr);
+
     if (new_extruder_id != -1 && new_extruder_id != tcr.new_tool)
         throw Slic3r::InvalidArgument("Error: WipeTowerIntegration::append_tcr was asked to do a toolchange it didn't expect.");
 

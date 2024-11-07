@@ -356,9 +356,12 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     for (auto el : { "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle", "wall_distribution_count", "min_feature_size", "min_bead_width", "aaa" })
        toggle_field(el, have_arachne);
 
-    toggle_field("external_perimeters_vase", config->opt_bool("external_perimeters_first") && !config->opt_bool("perimeter_loop"));
+    bool has_external_peri_not_loop = config->opt_bool("external_perimeters_first") && !config->opt_bool("perimeter_loop");
+    toggle_field("external_perimeters_vase", has_external_peri_not_loop);
+    toggle_field("external_perimeters_first_force", has_external_peri_not_loop && !have_arachne );
+    bool is_ext_forced = config->opt_bool("external_perimeters_first_force");
     for (auto el : { "external_perimeters_nothole", "external_perimeters_hole"})
-        toggle_field(el, config->opt_bool("external_perimeters_first") && !have_arachne);
+        toggle_field(el, has_external_peri_not_loop && !have_arachne && !is_ext_forced);
 
     toggle_field("perimeter_bonding", config->opt_bool("external_perimeters_first") && !have_arachne && config->option("perimeter_overlap")->get_float() == 100.f && config->option("external_perimeter_overlap")->get_float() == 100.f);
 

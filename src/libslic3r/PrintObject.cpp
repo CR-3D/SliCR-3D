@@ -1082,6 +1082,7 @@ bool PrintObject::invalidate_state_by_config_options(
         if (
                opt_key == "arc_fitting"
             || opt_key == "external_perimeters_first"
+            || opt_key == "external_perimeters_first_force"
             || opt_key == "external_perimeters_hole"
             || opt_key == "external_perimeters_nothole"
             || opt_key == "external_perimeter_extrusion_change_odd_layers"

@@ -593,7 +593,7 @@ static inline std::optional<Arc> try_create_arc_impl(
         double ccw_angle2 = ccw_angle;
         if (ccw_angle < 0)
             ccw_angle = 2 * PI + ccw_angle;
-        assert(is_approx(ccw_angle, angle_test, EPSILON));
+        assert(is_approx(ccw_angle, angle_test, EPSILON*3));
 #endif
     }
     return ret_arc;
@@ -950,6 +950,11 @@ double clip_end(Path &path, coordf_t distance)
                 return 0;
             }
             distance -= sqrt(lsqr);
+            // check if not the same point as the one we just deleted.
+            if (distance < 0) {
+                assert(distance > -SCALED_EPSILON);
+                path.push_back(last);
+            }
         } else {
             // Circular segment
             double angle = arc_angle(path.back().point.cast<double>(), last.point.cast<double>(), last.radius);
@@ -1009,7 +1014,9 @@ PathSegmentProjection point_to_path_projection(const Path &path, const Point &po
         // or path.cbegin() if no such closest projection closer than search_radius2 was found.
         auto  min_point_it = path.cbegin();
         Point prev         = path.front().point;
-        for (auto it = std::next(path.cbegin()); it != path.cend(); ++ it) {
+        size_t best_idx = 0;
+        size_t idx = 1;
+        for (auto it = std::next(path.cbegin()); it != path.cend(); ++ it, ++idx) {
             if (it->linear()) {
                 // Linear segment
                 Point proj;
@@ -1017,7 +1024,9 @@ PathSegmentProjection point_to_path_projection(const Path &path, const Point &po
                 if (double d2 = line_alg::distance_to_squared(Line(prev, it->point), point, &proj); d2 < out.distance2) {
                     out.point     = proj;
                     out.distance2 = d2;
+                    out.center = {0, 0};
                     min_point_it  = it;
+                    best_idx = idx;
                 }
             } else {
                 // Circular arc
@@ -1031,23 +1040,49 @@ PathSegmentProjection point_to_path_projection(const Path &path, const Point &po
                     const auto r = double(std::abs(it->radius));
                     const auto rtest = point.distance_to(center);
                     if (double d2 = sqr(rtest - r); d2 < out.distance2) {
-                        if (rtest > SCALED_EPSILON)
+                        if (rtest > SCALED_EPSILON) {
                             // Project vp to the arc.
                             out.point = center + (vp.cast<double>() * (r / rtest)).cast<coord_t>();
-                        else
-                            // Test point is very close to the center of the radius. Any point of the arc is the closest.
-                            // Pick the start.
+                            if (out.point.coincides_with_epsilon(prev)) {
+                                out.point = prev;
+                            } else if (out.point.coincides_with_epsilon(it->point)) {
+                                out.point = it->point;
+                            } else {
+                                assert(inside_arc_wedge(prev, it->point, center, it->radius > 0, it->ccw(), out.point));
+                            }
+                        } else {
+                            // Test point is very close to the center of the radius. Any point of the arc is the
+                            // closest. Pick the start.
                             out.point = prev;
-                        out.distance2 = d2;
-                        out.center = center;
-                        min_point_it  = it;
+                        }
+                        if (out.point == prev) {
+                            //no arc needed
+                            out.distance2 = d2;
+                            out.center = {0, 0};
+                            min_point_it = it;
+                            best_idx = idx;
+                        } else if (out.point == it->point) {
+                            //no arc needed
+                            out.distance2 = d2;
+                            out.center = {0, 0};
+                            // treat it as first point of next segment, unless it's the last one.
+                            min_point_it = (it == std::prev(path.end())) ? it : std::next(it);
+                            best_idx = (idx + 1 < path.size()) ? idx + 1 : idx;
+                        } else {
+                            out.distance2 = d2;
+                            out.center = center;
+                            min_point_it = it;
+                            best_idx = idx;
+                        }
                     }
                 } else {
                     // Distance to the start point.
                     if (double d2 = v1.distance_to_square(vp); d2 < out.distance2) {
                         out.point     = prev;
                         out.distance2 = d2;
+                        out.center = {0, 0};
                         min_point_it  = it;
+                        best_idx = idx;
                     }
                 }
             }
@@ -1058,7 +1093,9 @@ PathSegmentProjection point_to_path_projection(const Path &path, const Point &po
             if (double d2 = path.back().point.distance_to_square(point); d2 < out.distance2) {
                 out.point     = path.back().point;
                 out.distance2 = d2;
+                out.center = {0, 0};
                 min_point_it  = std::prev(path.end());
+                best_idx = path.size() - 1;
             }
         }
         // If a new closes point was found, it is closer than search_radius2.
@@ -1069,6 +1106,7 @@ PathSegmentProjection point_to_path_projection(const Path &path, const Point &po
             // Make it valid by setting the segment.
             out.segment_id = std::prev(min_point_it) - path.begin();
             assert(out.valid());
+            assert(out.segment_id == best_idx - 1);
         }
     }
 

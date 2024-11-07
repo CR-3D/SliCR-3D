@@ -673,17 +673,36 @@ void PhysicalPrinterDialog::update_host_type(bool printer_change)
 {
     if (m_presets.empty())
         return;
-    bool all_presets_are_from_mk3_family = true;
+    struct {
+        bool supported { true };
+        wxString label;
+    } link, connect;
+    // allowed models are: all MINI, all MK3 and newer, MK2.5 and MK2.5S
+    auto model_supports_prusalink = [](const std::string& model) {
+        return model.size() >= 2 &&
+                (( boost::starts_with(model, "MK") && model[2] > '2' && model[2] <= '9')
+                || boost::starts_with(model, "MINI")
+                || boost::starts_with(model, "MK2.5")
+                || boost::starts_with(model, "XL")
+                );
+    };
+    // allowed models are: all MK3/S and MK2.5/S.
+    // Since 2.6.2 also MINI, which makes list of supported printers same for both services.
+    // Lets keep these 2 functions separated for now.
+    auto model_supports_prusaconnect = [](const std::string& model) {
+        return model.size() >= 2 &&
+                ((boost::starts_with(model, "MK") && model[2] > '2' && model[2] <= '9')
+                || boost::starts_with(model, "MINI")
+                || boost::starts_with(model, "MK2.5")
+                || boost::starts_with(model, "XL")
+                );
+    };
 
+    // set all_presets_are_prusalink_supported
     for (PresetForPrinter* prstft : m_presets) {
         std::string preset_name = prstft->get_preset_name();
         if (Preset* preset = wxGetApp().preset_bundle->printers.find_preset(preset_name)) {
             std::string model_id = preset->config.opt_string("printer_model");
-            auto model_supports_prusalink = [](const std::string &model) {
-                return model.size() >= 3 &&
-                    ((boost::starts_with(model, "MK") && model[2] > '2' && model[2] <= '9') ||
-                      boost::starts_with(model, "MINI"));
-            };
             if (preset->vendor) {
                 if (boost::starts_with(preset->vendor->name , "Prusa")) {
                     const std::vector<VendorProfile::PrinterModel>& models = preset->vendor->models;
@@ -692,26 +711,75 @@ void PhysicalPrinterDialog::update_host_type(bool printer_change)
                     if (it != models.end() && model_supports_prusalink(it->family))
                         continue;
                 }
-            } else if (model_supports_prusalink(model_id))
+            }
+            else if (model_supports_prusalink(model_id))
                 continue;
         }
-        all_presets_are_from_mk3_family = false;
+        link.supported = false;
         break;
     }
 
+    // set all_presets_are_prusaconnect_supported
+    for (PresetForPrinter* prstft : m_presets) {
+        std::string preset_name = prstft->get_preset_name();
+        Preset* preset = wxGetApp().preset_bundle->printers.find_preset(preset_name);
+        if (!preset) {
+            connect.supported = false;
+            break;
+        }
+        std::string model_id = preset->config.opt_string("printer_model");
+        if (preset->vendor && preset->vendor->name != "Prusa Research") {
+            connect.supported = false;
+            break;
+        }
+        if (preset->vendor && preset->vendor->name != "Prusa Research") {
+            connect.supported = false;
+            break;
+        }
+        // model id should be enough for this case
+        if (!model_supports_prusaconnect(model_id)) {
+            connect.supported = false;
+            break;
+        }
+    }
+
     Field* ht = m_optgroup->get_field("host_type");
+    wxArrayString types;
+    int last_in_conf = m_config->option("host_type")->get_int(); //  this is real position in last choice
+
+
+    // Append localized enum_labels
+// TODO: review if it's good this time. supermerill/SuperSlicer#2395 f5afec0
+    assert(ht->m_opt.enum_def->labels().size() == ht->m_opt.enum_def->values().size());
+    for (size_t i = 0; i < ht->m_opt.enum_def->labels().size(); ++ i) {
+        wxString label = _(ht->m_opt.enum_def->label(i));
+        if (const std::string &value = ht->m_opt.enum_def->value(i);
+            value == "prusalink") {
+            link.label = label;
+            if (!link.supported)
+                continue;
+        } else if (value == "prusaconnect") {
+            connect.label = label;
+            if (!connect.supported)
+                continue;
+        }
+
+        types.Add(label);
+    }
+
     Choice* choice = dynamic_cast<Choice*>(ht);
-    auto set_to_choice_and_config = [this, choice](PrintHostType type) {
-        choice->set_any_value(static_cast<int32_t>(type), false);
+    choice->set_values(types);
+    int32_t index_in_choice = (printer_change ? std::clamp(last_in_conf - ((int32_t)ht->m_opt.enum_def->values().size() - (int32_t)types.size()), 0, (int32_t)ht->m_opt.enum_def->values().size() - 1) : last_in_conf);
+    choice->set_any_value(index_in_choice, false);
+    if (link.supported && link.label == _(ht->m_opt.enum_def->label(index_in_choice)))
+        m_config->set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(htPrusaLink));
+    else if (connect.supported && connect.label == _(ht->m_opt.enum_def->label(index_in_choice)))
+        m_config->set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(htPrusaConnect));
+    else {
+        int host_type = std::clamp(index_in_choice + ((int)ht->m_opt.enum_def->values().size() - (int)types.size()), 0, (int)ht->m_opt.enum_def->values().size() - 1);
+        PrintHostType type = static_cast<PrintHostType>(host_type);
         m_config->set_key_value("host_type", new ConfigOptionEnum<PrintHostType>(type));
-    };
-    if ((printer_change && all_presets_are_from_mk3_family) || (!had_all_mk3 && all_presets_are_from_mk3_family))
-        set_to_choice_and_config(htPrusaLink);
-    else if ((printer_change && !all_presets_are_from_mk3_family) || (!all_presets_are_from_mk3_family && m_config->option<ConfigOptionEnum<PrintHostType>>("host_type")->value == htPrusaLink))
-        set_to_choice_and_config(htOctoPrint);
-    else
-        choice->set_any_value(m_config->option("host_type")->get_int(), false);
-    had_all_mk3 = all_presets_are_from_mk3_family;
+    }
 }
 
 

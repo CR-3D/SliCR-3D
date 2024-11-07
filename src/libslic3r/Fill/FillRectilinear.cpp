@@ -3086,7 +3086,7 @@ bool FillRectilinear::fill_surface_by_lines(const Surface *surface, const FillPa
         it->remove_duplicate_points();
         it->rotate(rotate_vector.first);
         // simplify the paths to avoid very short edges
-        it->douglas_peucker(params.fill_resolution);
+        it->douglas_peucker(std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
         if (it->length() <= params.fill_resolution) {
             it = polylines_out.erase(it);
         } else {
@@ -3178,8 +3178,8 @@ bool FillRectilinear::fill_surface_by_multilines(const Surface *surface, FillPar
             params);
     }
 
-    //assert_valid(fill_lines); // totest, remove if triggered, else remove this & ensure_valid
-    ensure_valid(fill_lines, params.fill_resolution);
+    assert_valid(fill_lines); // totest, remove if triggered, else remove this & ensure_valid
+    ensure_valid(fill_lines, std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
 
     if (params.dont_connect() || fill_lines.size() <= 1) {
         if (fill_lines.size() > 1)
@@ -3188,8 +3188,8 @@ bool FillRectilinear::fill_surface_by_multilines(const Surface *surface, FillPar
     } else
         connect_infill(std::move(fill_lines), surface->expolygon, poly_with_offset_base.polygons_outer, polylines_out, scale_t(this->get_spacing()), params);
 
-    ensure_valid(polylines_out, params.fill_resolution);
-   // assert_valid(polylines_out);
+    ensure_valid(polylines_out, std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
+    assert_valid(polylines_out);
     return true;
 }
 
@@ -3289,7 +3289,7 @@ Polylines FillSupportBase::fill_surface(const Surface *surface, const FillParams
             for (Point &pt : pl.points)
                 pt.rotate(cos_a, sin_a);
     }
-    ensure_valid(polylines_out, params.fill_resolution);
+    ensure_valid(polylines_out, std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
     return polylines_out;
 }
 

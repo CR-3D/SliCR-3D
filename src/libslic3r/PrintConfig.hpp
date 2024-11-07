@@ -884,6 +884,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionPercent,              external_perimeter_overlap))
     ((ConfigOptionFloatOrPercent,       external_perimeter_speed))
     ((ConfigOptionBool,                 external_perimeters_first))
+    ((ConfigOptionBool,                 external_perimeters_first_force))
     ((ConfigOptionBool,                 external_perimeters_hole))
     ((ConfigOptionBool,                 external_perimeters_nothole))
     ((ConfigOptionBool,                 external_perimeters_vase))

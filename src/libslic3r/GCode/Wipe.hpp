@@ -37,7 +37,7 @@ public:
     void            set_path(Path &&path, bool is_loop);
     void            set_path(const ExtrusionPaths &paths, bool reversed, bool is_loop);
     void            offset_path(const Point &v) { m_offset += v; }
-    void            set_boundaries(const ExPolygons *slices) { this->boundaries = slices; }
+    void            set_boundaries(const ExPolygons *slices) { this->m_boundaries = slices; }
 
     std::string     wipe(GCodeGenerator &gcodegen, bool toolchange);
 
@@ -66,7 +66,7 @@ private:
     // Offset from m_path to the current PrintObject active.
     Point   m_offset{ Point::Zero() };
     // boundaries of the current region, we can use it to have a wider wipe if needed.
-    const ExPolygons *boundaries;
+    const ExPolygons *m_boundaries;
 };
 
 // Make a little move inwards before leaving loop.

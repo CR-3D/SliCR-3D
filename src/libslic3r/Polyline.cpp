@@ -793,10 +793,11 @@ std::pair<int, Point> ArcPolyline::foot_pt(const Point &pt) const
                result.point.distance_to(
                    result.point.projection_onto(m_path[result.segment_id].point, m_path[result.segment_id + 1].point)) < SCALED_EPSILON);
         // else check that it's on the arc
-        assert(result.segment_id + 1 == m_path.size() || m_path[result.segment_id + 1].radius == 0 ||
-               Geometry::ArcWelder::point_to_path_projection({m_path[result.segment_id], m_path[result.segment_id + 1]}, result.point,
-                                                             std::sqrt(result.distance2) + SCALED_EPSILON * 2)
-                       .point.distance_to(result.point) < SCALED_EPSILON);
+        assert(result.segment_id + 1 == m_path.size() || m_path[result.segment_id + 1].radius == 0
+            || m_path[result.segment_id + 1].point == result.point || m_path[result.segment_id].point == result.point
+            || Geometry::ArcWelder::point_to_path_projection({m_path[result.segment_id], m_path[result.segment_id + 1]},
+                                                                      result.point,
+                                                                      (result.distance2) + SCALED_EPSILON * 2).point.distance_to(result.point) < SCALED_EPSILON);
         // if on strait segment, then no center, if on arc, then there is a center. (unless it's the first or last point)
         if (result.segment_id > 0 && result.segment_id + 1 < m_path.size()) {
             bool has_center = result.center != Point(0, 0);

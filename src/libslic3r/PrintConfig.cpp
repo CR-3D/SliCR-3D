@@ -1670,6 +1670,14 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
 
+    def = this->add("external_perimeters_first_force", coBool);
+    def->label = L("force for all");
+    def->full_label = L("External perimeters first: force for all");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Print all external contours & periemter first, then the internal ones.");
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionBool(false));
+
     def = this->add("external_perimeters_vase", coBool);
     def->label = L("In vase mode (no seam)");
     def->full_label = L("External perimeters in vase mode");
@@ -9694,6 +9702,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "external_perimeter_extrusion_change_odd_layers",
 "external_perimeter_fan_speed",
 "external_perimeter_overlap",
+"external_perimeters_first_force",
 "external_perimeters_hole",
 "external_perimeters_nothole",
 "external_perimeters_vase",

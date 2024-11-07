@@ -91,9 +91,10 @@ ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath   
     result.back().polyline.append(Point::new_scale(extended_points[0].position));
     size_t sequence_start_index = 0;
     for (size_t i = 1; i < extended_points.size(); i++) {
-        result.back().polyline.append(Point::new_scale(extended_points[i].position));
-        result.back().overhang_attributes_mutable()->end_distance_from_prev_layer =  set_between_0_and_1(extended_points[i].distance);
-
+        if (!result.back().polyline.back().coincides_with_epsilon(Point::new_scale(extended_points[i].position))) {
+            result.back().polyline.append(Point::new_scale(extended_points[i].position));
+            result.back().overhang_attributes_mutable()->end_distance_from_prev_layer =  set_between_0_and_1(extended_points[i].distance);
+        }
         if (std::abs(calculated_distances[sequence_start_index].first - calculated_distances[i].first) < 0.001 * max_width &&
             std::abs(calculated_distances[sequence_start_index].second - calculated_distances[i].second) < 0.001) {
             // do not start new path, the attributes are similar enough
@@ -107,9 +108,19 @@ ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath   
             //already between 0 and 1
             new_attrs.overhang_attributes->proximity_to_curled_lines      = calculated_distances[i].second;
             sequence_start_index                                          = i;
-            result.emplace_back(new_attrs);
-            result.back().polyline.append(Point::new_scale(extended_points[i].position));
+            if (result.back().size() > 1) {
+                result.emplace_back(new_attrs);
+                result.back().polyline.append(Point::new_scale(extended_points[i].position));
+            } else {
+                assert(result.back().size() == 1);
+                assert(result.back().polyline.back().coincides_with_epsilon(Point::new_scale(extended_points[i].position)));
+            }
         }
+    }
+    // started new path, but there is noting after that.
+    if (result.back().size() == 1) {
+        //delete it
+        result.pop_back();
     }
 #ifdef _DEBUG
     for (auto &path : result) {
@@ -120,12 +131,12 @@ ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath   
     assert(is_approx(result.front().first_point(), path.first_point()));
     assert(is_approx(result.back().last_point(), path.last_point()));
     Point last_pt = result.front().last_point();
-    for (size_t idx = 1; idx < result.size() ; ++idx) {
-        const ExtrusionPath &path = result[idx];
+    for (size_t idx_path = 1; idx_path < result.size() ; ++idx_path) {
+        const ExtrusionPath &path = result[idx_path];
         assert(path.polyline.size() >= 2);
         assert(path.first_point() == last_pt);
-        for (size_t idx = 1; idx < path.size(); ++idx)
-            assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
+        for (size_t idx_pt = 1; idx_pt < path.size(); ++idx_pt)
+            assert(!path.polyline.get_point(idx_pt - 1).coincides_with_epsilon(path.polyline.get_point(idx_pt)));
         last_pt = path.last_point();
     }
 #endif

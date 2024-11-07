@@ -516,6 +516,7 @@ static std::vector<std::string> s_Preset_print_options {
         "staggered_inner_seams",
         // external_perimeters
         "external_perimeters_first",
+        "external_perimeters_first_force",
         "external_perimeters_vase",
         "external_perimeters_nothole",
         "external_perimeters_hole",

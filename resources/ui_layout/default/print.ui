@@ -203,6 +203,7 @@ group:Fuzzy Skin
 
 group:External perimeter first
 	setting:label$Activate:external_perimeters_first
+	setting:external_perimeters_first_force
 	line:Apply on
 		setting:external_perimeters_nothole
 		setting:external_perimeters_hole

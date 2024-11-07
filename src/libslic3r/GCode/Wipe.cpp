@@ -109,7 +109,7 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
     const Tool &extruder = *gcodegen.writer().tool();
     static constexpr const std::string_view wipe_retract_comment = "wipe and retract"sv;
     const bool use_firmware_retract = gcodegen.writer().gcode_config().use_firmware_retraction.value;
-    
+
     if (!gcodegen.writer().tool_is_extruder())
         return "";
 
@@ -158,12 +158,10 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                 }
                 if (segment_length < precision) {
                     p = prev_quantized; // keep old prev
-                    gcode += std::string("; too small, skip\n");
                     return partial_segment;
                 }
             }
             if (wipe_length < precision) {
-                gcode += std::string("; end of wipe, skip\n");
                 //we can stop here
                 p = prev_quantized; // keep old prev
                 wipe_length = 0;
@@ -173,23 +171,21 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
             //reduce length if no_lift_length in the middle
             if (no_lift_length + precision / 2 < segment_length && no_lift_length > precision) {
                 // Shorten the segment.
-                p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(
-                Vec2d(prev_quantized + (p - prev_quantized) * (no_lift_length / segment_length)));
+                p = p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(
+                    Vec2d(prev_quantized + (p - prev_quantized) * (no_lift_length / segment_length)));
                 segment_length = (p_quantized - prev_quantized).norm();
                 partial_segment = true;
                 assert(is_approx(no_lift_length, segment_length, 0.01));
                 no_lift_length = EPSILON *2;
-                gcode += std::string("; began lift, partial\n");
             }
             //reduce length if wipe_length in the middle
             if (wipe_length + precision / 2 < segment_length) {
                 // Shorten the segment.
-                p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(
-                Vec2d(prev_quantized + (p - prev_quantized) * (wipe_length / segment_length)));
+                p = p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(
+                    Vec2d(prev_quantized + (p - prev_quantized) * (wipe_length / segment_length)));
                 segment_length = (p_quantized - prev_quantized).norm();
                 partial_segment = true;
                 assert(is_approx(wipe_length, segment_length, 0.01));
-                gcode += std::string("; end wipe, partial\n");
             }
             // Quantize E axis as it is to be extruded as a whole segment.
             double dE = 0;
@@ -202,7 +198,6 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                             Vec2d(prev_quantized + (p - prev_quantized) * (retract_length / dE)));
                         segment_length = (p_quantized - prev_quantized).norm();
                         partial_segment = true;
-                        gcode += std::string("; end retract, partial\n");
                         // test if the shorten segment isn't too short
                         if (p_quantized == prev_quantized) {
                             if (!use_firmware_retract) {
@@ -211,7 +206,6 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                             }
                             // too small to print, ask for a retry (with no retract_length left)
                             retract_length = 0;
-                            gcode += std::string("; end retract, retry\n");
                             return true;
                         }
                     }
@@ -244,8 +238,10 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
             assert(wipe_length > -0.1);
             return partial_segment;
         };
-        auto         wipe_arc = [&gcode, &gcodegen, &retract_length, &wipe_length, &no_lift_length, &current_z, xy_to_e, use_firmware_retract, lift_per_mm, final_z, &wipe_linear]
-                (const Vec2d &prev_quantized, Vec2d &p, double radius_in, const bool ccw, bool &done)->bool { //return false if point is used, true if need to be recalled again
+        auto         wipe_arc = [this, &gcode, &gcodegen, &retract_length, &wipe_length, &no_lift_length, &current_z, xy_to_e, use_firmware_retract, lift_per_mm, final_z, &wipe_linear]
+                (const Vec2d &prev_quantized, Vec2d &p,  const Slic3r::Geometry::ArcWelder::Segment &seg/*double radius_in, const bool ccw, */, bool &done)->bool { //return false if point is used, true if need to be recalled again
+            const double radius_in = unscaled(seg.radius);
+            const bool ccw = seg.ccw();
             bool partial_segment = false;
             Vec2d  p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(p);
             if (p_quantized == prev_quantized) {
@@ -322,14 +318,14 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                 // The arc is valid.
                 if (lift_per_mm == 0 || no_lift_length > EPSILON) {
                     if (dE > 0) {
-                        gcode += gcodegen.writer().extrude_arc_to_xy(p, ij, ccw, use_firmware_retract ? 0 : -dE, wipe_retract_comment);
+                        gcode += gcodegen.writer().extrude_arc_to_xy(p, ij, use_firmware_retract ? 0 : -dE, ccw, wipe_retract_comment);
                     } else {
-                        gcode += gcodegen.writer().travel_arc_to_xy(p, ij, ccw, 0, wipe_retract_comment);
+                        gcode += gcodegen.writer().travel_arc_to_xy(p, ij, ccw, 0/*speed*/, wipe_retract_comment);
                     }
                 } else {
                     current_z = std::min(final_z, current_z + segment_length * lift_per_mm);
                     Vec3d p3d(p.x(), p.y(), current_z);
-                    gcode += gcodegen.writer().extrude_arc_to_xyz(p3d, ij, ccw, use_firmware_retract ? 0 : -dE, wipe_retract_comment);
+                    gcode += gcodegen.writer().extrude_arc_to_xyz(p3d, ij, use_firmware_retract ? 0 : -dE, ccw, wipe_retract_comment);
                 }
             }
             retract_length -= dE;
@@ -351,56 +347,74 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
             auto end = this->path().end();
             size_t idx = 0;
             for (auto it = this->path().begin(); it != end; ++it) {
-                gcode += std::string("; ") + std::to_string(idx) + "\n";
                 p = gcodegen.point_to_gcode(it->point + m_offset);
                 // wipe_xxx check itself if prev == p (with quantization)
                 bool done = false;
-                while (it->linear() ? wipe_linear(prev, p, done) : wipe_arc(prev, p, unscaled<double>(it->radius), it->ccw(), done)) {
-                    gcode += std::string("; redo? ") + std::to_string(idx) + "\n";
+                while (it->linear() ? wipe_linear(prev, p, done) : wipe_arc(prev, p, *it/*unscaled<double>(it->radius), it->ccw()*/, done)) {
                     prev = p;
                     if(done) return;
-                    gcode += std::string("; redo ") + std::to_string(idx) + "\n";
                     p = gcodegen.point_to_gcode(it->point + m_offset);
                 }
-                gcode += std::string("; ok\n");
                 // wipe has updated p into quantized-prev point for next loop
                 prev = p;
                 if(done) return;
                 idx++;
             }
         };
+        ArcPolyline arcpoly(this->path());
         iterate_path();
-        gcode += std::string("; end\n");
 
         // if the current path is very short, then use the boundaries (if any).
-        if (wipe_length > wipe_total_length / 5 && boundaries && !boundaries->empty() && gcodegen.config().wipe_min.get_at(extruder.id()).value != 0) {
+        if (wipe_length > wipe_total_length / 5 && m_boundaries && !m_boundaries->empty() && gcodegen.config().wipe_min.get_at(extruder.id()).value != 0) {
             Point start = gcodegen.gcode_to_point(prev);
             //TODO: optimisatin if it takes too long.
             // imo, it shouldn't be triggered that often.
             //choose the right one
             ExPolygon my_boundary;
-            for (const ExPolygon &boundary : *boundaries) {
+            for (const ExPolygon &boundary : *m_boundaries) {
                 BoundingBox bb = get_extents(boundary.contour);
                 if (bb.contains(start)) {
                     if (boundary.contains(start)) {
+                        // worth it?
+                        coordf_t arc_path_length = Geometry::ArcWelder::path_length<coordf_t>(this->path());
+                        if (boundary.contour.length() < arc_path_length * 2) {
+                            // no
+                            break;
+                        }
                         coord_t offset = scale_t(nozzle_diameter * 1.5);
                         ExPolygons offseted_boundary = offset_ex(boundary, -offset);
-                        ensure_valid(offseted_boundary, nozzle_diameter / 10);
-                        if (offseted_boundary.empty()) {
-                            my_boundary = boundary;
-                        } else if (offseted_boundary.size() > 1) {
+                        ensure_valid(offseted_boundary, std::max(SCALED_EPSILON, scale_t(nozzle_diameter) / 10));
+                        if (offseted_boundary.size() > 1) {
                             for (auto &expoly : offseted_boundary) {
                                 if (expoly.contains(start)) {
                                     my_boundary = expoly;
                                     break;
                                 }
                             }
-                            if (my_boundary.empty()) {
-                                my_boundary = boundary;
-                            }
-                        } else {
+                        } else if (!offseted_boundary.empty()) {
                             my_boundary = offseted_boundary.front();
                         }
+                        // try again with lower offset, if it's worth
+                        if (my_boundary.empty()) {
+                            offset = scale_t(nozzle_diameter * 0.7);
+                            offseted_boundary = offset_ex(boundary, -offset);
+                            ensure_valid(offseted_boundary, std::max(SCALED_EPSILON, scale_t(nozzle_diameter) / 10));
+                            if (offseted_boundary.size() > 1) {
+                                for (auto &expoly : offseted_boundary) {
+                                    if (expoly.contains(start)) {
+                                        my_boundary = expoly;
+                                        break;
+                                    }
+                                }
+                            } else if (!offseted_boundary.empty()) {
+                                my_boundary = offseted_boundary.front();
+                            }
+                        }
+                        // still use the boundary if the current path is really too short
+                        if (my_boundary.empty() && arc_path_length < nozzle_diameter * 10) {
+                            my_boundary = boundary;
+                        }
+                        break;
                     }
                 }
             }
@@ -416,28 +430,31 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                         best_idx = idx;
                     }
                 }
+                bool travel_ok = false;
                 Polylines test_cross = intersection_pl(Polyline({start, my_boundary.contour.points[best_idx]}),
-                                                       my_boundary);
-                assert(test_cross.size() > 0);
-                if (!test_cross.empty()) {
-                    if (test_cross.size() == 1) {
-                        poly = my_boundary.contour.split_at_index(best_idx);
-                    } else {
-                        // get the nearest hole
-                        size_t best_id_hole = 0;
-                        for (size_t id_hole = 0; id_hole < my_boundary.holes.size(); id_hole++) {
-                            for (size_t idx = 0; idx < my_boundary.holes[id_hole].size(); idx++) {
-                                coordf_t dist_sqr = start.distance_to_square(my_boundary.holes[id_hole].points[idx]);
-                                if (max_dist_sqr > dist_sqr) {
-                                    max_dist_sqr = dist_sqr;
-                                    best_idx = idx;
-                                    best_id_hole = id_hole;
-                                }
+                                                        my_boundary);
+                if (test_cross.empty()) {
+                    travel_ok = max_dist_sqr < sqr(nozzle_diameter * 2);
+                } else if (test_cross.size() == 1) {
+                    travel_ok =true;
+                    poly = my_boundary.contour.split_at_index(best_idx);
+                } else {
+                    // get the nearest hole
+                    size_t best_id_hole = 0;
+                    for (size_t id_hole = 0; id_hole < my_boundary.holes.size(); id_hole++) {
+                        for (size_t idx = 0; idx < my_boundary.holes[id_hole].size(); idx++) {
+                            coordf_t dist_sqr = start.distance_to_square(my_boundary.holes[id_hole].points[idx]);
+                            if (max_dist_sqr > dist_sqr) {
+                                max_dist_sqr = dist_sqr;
+                                best_idx = idx;
+                                best_id_hole = id_hole;
                             }
                         }
-                        poly = my_boundary.holes[best_id_hole].split_at_index(best_idx);
                     }
-
+                    poly = my_boundary.holes[best_id_hole].split_at_index(best_idx);
+                    travel_ok =true;
+                }
+                if (travel_ok) {
                     assert(!poly.empty());
                     // if useful use it, else discard and use path
                     if (poly.length() > Geometry::ArcWelder::path_length<coordf_t>(this->path())) {
@@ -470,11 +487,14 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
         }
         
         // if not enough, then use the same path again (in reverse if not a loop)
-        while (wipe_length > 0 && gcodegen.config().wipe_min.get_at(extruder.id()).value != 0) {
+        size_t max_iteration = 3;
+        while (wipe_length > 0 && gcodegen.config().wipe_min.get_at(extruder.id()).value != 0 && max_iteration > 0) {
             if (!m_path_is_loop) {
                 Geometry::ArcWelder::reverse(m_path);
             }
+            ArcPolyline arcpoly2(this->path());
             iterate_path();
+            max_iteration--;
         }
 
         // set new current point in gcodegen

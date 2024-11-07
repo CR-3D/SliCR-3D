@@ -682,6 +682,7 @@ void Layer::make_perimeters()
                             && config.external_perimeter_overlap == other_config.external_perimeter_overlap
                             && config.external_perimeter_speed == other_config.external_perimeter_speed // it os mandatory? can't this be set at gcode.cpp?
                             && config.external_perimeters_first == other_config.external_perimeters_first
+                            && config.external_perimeters_first_force == other_config.external_perimeters_first_force
                             && config.external_perimeters_hole  == other_config.external_perimeters_hole
                             && config.external_perimeters_nothole == other_config.external_perimeters_nothole
                             && config.external_perimeters_vase == other_config.external_perimeters_vase
@@ -975,6 +976,7 @@ void Layer::sort_perimeters_into_islands(
     std::vector<RegionWithFillIndex> map_expolygon_to_region_and_fill;
     const bool                       has_multiple_regions = layer_region_ids.size() > 1;
     assert(has_multiple_regions || layer_region_ids.size() == 1);
+    coord_t scaled_resolution = std::max(SCALED_EPSILON , scale_t(this->object()->print()->config().resolution.value));
     // assign fill_surfaces to each layer
     if (! fill_expolygons.empty()) {
         if (has_multiple_regions) {
@@ -1000,7 +1002,7 @@ void Layer::sort_perimeters_into_islands(
                 l.set_fill_surfaces().clear();
                 for (const Surface &surf: slices) {
                     ExPolygons exp = intersection_ex(ExPolygons{ surf.expolygon }, l_slices_exp);
-                    assert_valid(exp);
+                    ensure_valid(exp, scaled_resolution);
                     l.set_fill_surfaces().append(std::move(exp), surf);
                 }
                 //bounding boxes

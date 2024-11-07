@@ -1933,7 +1933,8 @@ Point SeamPlacer::place_seam(const Layer *layer, const ExtrusionLoop &loop, cons
             const SeamCandidate &perimeter_point = layer_perimeters.points[seam_index];
             ExtrusionLoop::ClosestPathPoint projected_point = loop.get_closest_path_and_point(seam_point, false);
             // determine depth of the seam point.
-            float depth = (float) unscale(Point(seam_point - projected_point.foot_pt)).norm();
+            const float dist = (float) unscale(Point(seam_point - projected_point.foot_pt)).norm();
+            float depth = dist;
             float beta_angle = cos(perimeter_point.local_ccw_angle / 2.0f);
             size_t index_of_prev =
                 seam_index == perimeter_point.perimeter.start_index ?
@@ -1953,10 +1954,18 @@ Point SeamPlacer::place_seam(const Layer *layer, const ExtrusionLoop &loop, cons
                                 + (perimeter_point.position - layer_perimeters.points[index_of_next].position).head<2>().normalized())
                                 * 0.5;
                 depth = 1.4142 * depth / beta_angle;
+                //fix depth, it is sometimes strongly overestimated (if the angle is shallow)
+                if (std::abs(depth) > loop.paths[projected_point.path_idx].width() * 5) {
+                    // FIXME HACKFIX
+                    depth = loop.paths[projected_point.path_idx].width() * 5;
+                    if(depth < 0) depth = (-depth);
+                }
                 // There are some nice geometric identities in determination of the correct depth of new seam point.
                 //overshoot the target depth, in concave angles it will correctly snap to the corner; TODO: find out why such big overshoot is needed.
                 Vec2f final_pos = perimeter_point.position.head<2>() + depth * dir_to_middle;
+                assert(std::abs(final_pos.x()) < 1000);
                 projected_point = loop.get_closest_path_and_point(Point::new_scale(final_pos.x(), final_pos.y()), false);
+                //FIXME: ensure it doesn't go to the other side of the loop
             } else { // not concave angle, in that case the nearest point is the good candidate
                 // but for staggering, we also need to recompute depth of the inner perimter, because in convex corners, the distance is larger than layer width
                 // we want the perpendicular depth, not distance to nearest point

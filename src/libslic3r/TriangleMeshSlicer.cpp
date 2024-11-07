@@ -1050,12 +1050,20 @@ static void chain_lines_by_triangle_connectivity(IntersectionLines &lines, Polyg
                     while (loop_pts.size() > 2 && loop_pts.front().coincides_with(loop_pts.back())) {
                         loop_pts.pop_back();
                     }
-                    for(auto &loop : loops)
+                    for (size_t idx =0 ; idx < loops.size(); ++idx) {
+                        auto &loop = loops[idx];
                         assert(!loop.points.front().coincides_with(loop.points.back()));
+                    }
                     if (loop_pts.size() > 2) {
-    for(auto &loop : loops)
-        assert(!loop.points.front().coincides_with(loop.points.back()));
-                        loops.emplace_back(std::move(loop_pts));
+                        assert(!loop_pts.front().coincides_with(loop_pts.back()));
+                        Polygon polygon(std::move(loop_pts));
+                        while (polygon.size() > 1 && polygon.front().coincides_with_epsilon(polygon.back()))
+                            polygon.points.pop_back();
+                        if (polygon.size() > 2) {
+                            loops.push_back(std::move(polygon));
+                        }
+                        for(auto &loop : loops)
+                            assert(!loop.points.front().coincides_with(loop.points.back()));
                     }
                     #ifdef SLIC3R_TRIANGLEMESH_DEBUG
                     printf("  Discovered %s polygon of %d points\n", (p.is_counter_clockwise() ? "ccw" : "cw"), (int)p.points.size());

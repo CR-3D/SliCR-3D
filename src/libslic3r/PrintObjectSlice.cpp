@@ -1156,7 +1156,7 @@ void apply_mm_segmentation(PrintObject &print_object, ThrowOnCancel throw_on_can
                     if (src.needs_merge)
                         // Multiple regions were merged into one.
                         src.expolygons = closing_ex(src.expolygons, float(scale_(10 * EPSILON)));
-                    assert_valid(src.expolygons);
+                    ensure_valid(src.expolygons);
                     layer->get_region(region_id)->m_slices.set(std::move(src.expolygons), stPosInternal | stDensSparse);
                     for(auto &srf : layer->get_region(region_id)->m_slices) srf.expolygon.assert_valid();
                 }

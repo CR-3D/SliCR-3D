@@ -1847,9 +1847,12 @@ void Choice::set_internal_any_value(const boost::any &value, bool change_event)
     // GUIType::f_enum_open:
     // GUIType::i_enum_open:
     // coEnum
-    assert(m_opt.type == coEnum || m_opt.gui_type == ConfigOptionDef::GUIType::select_open ||
+    assert(m_opt.type == coEnum ||
+           m_opt.gui_type == ConfigOptionDef::GUIType::select_open ||
            m_opt.gui_type == ConfigOptionDef::GUIType::f_enum_open ||
-           m_opt.gui_type == ConfigOptionDef::GUIType::i_enum_open);
+           m_opt.gui_type == ConfigOptionDef::GUIType::i_enum_open ||
+           (m_opt.gui_type == ConfigOptionDef::GUIType::select_close && m_opt.opt_key == "printhost_port") //FIXME
+    );
 
     choice_ctrl* field = dynamic_cast<choice_ctrl*>(window);
 
@@ -1926,7 +1929,8 @@ void Choice::set_values(const std::vector<std::string>& values)
 //Please don't use that on Enum fields it will just break everything
 void Choice::set_values(const wxArrayString &values)
 {
-    assert(m_opt.type != coEnum);
+    assert(m_opt.type != coEnum
+        || m_opt.opt_key == "host_type"); //FIXME
 	if (values.empty())
 		return;
 

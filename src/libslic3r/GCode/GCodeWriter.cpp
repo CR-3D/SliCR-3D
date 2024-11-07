@@ -213,7 +213,11 @@ std::string GCodeWriter::set_pressure_advance(double pa) const {
     if (FLAVOR_IS(gcfKlipper)) {
         gcode = std::string("SET_PRESSURE_ADVANCE ADVANCE=") + to_string_nozero(pa, 4);
         if (tool_id >= 0) {
-            gcode += std::string(" EXTRUDER=") + std::to_string(tool_id);
+            if (this->config.tool_name.size() > tool_id && !this->config.tool_name.get_at(tool_id).empty()) {
+                gcode += std::string(" EXTRUDER=") + this->config.tool_name.get_at(tool_id);
+            } else {
+                gcode += std::string(" EXTRUDER=extruder") + std::to_string(tool_id);
+            }
         }
         gcode += "; Override pressure advance value";
     } else if (FLAVOR_IS(gcfRepRap) || FLAVOR_IS(gcfSprinter)) {
