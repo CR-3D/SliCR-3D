@@ -39,6 +39,7 @@ if (SLIC3R_GUI)
 set(CMAKE_CXX_STANDARD 17)
 
     add_subdirectory(imgui)
+    add_subdirectory(imguizmo)
     add_subdirectory(hidapi)
     include_directories(hidapi/include)
     add_subdirectory(exif)

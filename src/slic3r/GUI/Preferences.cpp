@@ -595,6 +595,11 @@ void PreferencesDialog::build()
             L("If this is enabled, Slic3r will prompt for when overwriting files from save dialogs."),
 			app_config->get_bool("show_overwrite_dialog"));
 
+		append_bool_option(m_tabid_2_optgroups.back().back(), "show_3d_navigator",
+			L("Show 3d navigator."),
+            L("If this is enabled, the 3d navigator will be shown."),
+			app_config->get_bool("show_3d_navigator"));
+
 		append_bool_option(m_tabid_2_optgroups.back().back(), "single_instance",
 #if __APPLE__
 			L("Allow just a single PrusaSlicer instance"),

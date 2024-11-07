@@ -1995,9 +1995,13 @@ void MainFrame::init_menubar_as_editor()
         append_menu_check_item(viewMenu, wxID_ANY, _L("Show Legen&d") + sep + "L", _L("Show legend in preview"),
             [this](wxCommandEvent&) { m_plater->show_legend(!m_plater->is_legend_shown()); }, this,
             [this]() { return m_plater->is_preview_shown(); }, [this]() { return m_plater->is_legend_shown(); }, this);
+            
         append_menu_check_item(viewMenu, wxID_ANY, _L("&Collapse Sidebar") + "\t" + "Shift+" + sep_space + "Tab", _L("Collapse sidebar"),
-            [this](wxCommandEvent&) { m_plater->collapse_sidebar(!m_plater->is_sidebar_collapsed()); }, this,
+            [this](wxCommandEvent&) {
+            m_plater->collapse_sidebar(!m_plater->is_sidebar_collapsed()); }, this,
             [this]() { return can_change_view(); }, [this]() { return m_plater->is_sidebar_collapsed(); }, this);
+
+
 #ifndef __APPLE__
         // OSX adds its own menu item to toggle fullscreen.
         append_menu_check_item(viewMenu, wxID_ANY, _L("&Fullscreen") + "\t" + "F11", _L("Fullscreen"),

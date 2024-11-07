@@ -311,6 +311,10 @@ void AppConfig::set_defaults()
         if (get("auto_switch_preview").empty())
             set("auto_switch_preview", "2");
 
+
+        if (get("show_3d_navigator").empty())
+            set("show_3d_navigator", "1");
+
 #if ENABLE_ENVIRONMENT_MAP
         if (get("use_environment_map").empty())
             set("use_environment_map", "0");

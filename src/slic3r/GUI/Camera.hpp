@@ -83,6 +83,8 @@ public:
     const Transform3d& get_view_matrix() const { return m_view_matrix; }
     const Transform3d& get_projection_matrix() const { return m_projection_matrix; }
 
+    const Eigen::Quaterniond& get_view_rotation() const {return m_view_rotation; }
+
     Vec3d get_dir_right() const { return m_view_matrix.matrix().block(0, 0, 3, 3).row(0); }
     Vec3d get_dir_up() const { return m_view_matrix.matrix().block(0, 0, 3, 3).row(1); }
     Vec3d get_dir_forward() const { return -m_view_matrix.matrix().block(0, 0, 3, 3).row(2); }
@@ -126,6 +128,8 @@ public:
 
     // rotate the camera around three axes parallel to the camera local axes and passing through m_target
     void rotate_local_around_target(const Vec3d& rotation_rad);
+
+    void set_rotation(const Transform3d& rotation);
 
     // returns true if the camera z axis (forward) is pointing in the negative direction of the world z axis
     bool is_looking_downward() const { return get_dir_forward().dot(Vec3d::UnitZ()) < 0.0; }

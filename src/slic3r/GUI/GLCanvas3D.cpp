@@ -82,14 +82,14 @@
 #include "DoubleSlider.hpp"
 
 #include <imgui/imgui_internal.h>
+#include <imguizmo/ImGuizmo.h>
+
 #include <slic3r/GUI/Gizmos/GLGizmoMmuSegmentation.hpp>
 
 static constexpr const float TRACKBALLSIZE = 0.8f;
 
 static const Slic3r::ColorRGBA DEFAULT_BG_DARK_COLOR  = { 0.431f, 0.431f, 0.431f, 0.7f };
 static const Slic3r::ColorRGBA DEFAULT_BG_LIGHT_COLOR = { 0.431f, 0.431f, 0.431f, 0.7f };
-
-
 
 static const Slic3r::ColorRGBA ERROR_BG_DARK_COLOR    = { 0.478f, 0.192f, 0.039f, 1.0f };
 static const Slic3r::ColorRGBA ERROR_BG_LIGHT_COLOR   = { 0.753f, 0.192f, 0.039f, 1.0f };
@@ -5238,6 +5238,99 @@ void GLCanvas3D::_render_thumbnail_internal(ThumbnailData& thumbnail_data, const
         glsafe(::glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
 }
 
+// 3D Navigator
+
+const float GLCanvas3D::get_scale() const
+{
+#if ENABLE_RETINA_GL
+    return m_retina_helper->get_scale_factor();
+#else
+    return 1.0f;
+#endif
+}
+
+
+static float       identityMatrix[16]   = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+static const float cameraProjection[16] = {1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+
+void GLCanvas3D::_render_3d_navigator() {
+
+    if (!wxGetApp().show_3d_navigator()) {
+        return;
+    }
+
+    ImGuizmo::BeginFrame();
+    ImGuizmo::AllowAxisFlip(false);
+
+    auto& style                                = ImGuizmo::GetStyle();
+    style.Colors[ImGuizmo::COLOR::DIRECTION_X] = ImGuiWrapper::to_ImVec4(ColorRGBA::Y());
+    style.Colors[ImGuizmo::COLOR::DIRECTION_Y] = ImGuiWrapper::to_ImVec4(ColorRGBA::Z());
+    style.Colors[ImGuizmo::COLOR::DIRECTION_Z] = ImGuiWrapper::to_ImVec4(ColorRGBA::X());
+    style.Colors[ImGuizmo::COLOR::TEXT]        = ImVec4(.8f, .8f, .8f, 1.0f);
+    style.Colors[ImGuizmo::COLOR::FACE]        = ImVec4(0.35f, 0.35f, 0.35f, 1);
+    strcpy(style.AxisLabels[ImGuizmo::Axis::Axis_X], "y");
+    strcpy(style.AxisLabels[ImGuizmo::Axis::Axis_Y], "z");
+    strcpy(style.AxisLabels[ImGuizmo::Axis::Axis_Z], "x");
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_FRONT],   _L("Front").c_str());
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_BACK],    _L("Back").c_str());
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_TOP],     _L("Top").c_str());
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_BOTTOM],  _L("Bottom").c_str());
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_LEFT],    _L("Left").c_str());
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_RIGHT],   _L("Right").c_str());
+
+    float sc = get_scale();
+    const float size = 110 * sc;
+    
+#ifdef Win32
+    const int dpi = get_dpi_for_window(wxGetApp().GetTopWindow());
+    sc *= (float) dpi / (float) DPI_DEFAULT;
+#endif // Win32
+
+    const ImGuiIO& io = ImGui::GetIO();
+    const float viewManipulationLeft = io.DisplaySize.x - size;
+    const float viewManipulationTop = io.DisplaySize.y;
+    const float camDistance = 7.f;
+    ImGuizmo::SetID(0);
+
+    Camera& camera              = wxGetApp().plater_->get_camera();
+    Transform3d m               = Transform3d::Identity();
+    m.matrix().block(0, 0, 3, 3) = camera.get_view_rotation().toRotationMatrix();
+
+    // Rotate along X and Z Axis
+    const auto coord_mapping_transform = Geometry::rotation_transform(Vec3d(0.5 * PI, 0, 0.5 * PI));
+    m = m * coord_mapping_transform;
+    float cameraView[16];
+    
+    for (unsigned int x = 0; x < 4; x++) {
+        for (unsigned int y = 0; y < 4; y++) {
+                cameraView[x * 4 + y] = m(y, x);
+        }
+    }
+
+    const bool dirty = ImGuizmo::ViewManipulate(cameraView,
+                                                cameraProjection,
+                                                ImGuizmo::OPERATION::ROTATE,
+                                                ImGuizmo::MODE::WORLD,
+                                                identityMatrix,
+                                                camDistance,
+                                                ImVec2(viewManipulationLeft, viewManipulationTop - size),
+                                                ImVec2(size, size),
+                                                0x00101010);
+
+    if (dirty) {
+        for (unsigned int x = 0; x < 4; x++) {
+            for (unsigned int y = 0; y < 4; y++) {
+                 m(y, x) = cameraView[x * 4 + y];
+            }
+        }
+
+        m = m * (coord_mapping_transform.inverse());
+        camera.set_rotation(m);
+
+        request_extra_frame();
+    }
+}
+
 void GLCanvas3D::_render_thumbnail_framebuffer(ThumbnailData &           thumbnail_data,
                                                unsigned int              w,
                                                unsigned int              h,
@@ -6580,6 +6673,8 @@ void GLCanvas3D::_render_overlays()
             }
     }
     m_labels.render(sorted_instances);
+    
+    _render_3d_navigator();
 }
 
 void GLCanvas3D::_render_volumes_for_picking(const Camera& camera) const

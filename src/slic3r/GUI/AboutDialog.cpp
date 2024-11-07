@@ -101,10 +101,12 @@ void CopyrightsDialog::fill_entries()
         { "Slic3r"          , "2022 Slic3r"                                 , "https://github.com/slic3r/slic3r" },
         { "Prusaslicer"     , "2022 PrusaResearch"                          , "https://github.com/prusa3d/PrusaSlicer" },
         { "wxWidgets"       , "2019 wxWidgets"                              , "https://www.wxwidgets.org/" },
-        { "OpenGL"          , "1997-2019 The Khronos Group Inc"            , "https://www.opengl.org/" },
+        { "OpenGL"          , "1997-2019 The Khronos Group Inc"             , "https://www.opengl.org/" },
         { "GNU gettext"     , "1998, 2019 Free Software Foundation, Inc."   , "https://www.gnu.org/software/gettext/" },
         { "PoEdit"          , "2019 Vaclav Slava­k"                          , "https://poedit.net/" },
         { "ImGUI"           , "2014-2019 Omar Cornut"                       , "https://github.com/ocornut/imgui" },
+        { "ImGuizmo"        ,                                       ""      , "https://github.com/CedricGuillemet/ImGuizmo" },
+
         { "Eigen"           , ""                                            , "http://eigen.tuxfamily.org" },
         { "ADMesh"          , "1995, 1996  Anthony D. Martin; "
                               "2015, ADMesh contributors"                   , "https://admesh.readthedocs.io/en/latest/" },

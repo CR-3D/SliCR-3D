@@ -25,6 +25,7 @@
 #include <wx/font.h>
 #include <wx/string.h>
 #include <wx/snglinst.h>
+#include "libslic3r/AppConfig.hpp"
 
 #include <mutex>
 #include <stack>
@@ -410,6 +411,10 @@ public:
     bool run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage start_page = ConfigWizard::SP_WELCOME);
     void show_desktop_integration_dialog();
     void show_downloader_registration_dialog();
+    
+    bool show_3d_navigator() const { return app_config->get_bool("show_3d_navigator"); }
+    void toggle_show_3d_navigator() const { app_config->set("show_3d_navigator", !show_3d_navigator() ? "1" : "0"); }
+
 
 #if ENABLE_THUMBNAIL_GENERATOR_DEBUG
     // temporary and debug only -> extract thumbnails from selected gcode and save them as png files

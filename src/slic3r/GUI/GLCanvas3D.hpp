@@ -1095,6 +1095,9 @@ private:
     bool _render_undo_redo_stack(const bool is_undo, float pos_x);
     bool _render_search_list(float pos_x);
     bool _render_arrange_menu(float pos_x);
+    void _render_3d_navigator();
+    const float get_scale() const;
+    
     void _render_thumbnail_internal(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, const GLVolumeCollection& volumes, Camera::EType camera_type);
     // render thumbnail using an off-screen framebuffer
     void _render_thumbnail_framebuffer(ThumbnailData& thumbnail_data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params, const GLVolumeCollection& volumes, Camera::EType camera_type);
