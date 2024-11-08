@@ -17,6 +17,8 @@ struct Camera
     static const double DefaultDistance;
     static const double DefaultZoomToBoxMarginFactor;
     static const double DefaultZoomToVolumesMarginFactor;
+    static double SingleBedSceneBoxScaleFactor;
+    static double MultipleBedSceneBoxScaleFactor;
     static double FrustrumMinZRange;
     static double FrustrumMinNearZ;
     static double FrustrumZMargin;
@@ -49,6 +51,7 @@ private:
     Eigen::Quaterniond m_view_rotation{ 1.0, 0.0, 0.0, 0.0 };
     Transform3d m_projection_matrix{ Transform3d::Identity() };
     std::pair<double, double> m_frustrum_zs;
+    double m_scene_box_scale_factor{ SingleBedSceneBoxScaleFactor };
 
     BoundingBoxf3 m_scene_box;
 
@@ -66,6 +69,9 @@ public:
 
     const Vec3d& get_target() const { return m_target; }
     void set_target(const Vec3d& target);
+
+    void set_scene_box_scale_factor(float factor) { m_scene_box_scale_factor = factor; }
+    double get_scene_box_scale_factor() const { return m_scene_box_scale_factor; }
 
     const Vec3d& get_rotation_pivot() const { return m_rotation_pivot; }
     void set_rotation_pivot(const Vec3d& pivot) { m_rotation_pivot = pivot; }
@@ -148,6 +154,8 @@ public:
 
     double max_zoom() const { return 1000.0; }
     double min_zoom() const { return 0.7 * calc_zoom_to_bounding_box_factor(m_scene_box); }
+
+    bool is_target_valid() const;
 
 private:
     // returns tight values for nearZ and farZ plane around the given bounding box

@@ -24,6 +24,8 @@ double Camera::FrustrumMinZRange = 50.0;
 double Camera::FrustrumMinNearZ = 100.0;
 double Camera::FrustrumZMargin = 10.0;
 double Camera::MaxFovDeg = 60.0;
+double Camera::SingleBedSceneBoxScaleFactor = 1.5;
+double Camera::MultipleBedSceneBoxScaleFactor = 4.0;
 
 std::string Camera::get_type_as_string() const
 {
@@ -287,7 +289,7 @@ void Camera::zoom_to_volumes(const std::vector<GLVolume*>& volumes, double margi
 void Camera::debug_render() const
 {
     ImGuiWrapper& imgui = *wxGetApp().imgui();
-    imgui.begin(std::string("Camera statistics"), ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin(std::string("Camera statistics").c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
     std::string type = get_type_as_string();
     if (wxGetApp().plater()->get_mouse3d_controller().connected() || (wxGetApp().app_config->get_bool("use_free_camera")))
@@ -297,6 +299,7 @@ void Camera::debug_render() const
 
     Vec3f position = get_position().cast<float>();
     Vec3f target = m_target.cast<float>();
+    Vec3f pivot = m_rotation_pivot.cast<float>();
     float distance = (float)get_distance();
     float zenit = (float)m_zenit;
     Vec3f forward = get_dir_forward().cast<float>();
@@ -314,6 +317,7 @@ void Camera::debug_render() const
     ImGui::Separator();
     ImGui::InputFloat3("Position", position.data(), "%.6f", ImGuiInputTextFlags_ReadOnly);
     ImGui::InputFloat3("Target", target.data(), "%.6f", ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputFloat3("Pivot", pivot.data(), "%.6f", ImGuiInputTextFlags_ReadOnly);
     ImGui::InputFloat("Distance", &distance, 0.0f, 0.0f, "%.6f", ImGuiInputTextFlags_ReadOnly);
     ImGui::Separator();
     ImGui::InputFloat("Zenit", &zenit, 0.0f, 0.0f, "%.6f", ImGuiInputTextFlags_ReadOnly);
@@ -332,7 +336,7 @@ void Camera::debug_render() const
     ImGui::InputInt4("Viewport", viewport.data(), ImGuiInputTextFlags_ReadOnly);
     ImGui::Separator();
     ImGui::InputFloat("GUI scale", &gui_scale, 0.0f, 0.0f, "%.6f", ImGuiInputTextFlags_ReadOnly);
-    imgui.end();
+    ImGui::End();
 }
 #endif // ENABLE_CAMERA_STATISTICS
 
@@ -355,6 +359,26 @@ void Camera::rotate_on_sphere(double delta_azimut_rad, double delta_zenit_rad, b
     m_view_rotation *= rot_z * Eigen::AngleAxisd(delta_zenit_rad, rot_z.inverse() * get_dir_right());
     m_view_rotation.normalize();
     m_view_matrix.fromPositionOrientationScale(m_view_rotation * (-m_rotation_pivot) + translation, m_view_rotation, Vec3d(1., 1., 1.));
+
+    // adjust target from position
+    const Vec3d pivot = m_rotation_pivot;
+    if (!m_target.isApprox(pivot)) {
+        const Vec3d position = get_position();
+        const Vec3d forward = get_dir_forward();
+        const Vec3d new_target = position + m_distance * forward;
+        if (!is_target_valid()) {
+            const float forward_dot_unitZ = forward.dot(Vec3d::UnitZ());
+            if (std::abs(forward_dot_unitZ) > EPSILON) {
+                const float dist_to_xy = -position.dot(Vec3d::UnitZ()) / forward_dot_unitZ;
+                set_target(position + dist_to_xy * forward);
+            }
+            else
+                set_target(new_target);
+        }
+        else
+            set_target(new_target);
+        set_rotation_pivot(pivot);
+    }
 }
 
 // Virtual trackball, rotate around an axis, where the eucledian norm of the axis gives the rotation angle in radians.
@@ -362,13 +386,13 @@ void Camera::rotate_local_around_target(const Vec3d& rotation_rad)
 {
     const double angle = rotation_rad.norm();
     if (std::abs(angle) > EPSILON) {
-        const Vec3d translation = m_view_matrix.translation() + m_view_rotation * m_rotation_pivot;
+        const Vec3d translation = m_view_matrix.translation() + m_view_rotation * m_target;
         const Vec3d axis = m_view_rotation.conjugate() * rotation_rad.normalized();
         m_view_rotation *= Eigen::Quaterniond(Eigen::AngleAxisd(angle, axis));
         m_view_rotation.normalize();
-	    m_view_matrix.fromPositionOrientationScale(m_view_rotation * (-m_rotation_pivot) + translation, m_view_rotation, Vec3d(1., 1., 1.));
-	    update_zenit();
-	}
+        m_view_matrix.fromPositionOrientationScale(m_view_rotation * (-m_target) + translation, m_view_rotation, Vec3d(1., 1., 1.));
+        update_zenit();
+	  }
 }
 
 void Camera::set_rotation(const Transform3d& rotation) {
@@ -576,6 +600,21 @@ void Camera::look_at(const Vec3d& position, const Vec3d& target, const Vec3d& up
     update_zenit();
 }
 
+bool Camera::is_target_valid() const
+{
+    if (m_target.isApprox(m_rotation_pivot))
+        return true;
+
+    const Vec3d box_size = m_scene_box.size();
+    BoundingBoxf3 test_box = m_scene_box;
+    const Vec3d scene_box_center = m_scene_box.center();
+    test_box.translate(-scene_box_center);
+    test_box.scale(m_scene_box_scale_factor);
+    test_box.translate(scene_box_center);
+    test_box.offset(EPSILON);
+    return test_box.contains(get_position() + m_distance * get_dir_forward());
+}
+
 void Camera::set_default_orientation()
 {
     m_zenit = 45.0f;
@@ -593,13 +632,12 @@ Vec3d Camera::validate_target(const Vec3d& target) const
     BoundingBoxf3 test_box = m_scene_box;
     test_box.translate(-m_scene_box.center());
     // We may let this factor be customizable
-    static const double ScaleFactor = 1.5;
-    test_box.scale(ScaleFactor);
+    test_box.scale(m_scene_box_scale_factor);
     test_box.translate(m_scene_box.center());
 
-    return { std::clamp(target(0), test_box.min(0), test_box.max(0)),
-        std::clamp(target(1), test_box.min(1), test_box.max(1)),
-             std::clamp(target(2), test_box.min(2), test_box.max(2)) };
+    return { std::clamp(target(0), test_box.min.x(), test_box.max.x()),
+             std::clamp(target(1), test_box.min.y(), test_box.max.y()),
+             std::clamp(target(2), test_box.min.z(), test_box.max.z())};
 }
 
 void Camera::update_zenit()

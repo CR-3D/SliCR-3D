@@ -329,12 +329,12 @@ class GLCanvas3D
             static const Vec3d Invalid_3D_Point;
             static const int MoveThresholdPx;
 
-            Point start_position_2D;
-            Vec3d start_position_3D;
-            int move_volume_idx;
-            bool move_requires_threshold;
-            Point move_start_threshold_position_2D;
-
+            Point start_position_2D{ Invalid_2D_Point };
+            Vec3d start_position_3D{ Invalid_3D_Point };
+            Vec3d camera_start_target{ Invalid_3D_Point };
+            int move_volume_idx{ -1 };
+            bool move_requires_threshold{ false };
+            Point move_start_threshold_position_2D{ Invalid_2D_Point };
         public:
             Drag();
         };
@@ -349,10 +349,13 @@ class GLCanvas3D
 
         void set_start_position_2D_as_invalid() { drag.start_position_2D = Drag::Invalid_2D_Point; }
         void set_start_position_3D_as_invalid() { drag.start_position_3D = Drag::Invalid_3D_Point; }
+        void set_camera_start_target_as_invalid() { drag.camera_start_target = Drag::Invalid_3D_Point; }
         void set_move_start_threshold_position_2D_as_invalid() { drag.move_start_threshold_position_2D = Drag::Invalid_2D_Point; }
 
-        bool is_start_position_2D_defined() const { return (drag.start_position_2D != Drag::Invalid_2D_Point); }
-        bool is_start_position_3D_defined() const { return (drag.start_position_3D != Drag::Invalid_3D_Point); }
+        bool is_start_position_2D_defined() const { return drag.start_position_2D != Drag::Invalid_2D_Point; }
+        bool is_start_position_3D_defined() const { return drag.start_position_3D != Drag::Invalid_3D_Point; }
+        bool is_camera_start_target_defined() { return drag.camera_start_target != Drag::Invalid_3D_Point; }
+
         bool is_move_start_threshold_position_2D_defined() const { return (drag.move_start_threshold_position_2D != Drag::Invalid_2D_Point); }
         bool is_move_threshold_met(const Point& mouse_pos) const {
             return (std::abs(mouse_pos(0) - drag.move_start_threshold_position_2D(0)) > Drag::MoveThresholdPx)
@@ -700,6 +703,8 @@ private:
     };
 
     CameraTarget m_camera_target;
+    CameraTarget m_camera_pivot;
+    GLModel m_target_validation_box;
 #endif // ENABLE_SHOW_CAMERA_TARGET
     GLModel m_background;
 
@@ -1098,6 +1103,8 @@ private:
     void _render_view_toolbar() const;
 #if ENABLE_SHOW_CAMERA_TARGET
     void _render_camera_target();
+    void _render_camera_pivot();
+    void _render_camera_target_validation_box();
 #endif // ENABLE_SHOW_CAMERA_TARGET
     void _render_sla_slices();
     void _render_selection_sidebar_hints();
@@ -1121,7 +1128,7 @@ private:
 
     // Convert the screen space coordinate to an object space coordinate.
     // If the Z screen space coordinate is not provided, a depth buffer value is substituted.
-    Vec3d _mouse_to_3d(const Point& mouse_pos, float* z = nullptr);
+    Vec3d _mouse_to_3d(const Point& mouse_pos, const float* z = nullptr);
 
     // Convert the screen space coordinate to world coordinate on the bed.
     Vec3d _mouse_to_bed_3d(const Point& mouse_pos);
