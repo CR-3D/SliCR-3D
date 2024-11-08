@@ -5,6 +5,7 @@ group:Name And Size
 	setting:idx:nozzle_diameter
 	update_nozzle_diameter
 	setting:idx:nozzle_type
+	setting:idx:bed_exclude_area
 	
 group:Layer Height Limits
 	setting:idx:min_layer_height

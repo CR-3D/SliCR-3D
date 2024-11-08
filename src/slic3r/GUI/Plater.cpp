@@ -2266,7 +2266,7 @@ struct Plater::priv
     // fills the m_bed.m_grid_lines and sets m_bed.m_origin.
     // Sets m_bed.m_polygon to limit the object placement.
     void set_bed_shape(const Pointfs &    shape,
-                       const std::string& bed_exclude_area,
+                       const std::vector<std::string>& bed_exclude_area,
                        const double       max_print_height,
                        const std::string &custom_texture,
                        const std::string &custom_model,
@@ -5399,7 +5399,7 @@ bool Plater::priv::can_reload_from_disk() const
 }
 
 void Plater::priv::set_bed_shape(const Pointfs&    shape,
-                                 const std::string &bed_exclude_area,
+                                 const std::vector<std::string> &bed_exclude_area,
                                  const double      max_print_height,
                                  const std::string &custom_texture,
                                  const std::string &custom_model,
@@ -8483,6 +8483,10 @@ void Plater::on_config_change(const DynamicConfig &config)
             }
         }
         
+        std::string opt_id = opt_key;
+        if(size_t pos = opt_id.find("#"); pos != std::string::npos)
+            opt_id = opt_id.substr(0, pos);
+        
         //FIXME also mills?
         if (opt_key == "filament_colour")
         {
@@ -8560,14 +8564,14 @@ void Plater::on_config_change(const DynamicConfig &config)
 void Plater::set_bed_shape() const
 {
     set_bed_shape(p->config->option<ConfigOptionPoints>("bed_shape")->get_values(),
-                  p->config->option<ConfigOptionString>("bed_exclude_area")->value,
+                  p->config->option<ConfigOptionStrings>("bed_exclude_area")->get_values(),
                   p->config->option<ConfigOptionFloat>("max_print_height")->value,
                   p->config->option<ConfigOptionString>("bed_custom_texture")->value,
                   p->config->option<ConfigOptionString>("bed_custom_model")->value);
 }
 
 void Plater::set_bed_shape(const Pointfs &    shape,
-                           const std::string& bed_exclude_area,
+                           const std::vector<std::string>& bed_exclude_area,
                            const double       max_print_height,
                            const std::string &custom_texture,
                            const std::string &custom_model,

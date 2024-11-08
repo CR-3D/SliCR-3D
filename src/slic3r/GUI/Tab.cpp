@@ -1391,12 +1391,12 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     if (wxGetApp().plater() == nullptr) {
         return;
     }
-
+    
     if (opt_key == "compatible_prints")
         this->compatible_widget_reload(m_compatible_prints);
     if (opt_key == "compatible_printers")
         this->compatible_widget_reload(m_compatible_printers);
-
+    
     PrinterTechnology pt = get_printer_technology();
     ConfigOptionsGroup* og_freq_chng_params = wxGetApp().sidebar().og_freq_chng_params(pt);
     
@@ -1405,7 +1405,7 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     std::string opt_id = opt_key;
     if(size_t pos = opt_id.find("#"); pos != std::string::npos)
         opt_id = opt_id.substr(0, pos);
-
+    
     // script presets
     auto it = Tab::depsid_2_tabtype_scriptids.find(opt_id);
     if (it != Tab::depsid_2_tabtype_scriptids.end()) {
@@ -1428,15 +1428,14 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
             }
         }
     }
-
+    
     // update unscripted freq params
     Field* field = og_freq_chng_params->get_field(opt_key);
     if (field) {
         boost::any val = m_config_base->option(opt_key)->get_any(field->m_opt_idx);
         field->set_any_value(val, false);
     }
-
-
+    
     if (opt_key == "wipe_tower" || opt_key == "single_extruder_multi_material" || opt_key == "extruders_count" )
         update_wiping_button_visibility();
 

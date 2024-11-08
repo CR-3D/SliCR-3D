@@ -458,7 +458,7 @@ public:
 
 	void set_bed_shape() const;
     void set_bed_shape(const Pointfs& shape,
-                       const std::string& bed_exclude_area,
+                       const std::vector<std::string>& bed_exclude_area,
                        const double max_print_height, 
                        const std::string& custom_texture, 
                        const std::string& custom_model, 
