@@ -644,6 +644,7 @@ private:
         std::vector<std::pair<size_t, Transform3d>> m_instances;
         bool m_evaluating{ false };
         bool m_dragging{ false };
+        bool m_first_displacement{ true };
 
         std::vector<std::pair<Pointf3s, Transform3d>> m_hulls_2d_cache;
 
@@ -661,7 +662,6 @@ private:
     };
 
     SequentialPrintClearance m_sequential_print_clearance;
-    bool m_sequential_print_clearance_first_displacement{ true };
 
     struct ToolbarHighlighter
     {
@@ -1015,7 +1015,7 @@ public:
     void reset_sequential_print_clearance() {
         m_sequential_print_clearance.m_evaluating = false;
         if (m_sequential_print_clearance.is_dragging())
-            m_sequential_print_clearance_first_displacement = true;
+            m_sequential_print_clearance.m_first_displacement = true;
         else
             m_sequential_print_clearance.set_contours(ContoursList(), false);
         set_as_dirty();
@@ -1024,6 +1024,8 @@ public:
 
     void set_sequential_print_clearance_contours(const ContoursList& contours, bool generate_fill) {
         m_sequential_print_clearance.set_contours(contours, generate_fill);
+        if (generate_fill)
+            m_sequential_print_clearance.m_evaluating = false;
         set_as_dirty();
         request_extra_frame();
     }
@@ -1156,6 +1158,7 @@ private:
     void _set_warning_notification(EWarning warning, bool state);
 
     std::pair<bool, const GLVolume*> _is_any_volume_outside() const;
+    bool _is_sequential_print_enabled() const;
 
     // updates the selection from the content of m_hover_volume_idxs
     void _update_selection_from_hover();

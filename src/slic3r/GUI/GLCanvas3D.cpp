@@ -114,6 +114,8 @@ void GLCanvas3D::select_bed(int i)
     if (i == old_bed || i == -1)
         return;
     wxGetApp().plater()->canvas3D()->m_process->stop();
+    m_sequential_print_clearance.m_evaluating = true;
+    reset_sequential_print_clearance();
 
     // The stop call above schedules some events that would be processed after the switch.
     // Among else, on_process_completed would be called, which would stop slicing of
@@ -1101,6 +1103,8 @@ void GLCanvas3D::SequentialPrintClearance::set_contours(const ContoursList& cont
     if (contours.empty())
         return;
 
+    const Vec3d bed_offset = generate_fill ? s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()) : Vec3d::Zero();
+
     if (generate_fill) {
         GLModel::Geometry fill_data;
         fill_data.format = { GLModel::Geometry::EPrimitiveType::Triangles, GLModel::Geometry::EVertexLayout::P3 };
@@ -1114,7 +1118,7 @@ void GLCanvas3D::SequentialPrintClearance::set_contours(const ContoursList& cont
             fill_data.reserve_vertices(fill_data.vertices_count() + triangulation.size());
             fill_data.reserve_indices(fill_data.indices_count() + triangulation.size());
             for (const Vec3d& v : triangulation) {
-                fill_data.add_vertex((Vec3f)(v.cast<float>() + 0.0125f * Vec3f::UnitZ())); // add a small positive z to avoid z-fighting
+                fill_data.add_vertex((Vec3f)((bed_offset + v).cast<float>() + 0.0125f * Vec3f::UnitZ())); // add a small positive z to avoid z-fighting
                 ++vertices_counter;
                 if (vertices_counter % 3 == 0)
                     fill_data.add_triangle(vertices_counter - 3, vertices_counter - 2, vertices_counter - 1);
@@ -1122,6 +1126,8 @@ void GLCanvas3D::SequentialPrintClearance::set_contours(const ContoursList& cont
         }
         m_fill.init_from(std::move(fill_data));
     }
+
+    const Transform3d bed_transform = Geometry::translation_transform(bed_offset);
 
     for (size_t i = 0; i < contours.contours.size(); ++i) {
         GLModel& model = m_contours.emplace_back();
@@ -1131,14 +1137,14 @@ void GLCanvas3D::SequentialPrintClearance::set_contours(const ContoursList& cont
     if (contours.trafos.has_value()) {
         // create the requested instances
         for (const auto& instance : *contours.trafos) {
-            m_instances.emplace_back(instance.first, instance.second);
+            m_instances.emplace_back(instance.first, bed_transform * instance.second);
         }
     }
     else {
         // no instances have been specified
         // create one instance for every polygon
         for (size_t i = 0; i < contours.contours.size(); ++i) {
-            m_instances.emplace_back(i, Transform3f::Identity());
+            m_instances.emplace_back(i, bed_transform);
         }
     }
 }
@@ -1156,9 +1162,9 @@ void GLCanvas3D::SequentialPrintClearance::update_instances_trafos(const std::ve
 
 void GLCanvas3D::SequentialPrintClearance::render()
 {
-    const ColorRGBA FILL_COLOR               = { 1.0f, 0.0f, 0.0f, 0.5f };
-    const ColorRGBA NO_FILL_COLOR            = { 1.0f, 1.0f, 1.0f, 0.75f };
-    const ColorRGBA NO_FILL_EVALUATING_COLOR = { 1.0f, 1.0f, 0.0f, 1.0f };
+    static const ColorRGBA FILL_COLOR               = { 1.0f, 0.0f, 0.0f, 0.5f };
+    static const ColorRGBA NO_FILL_COLOR            = { 1.0f, 1.0f, 1.0f, 0.75f };
+    static const ColorRGBA NO_FILL_EVALUATING_COLOR = { 1.0f, 1.0f, 0.0f, 1.0f };
 
     if (m_contours.empty() || m_instances.empty())
         return;
@@ -1199,11 +1205,15 @@ void GLCanvas3D::SequentialPrintClearance::render()
     else
 #endif // ENABLE_GL_CORE_PROFILE
         glsafe(::glLineWidth(2.0f));
+//#endif // !SLIC3R_OPENGL_ES
+
+    const ColorRGBA color = (!m_evaluating && !m_dragging && m_fill.is_initialized()) ? FILL_COLOR :
+        m_evaluating ? NO_FILL_EVALUATING_COLOR : NO_FILL_COLOR;
 
     for (const auto& [id, trafo] : m_instances) {
         shader->set_uniform("view_model_matrix", camera.get_view_matrix() * trafo);
         assert(id < m_contours.size());
-        m_contours[id].set_color((!m_evaluating && m_fill.is_initialized()) ? FILL_COLOR : m_evaluating ? NO_FILL_EVALUATING_COLOR : NO_FILL_COLOR);
+        m_contours[id].set_color(color);
         m_contours[id].render();
     }
 
@@ -3916,7 +3926,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                 c == GLGizmosManager::EType::Scale ||
                 c == GLGizmosManager::EType::Rotate) {
                 show_sinking_contours();
-                if (current_printer_technology() == ptFFF && (fff_print()->config().complete_objects || fff_print()->config().parallel_objects_step > 0))
+                if (_is_sequential_print_enabled())
                     update_sequential_clearance(true);
             }
         }
@@ -4065,20 +4075,21 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                 if (evt.LeftDown() && m_moving_enabled && m_mouse.drag.move_volume_idx == -1) {
                     // Only accept the initial position, if it is inside the volume bounding box.
                     const int volume_idx = get_first_hover_volume_idx();
-                    if (m_volumes.volumes.size() > volume_idx) { //can fail if the screen takes a bit of time to refresh
-                        BoundingBoxf3 volume_bbox = m_volumes.volumes[volume_idx]->transformed_bounding_box();
-                        volume_bbox.offset(1.0);
-                        const bool is_cut_connector_selected = m_selection.is_any_connector();
-                        if ((!any_gizmo_active || !evt.CmdDown()) && volume_bbox.contains(m_mouse.scene_position) && !is_cut_connector_selected) {
-                            m_volumes.volumes[volume_idx]->hover = GLVolume::HS_None;
-                            // The dragging operation is initiated.
-                            m_mouse.drag.move_volume_idx = volume_idx;
-                            m_selection.setup_cache();
-                            if (!evt.CmdDown())
-                                m_mouse.drag.start_position_3D = m_mouse.scene_position;
-                            m_sequential_print_clearance_first_displacement = true;
-                            m_sequential_print_clearance.start_dragging();
-                        }
+                    BoundingBoxf3 volume_bbox = m_volumes.volumes[volume_idx]->transformed_bounding_box();
+                    volume_bbox.offset(1.0);
+                    const bool is_cut_connector_selected = m_selection.is_any_connector();
+                    if ((!any_gizmo_active || !evt.CmdDown()) && volume_bbox.contains(m_mouse.scene_position) && !is_cut_connector_selected) {
+                        m_volumes.volumes[volume_idx]->hover = GLVolume::HS_None;
+                        // The dragging operation is initiated.
+                        m_mouse.drag.move_volume_idx = volume_idx;
+                        m_selection.setup_cache();
+                        if (!evt.CmdDown())
+                            m_mouse.drag.start_position_3D = m_mouse.scene_position;
+                        
+                        m_sequential_print_clearance.m_first_displacement = true;
+                        if (_is_sequential_print_enabled())
+                            update_sequential_clearance(true);
+                        m_sequential_print_clearance.start_dragging();
                     }
                 }
             }
@@ -4127,7 +4138,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
             TransformationType trafo_type;
             trafo_type.set_relative();
             m_selection.translate(cur_pos - m_mouse.drag.start_position_3D, trafo_type);
-            if (current_printer_technology() == ptFFF && (fff_print()->config().complete_objects || fff_print()->config().parallel_objects_step > 0))
+            if (_is_sequential_print_enabled())
                 update_sequential_clearance(false);
             wxGetApp().obj_manipul()->set_dirty();
             m_dirty = true;
@@ -4206,6 +4217,9 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
     else if (evt.LeftUp() || evt.MiddleUp() || evt.RightUp()) {
         m_mouse.position = pos.cast<double>();
 
+        if (evt.LeftUp() && m_sequential_print_clearance.is_dragging())
+            m_sequential_print_clearance.stop_dragging();
+
         if (m_layers_editing.state != LayersEditing::Unknown) {
             m_layers_editing.state = LayersEditing::Unknown;
             _stop_timer();
@@ -4216,7 +4230,6 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
             s_virtual_bed_timer.Stop();
             do_move(L("Move Object"));
             wxGetApp().obj_manipul()->set_dirty();
-            m_sequential_print_clearance.stop_dragging();
             // Let the plater know that the dragging finished, so a delayed refresh
             // of the scene with the background processing data should be performed.
             post_event(SimpleEvent(EVT_GLCANVAS_MOUSE_DRAGGING_FINISHED));
@@ -4467,7 +4480,7 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
         post_event(SimpleEvent(EVT_GLCANVAS_WIPETOWER_TOUCHED));
     }
 
-    if (current_printer_technology() == ptFFF && fff_print()->config().complete_objects) {
+    if (_is_sequential_print_enabled()) {
         update_sequential_clearance(true);
         m_sequential_print_clearance.m_evaluating = true;
     }
@@ -4567,7 +4580,7 @@ void GLCanvas3D::do_rotate(const std::string& snapshot_type)
     if (!done.empty())
         post_event(SimpleEvent(EVT_GLCANVAS_INSTANCE_ROTATED));
 
-    if (current_printer_technology() == ptFFF && fff_print()->config().complete_objects) {
+    if (_is_sequential_print_enabled()) {
         update_sequential_clearance(true);
         m_sequential_print_clearance.m_evaluating = true;
     }
@@ -4644,7 +4657,7 @@ void GLCanvas3D::do_scale(const std::string& snapshot_type)
     if (!done.empty())
         post_event(SimpleEvent(EVT_GLCANVAS_INSTANCE_SCALED));
 
-    if (current_printer_technology() == ptFFF && fff_print()->config().complete_objects) {
+    if (_is_sequential_print_enabled()) {
         update_sequential_clearance(true);
         m_sequential_print_clearance.m_evaluating = true;
     }
@@ -4919,7 +4932,7 @@ void GLCanvas3D::mouse_up_cleanup()
 
 void GLCanvas3D::update_sequential_clearance(bool force_contours_generation)
 {
-    if (current_printer_technology() != ptFFF || (!fff_print()->config().complete_objects && fff_print()->config().parallel_objects_step == 0))
+    if (!_is_sequential_print_enabled())
         return;
 
     if (m_layers_editing.is_enabled())
@@ -4981,7 +4994,7 @@ void GLCanvas3D::update_sequential_clearance(bool force_contours_generation)
     // calculates objects 2d hulls (see also: Print::sequential_print_horizontal_clearance_valid())
     // this is done only the first time this method is called while moving the mouse,
     // the results are then cached for following displacements
-    if (force_contours_generation || m_sequential_print_clearance_first_displacement) {
+    if (force_contours_generation || m_sequential_print_clearance.m_first_displacement) {
         m_sequential_print_clearance.m_evaluating = false;
         m_sequential_print_clearance.m_hulls_2d_cache.clear();
         const float shrink_factor = static_cast<float>(scale_(0.5 * fff_print()->config().extruder_clearance_radius.value - EPSILON));
@@ -5030,7 +5043,7 @@ void GLCanvas3D::update_sequential_clearance(bool force_contours_generation)
         }
 
         set_sequential_print_clearance_contours(contours, false);
-        m_sequential_print_clearance_first_displacement = false;
+        m_sequential_print_clearance.m_first_displacement = false;
     }
     else {
         if (!m_sequential_print_clearance.empty()) {
@@ -6749,7 +6762,7 @@ void GLCanvas3D::_render_selection()
 
 void GLCanvas3D::_render_sequential_clearance()
 {
-    if (current_printer_technology() != ptFFF || !fff_print()->config().complete_objects)
+    if (!_is_sequential_print_enabled())
         return;
 
     if (m_layers_editing.is_enabled())
@@ -6846,10 +6859,8 @@ void GLCanvas3D::_render_overlays()
     if (m_layers_editing.last_object_id >= 0 && m_layers_editing.object_max_z() > 0.0f)
         m_layers_editing.render_overlay(*this);
 
-    const ConfigOptionBool* opt = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"));
-    bool sequential_print = opt != nullptr && opt->value;
     std::vector<const ModelInstance*> sorted_instances;
-    if (sequential_print) {
+    if (_is_sequential_print_enabled()) {
         for (ModelObject* model_object : m_model->objects)
             for (ModelInstance* model_instance : model_object->instances) {
                 sorted_instances.push_back(model_instance);
@@ -8328,6 +8339,11 @@ std::pair<bool, const GLVolume*> GLCanvas3D::_is_any_volume_outside() const
     }
 
     return std::make_pair(false, nullptr);
+}
+
+bool GLCanvas3D::_is_sequential_print_enabled() const
+{
+    return current_printer_technology() == ptFFF && fff_print()->config().complete_objects;
 }
 
 void GLCanvas3D::_update_selection_from_hover()
