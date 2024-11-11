@@ -366,6 +366,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             osteps.emplace_back(posSupportMaterial);
         } else if (
             opt_key == "arc_fitting"
+            || opt_key == "arc_fitting_resolution"
             || opt_key == "arc_fitting_tolerance"
             || opt_key == "min_layer_height"
             || opt_key == "max_layer_height"
@@ -1391,8 +1392,8 @@ void Print::process()
         }
         //also simplify object skirt & brim
         if (enable_arc_fitting && (!this->m_skirt.empty() || !this->m_brim.empty())) {
-            coordf_t scaled_resolution = scale_d(config().resolution.value);
-            if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting ? SCALED_EPSILON * 2 : SCALED_EPSILON;
+            coordf_t scaled_resolution = scale_d(config().arc_fitting_resolution.get_abs_value(config().resolution.value));
+            if (scaled_resolution == 0) scaled_resolution = SCALED_EPSILON * 2 ;
             const ConfigOptionFloatOrPercent& arc_fitting_tolerance = config().arc_fitting_tolerance;
 
             this->set_status(0, L("Optimizing skirt & brim %s%%"), { std::to_string(0) }, PrintBase::SlicingStatus::SECONDARY_STATE);

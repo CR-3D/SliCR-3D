@@ -641,9 +641,14 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             if ((loop.is_contour && !reverse_contour) || (!loop.is_contour && reverse_hole)) {
                 //note: params.layer->id() % 2 == 1 already taken into account in the is_steep_overhang compute (to save time).
                 // if CCW: reverse if steep_overhang & odd. if CW: the opposite
-                bool clockwise = ((params.config.perimeter_reverse || has_steep_overhangs_this_loop) && params.layer->id() % 2 == 1) == (loop.is_contour ? CCW_contour : CCW_hole);
+                bool clockwise = !(loop.is_contour ? CCW_contour : CCW_hole);
+                if ((params.config.perimeter_reverse || has_steep_overhangs_this_loop) && params.layer->id() % 2 == 1) {
+                    clockwise = !clockwise;
+                }
                 // has to reverse the direction if print external first, as the whole thing will be reverse afterwards
-                clockwise = clockwise != (loop.is_contour ? reverse_contour : reverse_hole);
+                //if (loop.is_contour ? reverse_contour : reverse_hole) {
+                //    clockwise = !clockwise;
+                //}
 
                 if (clockwise) {
                     if (!eloop->is_clockwise()) {
@@ -670,9 +675,14 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
                     coll_out.append(*eloop);
                 }
             } else {
-                bool counter_clockwise = ((params.config.perimeter_reverse || has_steep_overhangs_this_loop) && params.layer->id() % 2 == 1) != (loop.is_contour ? CCW_contour : CCW_hole);
+                bool counter_clockwise = (loop.is_contour ? CCW_contour : CCW_hole);
+                if ((params.config.perimeter_reverse || has_steep_overhangs_this_loop) && params.layer->id() % 2 == 1) {
+                    counter_clockwise = !counter_clockwise;
+                }
                 // has to reverse the direction if print external first, as the whole thing will be reverse afterwards
-                counter_clockwise = counter_clockwise != (loop.is_contour ? reverse_contour : reverse_hole);
+                //if (loop.is_contour ? reverse_contour : reverse_hole) {
+                //    counter_clockwise = !counter_clockwise;
+                //}
                 // if hole: reverse if steep_overhang & odd. if contour: the opposite
                 if (counter_clockwise) {
                     if (eloop->is_clockwise()) {

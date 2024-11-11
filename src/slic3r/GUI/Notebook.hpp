@@ -102,7 +102,7 @@ public:
         SetSizer(mainSizer);
         
         this->Bind(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED, [this](wxCommandEvent& evt)
-                   {
+        {
             if (int page_idx = evt.GetId(); page_idx >= 0)
                 SetBtSelection(page_idx);
         });

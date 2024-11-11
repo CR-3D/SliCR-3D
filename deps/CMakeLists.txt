@@ -26,6 +26,11 @@
 cmake_minimum_required(VERSION 3.13)
 project(Slic3r-deps)
 
+# timestamp of the extracted content from archive set to the extraction date. OLD to set to the timestamp from the archive.
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+    cmake_policy(SET CMP0135 NEW)
+endif ()
+
 # Redefine BUILD_SHARED_LIBS with default being OFF
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static (experimental)" OFF)
 

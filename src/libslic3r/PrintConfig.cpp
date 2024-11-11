@@ -637,6 +637,16 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionEnum<ArcFittingType>(ArcFittingType::Disabled));
 
+    def = this->add("arc_fitting_resolution", coFloatOrPercent);
+    def->label = L("Arc fitting resolution");
+    def->sidetext = L("mm or %");
+    def->category = OptionCategory::firmware;
+    def->tooltip = L("When using the arc_fitting option, resolution used to simplify the path into an arc."
+    "\n can be a mm or a % of the slice resolution.");
+    def->mode = comExpert | comSuSi;
+    def->min = 0;
+    def->set_default_value(new ConfigOptionFloatOrPercent(100, true));
+
     def = this->add("arc_fitting_tolerance", coFloatOrPercent);
     def->label = L("Arc fitting tolerance");
     def->sidetext = L("mm or %");
@@ -4067,18 +4077,17 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionFloats{1500., 1250.});
 
     def = this->add("max_gcode_per_second", coFloat);
-    def->label = L("Maximum G1 per second");
+    def->label = L("Maximum G1 per second (Experimental)");
     def->category = OptionCategory::speed;
     def->tooltip = L("If your firmware stops while printing, it may have its gcode queue full."
-                     " Set this parameter to merge extrusions into bigger ones to reduce the number of gcode "
-                     "commands the printer has to process each second."
-                     "\nOn 8bit controlers, a value of 150 is typical."
-                     "\nNote that reducing your printing speed (at least for the external extrusions) will reduce "
-                     "the number of time this will triggger and so increase quality."
-                     "\nSet zero to disable.");
+        " Set this parameter to merge extrusions into bigger ones to reduce the number of gcode commands the printer has to process each second."
+        "\nOn 8bit controlers, a value of 150 is typical."
+        "\nNote that reducing your printing speed (at least for the external extrusions) will reduce the number of time this will triggger and so increase quality."
+        "\nDisabled if set to 0.");
     def->min = 0;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloat(0/*1500*/));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(1500), true));
 
     def = this->add("max_fan_speed", coInts);
     def->label = L("Max");
@@ -5158,12 +5167,13 @@ void PrintConfigDef::init_fff_params() {
         " Be sure to also use max_gcode_per_second instead, as it's much better when you have very different speeds "
         "for features"
         " (Too many too small commands may overload the firmware / connection)."
-        "\nSet zero to disable.");
+        "\nDisabled if set to 0.");
     def->sidetext = L("mm or %");
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent(0/*0.02*/, false));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloatOrPercent(0.02, false), false));
     def->aliases = {"min_length"};
 
     def = this->add("gcode_min_resolution", coFloatOrPercent);
@@ -5177,7 +5187,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent(50, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(10, true));
 
     def = this->add("resolution_internal", coFloat);
     def->label = L("Internal resolution");
@@ -9032,8 +9042,16 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
             value = opt_decoder.serialize();
         }
     }
-    if ("max_layer_height" == opt_key && "0" == value) {
-        value = "!75%";
+    if ("0" == value) {
+        if ("max_layer_height" == opt_key) {
+            value = "!75%";
+        }
+        if ("gcode_min_length" == opt_key) {
+            value = "!0";
+        }
+        if ("max_gcode_per_second" == opt_key) {
+            value = "!0";
+        }
     }
     if (value == "-1") {
         if ("overhangs_bridge_threshold" == opt_key) {
@@ -9668,6 +9686,7 @@ void deserialize_maybe_from_prusa(std::map<t_config_option_key, std::string> set
 
 std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "allow_empty_layers",
+"arc_fitting_resolution",
 "arc_fitting_tolerance",
 "avoid_crossing_not_first_layer",
 "avoid_crossing_top",

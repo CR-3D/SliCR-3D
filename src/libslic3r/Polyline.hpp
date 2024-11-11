@@ -283,7 +283,7 @@ typedef std::vector<Polyline3> Polylines3;
 class ArcPolyline
 {
 protected:
-    // each segment is strait if it's radius ==0 (oriantation should be unknown in this case)
+    // each segment is strait if it's radius ==0 (orientation should be unknown in this case)
     // radius is negative if the arc betweent he two point is the longest of the two. it's positive if it's the shortest.
     // the sign of the radius and the orientation are two different way to get the same information. They MUST be in synch.
     // note: first Segment in Path is always "strait", as it's the starting point of the following segment. 
@@ -363,6 +363,7 @@ public:
     void make_arc(ArcFittingType with_fitting_arc, coordf_t tolerance, double fit_percent_tolerance);
     // remove strait segemnts that are too near each other, and will overlaod the firmware. Return the buffer lines it still uses a t the end.
     int simplify_straits(coordf_t min_tolerance, coordf_t min_point_distance, coordf_t mean_dist_per_line, const int buffer_size, const int buffer_init);
+    void simplify_straits(const coordf_t min_tolerance, const coordf_t min_point_distance);
 
     // remove points that are too near each other, and return false if the whole path is too small
     bool normalize();

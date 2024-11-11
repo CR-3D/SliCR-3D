@@ -1445,7 +1445,7 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     }
 
     if (opt_key == "duplicate_distance") {
-        wxGetApp().mainframe->plater()->canvas3D()->set_arrange_settings(m_presets->get_edited_preset().config, m_presets->get_edited_preset().printer_technology());
+        wxGetApp().mainframe->plater()->canvas3D()->set_arrange_settings_distance_from_objects(*wxGetApp().mainframe->plater()->config(), m_presets->get_edited_preset().printer_technology());
     }
 
     // reset variable layer height if min/max has changed, as it's probably now invalid.
@@ -4189,7 +4189,7 @@ void Tab::load_current_preset()
 
     // apply duplicate_distance for print preset
     if (type() == Preset::TYPE_FFF_PRINT || type() == Preset::TYPE_SLA_PRINT) {
-        //wxGetApp().mainframe->plater()->canvas3D()->set_arrange_settings(m_presets->get_edited_preset().config, m_presets->get_edited_preset().printer_technology());
+        wxGetApp().mainframe->plater()->canvas3D()->set_arrange_settings_distance_from_objects(*wxGetApp().mainframe->plater()->config(), m_presets->get_edited_preset().printer_technology());
     }
 
 //	m_undo_to_sys_btn->Enable(!preset.is_default);

@@ -768,7 +768,7 @@ public:
     const Model* get_model() const { return m_model; }
 
     const arr2::ArrangeSettingsView * get_arrange_settings_view() const { return &m_arrange_settings_dialog; }
-    void set_arrange_settings(const DynamicPrintConfig& conf, PrinterTechnology tech);
+    void set_arrange_settings_distance_from_objects(const DynamicPrintConfig& conf, PrinterTechnology tech) { m_arrange_settings_dialog.set_arrange_settings_distance_from_objects(conf, tech); }
 
     const Selection& get_selection() const { return m_selection; }
     Selection& get_selection() { return m_selection; }

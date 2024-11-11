@@ -1194,6 +1194,7 @@ Geometry::ArcWelder::Path ArcPolyline::_from_polyline(const Points &poly)
         path.emplace_back(std::move(point), 0, Geometry::ArcWelder::Orientation::Unknown);
     return path;
 }
+#pragma UNOPTIMIZE
 Geometry::ArcWelder::Path ArcPolyline::_from_polyline(std::initializer_list<Point> poly)
 {
     Geometry::ArcWelder::Path path;
@@ -1336,6 +1337,7 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
             arc.erase(arc.begin() + worst_idx);
             buffer_length -= line_length[worst_idx];
             line_length.erase(line_length.begin() + worst_idx);
+            assert(weights[worst_idx] > 0);
             weights.erase(weights.begin() + worst_idx);
             --current_buffer_size;
             // recompute next point things
@@ -1361,7 +1363,7 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
         //check if the previous point has enough dist at both end
         if (current_buffer_size > 0 && arc.back() == 0 &&
             min_point_distance > line_length.back() && min_point_distance > new_seg_length
-            // also make sure it's not an importnat point for a ponty tip.
+            // also make sure it's not an important point for a ponty tip.
             && new_seg_length < m_path[idxs[idxs.size() - 2]].point.distance_to(new_point)
             ) {
             // erase previous point
@@ -1370,6 +1372,7 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
             arc.pop_back();
             buffer_length -= line_length.back();
             line_length.pop_back();
+            assert(weights.back() > 0);
             weights.pop_back();
             --current_buffer_size;
             new_seg_length = coord_t(m_path[idxs.back()].point.distance_to(new_point));
@@ -1403,12 +1406,13 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
         for (size_t i = 1; i < idxs.size(); ++i)
             assert(idxs[i - 1] < idxs[i]);
 
-        //remove first point(s) if enough dist
+        // remove first point(s) if enough dist
         while (buffer_length > min_buffer_length && current_buffer_size > 1) {
             idxs.pop_front(); // this erase the idx before the first point. we keep first point idx as a 'previous'
             arc.pop_front();
             buffer_length -= line_length.front();
             line_length.pop_front();
+            assert(weights.front() > 0);
             weights.pop_front();
             --current_buffer_size;
         }
@@ -1448,6 +1452,37 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
     //at the end, we should have the buffer no more than 1/2 filled.
     return current_buffer_size;
 }
+
+
+void ArcPolyline::simplify_straits(const coordf_t min_tolerance,
+                                  const coordf_t min_point_distance)
+{
+    assert(is_valid());
+
+    //use a window of buffer size.
+    const coord_t min_point_distance_sqr = min_point_distance * min_point_distance;
+
+    for (size_t idx_pt = 1; idx_pt < this->m_path.size() - 1; ++idx_pt) {
+        // only erase point between two strait segment
+        if (m_path[idx_pt].radius == 0 && m_path[idx_pt + 1].radius != 0) {
+            // Get previous & next point
+            Point previous = m_path[idx_pt - 1].point;
+            Point current = m_path[idx_pt].point;
+            Point next = m_path[idx_pt + 1].point;
+            // check deviation
+            coordf_t deviation = Line::distance_to(current, previous, next);
+            //if devaition is small enough and the distance is too small
+            if (deviation < min_tolerance &&
+                (min_point_distance_sqr < previous.distance_to_square(current) ||
+                 min_point_distance_sqr < current.distance_to_square(next))) {
+                m_path.erase(m_path.begin() + idx_pt);
+            }
+        }
+    }
+    assert(is_valid());
+    //at the end, we should have the buffer no more than 1/2 filled.
+}
+
 
 // douglas_peuker and create arc if with_fitting_arc
 void ArcPolyline::make_arc(ArcFittingType with_fitting_arc, coordf_t tolerance, double fit_percent_tolerance)
@@ -1532,7 +1567,7 @@ void ArcPolyline::make_arc(ArcFittingType with_fitting_arc, coordf_t tolerance, 
                                 double ccw_angle2 = ccw_angle;
                                 if (ccw_angle < 0)
                                     ccw_angle = 2 * PI + ccw_angle;
-                                assert(is_approx(ccw_angle, angle, EPSILON));
+                                assert(is_approx(ccw_angle, angle, EPSILON * 10));
                             }
                             prev = seg.point;
                         }

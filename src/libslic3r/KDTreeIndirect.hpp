@@ -40,6 +40,7 @@ public:
     KDTreeIndirect(KDTreeIndirect &&rhs) : m_nodes(std::move(rhs.m_nodes)), coordinate(std::move(rhs.coordinate)) {}
     KDTreeIndirect& operator=(KDTreeIndirect &&rhs) { m_nodes = std::move(rhs.m_nodes); coordinate = std::move(rhs.coordinate); return *this; }
     void clear() { m_nodes.clear(); }
+    bool empty() { return m_nodes.empty(); }
 
     void build(size_t num_indices)
     {

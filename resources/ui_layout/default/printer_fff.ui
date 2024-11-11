@@ -45,21 +45,17 @@ group:silent_mode_event:filename_format_event:Firmware
 	line:GCode Precision XYZ
 		setting:label$_:gcode_precision_xyz
 	end_line
-
-	line:GCode Precision E
-		setting:label$_:gcode_precision_e
+	line:Precision limits
+		setting:gcode_min_length
+		setting:gcode_min_resolution
 	end_line
-
-	line:Processing Limit
+	line:Processing limit
 		setting:max_gcode_per_second
 		setting:gcode_command_buffer
 	end_line
-
-	line:Precision Min Resolution
-		setting:label$_:gcode_min_resolution
-	end_line
 	line:G2/G3 generation
 		setting:arc_fitting
+		setting:arc_fitting_resolution
 		setting:arc_fitting_tolerance
 	end_line
 

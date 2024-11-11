@@ -1660,6 +1660,10 @@ static TriangleMesh create_mesh(const std::string& type_name, const BoundingBoxf
         // Centered around 0, sitting on the print bed.
         // The cylinder has the same volume as the box above.
         mesh = its_make_cylinder(0.564 * side, bb.size().z()>0 ? bb.size().z() : side);
+    else if (type_name == "SmallCylinder")
+        // Centered around 0, sitting on the print bed.
+        // The cylinder has the same volume as the box above.
+        mesh = its_make_cylinder(0.1 * side, bb.size().z()>0 ? bb.size().z() : side);
     else if (type_name == "Circle")
         // Centered around 0, sitting on the print bed.
         mesh = its_make_cylinder(5, 0.1);
@@ -1729,11 +1733,11 @@ void ObjectList::load_generic_subobject(const std::string& type_name, const Mode
     new_volume->set_offset(v->get_instance_transformation().get_matrix_no_offset().inverse() * offset);
 
     std::string base_name = "Generic";
-    if (type == ModelVolumeType::SEAM_POSITION) base_name = "Seam";
-    if (type == ModelVolumeType::BRIM_PATCH) base_name = "Brim";
+    if (new_volume->is_seam_position()) base_name = "Seam";
+    if (new_volume->is_brim())          base_name = "Brim";
     if (type == ModelVolumeType::SUPPORT_ENFORCER) base_name = "Support";
     if (type == ModelVolumeType::SUPPORT_BLOCKER) base_name = "Blocker";
-    const wxString name = _(L(base_name)) + "-" + _(type_name);
+    const wxString name = _L(base_name) + "-" + (boost::starts_with(type_name, "Small") ? _(type_name.substr(5)): _(type_name));
     new_volume->name = into_u8(name);
     // set a default extruder value, since user can't add it manually
     new_volume->config.set_key_value("extruder", new ConfigOptionInt(0));
@@ -1756,7 +1760,7 @@ void ObjectList::load_generic_subobject(const std::string& type_name, const Mode
         update_info_items(obj_idx);
 
     selection_changed();
-    if (type == ModelVolumeType::SEAM_POSITION)
+    if (new_volume->is_seam_position())
         this->update_after_undo_redo();
 }
 
@@ -4345,10 +4349,18 @@ void ObjectList::change_part_type()
     }
 
     if (printer_technology() != ptSLA) {
-        names.Add(_L("Seam Position"));
-        types.emplace_back(ModelVolumeType::SEAM_POSITION);
+        names.Add(_L("Seam Position (nearest)"));
+        types.emplace_back(ModelVolumeType::SEAM_POSITION_CENTER);
+        names.Add(_L("Seam Position (nearest, between min & max z)"));
+        types.emplace_back(ModelVolumeType::SEAM_POSITION_CENTER_Z);
+        //names.Add(_L("Seam Position (inside)"));
+        //types.emplace_back(ModelVolumeType::SEAM_POSITION_INSIDE_CENTER);
+        //names.Add(_L("Seam Position (inside shape)"));
+        //types.emplace_back(ModelVolumeType::SEAM_POSITION_INSIDE);
         names.Add(_L("Brim Patch"));
         types.emplace_back(ModelVolumeType::BRIM_PATCH);
+        names.Add(_L("Brim Blocker"));
+        types.emplace_back(ModelVolumeType::BRIM_NEGATIVE);
     }
     int selection = 0;
     if (auto it = std::find(types.begin(), types.end(), type); it != types.end())

@@ -335,7 +335,10 @@ enum class ModelVolumeType : int {
     PARAMETER_MODIFIER,
     SUPPORT_BLOCKER,
     SUPPORT_ENFORCER,
-    SEAM_POSITION,
+    SEAM_POSITION_CENTER,
+    SEAM_POSITION_CENTER_Z,
+    SEAM_POSITION_INSIDE_CENTER, //TODO
+    SEAM_POSITION_INSIDE, //TODO
     BRIM_PATCH,
     BRIM_NEGATIVE,
 };
@@ -859,9 +862,10 @@ public:
 	bool                is_support_enforcer()   const { return m_type == ModelVolumeType::SUPPORT_ENFORCER; }
 	bool                is_support_blocker()    const { return m_type == ModelVolumeType::SUPPORT_BLOCKER; }
     bool                is_support_modifier()   const { return m_type == ModelVolumeType::SUPPORT_BLOCKER || m_type == ModelVolumeType::SUPPORT_ENFORCER; }
-    bool                is_seam_position()      const { return m_type == ModelVolumeType::SEAM_POSITION; }
+    bool                is_seam_position()      const { return m_type == ModelVolumeType::SEAM_POSITION_CENTER || m_type == ModelVolumeType::SEAM_POSITION_CENTER_Z || m_type == ModelVolumeType::SEAM_POSITION_INSIDE_CENTER || m_type == ModelVolumeType::SEAM_POSITION_INSIDE; }
     bool                is_brim_patch()         const { return m_type == ModelVolumeType::BRIM_PATCH; }
     bool                is_brim_negative()      const { return m_type == ModelVolumeType::BRIM_NEGATIVE; }
+    bool                is_brim()               const { return m_type == ModelVolumeType::BRIM_PATCH || m_type == ModelVolumeType::BRIM_NEGATIVE; }
     bool                is_text()               const { return text_configuration.has_value(); }
     bool                is_svg() const { return emboss_shape.has_value()  && !text_configuration.has_value(); }
     bool                is_the_only_one_part() const; // behave like an object

@@ -762,7 +762,7 @@ void PrintObject::simplify_extrusion_path()
         );
         //also simplify object skirt & brim
         if (enable_arc_fitting) {
-            coordf_t scaled_resolution = scale_d(print_config.resolution.value);
+            coordf_t scaled_resolution = scale_d(print_config.arc_fitting_resolution.get_abs_value(print_config.resolution.value));
             if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting ? SCALED_EPSILON * 2 : SCALED_EPSILON;
             const ConfigOptionFloatOrPercent& arc_fitting_tolerance = print_config.arc_fitting_tolerance;
 
@@ -3644,7 +3644,9 @@ void PrintObject::bridge_over_infill()
                 ExPolygons new_internal_infills = diff_ex(internal_infills, cut_from_infill);
                 new_internal_infills            = diff_ex(new_internal_infills, additional_ensuring);
                 ensure_valid(new_internal_infills, scaled_resolution);
+                assert_valid(new_internal_infills);
                 for (const ExPolygon &ep : new_internal_infills) {
+                    ep.assert_valid();
                     new_surfaces.emplace_back((stPosInternal | stDensSparse), ep);
                 }
 
@@ -3657,6 +3659,7 @@ void PrintObject::bridge_over_infill()
                                 tmp.surface_type = (stPosInternal | stDensSolid | stModBridge);
                                 tmp.bridge_angle = cs.bridge_angle;
                                 for (const ExPolygon &ep : ensure_valid(union_ex(cs.new_polys), scaled_resolution)) {
+                                    ep.assert_valid();
                                     new_surfaces.emplace_back(tmp, ep);
                                 }
                                 break;
@@ -3670,6 +3673,7 @@ void PrintObject::bridge_over_infill()
                 new_internal_solids = union_safety_offset_ex(new_internal_solids);
                 ensure_valid(new_internal_solids, scaled_resolution);
                 for (const ExPolygon &ep : new_internal_solids) {
+                    ep.assert_valid();
                     new_surfaces.emplace_back((stPosInternal | stDensSolid), ep);
                 }
 

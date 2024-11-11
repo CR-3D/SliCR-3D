@@ -243,6 +243,7 @@ BuildVolume::ObjectState object_state_templ(const indexed_triangle_set &its, con
                             assert(sign(p1) == s[iprev]);
                             assert(sign(p2) == s[iedge]);
                             assert((p1.z() - world_min_z) * (p2.z() - world_min_z) < 0);
+                            assert(std::abs(p2.z() - p1.z()) > EPSILON);
                             // Edge crosses the z plane. Calculate intersection point with the plane.
                             const float t = (world_min_z - p1.z()) / (p2.z() - p1.z());
                             (is_inside(Vec3f(p1.x() + (p2.x() - p1.x()) * t, p1.y() + (p2.y() - p1.y()) * t, world_min_z)) ? inside : outside) = true;

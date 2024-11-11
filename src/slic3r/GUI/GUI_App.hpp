@@ -134,11 +134,19 @@ private:
     bool m_is_recreating_gui{false};
     bool m_opengl_initialized{false};
 
-    wxColour m_color_label_modified;
-    wxColour m_color_label_sys;
-    wxColour m_color_label_default;
-    wxColour m_color_label_phony;
-    wxColour m_color_window_default;
+    wxColour        m_color_label_modified;
+    wxColour        m_color_label_sys;
+    wxColour        m_color_label_default;
+    wxColour        m_color_label_phony;
+    wxColour        m_color_window_default;
+    wxColour        m_color_highlight_label_default;
+    wxColour        m_color_hovered_btn_label;
+    wxColour        m_color_hovered_btn;
+    wxColour        m_color_default_btn_label;
+    wxColour        m_color_highlight_default;
+    wxColour        m_color_selected_btn_bg;
+    bool            m_force_colors_update { false };
+    //std::vector<std::string>     m_mode_palette; //replaced by Slic3r::GUI::get_app_config()->tags()
 
     wxColour m_color_highlight_label_default;
     wxColour m_color_hovered_btn_label;
@@ -243,12 +251,12 @@ public:
     void set_mode_palette(const std::vector<wxColour> &palette);
 #endif
 
-    const wxColour &get_label_highlight_clr() { return m_color_highlight_label_default; }
-    const wxColour &get_highlight_default_clr() { return m_color_highlight_default; }
-    const wxColour &get_color_hovered_btn_label() { return m_color_hovered_btn_label; }
-    const wxColour &get_color_hovered_btn() { return m_color_hovered_btn; }
-    const wxColour &get_color_selected_btn_bg() { return m_color_selected_btn_bg; }
-    void force_colors_update();
+    const wxColour& get_label_highlight_clr()   { return m_color_highlight_label_default; }
+    const wxColour& get_highlight_default_clr() { return m_color_highlight_default; }
+    const wxColour& get_color_hovered_btn_label() { return m_color_hovered_btn_label; }
+    const wxColour& get_color_hovered_btn() { return m_color_hovered_btn; }
+    const wxColour& get_color_selected_btn_bg() { return m_color_selected_btn_bg; }
+    void            force_colors_update();
 #ifdef _MSW_DARK_MODE
     void force_menu_update();
 #endif //_MSW_DARK_MODE

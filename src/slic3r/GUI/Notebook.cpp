@@ -4,7 +4,6 @@
 ///|/
 #include "Notebook.hpp"
 
-
 #include "libslic3r/AppConfig.hpp"
 
 #include "GUI_App.hpp"
@@ -26,7 +25,7 @@ ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, bool add_mode_buttons/* = fal
 
     int em = em_unit(this);// Slic3r::GUI::wxGetApp().em_unit();
 #ifdef __WINDOWS__
-    m_btn_margin  = std::lround(0.4 * em);
+    m_btn_margin = std::lround(0.3 * em);
 #else
     m_btn_margin = std::lround(0.4 * em);
 #endif
@@ -35,17 +34,19 @@ ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, bool add_mode_buttons/* = fal
     m_sizer = new wxBoxSizer(wxHORIZONTAL);
       this->SetSizer(m_sizer);
 
-      // Create the buttons sizer with adjustable gaps
-      m_buttons_sizer = new wxFlexGridSizer(1, m_btn_margin, m_btn_margin);
-      m_buttons_sizer->SetHGap(m_btn_margin);  // Horizontal gap between buttons
-      m_buttons_sizer->SetVGap(m_btn_margin);  // Vertical gap between buttons
-      m_sizer->Add(m_buttons_sizer, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxBOTTOM, m_btn_margin);
+    // Create the buttons sizer with adjustable gaps
+    m_buttons_sizer = new wxFlexGridSizer(1, m_btn_margin, m_btn_margin);
+#ifdef __APPLE__
+    m_buttons_sizer->SetHGap(m_btn_margin);  // Horizontal gap between buttons
+    m_buttons_sizer->SetVGap(m_btn_margin);  // Vertical gap between buttons
+#endif
+    m_sizer->Add(m_buttons_sizer, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxBOTTOM, m_btn_margin);
 
-      if (add_mode_buttons) {
-          m_mode_sizer = new Slic3r::GUI::ModeSizer(this, m_btn_margin, 0);
-          m_sizer->AddStretchSpacer(20);  // Adjust the stretch spacer to ensure buttons align correctly
-          m_sizer->Add(m_mode_sizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxBOTTOM, m_btn_margin);
-      }
+    if (add_mode_buttons) {
+        m_mode_sizer = new Slic3r::GUI::ModeSizer(this, m_btn_margin, 0);
+        m_sizer->AddStretchSpacer(20);  // Adjust the stretch spacer to ensure buttons align correctly
+        m_sizer->Add(m_mode_sizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxBOTTOM, m_btn_margin);
+    }
 
       this->Bind(wxEVT_PAINT, &ButtonsListCtrl::OnPaint, this);
   }
@@ -100,14 +101,14 @@ void ButtonsListCtrl::Rescale()
 {
     int em = em_unit(this);
 
-#if __WXMAC__
+#ifdef __APPLE__
     // Adjust margins and sizes specifically for macOS
     m_btn_margin = std::lround(0.4 * em);
     m_line_margin = std::lround(0.1 * em);
 #else
     m_btn_margin = std::lround(0.3 * em);
     m_line_margin = std::lround(0.1 * em);
-#endif //__WXMAC__
+#endif //__APPLE__
 
     m_buttons_sizer->SetVGap(m_btn_margin);  // Adjust vertical gap here
     m_buttons_sizer->SetHGap(m_btn_margin);  // Adjust horizontal gap here

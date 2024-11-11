@@ -38,7 +38,7 @@ namespace Slic3r {
             assert((model_volume_dst->is_support_modifier() && model_volume_src->is_support_modifier()) || model_volume_dst->type() == model_volume_src->type());
             model_object_dst.volumes.emplace_back(model_volume_dst);
             if (model_volume_dst->is_support_modifier() || model_volume_dst->is_seam_position() ||
-                model_volume_dst->is_brim_patch() || model_volume_dst->is_brim_negative()) {
+                model_volume_dst->is_brim()) {
                 // For support modifiers, the type may have been switched from blocker to enforcer and vice versa.
                 model_volume_dst->set_type(model_volume_src->type());
                 model_volume_dst->set_transformation(model_volume_src->get_transformation());
@@ -47,7 +47,7 @@ namespace Slic3r {
         } else {
             // The volume was not found in the old list. Create a new copy.
             assert(model_volume_src->is_support_modifier() || model_volume_src->is_seam_position() ||
-                   model_volume_src->is_brim_patch() || model_volume_src->is_brim_negative());
+                   model_volume_src->is_brim());
             model_object_dst.volumes.emplace_back(new ModelVolume(*model_volume_src));
             model_object_dst.volumes.back()->set_model_object(&model_object_dst);
         }
@@ -1179,7 +1179,10 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
         bool layer_height_ranges_differ = ! layer_height_ranges_equal(model_object.layer_config_ranges, model_object_new.layer_config_ranges, model_object_new.layer_height_profile.empty());
         bool model_origin_translation_differ = model_object.origin_translation != model_object_new.origin_translation;
         auto print_objects_range        = print_object_status_db.get_range(model_object);
-        bool seam_position_differ       = model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SEAM_POSITION);
+        bool seam_position_differ       = model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SEAM_POSITION_CENTER)
+            || model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SEAM_POSITION_CENTER_Z)
+            || model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SEAM_POSITION_INSIDE_CENTER)
+            || model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SEAM_POSITION_INSIDE);
         bool brim_patch_differ          = model_volume_list_changed(model_object, model_object_new, ModelVolumeType::BRIM_PATCH) ||
                                           model_volume_list_changed(model_object, model_object_new, ModelVolumeType::BRIM_NEGATIVE);
         // The list actually can be empty if all instances are out of the print bed.

@@ -49,7 +49,7 @@ public:
     bool  is_rotation_enabled() const override { return m_db.is_rotation_enabled(); }
     
     // update arrange dist from current print conf.
-    void set_arrange_settings(const DynamicPrintConfig &conf, PrinterTechnology tech);
+    void set_arrange_settings_distance_from_objects(const DynamicPrintConfig &conf, PrinterTechnology tech);
 
     XLPivots get_xl_alignment() const override { return m_db.get_xl_alignment(); }
     GeometryHandling get_geometry_handling() const override { return m_db.get_geometry_handling(); }

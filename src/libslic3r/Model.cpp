@@ -1857,6 +1857,7 @@ int ModelVolume::get_repaired_errors_count() const
 
 const TriangleMesh& ModelVolume::get_convex_hull() const
 {
+    assert(m_convex_hull.get());
     return *m_convex_hull.get();
 }
 
@@ -1877,7 +1878,15 @@ ModelVolumeType ModelVolume::type_from_string(const std::string &s)
     if (s == "SupportBlocker")
 		return ModelVolumeType::SUPPORT_BLOCKER;
     if (s == "SeamPosition")
-        return ModelVolumeType::SEAM_POSITION;
+        return ModelVolumeType::SEAM_POSITION_CENTER;
+    if (s == "SeamPositionCenter")
+        return ModelVolumeType::SEAM_POSITION_CENTER;
+    if (s == "SeamPositionCenterZ")
+        return ModelVolumeType::SEAM_POSITION_CENTER_Z;
+    if (s == "SeamPositionInsideCenter")
+        return ModelVolumeType::SEAM_POSITION_INSIDE_CENTER;
+    if (s == "SeamPositionInside")
+        return ModelVolumeType::SEAM_POSITION_INSIDE;
     if (s == "BrimPatch")
         return ModelVolumeType::BRIM_PATCH;
     if (s == "BrimNegative")
@@ -1895,7 +1904,10 @@ std::string ModelVolume::type_to_string(const ModelVolumeType t)
 	case ModelVolumeType::PARAMETER_MODIFIER: return "ParameterModifier";
 	case ModelVolumeType::SUPPORT_ENFORCER:   return "SupportEnforcer";
 	case ModelVolumeType::SUPPORT_BLOCKER:    return "SupportBlocker";
-    case ModelVolumeType::SEAM_POSITION:      return "SeamPosition";
+    case ModelVolumeType::SEAM_POSITION_CENTER:         return "SeamPositionCenter";
+    case ModelVolumeType::SEAM_POSITION_CENTER_Z:       return "SeamPositionCenterZ";
+    case ModelVolumeType::SEAM_POSITION_INSIDE_CENTER:  return "SeamPositionInsideCenter";
+    case ModelVolumeType::SEAM_POSITION_INSIDE:         return "SeamPositionInside";
     case ModelVolumeType::BRIM_PATCH:         return "BrimPatch";
     case ModelVolumeType::BRIM_NEGATIVE:      return "BrimNegative";
     default:
@@ -2094,7 +2106,7 @@ BoundingBoxf3 ModelInstance::transform_bounding_box(const BoundingBoxf3 &bbox, b
 
 Vec3d ModelInstance::transform_vector(const Vec3d& v, bool dont_translate) const
 {
-    return dont_translate ? get_matrix_no_offset() * v : get_matrix() * v;
+    return dont_translate ? (this->get_matrix_no_offset() * v) : (this->get_matrix() * v);
 }
 
 void ModelInstance::transform_polygon(Polygon* polygon) const

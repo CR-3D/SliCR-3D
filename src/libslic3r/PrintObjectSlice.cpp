@@ -460,6 +460,7 @@ static std::vector<std::vector<ExPolygons>> slices_to_regions(
                             }
                         if (merged)
                             expolygons = closing_ex(expolygons, float(scale_(EPSILON)));
+                        ensure_valid(expolygons, std::max(scale_t(print_config.resolution.value), SCALED_EPSILON));
                         slices_by_region[temp_slices[i].region_id][z_idx] = std::move(expolygons);
                         i = j;
                     }
@@ -482,7 +483,7 @@ static std::vector<std::vector<ExPolygons>> slices_to_regions(
             }
         }
     }
-
+    for(auto &slices : slices_by_region) for(auto &expolys : slices) assert_valid(expolys);
     return slices_by_region;
 }
 

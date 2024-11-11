@@ -1,18 +1,68 @@
 #!/bin/bash
+#
+# This script can download and compile dependencies, compile SuperSlicer
+# and optional build a .tgz and an appimage.
+#
+# Original script from SuperSlicer by supermerill https://github.com/supermerill/SuperSlicer
+#
+# Change log:
+#
+# 20 Nov 2023, wschadow, branding and minor changes
+# 01 Jan 2024, wschadow, added build options
+#
 
 export ROOT=`pwd`
 export NCORES=`sysctl -n hw.ncpu`
-export CMAKE_INSTALLED=`which cmake`
-#export ARCH=$(uname -m)
+
+OS_FOUND=$( command -v uname)
+
+case $( "${OS_FOUND}" | tr '[:upper:]' '[:lower:]') in
+  linux*)
+    TARGET_OS="linux"
+   ;;
+  msys*|cygwin*|mingw*)
+    # or possible 'bash on windows'
+    TARGET_OS='windows'
+   ;;
+  nt|win*)
+    TARGET_OS='windows'
+    ;;
+  darwin)
+    TARGET_OS='macos'
+    ;;
+  *)
+    TARGET_OS='unknown'
+    ;;
+esac
+
+# check operating system
+echo
+if [ $TARGET_OS == "macos" ]; then
+    if [ $(uname -m) == "x86_64" ]; then
+        echo -e "$(tput setaf 2)macOS x86_64 found$(tput sgr0)\n"
+        Processor="64"
+    elif [[ $(uname -m) == "i386" || $(uname -m) == "i686" ]]; then
+        echo "$(tput setaf 2)macOS arm64 found$(tput sgr0)\n"
+        Processor="64"
+    else
+        echo "$(tput setaf 1)Unsupported OS: macOS $(uname -m)"
+        exit -1
+    fi
+else
+    echo -e "$(tput setaf 1)This script doesn't support your Operating system!"
+    echo -e "Please use a macOS.$(tput sgr0)\n"
+    exit -1
+fi
 
 # Check if CMake is installed
+export CMAKE_INSTALLED=`which cmake`
 if [[ -z "$CMAKE_INSTALLED" ]]
 then
     echo "Can't find CMake. Either is not installed or not in the PATH. Aborting!"
     exit -1
 fi
 
-while getopts ":idaxbhcstwr" opt; do
+while getopts ":idaxbhcsltwr" opt; do
   case ${opt} in
     i )
         BUILD_IMAGE="1"
@@ -36,6 +86,9 @@ while getopts ":idaxbhcstwr" opt; do
         ;;
     t)
         BUILD_TESTS="1"
+        ;;
+    l )
+        UPDATE_POTFILE="1"
         ;;
     c)
         BUILD_XCODE="1"
@@ -103,14 +156,8 @@ export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix zstd)/lib/
 #    export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix libiconv)/lib/
 #fi
 
-echo -n "[1/9] Updating submodules..."
-{
-    # update submodule profiles
-    pushd resources/profiles
-    git submodule update --init
-    popd
-} #> $ROOT/build/Build.log # Capture all command output
-echo "done"
+export $BUILD_ARCH
+export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix zstd)/lib/
 
 echo -n "[2/9] Changing date in version..."
 {
@@ -144,16 +191,16 @@ then
         BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
     fi
     # cmake deps
-    echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
+    echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.15\" ${BUILD_ARCH} "
     pushd deps/build > /dev/null
-    cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
+    cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" $BUILD_ARGS
 
     echo -e "\n ... done\n"
 
     echo -e "[4/9] Building dependencies ...\n"
 
     # make deps
-    make -j$NCORES
+    make -j1
 
     echo -e "\n ... done\n"
 
@@ -192,7 +239,7 @@ then
     # mkdir build
     if [ ! -d "build" ]
     then
-	mkdir build
+    mkdir build
     fi
 
     BUILD_ARGS=""
@@ -225,11 +272,16 @@ then
     if [[ -z "$BUILD_XCODE" ]]
     then
         echo -e "\n[6/9] Building Slicer ...\n"
-        make -j1
+        make -j$NCORES
         echo -e "\n ... done"
     fi
-   echo -e "\n[7/9] Generating language files ...\n"
+
+    echo -e "\n[7/9] Generating language files ...\n"
     #make .mo
+    if [[ -n "$UPDATE_POTFILE" ]]
+    then
+        make gettext_make_pot
+    fi
     make gettext_po_to_mo
 
     popd  > /dev/null
@@ -258,5 +310,4 @@ then
     $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG
     popd  > /dev/null
 fi
-
 

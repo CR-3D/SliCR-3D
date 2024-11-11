@@ -890,6 +890,7 @@ static std::vector<std::string> s_Preset_machine_limits_options {
 
 static std::vector<std::string> s_Preset_printer_options {
     "arc_fitting",
+    "arc_fitting_resolution",
     "arc_fitting_tolerance", //TODO: keep?
     "autoemit_temperature_commands",
     "printer_technology",

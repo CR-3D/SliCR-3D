@@ -684,18 +684,18 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
         toggle_field("thumbnails_tag_format", thumbnails_format->value != (GCodeThumbnailsFormat::BIQU));
     }
 
-    toggle_field("arc_fitting_tolerance", config->option("arc_fitting")->get_int() != int(ArcFittingType::Disabled));
+    bool have_arc_fitting = config->option("arc_fitting")->get_int() != int(ArcFittingType::Disabled);
+    toggle_field("arc_fitting_resolution", have_arc_fitting);
+    toggle_field("arc_fitting_tolerance", have_arc_fitting);
 
     //firmware
     bool have_remaining_times = config->opt_bool("remaining_times");
     toggle_field("remaining_times_type", have_remaining_times);
 
-    bool has_gcode_culling = config->get_float("gcode_min_length") > 0 || config->get_float("max_gcode_per_second") > 0;
-    toggle_field("gcode_min_resolution", has_gcode_culling);
-    toggle_field("gcode_command_buffer", has_gcode_culling);
-
-    bool have_arc_fitting = config->opt_enum<ArcFittingType>("arc_fitting") != ArcFittingType::Disabled;
-    toggle_field("arc_fitting_tolerance", have_arc_fitting);
+    bool gcode_min_length = config->get_float("gcode_min_length") > 0 && config->is_enabled("gcode_min_length");
+    bool max_gcode_per_second = config->get_float("max_gcode_per_second") > 0 && config->is_enabled("max_gcode_per_second");
+    toggle_field("gcode_min_resolution", gcode_min_length || max_gcode_per_second);
+    toggle_field("gcode_command_buffer", max_gcode_per_second);
 
     auto flavor = config->option<ConfigOptionEnum<GCodeFlavor>>("gcode_flavor")->value;
     bool is_marlin_flavor = flavor == gcfMarlinLegacy || flavor == gcfMarlinFirmware;
