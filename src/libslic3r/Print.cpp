@@ -762,7 +762,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
       Polygon exclude_poly;
     
     if (exclude_areas.size() < 4)
-      return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
+       return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
 
     for (int i = 0; i < exclude_areas.size(); i++) {
       auto pt = exclude_areas[i];
