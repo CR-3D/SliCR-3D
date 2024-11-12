@@ -148,14 +148,6 @@ private:
     bool            m_force_colors_update { false };
     //std::vector<std::string>     m_mode_palette; //replaced by Slic3r::GUI::get_app_config()->tags()
 
-    wxColour m_color_highlight_label_default;
-    wxColour m_color_hovered_btn_label;
-    wxColour m_color_hovered_btn;
-    wxColour m_color_default_btn_label;
-    wxColour m_color_highlight_default;
-    wxColour m_color_selected_btn_bg;
-    bool m_force_colors_update{false};
-
     wxFont m_small_font;
     wxFont m_bold_font;
     wxFont m_normal_font;

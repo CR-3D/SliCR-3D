@@ -386,7 +386,7 @@ namespace boost { namespace polygon {
         }
     };
 
-    template <>
+   template <>
     struct polygon_mutable_traits<Slic3r::Polygon> {
         // expects stl style iterators
         template <typename iT>

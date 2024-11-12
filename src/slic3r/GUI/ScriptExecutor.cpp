@@ -1137,15 +1137,15 @@ void ScriptContainer::init(const std::string& tab_key, Tab* tab)
                                                           WRAP_FN(as_get_custom_string), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("void set_custom_string(int, string &in, string &in)",
                                                           WRAP_FN(as_set_custom_string), AngelScript::asCALL_GENERIC);
-
-            m_script_engine.get()->RegisterGlobalFunction("bool get_custom_bool(int, string &in, bool &out)", WRAP_FN(as_get_custom_bool), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("void set_custom_bool(int, string &in, bool)", WRAP_FN(as_set_custom_bool), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("bool get_custom_int(int, string &in, int &out)", WRAP_FN(as_get_custom_int), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("void set_custom_int(int, string &in, int)", WRAP_FN(as_set_custom_int), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("bool get_custom_float(int, string &in, float &out)", WRAP_FN(as_get_custom_float), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("void set_custom_float(int, string &in, float)", WRAP_FN(as_set_custom_float), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("bool get_custom_string(int, string &in, string &out)", WRAP_FN(as_get_custom_string), AngelScript::asCALL_GENERIC);
-            m_script_engine.get()->RegisterGlobalFunction("void set_custom_string(int, string &in, string &in)", WRAP_FN(as_set_custom_string), AngelScript::asCALL_GENERIC);
+            
+            m_script_engine.get()->RegisterGlobalFunction("bool as_get_custom_bool(int, string &in, bool &out)", WRAP_FN(as_get_custom_bool), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("void as_set_custom_bool(int, string &in, bool)", WRAP_FN(as_set_custom_bool), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("bool as_get_custom_int(int, string &in, int &out)", WRAP_FN(as_get_custom_int), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("void as_set_custom_int(int, string &in, int)", WRAP_FN(as_set_custom_int), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("bool as_get_custom_float(int, string &in, float &out)", WRAP_FN(as_get_custom_float), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("void as_set_custom_float(int, string &in, float)", WRAP_FN(as_set_custom_float), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("bool as_get_custom_string(int, string &in, string &out)", WRAP_FN(as_get_custom_string), AngelScript::asCALL_GENERIC);
+            m_script_engine.get()->RegisterGlobalFunction("void as_set_custom_string(int, string &in, string &in)", WRAP_FN(as_set_custom_string), AngelScript::asCALL_GENERIC);
 
             m_script_engine.get()->RegisterGlobalFunction("float get_computed_float(string &in)", WRAP_FN(as_get_computed_float), AngelScript::asCALL_GENERIC);
             m_script_engine.get()->RegisterGlobalFunction("void back_initial_value(string &in)", WRAP_FN(as_back_initial_value), AngelScript::asCALL_GENERIC);
