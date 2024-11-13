@@ -1271,7 +1271,7 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
                                    const int buffer_init)
 {
     assert(is_valid());
-
+    return 0;
     // incentive to remove odds points
     float squew[] = { 1, 0.94f, 0.98f, 0.96f, 0.99f, 0.93f, 0.97f, 0.95f};
 
@@ -1464,15 +1464,15 @@ int ArcPolyline::simplify_straits(coordf_t min_tolerance,
             assert(idxs[i - 1] < idxs[i]);
 
         // remove first point(s) if enough dist
-        while (buffer_length > min_buffer_length && current_buffer_size > 1) {
-            idxs.pop_front(); // this erase the idx before the first point. we keep first point idx as a 'previous'
-            arc.pop_front();
-            buffer_length -= line_length.front();
-            line_length.pop_front();
-            assert(weights.front() > 0);
-            weights.pop_front();
-            --current_buffer_size;
-        }
+        //while (buffer_length > min_buffer_length && current_buffer_size > 1) {
+        //    idxs.pop_front(); // this erase the idx before the first point. we keep first point idx as a 'previous'
+        //    arc.pop_front();
+        //    buffer_length -= line_length.front();
+        //    line_length.pop_front();
+        //    assert(weights.front() > 0);
+        //    weights.pop_front();
+        //    --current_buffer_size;
+        //}
 
         assert(buffer_length <= min_buffer_length || current_buffer_size <= 1);
     }
@@ -1521,14 +1521,14 @@ void ArcPolyline::simplify_straits(const coordf_t min_tolerance,
 
     for (size_t idx_pt = 1; idx_pt < this->m_path.size() - 1; ++idx_pt) {
         // only erase point between two strait segment
-        if (m_path[idx_pt].radius == 0 && m_path[idx_pt + 1].radius != 0) {
+        if (m_path[idx_pt].radius == 0 && m_path[idx_pt + 1].radius == 0) {
             // Get previous & next point
             Point previous = m_path[idx_pt - 1].point;
             Point current = m_path[idx_pt].point;
             Point next = m_path[idx_pt + 1].point;
             // check deviation
             coordf_t deviation = Line::distance_to(current, previous, next);
-            //if devaition is small enough and the distance is too small
+            //if deviation is small enough and the distance is too small
             if (deviation < min_tolerance &&
                 (min_point_distance_sqr < previous.distance_to_square(current) ||
                  min_point_distance_sqr < current.distance_to_square(next))) {
