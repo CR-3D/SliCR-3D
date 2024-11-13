@@ -53,6 +53,12 @@ std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str,
                                          double max,
                                          std::vector<Vec2d> &out_values);
                                          
+std::pair<bool, bool> get_string_points(const std::string &str,
+                                        double min,
+                                        double max,
+                                        std::vector<Vec2d> &out_values);
+
+
 class UndoValueUIManager
 {
 protected:

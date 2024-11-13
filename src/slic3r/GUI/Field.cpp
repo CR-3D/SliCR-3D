@@ -90,6 +90,7 @@ wxString get_points_string(const std::vector<Vec2d>& values)
     return ret_str;
 }
 
+// Vector String
 std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str_vec, double min, double max, std::vector<Vec2d> &out_values)
 {
     bool invalid_val = false;
@@ -135,6 +136,54 @@ std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str_vec
             if (invalid_val || out_of_range_val) {
                 return {invalid_val, out_of_range_val};
             }
+        }
+    }
+    return {invalid_val, out_of_range_val};
+}
+
+// Single String
+std::pair<bool, bool> get_string_points(const std::string &str, double min, double max, std::vector<Vec2d> &out_values)
+{
+    bool invalid_val = false;
+    bool out_of_range_val = false;
+
+    std::stringstream points_stream(str);
+    std::string token;
+
+    // Split the input string by commas to get individual point tokens
+    while (std::getline(points_stream, token, ',')) {
+        std::stringstream point_stream(token);
+        std::string x_str, y_str;
+        double x, y;
+
+        // Split each point by 'x' to separate x and y values
+        if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+            try {
+                x = std::stod(x_str);
+                y = std::stod(y_str);
+
+                // Check if values are within the specified range
+                if (min <= x && x <= max && min <= y && y <= max) {
+                    out_values.push_back(Vec2d(x, y));
+                } else {
+                    out_of_range_val = true;  // Point is out of the specified range
+                    break;
+                }
+            } catch (const std::invalid_argument&) {
+                invalid_val = true;  // Conversion error for x or y
+                break;
+            } catch (const std::out_of_range&) {
+                invalid_val = true;  // Number out of range
+                break;
+            }
+        } else {
+            invalid_val = true;  // Invalid format for x or y
+            break;
+        }
+
+        // Stop processing further if any invalid or out-of-range value is found
+        if (invalid_val || out_of_range_val) {
+            return {invalid_val, out_of_range_val};
         }
     }
 

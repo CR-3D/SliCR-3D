@@ -5406,10 +5406,18 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
                                  bool              force_as_custom)
 {
 
-    std::vector<Vec2d> points;
-    auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 1000, points);
+    std::vector<std::vector<Vec2d>> exclude_areas;
+    
+    for (const auto& area_str : bed_exclude_area) {
+        std::vector<Vec2d> points;
+        get_string_points(area_str, 0, 1000, points);
 
-    std::vector<Vec2d> exclude_areas = points;
+        if (points.size() > 4) {
+            points.resize(4);
+        }
+        
+        exclude_areas.push_back(points);
+    }
 
     bool new_shape = bed.set_shape(shape,
                                    exclude_areas,
@@ -5418,9 +5426,14 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
                                    custom_model,
                                    force_as_custom);
     
-    Pointfs prev_exclude_areas = bed.get_exclude_area();
+    std::vector<Pointfs> prev_exclude_areas = bed.get_exclude_areas();
     
-    new_shape |= (prev_exclude_areas != exclude_areas);
+    for (const auto& area : exclude_areas) {
+        if (std::find(prev_exclude_areas.begin(), prev_exclude_areas.end(), area) == prev_exclude_areas.end()) {
+            new_shape = true;
+            break;
+        }
+    }
 
     if (new_shape) {
         if (view3D)
