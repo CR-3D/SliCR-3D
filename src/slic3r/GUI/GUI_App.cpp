@@ -1380,7 +1380,6 @@ bool GUI_App::on_init_inner()
                 }
             }
         }
-        }
 
         // Detect position (display) to show the splash screen
         // Now this position is equal to the mainframe position
