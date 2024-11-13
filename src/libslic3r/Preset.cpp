@@ -893,7 +893,7 @@ static std::vector<std::string> s_Preset_printer_options {
     "arc_fitting_tolerance", //TODO: keep?
     "autoemit_temperature_commands",
     "printer_technology",
-    "bed_shape", "bed_custom_texture", "bed_custom_model", "enable_bed_exclude_area", "bed_exclude_area", 
+    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area", 
     "z_offset", "init_z_rotate",
     "binary_gcode",
     "fan_kickstart",

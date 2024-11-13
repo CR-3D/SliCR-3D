@@ -709,10 +709,6 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
 
     for (size_t i = 0; i < extruder_count; ++i) {
         
-        // BBS: Bed exclude area
-        bool enabled_bed_exclude_area = config->opt_bool("enable_bed_exclude_area", i);
-        toggle_field("bed_exclude_area", enabled_bed_exclude_area, i);
-
         bool have_retract_length = config->opt_float("retract_length", i) > 0;
         
         const bool ramping_lift = config->get_bool("travel_ramping_lift", i);

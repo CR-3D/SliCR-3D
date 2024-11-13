@@ -444,6 +444,7 @@ std::set<uint16_t> Print::object_extruders(const PrintObjectPtrs &objects) const
             region.collect_object_printing_extruders(*object->print(), extruders);
     return extruders;
 }
+
 std::set<uint16_t> Print::object_extruders() const
 {
     std::set<uint16_t> extruders;
@@ -493,14 +494,14 @@ std::set<uint16_t> Print::extruders() const
 {
     std::set<uint16_t> extruders = this->object_extruders(m_objects);
     append(extruders, this->support_material_extruders());
-
+    
     // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
     // append its extruder into the list too.
     if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
         assert(config().wipe_tower_extruder > 0 && config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
         extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
     }
-
+    
     return extruders;
 }
 

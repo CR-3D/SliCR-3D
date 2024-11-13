@@ -2142,6 +2142,8 @@ struct Plater::priv
     int get_selected_volume_idx() const;
     void selection_changed();
     void object_list_changed();
+    std::set<uint16_t> m_previous_extruders;
+    std::set<uint16_t> m_extruders_used;
     
     void select_all();
     void deselect_all();
@@ -2354,7 +2356,7 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
 , main_frame(main_frame)
 , config(Slic3r::DynamicPrintConfig::new_from_defaults_keys({
     // These keys are used by (at least) printconfig::min_object_distance
-    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area", "enable_bed_exclude_area",
+    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area",
     "brim_width", "brim_width_interior","brim_separation",
     "complete_objects",
     "parallel_objects_step",
@@ -3673,7 +3675,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
 {
     // bitmap of enum UpdateBackgroundProcessReturnState
     unsigned int return_state = 0;
-    
+
     // Get the config ready. The binary gcode flag depends on Preferences, which the backend has no access to.
     DynamicPrintConfig full_config = wxGetApp().preset_bundle->full_config();
     if (full_config.has("binary_gcode")) // needed for SLA
@@ -3775,6 +3777,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
             return_state |= UPDATE_BACKGROUND_PROCESS_INVALID;
     }
     
+    
     // actualizate warnings
     if (invalidated != Print::APPLY_STATUS_UNCHANGED || background_process.empty()) {
         if (background_process.empty())
@@ -3825,6 +3828,16 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
                                                  * when this function is called several times during calculations
                                                  * */
             show_action_buttons(true);
+    }
+    
+    // Set Bed Shape based on Extruders Used
+    std::set<uint16_t> extruders = this->fff_print.extruders();
+    if (extruders != m_previous_extruders) {
+        // Extruders have changed, execute the required logic
+        m_extruders_used = extruders;
+        q->set_bed_shape();
+        // Update the previous_extruders to the current extruders
+        m_previous_extruders = extruders;
     }
     
     // update tab if needed
@@ -5405,46 +5418,47 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
                                  const std::string &custom_model,
                                  bool              force_as_custom)
 {
-    
-    std::vector<unsigned char> is_exclude_area_enabled_raw = config->option<ConfigOptionBools>("enable_bed_exclude_area")->get_values();
-    std::vector<bool> is_exclude_area_enabled(is_exclude_area_enabled_raw.begin(), is_exclude_area_enabled_raw.end());
-    
+    // Check the nozzle size; if it's 1 or less, skip setting the exclude areas
+    size_t nozzle_size = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values().size();
+    if (nozzle_size <= 1) {
+        bool new_shape = bed.set_shape(shape, {}, max_print_height, custom_texture, custom_model, force_as_custom);
+        if (new_shape) {
+            if (view3D) view3D->bed_shape_changed();
+            if (preview) preview->bed_shape_changed();
+        }
+        return;
+    }
+
     std::vector<std::vector<Vec2d>> exclude_areas;
-    
-    for (size_t i = 0; i < is_exclude_area_enabled.size(); ++i) {
-        if (is_exclude_area_enabled[i]) {  // Only process if the option is enabled
+
+    // Loop through each extruder in use and dynamically add its associated exclusion area if enabled
+    for (uint16_t extruder_id : m_extruders_used) {
+        if (extruder_id < bed_exclude_area.size()) {
             std::vector<Vec2d> points;
-            get_string_points(bed_exclude_area[i], 0, 1000, points);
-            
+            get_string_points(bed_exclude_area[extruder_id], 0, 1000, points);
+
             if (points.size() > 4) {
                 points.resize(4);
             }
-            
+
             exclude_areas.push_back(points);
         }
     }
-    
-    bool new_shape = bed.set_shape(shape,
-                                   exclude_areas,
-                                   max_print_height,
-                                   custom_texture,
-                                   custom_model,
-                                   force_as_custom);
-    
+
+    bool new_shape = bed.set_shape(shape, exclude_areas, max_print_height, custom_texture, custom_model, force_as_custom);
+
     std::vector<Pointfs> prev_exclude_areas = bed.get_exclude_areas();
-    
+
     for (const auto& area : exclude_areas) {
         if (std::find(prev_exclude_areas.begin(), prev_exclude_areas.end(), area) == prev_exclude_areas.end()) {
             new_shape = true;
             break;
         }
     }
-    
+
     if (new_shape) {
-        if (view3D)
-            view3D->bed_shape_changed();
-        if (preview)
-            preview->bed_shape_changed();
+        if (view3D) view3D->bed_shape_changed();
+        if (preview) preview->bed_shape_changed();
     }
 }
 
@@ -8530,8 +8544,7 @@ void Plater::on_config_change(const DynamicConfig &config)
         else if (opt_key == "bed_shape"
               || opt_key == "bed_custom_texture"
               || opt_key == "bed_custom_model"
-              || opt_key == "bed_exclude_area"
-              || opt_id == "enable_bed_exclude_area") {
+              || opt_key == "bed_exclude_area") {
             bed_shape_changed = true;
             update_scheduled  = true;
             
