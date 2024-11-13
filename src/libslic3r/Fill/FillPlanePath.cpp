@@ -136,7 +136,7 @@ void FillPlanePath::_fill_surface_single(
         Polyline mini_polyline;
         mini_polyline.points.reserve(iend - istart);
         mini_polyline.points.insert(mini_polyline.points.end(), polyline.points.begin()+istart, polyline.points.begin()+iend);
-        Polylines polylines = intersection_pl(polylines, expolygon);
+        Polylines polylines = intersection_pl(mini_polyline, expolygon);
         if (!polylines.empty()) {
             assert(!polylines.front().empty());
             if (!all_poly.empty() && polylines.front().front().coincides_with_epsilon(all_poly.back().back())) {
