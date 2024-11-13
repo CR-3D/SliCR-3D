@@ -3189,7 +3189,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
     GLGizmoSimplify::add_simplify_suggestion_notification(
         obj_idxs, model.objects, *notification_manager);
 
-    if (s_multiple_beds.update_after_load_or_arrange(model, q->build_volume(), [this]() {
+    if (s_multiple_beds.rearrange_after_load(model, q->build_volume(), [this]() {
             q->canvas3D()->check_volumes_outside_state();
             s_multiple_beds.ensure_wipe_towers_on_beds(model, fff_prints);
          }))
@@ -6137,10 +6137,10 @@ void Plater::load_project(const wxString &filename)
     // Take the Undo / Redo snapshot.
     Plater::TakeSnapshot snapshot(this, _L("Load Project") + ": " + wxString::FromUTF8(into_path(filename).stem().string().c_str()), UndoRedo::SnapshotType::ProjectSeparator);
 
+    p->reset();
+
     s_multiple_beds.set_loading_project_flag(true);
     ScopeGuard guard([](){ s_multiple_beds.set_loading_project_flag(false);});
-
-    p->reset();
     
     if (!load_files({into_path(filename)}, true, true, true, false).empty()) {
         // At least one file was loaded.

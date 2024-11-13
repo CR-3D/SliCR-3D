@@ -57,15 +57,15 @@ public:
 	int    get_last_hovered_bed() const { return m_last_hovered_bed; }
 
     void   update_shown_beds(Model& model, const BuildVolume& build_volume);
-	bool   update_after_load_or_arrange(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn);
+	bool   rearrange_after_load(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn);
 	void   set_loading_project_flag(bool project) { m_loading_project = project; }
 	bool   get_loading_project_flag() const { return m_loading_project; }
 
-	void   update_build_volume(const BoundingBoxf& build_volume_bb, const BoundingBoxf& build_volume_bb_incl_model) {
+	void   update_build_volume(const BoundingBoxf& build_volume_bb) {
         m_build_volume_bb = build_volume_bb;
-        m_build_volume_bb_incl_model = build_volume_bb_incl_model;
     }
-    Vec2crd get_bed_gap() const;
+    Vec2d   bed_gap() const;
+	Vec2crd get_bed_gap() const;
 	void   ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints);
 
 private:
@@ -79,16 +79,8 @@ private:
 	std::map<PrintBase*, size_t> m_printbase_to_texture;
 	int m_last_hovered_bed = -1;
 	BoundingBoxf m_build_volume_bb;
-	BoundingBoxf m_build_volume_bb_incl_model;
-	bool m_layout_linear = false;
+	bool m_legacy_layout = false;
 	bool m_loading_project = false;
-
-    // The x value is bed gap as multiples of the actual printable area bounding box,
-    // so it can be matched to how the old slicer arranged things (in SceneBuilder.cpp).
-    // The y value is a multiple of the larger of printable area BB and bed model BB -
-    // this is to make sure that the bed models do not overlap.
-    const double bed_gap_x = 2./10;
-    const double bed_gap_y = 2./10;
 
 };
 

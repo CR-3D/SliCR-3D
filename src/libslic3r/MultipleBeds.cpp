@@ -96,14 +96,20 @@ Vec3d MultipleBeds::get_bed_translation(int id) const
         return Vec3d::Zero();
     int x = 0;
     int y = 0;
-    if (m_layout_linear)
+    if (m_legacy_layout)
         x = id;
     else {
         BedsGrid::GridCoords coords{BedsGrid::index2grid_coords(id)};
         x = coords.x();
         y = coords.y();
     }
-    return Vec3d(x * m_build_volume_bb_incl_model.size().x() * (1. + bed_gap_x), y * m_build_volume_bb_incl_model.size().y() * (1. + bed_gap_y), 0.);
+
+    // As for the m_legacy_layout switch, see comments at definition of bed_gap_relative.
+    Vec2d  gap = bed_gap();
+    double gap_x = (m_legacy_layout ? m_build_volume_bb.size().x() * (2./10.) : gap.x());
+    return Vec3d(x * (m_build_volume_bb.size().x() + gap_x),
+                 y * (m_build_volume_bb.size().y() + gap.y()), // When using legacy layout, y is zero anyway.
+                 0.);
 }
 
 void MultipleBeds::clear_inst_map()
@@ -207,13 +213,12 @@ void MultipleBeds::update_shown_beds(Model& model, const BuildVolume& build_volu
     set_active_bed(m_number_of_beds != original_number_of_beds ? 0 : stash_active);
 }
 
-// Beware! This function is also needed for proper update of bed when normal grid project is loaded!
-bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn)
+bool MultipleBeds::rearrange_after_load(Model& model, const BuildVolume& build_volume, std::function<void()> update_fn)
 {
     int original_number_of_beds = m_number_of_beds;
     int stash_active = get_active_bed();
     Slic3r::ScopeGuard guard([&]() {
-        m_layout_linear = false;
+        m_legacy_layout = false;
         m_number_of_beds = get_max_beds();
         model.update_print_volume_state(build_volume);
         int max_bed = 0;
@@ -226,8 +231,7 @@ bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume&
         update_fn();
     });
 
-    m_layout_linear = true;
-    std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
+    m_legacy_layout = true;
     int abs_max = get_max_beds();
     while (true) {
         // This is to ensure that even objects on linear bed with higher than
@@ -242,10 +246,11 @@ bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume&
         abs_max += get_max_beds();
     }
     m_number_of_beds = 1;
-    std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
+    m_legacy_layout = false;
 
     int max_bed = 0;
 
+    // Check that no instances are out of any bed.
     std::map<ObjectID, std::pair<ModelInstance*, int>> id_to_ptr_and_bed;
     for (ModelObject* mo : model.objects) {
         for (ModelInstance* mi : mo->instances) {
@@ -267,27 +272,34 @@ bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume&
         return false;
 
     // All instances are on some bed, at least two are used.
+    // Move everything as if its bed was in the first position.
     for (auto& [oid, mi_and_bed] : id_to_ptr_and_bed) {
         auto& [mi, bed_idx] = mi_and_bed;
-        std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
+        m_legacy_layout = true;
         mi->set_offset(mi->get_offset() - get_bed_translation(bed_idx));
-        std::swap(m_build_volume_bb, m_build_volume_bb_incl_model);
-    }
-
-    m_layout_linear = false;
-    for (auto& [oid, mi_and_bed] : id_to_ptr_and_bed) {
-        auto& [mi, bed_idx] = mi_and_bed;
+        m_legacy_layout = false;
         mi->set_offset(mi->get_offset() + get_bed_translation(bed_idx));
     }
     return true;
 }
 
 
+
+Vec2d MultipleBeds::bed_gap() const
+{
+    // This is the only function that defines how far apart should the beds be. Used in scene and arrange.
+    // Note that the spacing is momentarily switched to legacy value of 2/10 when a project is loaded.
+    // Slicers before 2.9.0 used this value for arrange, and there are existing projects with objects spaced that way (controlled by the m_legacy_layout flag).
+    
+    // TOUCHING THIS WILL BREAK LOADING OF EXISTING PROJECTS !!!
+
+    double gap = std::min(100., m_build_volume_bb.size().norm() * (3./10.));
+    return Vec2d::Ones() * gap;
+}
+
+
 Vec2crd MultipleBeds::get_bed_gap() const {
-    const Vec2d size_with_gap{
-        m_build_volume_bb_incl_model.size().cwiseProduct(
-            Vec2d::Ones() + Vec2d{bed_gap_x, bed_gap_y})};
-    return scaled(Vec2d{(size_with_gap - m_build_volume_bb.size()) / 2.0});
+    return scaled(Vec2d{bed_gap() / 2.0});
 };
 
 void MultipleBeds::ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints)

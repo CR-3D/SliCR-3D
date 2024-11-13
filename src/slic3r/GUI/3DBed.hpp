@@ -44,6 +44,7 @@ private:
     std::string m_model_filename;
     // absolute path for m_model_filename
     boost::filesystem::path m_model_path;
+    bool m_models_overlap;
     // Print volume bounding box exteded with axes and model.
     BoundingBoxf3 m_extended_bounding_box;
 

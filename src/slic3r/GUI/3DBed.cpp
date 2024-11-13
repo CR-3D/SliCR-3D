@@ -176,9 +176,18 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     init_internal_model_from_file();
     init_triangles();
 
-    BoundingBoxf bb = m_build_volume.bounding_volume2d();
-    bb.max = Vec2d(bb.max.x() + std::max(0., m_model.model.get_bounding_box().size().x() - bb.size().x()), bb.max.y() + std::max(0., m_model.model.get_bounding_box().size().y() - bb.size().y()));
-    s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d(), bb);
+    s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
+
+    m_models_overlap = false;
+    if (! m_model_filename.empty()) {
+        // Calculate bb of the bed model and figure out if the models would overlap when rendered next to each other.
+        const BoundingBoxf3& mdl_bb3 = m_model.model.get_bounding_box();
+        const BoundingBoxf model_bb(Vec2d(mdl_bb3.min.x(), mdl_bb3.min.y()), Vec2d(mdl_bb3.max.x(), mdl_bb3.max.y()));
+        BoundingBoxf bed_bb = m_build_volume.bounding_volume2d();
+        bed_bb.translate(-m_model_offset.x(), -m_model_offset.y());
+        Vec2d gap = unscale(s_multiple_beds.get_bed_gap());
+        m_models_overlap = (model_bb.size().x() - bed_bb.size().x() > 2 * gap.x() || model_bb.size().y() - bed_bb.size().y() > 2 * gap.y());
+    }
 
     // Set the origin and size for rendering the coordinate system axes.
     m_axes.set_origin({ 0.0, 0.0, static_cast<double>(GROUND_Z) });
@@ -578,7 +587,12 @@ void Bed3D::render_grid(bool bottom, bool has_model)
 
 void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool is_active)
 {
-    if (!bottom) {
+    if (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1) {
+        render_default(bottom, false, show_texture, view_matrix, projection_matrix);
+        return;
+    }
+
+    if (!bottom)
         render_model(view_matrix, projection_matrix);
     }
     
@@ -779,7 +793,8 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
 
 void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking, bool is_active)
 {
-    if (m_texture_filename.empty() && m_model_filename.empty()) {
+    if ((m_texture_filename.empty() && m_model_filename.empty())
+     || (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1)) {
         render_default(bottom, picking, show_texture, view_matrix, projection_matrix);
         return;
     }
