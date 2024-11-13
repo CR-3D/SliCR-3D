@@ -17,7 +17,7 @@ export ROOT=`pwd`
 export NCORES=`nproc`
 
 function usage() {
-    echo "Usage: ./BuildLinux.sh [-h][-u][-w][-g][-b][-r][-d][-s][-l][-t][-i]"
+    echo "Usage: ./BuildLinux.sh [-h][-u][-w][-g][-b][-r][-d][-s][-l][-t][-i][-v]"
     echo "   -h: this message"
     echo "   -u: only update dependency packets (optional and need sudo)"
     echo "   -w: wipe build directories before building"
@@ -29,6 +29,7 @@ function usage() {
     echo "   -l: update language .pot file"
     echo "   -t: build tests (in combination with -s)"
     echo "   -i: generate .tgz and appimage (optional)"
+    echo "   -v: change the version 'UNKNOWN' to the date of the day"
     echo -e "\n   For a first use, you want to 'sudo ./BuildLinux.sh -u'"
     echo -e "   and then './BuildLinux.sh -dsi'\n"
     exit 0
@@ -79,7 +80,7 @@ function check_operating_system() {
 
 function check_available_memory_and_disk() {
     FREE_MEM_GB=$(free -g -t | grep 'Mem:' | rev | cut -d" " -f1 | rev)
-    MIN_MEM_GB=5
+    MIN_MEM_GB=3
 
     FREE_DISK_KB=$(df -k . | tail -1 | awk '{print $4}')
     MIN_DISK_KB=$((10 * 1024 * 1024))
@@ -121,7 +122,7 @@ check_available_memory_and_disk
 #---------------------------------------------------------------------------------------
 #check command line arguments
 unset name
-while getopts ":hugbdrsltiw" opt; do
+while getopts ":bdghilrstuvw" opt; do
     case ${opt} in
         u )
             UPDATE_LIB="1"
@@ -149,6 +150,9 @@ while getopts ":hugbdrsltiw" opt; do
             ;;
         r )
             BUILD_CLEANDEPEND="1"
+            ;;
+        v )
+            VERSION_DATE="1"
             ;;
         w )
             BUILD_WIPE="1"
@@ -234,10 +238,14 @@ then
     pushd destdir/usr/local/lib  > /dev/null
     if [[ -z "$FOUND_GTK3_DEV" ]]
     then
-        cp libwxscintilla-3.1.a libwx_gtk2u_scintilla-3.1.a
+        cp libwxscintilla-3.2.a libwx_gtk2u_scintilla-3.2.a
     else
-        cp libwxscintilla-3.1.a libwx_gtk3u_scintilla-3.1.a
+        cp libwxscintilla-3.2.a libwx_gtk3u_scintilla-3.2.a
     fi
+    echo "> ls destdir/usr/local/lib"
+    ls -al .
+    echo "> ls ROOT/deps/build/destdir/usr/local/lib"
+    ls -al $ROOT/deps/build/destdir/usr/local/lib
     popd > /dev/null
     popd > /dev/null
     echo -e "\n ... done\n"
@@ -257,10 +265,30 @@ then
     echo -e "[5/9] Configuring SuperSlicer ...\n"
     if [[ -n $BUILD_WIPE ]]
     then
-       echo -e "\n wiping build directory ...\n"
+       echo -n "wiping build directory ..."
        rm -fr build
-       echo -e "\n ... done"
+       echo " done"
     fi
+
+	echo -n "Updating submodules ..."
+	{
+		# update submodule profiles
+		pushd resources/profiles
+		git submodule update --init
+		popd
+	} #> $ROOT/build/Build.log # Capture all command output
+	echo " done"
+
+	if [[ -n $VERSION_DATE ]]
+    then
+		echo -n "Changing date in version ..."
+		# change date in version
+		sed "s/+UNKNOWN/-$(date '+%F')/" version.inc > version.date.inc
+		echo " done"
+	else
+		sed "s/+UNKNOWN//" version.inc > version.date.inc
+    fi
+	
     # mkdir build
     if [ ! -d "build" ]
     then
@@ -311,6 +339,14 @@ then
     pushd build  > /dev/null
     $ROOT/build/src/BuildLinuxImage.sh -a $FORCE_GTK2
     popd  > /dev/null
+    echo "> ls ROOT"
+    ls -al $ROOT
+    echo "> ls ROOT/build"
+    ls -al $ROOT/build
+    echo "> ls -al ROOT/build/bin"
+    ls -al $ROOT/build/bin
+    echo "> ls -al ROOT/build/src"
+    ls -al $ROOT/build/src
 fi
 
 if [[ -n "$BUILD_IMAGE" ]]
@@ -320,4 +356,12 @@ then
     pushd build  > /dev/null
     $ROOT/build/src/BuildLinuxImage.sh -i $FORCE_GTK2
     popd  > /dev/null
+    echo "> ls ROOT"
+    ls -al $ROOT
+    echo "> ls ROOT/build"
+    ls -al $ROOT/build
+    echo "> ls -al ROOT/build/bin"
+    ls -al $ROOT/build/bin
+    echo "> ls -al ROOT/build/src"
+    ls -al $ROOT/build/src
 fi

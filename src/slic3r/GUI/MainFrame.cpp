@@ -360,8 +360,9 @@ void MainFrame::update_icon() {
     case ESettingsLayout::Unknown:
     {
         break;
-    } case ESettingsLayout::Old:
-      case ESettingsLayout::Hidden:
+    }
+    case ESettingsLayout::Old:
+    case ESettingsLayout::Hidden:
     {
         if (m_tabpanel->GetPageCount() == 4 && icon_size >= 8) {
             m_tabpanel->SetPageImage(0, 0);
@@ -374,7 +375,9 @@ void MainFrame::update_icon() {
     case ESettingsLayout::Tabs:
     {
 #ifdef __APPLE__
-        // no icons for macos
+        m_tabpanel->SetPageImage(3, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 6 : 3);
+        m_tabpanel->SetPageImage(4, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 7 : 4);
+        m_tabpanel->SetPageImage(5, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 8 : 5);
         break;
 #else
         if (icon_size >= 8)
@@ -388,6 +391,7 @@ void MainFrame::update_icon() {
         }
         break;
 #endif
+    }
     case ESettingsLayout::Dlg:
     {
         if (m_tabpanel->GetPageCount() == 4 && icon_size >= 8) {

@@ -101,7 +101,7 @@ inline Eigen::Matrix<Float, 2, 1, Eigen::DontAlign> arc_middle_point(
 // negative radius: take longer arc
 // radius must NOT be zero!
 template<typename Derived, typename Derived2, typename Float>
-inline typename Float arc_angle(
+inline Float arc_angle(
     const Eigen::MatrixBase<Derived>   &start_pos,
     const Eigen::MatrixBase<Derived2>  &end_pos, 
     const Float                         radius)
@@ -127,7 +127,7 @@ inline typename Float arc_angle(
 // negative radius: take longer arc
 // radius must NOT be zero!
 template<typename Derived, typename Derived2, typename Float>
-inline typename Float arc_length(
+inline Float arc_length(
     const Eigen::MatrixBase<Derived>   &start_pos,
     const Eigen::MatrixBase<Derived2>  &end_pos,
     const Float                         radius)
@@ -141,7 +141,7 @@ inline typename Float arc_length(
 
 // Calculate positive length of an arc given two points, center and orientation.
 template<typename Derived, typename Derived2, typename Derived3, typename Float>
-inline typename Float arc_length(
+inline Float arc_length(
     const Eigen::MatrixBase<Derived>   &start_pos,
     const Eigen::MatrixBase<Derived2>  &end_pos,
     const Eigen::MatrixBase<Derived3>  &center_pos,

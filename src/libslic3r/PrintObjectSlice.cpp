@@ -273,8 +273,10 @@ static std::vector<std::vector<ExPolygons>> slices_to_regions(
                 if (model_volume->is_model_part()) {
                     VolumeSlices &slices_src = volume_slices_find_by_id(volume_slices, model_volume->id());
                     auto         &slices_dst = slices_by_region[layer_range.volume_regions.front().region->print_object_region_id()];
-                    for (; z_idx < zs.size() && zs[z_idx] < layer_range.layer_height_range.second; ++ z_idx)
+                    for (; z_idx < zs.size() && zs[z_idx] < layer_range.layer_height_range.second; ++z_idx) {
                         slices_dst[z_idx] = std::move(slices_src.slices[z_idx]);
+                        ensure_valid(slices_dst[z_idx], std::max(scale_t(print_config.resolution.value), SCALED_EPSILON));
+                    }
                 }
             } else {
                 zs_complex.reserve(zs.size());
@@ -303,6 +305,7 @@ static std::vector<std::vector<ExPolygons>> slices_to_regions(
                         zs_complex.push_back({ z_idx, z });
                     else if (idx_first_printable_region >= 0) {
                         const PrintObjectRegions::VolumeRegion &region = layer_range.volume_regions[idx_first_printable_region];
+                        assert_valid(volume_slices_find_by_id(volume_slices, region.model_volume->id()).slices[z_idx]);
                         slices_by_region[region.region->print_object_region_id()][z_idx] = std::move(volume_slices_find_by_id(volume_slices, region.model_volume->id()).slices[z_idx]);
                     }
                 }
@@ -310,6 +313,7 @@ static std::vector<std::vector<ExPolygons>> slices_to_regions(
             throw_on_cancel_callback();
         }
     }
+    for(auto &slices : slices_by_region) for(auto &expolys : slices) assert_valid(expolys);
 
     // Second perform region clipping and assignment in parallel.
     if (! zs_complex.empty()) {
@@ -468,6 +472,7 @@ static std::vector<std::vector<ExPolygons>> slices_to_regions(
                 }
             });
     }
+    for(auto &slices : slices_by_region) for(auto &expolys : slices) assert_valid(expolys);
 
     // filament shrink
     for (const std::unique_ptr<PrintRegion>& pr : print_object_regions.all_regions) {

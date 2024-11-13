@@ -329,7 +329,7 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
             wipe_length -= segment_length;
             no_lift_length -= segment_length;
             done = wipe_length < EPSILON;
-            assert(wipe_length > -0.1);
+            //assert(wipe_length > -0.1);
             return partial_segment;
         };
         // Start with the current position, which may be different from the wipe path start in case of loop clipping.

@@ -892,6 +892,14 @@ Path fit_path(const Points &src_in, double tolerance, double fit_circle_percent_
 
 void reverse(Path &path)
 {
+#ifdef _DEBUG
+    for (size_t i = 1; i < path.size(); i++) {
+        if (path[i].radius) {
+            const coordf_t computed_length = segment_length<coordf_t>(path[i - 1], path[i]);
+            assert(is_approx(computed_length, path[i].length, SCALED_EPSILON*1.));
+        }
+    }
+#endif
     if (path.size() > 1) {
         auto prev = path.begin();
         assert(prev->radius == 0);
@@ -909,32 +917,53 @@ void reverse(Path &path)
         path.back().orientation = Orientation::Unknown;
         std::reverse(path.begin(), path.end());
     }
+#ifdef _DEBUG
     for (size_t i = 1; i < path.size(); i++) {
-        if(path[i].radius)
-            assert(is_approx(segment_length<coordf_t>(path[i-1], path[i]), path[i].length, EPSILON));
+        if (path[i].radius) {
+            const coordf_t computed_length = segment_length<coordf_t>(path[i - 1], path[i]);
+            assert(is_approx(computed_length, path[i].length, SCALED_EPSILON*1.));
+        }
     }
+#endif
 }
 
 double clip_start(Path &path, const coordf_t len)
 {
+#ifdef _DEBUG
     Path ptest1 = path;
     double rem1 = clip_end(ptest1, len);
-
-    reverse(path);
-    double remaining = clip_end(path, len);
-    reverse(path);
-    // Return remaining distance to go.
-    return remaining;
-}
-
-double clip_end(Path &path, coordf_t distance)
-{
     for (size_t i = 1; i < path.size(); i++) {
         if (path[i].radius) {
             coordf_t new_length = segment_length<coordf_t>(path[i - 1], path[i]);
             assert(is_approx(new_length, path[i].length, EPSILON));
         }
     }
+#endif
+    reverse(path);
+    double remaining = clip_end(path, len);
+    reverse(path);
+#ifdef _DEBUG
+    for (size_t i = 1; i < path.size(); i++) {
+        if (path[i].radius) {
+            coordf_t new_length = segment_length<coordf_t>(path[i - 1], path[i]);
+            assert(is_approx(new_length, path[i].length, EPSILON));
+        }
+    }
+#endif
+    // Return remaining distance to go.
+    return remaining;
+}
+
+double clip_end(Path &path, coordf_t distance)
+{
+#ifdef _DEBUG
+    for (size_t i = 1; i < path.size(); i++) {
+        if (path[i].radius) {
+            coordf_t new_length = segment_length<coordf_t>(path[i - 1], path[i]);
+            assert(is_approx(new_length, path[i].length, EPSILON));
+        }
+    }
+#endif
     while (distance > 0) {
         const Segment last = path.back();
         path.pop_back();

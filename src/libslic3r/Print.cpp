@@ -1155,6 +1155,26 @@ public:
 };
 #endif
 
+#ifdef _DEBUG
+    struct PointAssertVisitor : public ExtrusionVisitorRecursiveConst {
+        virtual void default_use(const ExtrusionEntity& entity) override {};
+        virtual void use(const ExtrusionPath &path) override {
+            for (size_t idx = 1; idx < path.size(); ++idx)
+                assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
+        }
+        virtual void use(const ExtrusionLoop& loop) override {
+            Point last_pt = loop.last_point();
+            for (const ExtrusionPath &path : loop.paths) {
+                assert(path.polyline.size() >= 2);
+                assert(path.first_point() == last_pt);
+                for (size_t idx = 1; idx < path.size(); ++idx)
+                    assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
+                last_pt = path.last_point();
+            }
+            assert(loop.paths.front().first_point() == loop.paths.back().last_point());
+        }
+    } ptvisitor;
+#endif
 // Slicing process, running at a background thread.
 void Print::process()
 {
@@ -1168,6 +1188,12 @@ void Print::process()
             m_objects[idx]->make_perimeters();
         }
     );
+#ifdef _DEBUG
+    for (PrintObject* obj : m_objects)
+        for (Layer* lay : obj->layers())
+            for (LayerRegion* lr : lay->regions())
+                lr->perimeters().visit(ptvisitor);
+#endif
     secondary_status_counter_reset();
     Slic3r::parallel_for(size_t(0), m_objects.size(),
         [this](const size_t idx) {
@@ -1182,6 +1208,7 @@ void Print::process()
     );
 
     // The following step writes to m_shared_regions, it should not run in parallel.
+    //FIXME: only run it when the support is needed.
     secondary_status_counter_reset();
     for (PrintObject *obj : m_objects)
         obj->generate_support_spots();
@@ -1240,24 +1267,6 @@ void Print::process()
         BOOST_LOG_TRIVIAL(error) << boost::format("gcode path conflicts found between %1% and %2%") % conflictRes->_objName1 % conflictRes->_objName2;
 
 #ifdef _DEBUG
-    struct PointAssertVisitor : public ExtrusionVisitorRecursiveConst {
-        virtual void default_use(const ExtrusionEntity& entity) override {};
-        virtual void use(const ExtrusionPath &path) override {
-            for (size_t idx = 1; idx < path.size(); ++idx)
-                assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
-        }
-        virtual void use(const ExtrusionLoop& loop) override {
-            Point last_pt = loop.last_point();
-            for (const ExtrusionPath &path : loop.paths) {
-                assert(path.polyline.size() >= 2);
-                assert(path.first_point() == last_pt);
-                for (size_t idx = 1; idx < path.size(); ++idx)
-                    assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
-                last_pt = path.last_point();
-            }
-            assert(loop.paths.front().first_point() == loop.paths.back().last_point());
-        }
-    } ptvisitor;
     for (PrintObject* obj : m_objects)
         for (Layer* lay : obj->layers())
             for (LayerRegion* lr : lay->regions())

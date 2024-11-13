@@ -607,9 +607,10 @@ void SimplifyVisitor::use(ExtrusionPath3D& path3D) {
 }
 void SimplifyVisitor::use(ExtrusionMultiPath &multipath)
 {
-    for (size_t i = 0;i<multipath.paths.size() ;++i) {
+    for (size_t i = 0; i < multipath.paths.size(); ++i) {
         ExtrusionPath *path = &multipath.paths[i];
         //if (min_path_size > 0 && path.length() < min_path_size) {
+        assert(!m_last_deleted);
         path->visit(*this);
         while (m_last_deleted) {
             ExtrusionPath *path_merged = nullptr;
@@ -620,7 +621,7 @@ void SimplifyVisitor::use(ExtrusionMultiPath &multipath)
                 multipath.paths.erase(multipath.paths.begin() + i);
                 --i;
             } else if (i + 1 < multipath.size()) {
-                ExtrusionPath &path_next = multipath.paths[i];
+                ExtrusionPath &path_next = multipath.paths[i + 1];
                 path->polyline.append(path_next.polyline);
                 // erase next
                 multipath.paths.erase(multipath.paths.begin() + i + 1);
@@ -651,7 +652,7 @@ void SimplifyVisitor::use(ExtrusionMultiPath3D &multipath3D)
                 multipath3D.paths.erase(multipath3D.paths.begin() + i);
                 --i;
             } else if (i + 1 < multipath3D.size()) {
-                ExtrusionPath &path_next = multipath3D.paths[i];
+                ExtrusionPath &path_next = multipath3D.paths[i + 1];
                 path->polyline.append(path_next.polyline);
                 // erase next
                 multipath3D.paths.erase(multipath3D.paths.begin() + i + 1);
@@ -682,7 +683,7 @@ void SimplifyVisitor::use(ExtrusionLoop &loop)
                 loop.paths.erase(loop.paths.begin() + i);
                 --i;
             } else if (i + 1 < loop.paths.size()) {
-                ExtrusionPath &path_next = loop.paths[i];
+                ExtrusionPath &path_next = loop.paths[i + 1];
                 path->polyline.append(path_next.polyline);
                 // erase next
                 loop.paths.erase(loop.paths.begin() + i + 1);
@@ -708,6 +709,7 @@ void SimplifyVisitor::use(ExtrusionEntityCollection &collection)
             // erase it, without any merge.
             collection.remove(i);
             --i;
+            m_last_deleted = false;
         }
     }
 }

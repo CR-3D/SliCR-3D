@@ -11,29 +11,32 @@
 # 10 Mar 2024, wschadow, added options
 #
 
-while getopts ":ihag" opt; do
+export OS_NAME="macOS"
+VERSION_NUMBER=""
+while getopts ":ixavh" opt; do
   case ${opt} in
     i )
         export BUILD_IMAGE="1"
         ;;
+    x )
+        export OS_NAME="macOS-intel"
+        ;;
     a )
-        export BUILD_APP="1"
+        export OS_NAME="macOS-arm"
         ;;
-    g )
-        export FORCE_GTK2="1"
+    v )
+        export VERSION_NUMBER="-@SLIC3R_VERSION_FULL@"
         ;;
-    h ) echo "Usage: ./BuildLinuxImage.sh [-g][-i][-a][-h]"
-        echo "   -g: force gtk2 build"
+    h ) echo "Usage: ./BuildLinuxImage.sh [-i][-a][-h]"
         echo "   -i: generate Appimage (optional)"
-	    echo "   -a: generate tgz (optional)"
+        echo "   -x: set output name for intel (optional)"
+        echo "   -a: set output name for arm (optional)"
         echo "   -h: help"
         exit 0
         ;;
   esac
 done
 
-if [[ -n "$BUILD_APP" ]]
-then
     echo -e "\n[8/9] Generating MacOS app..."
     {
         # update Info.plist
@@ -71,24 +74,24 @@ then
         find pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources/localization -name "Slic3r.mo" -type f -delete
 
         # copy bin and do not let it lower case
-        cp -f src/@SLIC3R_APP_CMD@ pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        cp -f bin/@SLIC3R_APP_CMD@ pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
         chmod u+x pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
         cp /usr/local/opt/zstd/lib/libzstd.1.dylib pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/libzstd.1.dylib
 
      } &> $ROOT/Build.log # Capture all command output
     echo -e "\n ... done\n"
-fi
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
 echo -e "\n[9/9] Creating .tgz and DMG Image for distribution..."
 {
 
-    tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.tgz pack/@SLIC3R_APP_KEY@
+    tar -czvf @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.tgz pack/@SLIC3R_APP_KEY@
+	#tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.tgz pack/@SLIC3R_APP_KEY@
 
     # create dmg
     hdiutil create -ov -fs HFS+ -volname "@SLIC3R_APP_KEY@" -srcfolder "pack/@SLIC3R_APP_KEY@" temp.dmg
-    hdiutil convert temp.dmg -format UDZO -o @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.dmg
+    hdiutil convert temp.dmg -format UDZO -o @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
     rm -f temp.dmg
 
     popd

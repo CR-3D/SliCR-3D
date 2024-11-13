@@ -1678,6 +1678,7 @@ ExPolygons dense_fill_fit_to_size(const ExPolygon& bad_polygon_to_cover,
 
 void PrintObject::tag_under_bridge() {
     const float COEFF_SPLIT = 1.5;
+    coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->print()->config().resolution.value));
 
     for (size_t region_idx = 0; region_idx < this->print()->num_print_regions(); ++ region_idx) {
         const PrintRegion* region = &this->print()->get_print_region(region_idx);
@@ -1701,7 +1702,7 @@ void PrintObject::tag_under_bridge() {
             }
             // run in parallel, it's a costly thing.
             Slic3r::parallel_for(size_t(0), this->layers().size() - 1,
-                [this, &layeridx2lregion, &new_surfaces, region, COEFF_SPLIT](const size_t idx_layer) {
+                [this, &layeridx2lregion, &new_surfaces, region, COEFF_SPLIT, scaled_resolution](const size_t idx_layer) {
                 // we our LayerRegion and the one on top
                 LayerRegion* layerm = layeridx2lregion[idx_layer];
                 const LayerRegion* previousOne = nullptr;
@@ -1855,6 +1856,7 @@ void PrintObject::tag_under_bridge() {
                                                 : intersection_ex(ExPolygons{ dense_poly }, layerm->fill_no_overlap_expolygons());
                                             //add overlap with everything
                                             offseted_dense_polys = offset_ex(offseted_dense_polys, overlap);
+                                            ensure_valid(offseted_dense_polys, scaled_resolution);
                                             for (ExPolygon offseted_dense_poly : offseted_dense_polys) {
                                                 Surface dense_surf(surface, offseted_dense_poly);
                                                 dense_surf.maxNbSolidLayersOnTop = 1;
@@ -1863,6 +1865,7 @@ void PrintObject::tag_under_bridge() {
                                             }
                                         }
                                         sparse_polys = union_ex(sparse_polys);
+                                        ensure_valid(sparse_polys, scaled_resolution);
                                         for (ExPolygon sparse_poly : sparse_polys) {
                                             Surface sparse_surf(surface, sparse_poly);
                                             surf_to_add.push_back(sparse_surf);
@@ -1871,19 +1874,25 @@ void PrintObject::tag_under_bridge() {
                                     } else {
                                         surface.maxNbSolidLayersOnTop = 1;
                                         surf_to_add.clear();
+                                        surface.expolygon.assert_valid();
                                         surf_to_add.push_back(surface);
                                         break;
                                     }
                                 } else {
                                     surf_to_add.clear();
+                                    surface.expolygon.assert_valid();
                                     surf_to_add.emplace_back(std::move(surface));
                                     // mitigation: if not possible, don't try the others.
                                     break;
                                 }
                             }
                             // break go here 
+                            for(Surface &srf : surf_to_add) srf.expolygon.assert_valid();
                             surfs_to_add.insert(surfs_to_add.begin(), surf_to_add.begin(), surf_to_add.end());
-                        } else surfs_to_add.emplace_back(std::move(surface));
+                        } else {
+                            surface.expolygon.assert_valid();
+                            surfs_to_add.emplace_back(std::move(surface));
+                        }
                     }
                     //layerm->fill_surfaces.surfaces = std::move(surfs_to_add);
                 }

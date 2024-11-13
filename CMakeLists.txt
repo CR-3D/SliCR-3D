@@ -11,7 +11,11 @@
 cmake_minimum_required(VERSION 3.13)
 project(Slic3r)
 
-include("version.inc")
+if (EXISTS "version.date.inc")
+	include("version.date.inc")
+else()
+	include("version.inc")
+endif()
 include(GNUInstallDirs)
 include(CMakeDependentOption)
 

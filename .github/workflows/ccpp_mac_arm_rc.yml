@@ -6,23 +6,44 @@ on:
       - rc
 
 jobs:
-  build:
-
+  build_dep:
     runs-on: macos-14
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - name: mkdir in deps
+      run: mkdir deps/build
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
       with:
-        ref: 'rc'
-    - name: build deps & slicer
-      run: ./BuildMacOS.sh -adsi
+        key: macos_arm_2.7
+        path: deps/build/destdir
+    - if: steps.cache-action.outputs.cache-hit != 'true'
+      name: build deps if new cache
+      run: ./BuildMacOS.sh -ad
+
+  build:
+    runs-on: macos-14
+    needs: build_dep
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
+      with:
+        key: macos_arm_2.7
+        path: deps/build/destdir
+    - name: build slicer
+      run: ./BuildMacOS.sh -asi
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: rc_arm_macos.dmg
-        path: build/${{ github.event.repository.name }}.dmg
+        name: rc_${{ github.event.repository.name }}-macOS-arm.dmg
+        path: build/${{ github.event.repository.name }}-macOS-arm.dmg
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: rc_arm_macos.tar
-        path: build/${{ github.event.repository.name }}.tar
+        name: rc_${{ github.event.repository.name }}-macOS-arm.tgz
+        path: build/${{ github.event.repository.name }}-macOS-arm.tgz

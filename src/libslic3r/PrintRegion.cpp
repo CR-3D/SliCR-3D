@@ -114,7 +114,7 @@ Flow PrintRegion::flow(const PrintObject &object, FlowRole role, double layer_he
     return flow;
 }
 
-float  PrintRegion::width(FlowRole role, bool first_layer, const PrintObject& object) const
+float PrintRegion::width(FlowRole role, bool first_layer, const PrintObject& object) const
 {
     const ConfigOptionFloatOrPercent* config_width = nullptr;
     // otherwise, get extrusion width from configuration
@@ -128,21 +128,22 @@ float  PrintRegion::width(FlowRole role, bool first_layer, const PrintObject& ob
             config_width = &object.config().first_layer_extrusion_width;
         }
     }
-    if(!config_width){
-    } else if (role == frExternalPerimeter) {
-        config_width = &m_config.external_perimeter_extrusion_width;
-    } else if (role == frPerimeter) {
-        config_width = &m_config.perimeter_extrusion_width;
-    } else if (role == frInfill) {
-        config_width = &m_config.infill_extrusion_width;
-    } else if (role == frSolidInfill) {
-        config_width = &m_config.solid_infill_extrusion_width;
-    } else if (role == frTopSolidInfill) {
-        config_width = &m_config.top_infill_extrusion_width;
-    } else if (role == frSupportMaterial || role == frSupportMaterialInterface) {
-        config_width = &object.config().support_material_extrusion_width;
-    } else {
-        throw Slic3r::InvalidArgument("Unknown role");
+    if (!config_width) {
+        if (role == frExternalPerimeter) {
+            config_width = &m_config.external_perimeter_extrusion_width;
+        } else if (role == frPerimeter) {
+            config_width = &m_config.perimeter_extrusion_width;
+        } else if (role == frInfill) {
+            config_width = &m_config.infill_extrusion_width;
+        } else if (role == frSolidInfill) {
+            config_width = &m_config.solid_infill_extrusion_width;
+        } else if (role == frTopSolidInfill) {
+            config_width = &m_config.top_infill_extrusion_width;
+        } else if (role == frSupportMaterial || role == frSupportMaterialInterface) {
+            config_width = &object.config().support_material_extrusion_width;
+        } else {
+            throw Slic3r::InvalidArgument("Unknown role");
+        }
     }
 
     if (!config_width || config_width->value == 0)

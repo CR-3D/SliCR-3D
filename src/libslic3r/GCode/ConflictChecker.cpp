@@ -135,25 +135,40 @@ static std::vector<ExtrusionPaths> getFakeExtrusionPathsFromWipeTower(const Wipe
         // For now, simply use fixed spacing of 3mm.
         for (coord_t y=minCorner.y()+scale_(3.); y<maxCorner.y(); y+=scale_(3.)) {
             path.polyline = ArcPolyline(Points{ {minCorner.x(), y}, {maxCorner.x(), y} });
+            assert(path.polyline.is_valid());
             paths.back().emplace_back(path);
         }
 
         // And of course the stabilization cone and its base...
         if (cone_base_R > 0.) {
             path.polyline.clear();
-            double r = cone_base_R * (1 - hh/height);
-            for (double alpha=0; alpha<2.01*M_PI; alpha+=2*M_PI/20.)
-                path.polyline.append(Point::new_scale(width/2. + r * std::cos(alpha)/cone_scale_x, depth/2. + r * std::sin(alpha)));
-            paths.back().emplace_back(path);
+            double r = cone_base_R * (1 - hh / height);
+            for (double alpha = 0; alpha < 2.01 * M_PI; alpha += 2 * M_PI / 20.) {
+                Point point = Point::new_scale(width / 2. + r * std::cos(alpha) / cone_scale_x,
+                                               depth / 2. + r * std::sin(alpha));
+                if (path.polyline.empty() || !point.coincides_with_epsilon(path.polyline.front())) {
+                    path.polyline.append(std::move(point));
+                }
+            }
+            if (path.size() > 1) {
+                assert(path.polyline.is_valid());
+                paths.back().emplace_back(path);
+            }
             if (hh == 0.f) { // Cone brim.
-                for (float bw=wtd.brim_width; bw>0.f; bw-=3.f) {
+                for (float bw = wtd.brim_width; bw > 0.f; bw -= 3.f) {
                     path.polyline.clear();
-                    for (double alpha=0; alpha<2.01*M_PI; alpha+=2*M_PI/20.) // see load_wipe_tower_preview, where the same is a bit clearer
-                        path.polyline.append(Point::new_scale(
-                            width/2. + cone_base_R * std::cos(alpha)/cone_scale_x * (1. + cone_scale_x*bw/cone_base_R),
-                            depth/2. + cone_base_R * std::sin(alpha) * (1. + bw/cone_base_R))
-                        );
-                    paths.back().emplace_back(path);
+                    for (double alpha = 0; alpha < 2.01 * M_PI; alpha += 2 * M_PI / 20.) {
+                        // see load_wipe_tower_preview, where the same is a bit clearer
+                        Point point = Point::new_scale(width / 2. + cone_base_R * std::cos(alpha) / cone_scale_x * (1. + cone_scale_x * bw / cone_base_R),
+                                                       depth / 2. + cone_base_R * std::sin(alpha) * (1. + bw / cone_base_R));
+                        if (path.polyline.empty() || !point.coincides_with_epsilon(path.polyline.front())) {
+                            path.polyline.append(std::move(point));
+                        }
+                    }
+                    if (path.size() > 1) {
+                        assert(path.polyline.is_valid());
+                        paths.back().emplace_back(path);
+                    }
                 }
             }
         }

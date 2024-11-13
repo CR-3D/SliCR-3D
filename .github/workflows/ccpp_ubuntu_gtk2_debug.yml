@@ -1,4 +1,4 @@
-name: C/C++ debug ubuntu-GTK3
+name: C/C++ debug ubuntu
 
 on:
   push:
@@ -22,28 +22,28 @@ jobs:
       run: sudo hwclock -s
     - name: update apt
       run: sudo apt update
-    - name: install gtk3
-      run: sudo apt install libgtk-3-dev
+    - name: install gtk2
+      run: sudo apt install libgtk2.0-dev
     - name: install libs
       run: sudo ./BuildLinux.sh -u
     - name: dep cache
       id: cache-action
       uses: actions/cache@v3
       with:
-        key: ubu_gtk3_debug_2.7
+        key: ubu_gtk2_debug_2.7
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -bd
-    - name: build deps & slicer, tar & appimage
-      run: ./BuildLinux.sh -bsiv
+      run: ./BuildLinux.sh -bgd
+    - name: build slicer, tar & appimage
+      run: ./BuildLinux.sh -bgsiv
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: debug_${{ github.event.repository.name }}-linux-x64-GTK3.tgz
-        path: build/${{ github.event.repository.name }}-linux-x64-GTK3.tgz
+        name: debug_${{ github.event.repository.name }}-linux-x64-GTK2.tgz
+        path: build/${{ github.event.repository.name }}-linux-x64-GTK2.tgz
     - name: Upload appimage
       uses: actions/upload-artifact@v4
       with:
-        name: debug_${{ github.event.repository.name }}-linux-x64-GTK3.AppImage
-        path: build/${{ github.event.repository.name }}-linux-x64-GTK3.AppImage
+        name: debug_${{ github.event.repository.name }}-linux-x64-GTK2.AppImage
+        path: build/${{ github.event.repository.name }}-linux-x64-GTK2.AppImage
