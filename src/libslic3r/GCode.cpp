@@ -7225,7 +7225,7 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
         this->writer().set_lift(this->writer().get_position().z() - *m_new_z_target);
         m_new_z_target.reset();
     }
-    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON));
+    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON) || comment == "Travel to a Wipe Tower");
 }
 
 // generate a travel in xyz

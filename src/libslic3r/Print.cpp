@@ -1208,6 +1208,7 @@ void Print::process()
     );
 
     // The following step writes to m_shared_regions, it should not run in parallel.
+    //FIXME: only run it when the support is needed.
     secondary_status_counter_reset();
     for (PrintObject *obj : m_objects)
         obj->generate_support_spots();
