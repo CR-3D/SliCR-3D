@@ -287,18 +287,11 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
 
 void Bed3D::render_exclude_area(int area_id) {
 
+    ColorRGBA select_color { 0.15f, 0.15f, 0.15f, 1.0f };
     glsafe(::glDepthMask(GL_FALSE));
-    std::vector<ColorRGBA> colors = {
-        {0.15f, 0.15f, 0.15f, 1.0f},
-        {0.15f, 0.30f, 0.80f, 1.0f}
-        // Add more colors as needed
-    };
-
-    glsafe(::glDepthMask(GL_FALSE));
-
-    // Render each triangle model with a unique color
+    
+    // Set color for each area
     for (size_t i = 0; i < m_exclude_triangles.size(); ++i) {
-        ColorRGBA select_color = colors[i % colors.size()];  // Cycle through colors
         m_exclude_triangles[i].set_color(select_color);
         m_exclude_triangles[i].render();
     }

@@ -2354,7 +2354,7 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
 , main_frame(main_frame)
 , config(Slic3r::DynamicPrintConfig::new_from_defaults_keys({
     // These keys are used by (at least) printconfig::min_object_distance
-    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area",
+    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area", "enable_bed_exclude_area",
     "brim_width", "brim_width_interior","brim_separation",
     "complete_objects",
     "parallel_objects_step",
@@ -5405,20 +5405,25 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
                                  const std::string &custom_model,
                                  bool              force_as_custom)
 {
-
+    
+    std::vector<unsigned char> is_exclude_area_enabled_raw = config->option<ConfigOptionBools>("enable_bed_exclude_area")->get_values();
+    std::vector<bool> is_exclude_area_enabled(is_exclude_area_enabled_raw.begin(), is_exclude_area_enabled_raw.end());
+    
     std::vector<std::vector<Vec2d>> exclude_areas;
     
-    for (const auto& area_str : bed_exclude_area) {
-        std::vector<Vec2d> points;
-        get_string_points(area_str, 0, 1000, points);
-
-        if (points.size() > 4) {
-            points.resize(4);
+    for (size_t i = 0; i < is_exclude_area_enabled.size(); ++i) {
+        if (is_exclude_area_enabled[i]) {  // Only process if the option is enabled
+            std::vector<Vec2d> points;
+            get_string_points(bed_exclude_area[i], 0, 1000, points);
+            
+            if (points.size() > 4) {
+                points.resize(4);
+            }
+            
+            exclude_areas.push_back(points);
         }
-        
-        exclude_areas.push_back(points);
     }
-
+    
     bool new_shape = bed.set_shape(shape,
                                    exclude_areas,
                                    max_print_height,
@@ -5434,7 +5439,7 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
             break;
         }
     }
-
+    
     if (new_shape) {
         if (view3D)
             view3D->bed_shape_changed();
@@ -8525,7 +8530,8 @@ void Plater::on_config_change(const DynamicConfig &config)
         else if (opt_key == "bed_shape"
               || opt_key == "bed_custom_texture"
               || opt_key == "bed_custom_model"
-              || opt_key == "bed_exclude_area") {
+              || opt_key == "bed_exclude_area"
+              || opt_id == "enable_bed_exclude_area") {
             bed_shape_changed = true;
             update_scheduled  = true;
             

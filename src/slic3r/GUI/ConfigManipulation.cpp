@@ -709,6 +709,10 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
 
     for (size_t i = 0; i < extruder_count; ++i) {
         
+        // BBS: Bed exclude area
+        bool enabled_bed_exclude_area = config->opt_bool("enable_bed_exclude_area", i);
+        toggle_field("bed_exclude_area", enabled_bed_exclude_area, i);
+
         bool have_retract_length = config->opt_float("retract_length", i) > 0;
         
         const bool ramping_lift = config->get_bool("travel_ramping_lift", i);
@@ -729,16 +733,9 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
         // user can customize travel length if we have retraction length or we"re using
         // firmware retraction
         toggle_field("retract_before_travel", have_retract_length || use_firmware_retraction, i);
-        
-        // user can customize other retraction options if retraction is enabled
-        //std::vector<std::string> vec = {"retract_layer_change" }; // "retract_lift" "retract_before_travel"
-        // now possible outside retraction
-        // for (auto el : vec) {
-            // toggle_field(el, retraction, i);
-        // }
-                bool has_lift = /*retraction &&  now possible outside retraction */ config->get_float("retract_lift", i) > 0;
-        // retract lift above / below only applies if using retract lift
-        // vec.resize(0);
+
+        bool has_lift = /*retraction &&  now possible outside retraction */ config->get_float("retract_lift", i) > 0;
+
         std::vector<std::string> vec = { "retract_lift_above", "retract_lift_below", "retract_lift_top", "retract_lift_first_layer", "retract_lift_before_travel"};
         for (auto el : vec) {
             toggle_field(el, has_lift, i);
