@@ -168,9 +168,13 @@ public:
     void move_layers_slider(wxKeyEvent& evt);
     void edit_layers_slider(wxKeyEvent& evt);
 
+    void render_sliders(GLCanvas3D& canvas);
+    float get_layers_slider_width(bool disregard_visibility = false) const;
+    float get_moves_slider_height() const;
+
     bool is_loaded() const { return m_loaded; }
 
-    void render_sliders(GLCanvas3D& canvas);
+    //void render_sliders(GLCanvas3D& canvas);
 
     void update_moves_slider();
     void enable_moves_slider(bool enable);

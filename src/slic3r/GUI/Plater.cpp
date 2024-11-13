@@ -3753,7 +3753,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         params.parts_only = true;
         params.printable_only = true;
         params.show_bed = true;
-        params.transparent_background = false;
+        params.transparent_background = true;
         int w = 100, h = 100;
 
         int curr_bound_texture = 0;

@@ -2263,44 +2263,9 @@ void GLCanvas3D::render()
                 wxGetApp().plater()->schedule_background_process();
         }
     }
-        // draw overlays
-        _render_overlays();
-
-    {
-        if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
-            ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_NoResize);
-            for (int i = 0; i < s_multiple_beds.get_number_of_beds(); ++i) {
-                bool inactive = i != s_multiple_beds.get_active_bed() || s_multiple_beds.is_autoslicing();
-                if (inactive)
-                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
-                if (bool clicked = (i >= int(s_th_tex_id.size()))
-                    ? ImGui::Button(std::to_string(i).c_str(), ImVec2(100,100))
-                    : ImGui::ImageButton((void*)(int64_t)s_th_tex_id[i], ImVec2(100, 100), ImVec2(0, 1), ImVec2(1, 0));
-                    clicked)
-                    select_bed(i, true);
-                if (inactive)
-                    ImGui::PopStyleColor();
-
-                std::string status_text;
-                if (wxGetApp().plater()->get_fff_prints()[i]->finished())
-                    status_text = "finished";
-                else if (m_process->fff_print() == wxGetApp().plater()->get_fff_prints()[i].get() && m_process->running())
-                    status_text = "running";
-                else
-                    status_text = "idle";
-                ImGui::SameLine();
-                ImGui::Text("%s", status_text.c_str());
-                
-
-            }
-            if (ImGui::Button("ALL", ImVec2(105, 105))) {
-                if (! s_multiple_beds.is_autoslicing())
-                    s_multiple_beds.start_autoslice([this](int i, bool user) { this->select_bed(i, user); });
-            }
-            ImGui::End();
-        }
-    }
-
+    
+    _render_overlays();
+    _render_bed_selector();
 
 
 #if ENABLE_PROJECT_DIRTY_STATE_DEBUG_WINDOW
@@ -5358,7 +5323,8 @@ void GLCanvas3D::_render_thumbnail_internal(ThumbnailData& thumbnail_data, const
     const bool             is_enabled_painted_thumbnail = !model_objects.empty() && !extruders_colors.empty();
 
     if (thumbnail_params.transparent_background)
-        glsafe(::glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+//        glsafe(::glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+        glsafe(::glClearColor(0.4f, 0.4f, 0.4f, 0.0f));
 
     glsafe(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
     glsafe(::glEnable(GL_DEPTH_TEST));
@@ -6923,6 +6889,138 @@ void GLCanvas3D::_render_overlays()
     m_labels.render(sorted_instances);
     
     _render_3d_navigator();
+}
+
+#define use_scrolling 1
+
+void Slic3r::GUI::GLCanvas3D::_render_bed_selector()
+{
+    static float btn_side = 80.f;
+    static float btn_border = 4.f;
+    static bool hide_title = true;
+
+    ImVec2 btn_size = ImVec2(btn_side, btn_side);
+
+    if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
+        auto render_bed_button = [btn_size, this](int i)
+        {
+            //ImGui::Text("%d", i);
+            //ImGui::SameLine();
+
+            bool inactive = i != s_multiple_beds.get_active_bed() || s_multiple_beds.is_autoslicing();
+            if (inactive)
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
+            if (bool clicked = (i >= int(s_th_tex_id.size()))
+                ? ImGui::Button(std::to_string(i).c_str(), btn_size)
+                : ImGui::ImageButton((void*)(int64_t)s_th_tex_id[i], btn_size, ImVec2(0, 1), ImVec2(1, 0));
+                clicked)
+                select_bed(i, true);
+
+            if (inactive)
+                ImGui::PopStyleColor();
+
+            std::string status_text;
+            if (wxGetApp().plater()->get_fff_prints()[i]->finished())
+                status_text = "Finished";
+            else if (m_process->fff_print() == wxGetApp().plater()->get_fff_prints()[i].get() && m_process->running())
+                status_text = "Running";
+            else
+                status_text = "Idle";
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(status_text.c_str());
+        };
+
+        ImGuiWrapper& imgui = *wxGetApp().imgui();
+        float win_x_pos = get_canvas_size().get_width();
+        if (const Preview* preview = dynamic_cast<Preview*>(m_canvas->GetParent()))
+            win_x_pos -= preview->get_layers_slider_width(true);
+
+#if use_scrolling
+        static float width  { 0.f };
+        static float height { 0.f };
+        static float v_pos  { 1.f };
+
+        ImGui::SetNextWindowPos({ win_x_pos - imgui.get_style_scaling() * 5.f, v_pos }, ImGuiCond_Always, { 1.f, 0.f });
+        ImGui::SetNextWindowSize({ width, height });
+#else
+        ImGuiPureWrap::set_next_window_pos(win_x_pos - imgui.get_style_scaling() * 5.f, 1.f, ImGuiCond_Always, 1.f);
+#endif
+        ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2());
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(btn_border, btn_border));
+
+        // Disable for now.
+        //if (imgui.image_button(ImGui::SliceAllBtnIcon, "Slice All")) {
+        //    if (!s_multiple_beds.is_autoslicing())
+        //        s_multiple_beds.start_autoslice([this](int i, bool user) { this->select_bed(i, user); });
+        //}
+        ImGui::SameLine();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, btn_border);
+
+        int beds_num = s_multiple_beds.get_number_of_beds();
+
+        for (int i = 0; i < beds_num; ++i) {
+            render_bed_button(i);
+            if (i < beds_num - 1)
+                ImGui::SameLine();
+        }
+
+        ImGui::PopStyleVar(4);
+
+#if use_scrolling
+        bool extra_frame{ false };
+
+ImVec2 win_size = ImVec2(
+    ImGui::GetCurrentWindow()->ContentSizeIdeal.x +
+    ImGui::GetCurrentWindow()->WindowPadding.x * 2.f +
+    ImGui::GetCurrentWindow()->ScrollbarSizes.x +
+    0.f,  // x component of ImVec2(0.f, TitleBarHeight())
+
+    ImGui::GetCurrentWindow()->ContentSizeIdeal.y +
+    ImGui::GetCurrentWindow()->WindowPadding.y * 2.f +
+    ImGui::GetCurrentWindow()->ScrollbarSizes.y +
+    ImGui::GetCurrentWindow()->TitleBarHeight()  // y component
+);
+
+        if (!is_approx(height, win_size.y)) {
+            height = win_size.y;
+            wxGetApp().imgui()->set_requires_extra_frame();
+        }
+
+        float max_width = win_x_pos;
+        if (is_legend_shown())
+            max_width -= 400.f; // 400.f is used instead of legend width
+
+        if (max_width < height) {
+            width = win_x_pos - 5.f;
+
+            v_pos = ImGui::GetCurrentWindow()->CalcFontSize() + GImGui->Style.FramePadding.y * 2.0f + 5.f;
+            extra_frame = true;
+        }
+        else {
+            if (v_pos > 1.f) {
+                v_pos = 1.f;
+                extra_frame = true;
+            }
+
+            if (win_size.x > max_width) {
+                width = max_width;
+                extra_frame = true;
+            }
+            else if (!is_approx(width, win_size.x)) {
+                width = win_size.x;
+                extra_frame = true;
+            }
+        }
+
+        if (extra_frame)
+            wxGetApp().imgui()->set_requires_extra_frame();
+#endif
+        ImGui::End();
+    }
 }
 
 void GLCanvas3D::_render_volumes_for_picking(const Camera& camera) const

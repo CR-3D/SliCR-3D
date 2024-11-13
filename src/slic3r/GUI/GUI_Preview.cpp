@@ -406,6 +406,14 @@ void Preview::move_layers_slider(wxKeyEvent& evt)
 void Preview::edit_layers_slider(wxKeyEvent& evt)
 {
     if (m_layers_slider != nullptr) m_layers_slider->OnChar(evt);
+    
+}
+
+float Preview::get_layers_slider_width(bool disregard_visibility) const
+{
+    if (m_layers_slider && (m_layers_slider->IsShown() || disregard_visibility))
+       return m_layers_slider->GetMaxWidth();
+    return 0.0f;
 }
 
 void Preview::bind_event_handlers()
