@@ -389,16 +389,16 @@ void PrintConfigDef::init_common_params() {
     def->set_default_value(new ConfigOptionPoints{Vec2d(0, 0), Vec2d(200, 0), Vec2d(200, 200), Vec2d(0, 200)});
 
     // BBS: add "bed_exclude_area"
-    def = this->add("bed_exclude_area", coString);
-    def->label = L("Bed exclude area");
-    def->category = OptionCategory::general;
+    def = this->add("bed_exclude_area", coStrings);
+    def->label = L("Bed Exclude Area");
+    def->category = OptionCategory::extruders;
     def->tooltip = L("Unprintable area in XY plane. For example, X1 Series printers use the front left corner to cut "
                      "filament during filament change. "
                      "The area is expressed as polygon by points in following format: \"XxY, XxY, ...\"");
     def->mode = comAdvanced | comExpert;
     def->full_width = true;
     def->height = 3;
-    def->set_default_value(new ConfigOptionString{"0x0, 0x0, 0x0, 0x0"});
+    def->set_default_value(new ConfigOptionStrings{"0x0, 0x0, 0x0, 0x0"});
 
     def = this->add("bed_custom_texture", coString);
     def->label = L("Bed custom texture");
@@ -1766,7 +1766,7 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Enable pressure advance");
     def->tooltip = L("Enable pressure advance, auto calibration result will be overwritten once enabled.");
     def->mode = comAdvanced | comExpert;
-    def->set_default_value(new ConfigOptionBools{false});
+    def->set_default_value(new ConfigOptionBools {false});
 
     def = this->add("pressure_advance", coFloats);
     def->label = L("Pressure advance");
@@ -7657,6 +7657,7 @@ void PrintConfigDef::init_extruder_option_keys() {
         "seam_gap",
         "seam_gap_external",
         "tool_name",
+        "bed_exclude_area",
         "travel_lift_before_obstacle",
         // "travel_max_lift",
         "travel_ramping_lift",

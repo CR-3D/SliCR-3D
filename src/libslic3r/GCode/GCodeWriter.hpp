@@ -45,6 +45,7 @@ public:
     // Extruders are expected to be sorted in an increasing order.
     void                set_extruders(std::vector<uint16_t> extruder_ids);
     const std::vector<Extruder>& extruders() const { return m_extruders; }
+    
     std::vector<uint16_t> extruder_ids() const;
     void                set_mills(std::vector<uint16_t> extruder_ids);
     const std::vector<Mill>& mills() const { return m_millers; }

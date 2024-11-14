@@ -445,6 +445,7 @@ std::set<uint16_t> Print::object_extruders(const PrintObjectPtrs &objects) const
             region.collect_object_printing_extruders(*object->print(), extruders);
     return extruders;
 }
+
 std::set<uint16_t> Print::object_extruders() const
 {
     std::set<uint16_t> extruders;
@@ -494,14 +495,14 @@ std::set<uint16_t> Print::extruders() const
 {
     std::set<uint16_t> extruders = this->object_extruders(m_objects);
     append(extruders, this->support_material_extruders());
-
+    
     // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
     // append its extruder into the list too.
     if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
         assert(config().wipe_tower_extruder > 0 && config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
         extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
     }
-
+    
     return extruders;
 }
 
@@ -548,44 +549,49 @@ bool Print::has_brim() const
     return !this->m_brim.empty() || std::any_of(m_objects.begin(), m_objects.end(), [](PrintObject* object) { return object->has_brim(); });
 }
 
-std::pair<bool, bool> get_strings_points(const std::string &str, double min, double max, std::vector<Vec2d> &out_values)
+std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str_vec, double min, double max, std::vector<Vec2d> &out_values)
 {
     bool invalid_val = false;
     bool out_of_range_val = false;
-    std::stringstream points_stream(str);
-    std::string token;
 
-    // Split input string by commas to get individual point tokens
-    while (std::getline(points_stream, token, ',')) {
-        std::stringstream point_stream(token);
-        std::string x_str, y_str;
+    // Iterate over each string in the input vector
+    for (const std::string &str : str_vec) {
+        std::stringstream points_stream(str);
+        std::string token;
 
-        // Split each point by 'x' to separate x and y values
-        if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
-            try {
-                double x = std::stod(x_str);
-                double y = std::stod(y_str);
+        // Split input string by commas to get individual point tokens
+        while (std::getline(points_stream, token, ',')) {
+            std::stringstream point_stream(token);
+            std::string x_str, y_str;
 
-                // Check if values are within specified range
-                if (min <= x && x <= max && min <= y && y <= max) {
-                    out_values.emplace_back(x, y);
-                    continue;
-                } else {
-                    out_of_range_val = true;
-                    break;
+            // Split each point by 'x' to separate x and y values
+            if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+                try {
+                    double x = std::stod(x_str);
+                    double y = std::stod(y_str);
+
+                    // Check if values are within specified range
+                    if (min <= x && x <= max && min <= y && y <= max) {
+                        out_values.emplace_back(x, y);
+                    } else {
+                        out_of_range_val = true;
+                    }
+                } catch (const std::invalid_argument&) {
+                    invalid_val = true;
+                } catch (const std::out_of_range&) {
+                    invalid_val = true;
                 }
-            } catch (const std::invalid_argument&) {
+            } else {
                 invalid_val = true;
-                break;
-            } catch (const std::out_of_range&) {
-                invalid_val = true;
-                break;
             }
-        } else {
-            invalid_val = true;
-            break;
+
+            // If either an invalid or out-of-range value was found, stop processing
+            if (invalid_val || out_of_range_val) {
+                return {invalid_val, out_of_range_val};
+            }
         }
     }
+
     return {invalid_val, out_of_range_val};
 }
 
@@ -749,7 +755,8 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
 
     if (!m_config.bed_exclude_area.empty()) {
       std::vector<Vec2d> points;
-      std::string bed_exclude_area = m_config.bed_exclude_area.value;
+      std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
+        
       auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 1000, points);
       std::vector<Vec2d> exclude_areas = points;
       
@@ -757,7 +764,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
       Polygon exclude_poly;
     
     if (exclude_areas.size() < 4)
-      return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
+       return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
 
     for (int i = 0; i < exclude_areas.size(); i++) {
       auto pt = exclude_areas[i];
