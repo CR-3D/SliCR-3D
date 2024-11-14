@@ -549,46 +549,49 @@ bool Print::has_brim() const
     return !this->m_brim.empty() || std::any_of(m_objects.begin(), m_objects.end(), [](PrintObject* object) { return object->has_brim(); });
 }
 
-std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str_vec, double min, double max, std::vector<Vec2d> &out_values)
+// Single String
+std::pair<bool, bool> get_string_points(const std::string &str, double min, double max, std::vector<Vec2d> &out_values)
 {
     bool invalid_val = false;
     bool out_of_range_val = false;
 
-    // Iterate over each string in the input vector
-    for (const std::string &str : str_vec) {
-        std::stringstream points_stream(str);
-        std::string token;
+    std::stringstream points_stream(str);
+    std::string token;
 
-        // Split input string by commas to get individual point tokens
-        while (std::getline(points_stream, token, ',')) {
-            std::stringstream point_stream(token);
-            std::string x_str, y_str;
+    // Split the input string by commas to get individual point tokens
+    while (std::getline(points_stream, token, ',')) {
+        std::stringstream point_stream(token);
+        std::string x_str, y_str;
+        double x, y;
 
-            // Split each point by 'x' to separate x and y values
-            if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
-                try {
-                    double x = std::stod(x_str);
-                    double y = std::stod(y_str);
+        // Split each point by 'x' to separate x and y values
+        if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+            try {
+                x = std::stod(x_str);
+                y = std::stod(y_str);
 
-                    // Check if values are within specified range
-                    if (min <= x && x <= max && min <= y && y <= max) {
-                        out_values.emplace_back(x, y);
-                    } else {
-                        out_of_range_val = true;
-                    }
-                } catch (const std::invalid_argument&) {
-                    invalid_val = true;
-                } catch (const std::out_of_range&) {
-                    invalid_val = true;
+                // Check if values are within the specified range
+                if (min <= x && x <= max && min <= y && y <= max) {
+                    out_values.push_back(Vec2d(x, y));
+                } else {
+                    out_of_range_val = true;  // Point is out of the specified range
+                    break;
                 }
-            } else {
-                invalid_val = true;
+            } catch (const std::invalid_argument&) {
+                invalid_val = true;  // Conversion error for x or y
+                break;
+            } catch (const std::out_of_range&) {
+                invalid_val = true;  // Number out of range
+                break;
             }
+        } else {
+            invalid_val = true;  // Invalid format for x or y
+            break;
+        }
 
-            // If either an invalid or out-of-range value was found, stop processing
-            if (invalid_val || out_of_range_val) {
-                return {invalid_val, out_of_range_val};
-            }
+        // Stop processing further if any invalid or out-of-range value is found
+        if (invalid_val || out_of_range_val) {
+            return {invalid_val, out_of_range_val};
         }
     }
 
@@ -754,55 +757,68 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
 
 
     if (!m_config.bed_exclude_area.empty()) {
-      std::vector<Vec2d> points;
-      std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
-        
-      auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 1000, points);
-      std::vector<Vec2d> exclude_areas = points;
-      
-      Polygons exclude_polys;
-      Polygon exclude_poly;
-    
-    if (exclude_areas.size() < 4)
-       return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
+        std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
+        std::vector<std::vector<Vec2d>> exclude_areas;
 
-    for (int i = 0; i < exclude_areas.size(); i++) {
-      auto pt = exclude_areas[i];
-      exclude_poly.points.emplace_back(scale_(pt.x()), scale_(pt.y()));
-      if (i % 4 == 3) {
-         exclude_polys.push_back(exclude_poly);
-         exclude_poly.points.clear();
-       }
-    }
-    
-    exclude_poly.make_counter_clockwise();
-    Polygons contours;
-      
-       // Append the polys
-       for (const PrintObject* print_object : m_objects) {
-          for (const PrintInstance& instance : print_object->instances()) {
-             for (const ModelVolume* v : print_object->model_object()->volumes) {
-                ModelObject* model_object = instance.model_instance->object;
-                Polygons vol_outline;
-                auto transl = Transform3d::Identity();
-                vol_outline = project_mesh(v->mesh().its, transl * instance.model_instance->get_matrix() * v->get_matrix(), [] {});
-                append(contours, vol_outline);
+        // Loop through each extruder in use and dynamically add its associated exclusion area if enabled
+        for (uint16_t extruder_id : this->extruders()) {
+            if (extruder_id < bed_exclude_area.size()) {
+                std::vector<Vec2d> points;
+                get_string_points(bed_exclude_area[extruder_id], 0, 1000, points);
 
-      if (!contours.empty()) {
-            for(Polygon &contour : contours) {
-                contour.make_counter_clockwise();
+                if (points.size() > 4) {
+                    points.resize(4);
+                }
+
+                exclude_areas.push_back(points);
             }
+        }
 
-            bool has_intersection = !intersection(exclude_polys, contours).empty();
-            if (has_intersection) {
-                std::string name = instance.model_instance->get_object()->name;
-                return { PrintBase::PrintValidationError::pveWrongPosition, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
-                  }
-               }
-             }
-          }
-       }
-   }
+        Polygons exclude_polys;
+        Polygon exclude_poly;
+
+        // Only use the exclude areas associated with active extruders
+        for (size_t i = 0; i < exclude_areas.size(); ++i) {
+            auto& pt = exclude_areas[i];
+            for (const auto& point : pt) {
+                exclude_poly.points.emplace_back(scale_(point.x()), scale_(point.y()));
+            }
+            
+            exclude_polys.push_back(exclude_poly);
+            exclude_poly.points.clear();
+        }
+
+        for (Polygon& poly : exclude_polys) {
+            poly.make_counter_clockwise();
+        }
+
+        Polygons contours;
+
+        // Append the polys
+        for (const PrintObject* print_object : m_objects) {
+            for (const PrintInstance& instance : print_object->instances()) {
+                for (const ModelVolume* v : print_object->model_object()->volumes) {
+                  // We dont need:  ModelObject* model_object = instance.model_instance->object;
+                    Polygons vol_outline;
+                    auto transl = Transform3d::Identity();
+                    vol_outline = project_mesh(v->mesh().its, transl * instance.model_instance->get_matrix() * v->get_matrix(), [] {});
+                    append(contours, vol_outline);
+
+                    if (!contours.empty()) {
+                        for (Polygon& contour : contours) {
+                            contour.make_counter_clockwise();
+                        }
+
+                        bool has_intersection = !intersection(exclude_polys, contours).empty();
+                        if (has_intersection) {
+                            std::string name = instance.model_instance->get_object()->name;
+                            return { PrintBase::PrintValidationError::pveWrongPosition, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (m_config.complete_objects || m_config.parallel_objects_step > 0) {
     	if (!sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
