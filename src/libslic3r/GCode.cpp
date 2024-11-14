@@ -4668,7 +4668,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         path.simplify(std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value)), ArcFittingType::Disabled, 0);
         if (path.length() < std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value))) {
             if (i + 1 < building_paths.size()) {
-                building_paths[i+1].polyline.front() = path.polyline.front();
+                //building_paths[i+1].polyline.front() = path.polyline.front();
                 building_paths.erase(building_paths.begin() + i);
                 --i;
             } else {
