@@ -707,9 +707,10 @@ void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer* button
 
 
         wxButton* bt = new wxButton(this, wxID_FILE1, _L("Generate"));
+        bt->SetBackgroundColour(*wxBLACK);
         bt->Bind(wxEVT_BUTTON, &CalibrationPressureAdvDialog::create_geometry, this);
         dynamicSizer->Add(bt, 0, wxALL, 5);
-
+      
         create_row_controls(dynamicSizer, currentTestCount);
     } else {
         buttons->Add(new wxStaticText(this, wxID_ANY, _L(prefix)));

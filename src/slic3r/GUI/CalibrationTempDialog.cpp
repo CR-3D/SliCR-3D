@@ -64,6 +64,8 @@ void CalibrationTempDialog::create_buttons(wxStdDialogButtonSizer* buttons){
     buttons->AddSpacer(40);
 
     wxButton* bt = new wxButton(this, wxID_FILE1, _L("Generate"));
+    bt->SetBackgroundColour(*wxBLACK);
+
     bt->Bind(wxEVT_BUTTON, &CalibrationTempDialog::create_geometry, this);
     buttons->Add(bt);
 }

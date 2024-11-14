@@ -31,6 +31,9 @@ void CalibrationOverBridgeDialog::create_buttons(wxStdDialogButtonSizer* buttons
     wxButton* bt2 = new wxButton(this, wxID_FILE1, _L("'Top Fill' flow calibration"));
     bt1->Bind(wxEVT_BUTTON, &CalibrationOverBridgeDialog::create_geometry1, this);
     bt2->Bind(wxEVT_BUTTON, &CalibrationOverBridgeDialog::create_geometry2, this);
+    bt1->SetBackgroundColour(*wxBLACK); // Set text color to black
+    bt2->SetBackgroundColour(*wxBLACK); // Set text color to black
+
     buttons->Add(bt1);
     buttons->Add(bt2);
 }
