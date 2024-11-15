@@ -73,6 +73,9 @@ private:
 
     float m_scale_factor{ 1.0f };
 
+    std::vector<std::unique_ptr<GLModel>> m_digits_models;
+    std::unique_ptr<GLTexture> m_digits_texture;
+
 public:
     Bed3D();
     ~Bed3D() = default;

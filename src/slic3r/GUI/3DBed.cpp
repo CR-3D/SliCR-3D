@@ -228,7 +228,59 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
         Transform3d mat = view_matrix;
         mat.translate(s_multiple_beds.get_bed_translation(i));
         render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, is_thumbnail || i == bed_to_highlight);
-  }
+    }
+
+    if (m_digits_models.empty()) {
+        for (size_t i = 0; i < 10; ++i) {
+            GLModel::Geometry g;
+            g.format.vertex_layout = GLModel::Geometry::EVertexLayout::P3T2;
+            const double digit_part = 94./1024.;
+            g.add_vertex(Vec3f(0, 0, 0), Vec2f(digit_part * i, 1.));
+            g.add_vertex(Vec3f(1, 0, 0), Vec2f(digit_part * (i+1), 1.));
+            g.add_vertex(Vec3f(1, 1, 0), Vec2f(digit_part * (i+1), 0));
+            g.add_vertex(Vec3f(0, 1, 0), Vec2f(digit_part * i, 0));
+            g.add_triangle(0, 1, 3);
+            g.add_triangle(3, 1, 2);
+            m_digits_models.emplace_back(std::make_unique<GLModel>());
+            m_digits_models.back()->init_from(std::move(g));
+            m_digits_models.back()->set_color(ColorRGBA(0.5f, 0.5f, 0.5f, 0.5f));
+        }
+        m_digits_texture = std::make_unique<GLTexture>();
+        m_digits_texture->load_from_file(resources_dir() + "/icons/numbers.png", true, GLTexture::ECompressionType::None, false);
+        m_digits_texture->send_compressed_data_to_gpu();
+    }
+    if (!is_thumbnail && s_multiple_beds.get_number_of_beds() > 1) {
+        GLShaderProgram* shader = wxGetApp().get_shader("flat_texture");
+        shader->start_using();
+        shader->set_uniform("projection_matrix", projection_matrix);
+        glsafe(::glEnable(GL_BLEND));
+        glsafe(::glEnable(GL_DEPTH_TEST));
+        glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        glsafe(::glBindTexture(GL_TEXTURE_2D, m_digits_texture->get_id()));
+
+        const BoundingBoxf bb = this->build_volume().bounding_volume2d();
+
+        for (int i : beds_to_render) {
+            if (i + 1 >= m_digits_models.size())
+                break;
+
+            double size_x = std::max(10., std::min(bb.size().x(), bb.size().y()) * 0.11);
+            double aspect = 1.2;
+            Transform3d mat = view_matrix;
+            mat.translate(Vec3d(bb.min.x(), bb.min.y(), 0.));
+            mat.translate(s_multiple_beds.get_bed_translation(i));
+            if (build_volume().type() != BuildVolume::Type::Circle)
+                mat.translate(Vec3d(0.3 * size_x, 0.3 * size_x, 0.));
+            mat.translate(Vec3d(0., 0., 0.5));            
+            mat.scale(Vec3d(size_x, size_x * aspect, 1.));
+
+            shader->set_uniform("view_model_matrix", mat);
+            m_digits_models[i + 1]->render();
+        }
+        glsafe(::glBindTexture(GL_TEXTURE_2D, 0));
+        glsafe(::glDisable(GL_DEPTH_TEST));
+        shader->stop_using();
+    }
 }
 
 void Bed3D::render_for_picking(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor)
