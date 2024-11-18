@@ -197,10 +197,11 @@ bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx,
     return (m_bed_for_thumbnails_generation < 0 || it->second == m_bed_for_thumbnails_generation);
 }
 
-void MultipleBeds::update_shown_beds(Model& model, const BuildVolume& build_volume) {
+void MultipleBeds::update_shown_beds(Model& model, const BuildVolume& build_volume, bool only_remove /*=false*/) {
     const int original_number_of_beds = m_number_of_beds;
     const int stash_active = get_active_bed();
-    m_number_of_beds = get_max_beds();
+    if (! only_remove)
+        m_number_of_beds = get_max_beds();
     model.update_print_volume_state(build_volume);
     const int max_bed{std::accumulate(
         this->m_inst_to_bed.begin(), this->m_inst_to_bed.end(), 0,

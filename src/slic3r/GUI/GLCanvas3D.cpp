@@ -1766,8 +1766,8 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
                     overall_state = ModelInstancePVS_Partly_Outside;
                 contained_min_one |= !volume->is_outside;
 
-                if (! volume->is_outside && bed_idx != -1 && bed_idx == s_multiple_beds.get_number_of_beds())
-                s_multiple_beds.request_next_bed(true);
+                if (bed_idx != -1 && bed_idx == s_multiple_beds.get_number_of_beds())
+                    s_multiple_beds.request_next_bed(true);
             }
         }
         else if (volume->is_modifier)

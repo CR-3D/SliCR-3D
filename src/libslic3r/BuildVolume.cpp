@@ -354,20 +354,22 @@ BuildVolume::ObjectState BuildVolume::volume_state_bbox(const BoundingBoxf3 volu
         build_volume.min.z() = -std::numeric_limits<double>::max();
 
     ObjectState state = ObjectState::Outside;
-    int bed_id = 0;
-    for (bed_id = 0; bed_id <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_id) {
+    int obj_bed_id = -1;
+    for (int bed_id = 0; bed_id <= std::min(s_multiple_beds.get_number_of_beds(), s_multiple_beds.get_max_beds() - 1); ++bed_id) {
         BoundingBoxf3 volume_bbox = volume_bbox_orig;
         volume_bbox.translate(-s_multiple_beds.get_bed_translation(bed_id));
 
         state = build_volume.max.z() <= -SceneEpsilon ? ObjectState::Below :
             build_volume.contains(volume_bbox) ? ObjectState::Inside :
             build_volume.intersects(volume_bbox) ? ObjectState::Colliding : ObjectState::Outside;
-        if (state != ObjectState::Outside)
+        if (state != ObjectState::Outside) {
+            obj_bed_id = bed_id;
             break;
+        }
     }
 
     if (bed_idx)
-        *bed_idx = bed_id;
+        *bed_idx = obj_bed_id;
     return state;
 }
 

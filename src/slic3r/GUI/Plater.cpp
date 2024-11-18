@@ -2692,7 +2692,7 @@ void Plater::priv::update(unsigned int flags)
         // Update the SLAPrint from the current Model, so that the reload_scene()
         // pulls the correct data.
         update_status = this->update_background_process(false, flags & (unsigned int)UpdateParams::POSTPONE_VALIDATION_ERROR_MESSAGE);
-    s_multiple_beds.update_shown_beds(model, q->build_volume());
+    s_multiple_beds.update_shown_beds(model, q->build_volume(), true);
     this->view3D->reload_scene(false, flags & (unsigned int)UpdateParams::FORCE_FULL_SCREEN_REFRESH);
     this->preview->reload_print();
     if (force_background_processing_restart)
@@ -3190,11 +3190,12 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
     GLGizmoSimplify::add_simplify_suggestion_notification(
         obj_idxs, model.objects, *notification_manager);
 
-    if (s_multiple_beds.rearrange_after_load(model, q->build_volume(), [this]() {
+    s_multiple_beds.rearrange_after_load(model, q->build_volume(), [this]() {
             q->canvas3D()->check_volumes_outside_state();
             s_multiple_beds.ensure_wipe_towers_on_beds(model, fff_prints);
-         }))
-        update();
+            s_multiple_beds.update_shown_beds(model, q->build_volume());
+         });
+    update();
 
     return obj_idxs;
 }
@@ -6015,7 +6016,8 @@ void Plater::priv::update_after_undo_redo(const UndoRedo::Snapshot &snapshot, bo
         .set_deserialized(GUI::Selection::EMode(this->undo_redo_stack().selection_deserialized().mode),
                           this->undo_redo_stack().selection_deserialized().volumes_and_instances);
     this->view3D->get_canvas3d()->get_gizmos_manager().update_after_undo_redo(snapshot);
-    
+
+    s_multiple_beds.update_shown_beds(model, q->build_volume(), false);
     wxGetApp().obj_list()->update_after_undo_redo();
     
     if (wxGetApp().get_mode() == comSimple && !get_app_config()->get_bool("objects_always_expert")
@@ -8961,6 +8963,7 @@ void Plater::arrange(Worker &w, const ArrangeSelectionMode &mode)
                                                                       concat_strings(names, "\n")));
         }
 
+        s_multiple_beds.update_shown_beds(model(), build_volume());
         canvas3D()->check_volumes_outside_state();
 
         update(static_cast<unsigned int>(UpdateParams::FORCE_FULL_SCREEN_REFRESH));
