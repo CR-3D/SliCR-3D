@@ -3308,7 +3308,7 @@ void PerimeterGenerator::process(// Input:
             assert_valid(*lower_slices);
             if (get_resolution(0, false, &srf_to_use) < min_feature / 2) {
                 for (const ExPolygon& expoly : *lower_slices) {
-                    expoly.simplify(min_feature, &simplified_storage);
+                    expoly.simplify(min_feature, simplified_storage);
                 }
                 if (!simplified_storage.empty()) {
                     simplified = &simplified_storage;
@@ -3463,7 +3463,7 @@ void PerimeterGenerator::process(// Input:
         Polygons not_filled_p;
         coord_t scaled_resolution_infill = scale_t(std::max(params.print_config.resolution.value, params.print_config.resolution_internal / 4));
         for (const ExPolygon& ex : surface_process_result.inner_perimeter)
-            ex.simplify_p(scaled_resolution_infill, &not_filled_p);
+            ex.simplify_p(scaled_resolution_infill, not_filled_p);
         ExPolygons not_filled_exp = union_ex(not_filled_p);
         // collapse too narrow infill areas
         coord_t min_perimeter_infill_spacing = (coord_t)(params.get_solid_infill_spacing() * (1. - INSET_OVERLAP_TOLERANCE));
@@ -3740,7 +3740,7 @@ void PerimeterGenerator::processs_no_bridge(const Parameters params, Surfaces& a
                                 //simplify to avoid most of artefacts from printing lines.
                                 ExPolygons bridgeable_simplified;
                                 for (ExPolygon& poly : bridgeable) {
-                                    poly.simplify(params.get_perimeter_spacing(), &bridgeable_simplified);
+                                    poly.simplify(params.get_perimeter_spacing(), bridgeable_simplified);
                                 }
                                 bridgeable_simplified = offset2_ex(bridgeable_simplified, -params.get_ext_perimeter_width(), params.get_ext_perimeter_width());
                                 //bridgeable_simplified = intersection_ex(bridgeable_simplified, unsupported_filtered);
@@ -4147,7 +4147,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     //simplify to avoid most of artefacts from printing lines.
                     ExPolygons bridgeable_simplified;
                     for (const ExPolygon& poly : bridgeable) {
-                        poly.simplify(params.get_perimeter_spacing() / 2, &bridgeable_simplified);
+                        poly.simplify(params.get_perimeter_spacing() / 2, bridgeable_simplified);
                     }
 
                     //offset by perimeter spacing because the simplify may have reduced it a bit.
@@ -4359,7 +4359,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         resolution = get_resolution(1, false, &surface);
                         ExPolygons next_onion_temp;
                         for (ExPolygon& exp : next_onion)
-                            exp.simplify((resolution < SCALED_EPSILON ? SCALED_EPSILON : resolution), &next_onion_temp);
+                            exp.simplify((resolution < SCALED_EPSILON ? SCALED_EPSILON : resolution), next_onion_temp);
                         //mask
                         next_onion = intersection_ex(next_onion_temp, last);
                     }
@@ -4577,7 +4577,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
             resolution = get_resolution(perimeter_idx + 1, false, &surface);
             last.clear();
             for (ExPolygon &exp : next_onion) {
-                exp.simplify((resolution < SCALED_EPSILON ? SCALED_EPSILON : resolution), &last);
+                exp.simplify((resolution < SCALED_EPSILON ? SCALED_EPSILON : resolution), last);
             }
             assert_check_polygons(to_polygons(last));
 

@@ -1277,7 +1277,9 @@ std::vector<std::vector<ExPolygons>> multi_material_segmentation_by_painting(con
             // Such close points sometimes caused that the Voronoi diagram has self-intersecting edges around these vertices.
             // This consequently leads to issues with the extraction of colored segments by function extract_colored_segments.
             // Calling expolygons_simplify fixed these issues.
-            input_expolygons[layer_idx] = remove_duplicates(expolygons_simplify(offset_ex(ex_polygons, -10.f * float(SCALED_EPSILON)), 5 * SCALED_EPSILON), scaled<coord_t>(0.01), PI/6);
+            input_expolygons[layer_idx] = offset_ex(ex_polygons, -10.f * float(SCALED_EPSILON));
+            expolygons_simplify(input_expolygons[layer_idx], 5 * SCALED_EPSILON);
+            input_expolygons[layer_idx] = remove_duplicates(input_expolygons[layer_idx], scaled<coord_t>(0.01), PI/6);
 
 #ifdef MM_SEGMENTATION_DEBUG_INPUT
             export_processed_input_expolygons_to_svg(debug_out_path("mm-input-%d-%d.svg", layer_idx, iRun), layers[layer_idx]->regions(), input_expolygons[layer_idx]);

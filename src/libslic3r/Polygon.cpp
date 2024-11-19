@@ -60,6 +60,7 @@ Polygon::split_at_index(size_t index) const
 
 double Polygon::area(const Points &points)
 {
+    // Better than ClipperLib::Area(this->points); ?
     double a = 0.;
     if (points.size() >= 3) {
         Vec2d p1 = points.back().cast<double>();
@@ -69,6 +70,7 @@ double Polygon::area(const Points &points)
             p1 = p2;
         }
     }
+    assert(is_approx(ClipperLib::Area(points), 0.5 * a, SCALED_EPSILON * 1.));
     return 0.5 * a;
 }
 

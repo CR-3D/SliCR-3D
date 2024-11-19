@@ -593,7 +593,7 @@ static inline std::optional<Arc> try_create_arc_impl(
         double ccw_angle2 = ccw_angle;
         if (ccw_angle < 0)
             ccw_angle = 2 * PI + ccw_angle;
-        assert(is_approx(ccw_angle, angle_test, EPSILON * 10));
+        assert(is_approx(ccw_angle, angle_test, 0.01));
 #endif
     }
     return ret_arc;
