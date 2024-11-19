@@ -2449,7 +2449,7 @@ void GLCanvas3D::render()
         camera.requires_zoom_to_bed = false;
     }
 
-    camera.apply_projection(_max_bounding_box(true, true));
+    camera.apply_projection(_max_bounding_box(true));
 
     const int curr_active_bed_id = s_multiple_beds.get_active_bed();
     if (m_last_active_bed_id != curr_active_bed_id) {
@@ -6452,35 +6452,38 @@ void GLCanvas3D::_resize(unsigned int w, unsigned int h)
     _set_current();
 }
 
-BoundingBoxf3 GLCanvas3D::_max_bounding_box(bool include_gizmos, bool include_bed_model) const
+BoundingBoxf3 GLCanvas3D::_max_bounding_box(bool include_bed_model) const
 {
+    const bool is_preview = wxGetApp().plater()->is_preview_shown();
+
     BoundingBoxf3 bb = volumes_bounding_box();
 
     // The following is a workaround for gizmos not being taken in account when calculating the tight camera frustrum
     // A better solution would ask the gizmo manager for the bounding box of the current active gizmo, if any
-    if (include_gizmos && m_gizmos.is_running()) {
+    if (!is_preview && m_gizmos.is_running()) {
         const BoundingBoxf3 sel_bb = m_selection.get_bounding_box();
         const Vec3d sel_bb_center = sel_bb.center();
         const Vec3d extend_by = sel_bb.max_size() * Vec3d::Ones();
         bb.merge(BoundingBoxf3(sel_bb_center - extend_by, sel_bb_center + extend_by));
     }
 
-    
-
     const BoundingBoxf3 first_bed_bb = include_bed_model ? m_bed.extended_bounding_box() : m_bed.build_volume().bounding_volume();
-    BoundingBoxf3 bed_bb = first_bed_bb;
-    
+    BoundingBoxf3 bed_bb;
+
     for (int i = 0; i < s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()); ++i) {
-        BoundingBoxf3 this_bed = first_bed_bb;
-        this_bed.translate(s_multiple_beds.get_bed_translation(i));
-        bed_bb.merge(this_bed);
+        if (!is_preview || i == s_multiple_beds.get_active_bed()) {
+            BoundingBoxf3 this_bed = first_bed_bb;
+            this_bed.translate(s_multiple_beds.get_bed_translation(i));
+            bed_bb.merge(this_bed);
+        }
     }
     bb.merge(bed_bb);
     
-    
-
-    if (!m_main_toolbar.is_enabled())
-        bb.merge(m_gcode_viewer.get_max_bounding_box());
+    if (is_preview) {
+        BoundingBoxf3 paths_bb = m_gcode_viewer.get_max_bounding_box();
+        paths_bb.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
+        bb.merge(paths_bb);
+    }
 
     // clamp max bb size with respect to bed bb size
     if (!m_picking_enabled) {
