@@ -57,11 +57,14 @@ void Layer::make_slices()
             // optimization: if we only have one region, take its slices
             slices = to_expolygons(m_regions.front()->slices().surfaces);
         } else {
-            Polygons slices_p;
-            for (LayerRegion *layerm : m_regions)
-                polygons_append(slices_p, to_polygons(layerm->slices().surfaces));
-            slices = union_safety_offset_ex(slices_p);
+            ExPolygons slices_exp;
+            for (LayerRegion *layerm : m_regions) {
+                for (const Surface &srf : layerm->slices().surfaces) srf.expolygon.assert_valid();
+                append(slices_exp, to_expolygons(layerm->slices().surfaces));
+            }
+            slices = union_safety_offset_ex(slices_exp);
         }
+        for (ExPolygon &poly : slices) for(auto &hole :poly.holes) assert(hole.is_clockwise());
         ensure_valid(slices, std::max(scale_t(this->object()->print()->config().resolution), SCALED_EPSILON));
         for (ExPolygon &poly : slices) poly.assert_valid();
         // lslices are sorted by topological order from outside to inside from the clipper union used above

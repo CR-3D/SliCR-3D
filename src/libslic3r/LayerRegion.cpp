@@ -105,8 +105,8 @@ void LayerRegion::slices_to_fill_surfaces_clipped(coord_t opening_offset)
     for (auto const& [srf_type, expoly] : polygons_by_surface) {
         if (!expoly.empty())
             for (ExPolygon& expoly_to_test : intersection_ex(expoly, this->fill_expolygons())) {
-                expoly_to_test.douglas_peucker(std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value)));
-                if (!opening_ex({ expoly_to_test }, opening_offset).empty()) {
+                ExPolygons expolys_to_test = expoly_to_test.simplify(std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value)));
+                if (!opening_ex(expolys_to_test, opening_offset).empty()) {
                     expoly_to_test.assert_valid();
                     this->m_fill_surfaces.append({ expoly_to_test }, srf_type);
                 }

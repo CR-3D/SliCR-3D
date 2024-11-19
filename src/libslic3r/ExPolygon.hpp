@@ -78,10 +78,10 @@ public:
     bool overlaps(const ExPolygon &other) const;
 
     void douglas_peucker(coord_t tolerance);
-    void simplify_p(coord_t tolerance, Polygons* polygons) const;
+    void simplify_p(coord_t tolerance, Polygons &polygons) const;
     Polygons simplify_p(coord_t tolerance) const;
     ExPolygons simplify(coord_t tolerance) const;
-    void simplify(coord_t tolerance, ExPolygons* expolygons) const;
+    void simplify(coord_t tolerance, ExPolygons &expolygons) const;
     void remove_point_too_near(const coord_t tolerance);
     void medial_axis(double max_width, double min_width, ThickPolylines &polylines) const;
     void medial_axis(double max_width, double min_width, Polylines &polylines) const;
@@ -521,14 +521,8 @@ inline bool expolygons_contain(const ExPolygons &expolys, const Point &pt, bool 
     return false;
 }
 
-inline ExPolygons expolygons_simplify(const ExPolygons &expolys, double tolerance)
-{
-	ExPolygons out;
-	out.reserve(expolys.size());
-	for (const ExPolygon &exp : expolys)
-		exp.simplify(tolerance, &out);
-	return out;
-}
+// expolygons_simplify will simplify the geometry via douglaspeuker.
+void expolygons_simplify(ExPolygons &expolys, coord_t tolerance);
 
 // Do expolygons match? If they match, they must have the same topology,
 // however their contours may be rotated.
@@ -545,6 +539,7 @@ bool has_duplicate_points(const ExPolygon &expoly);
 bool has_duplicate_points(const ExPolygons &expolys);
 
 // remove any point that are at epsilon  (or resolution) 'distance' (douglas_peuckere algo for now) and all polygons that are too small to be valid
+// note: in the future, it may limited to removing points that just to close to other ones. If you want to simplify the geomtry, use expolygons_simplify.
 void ensure_valid(ExPolygons &expolygons, coord_t resolution = SCALED_EPSILON);
 ExPolygons ensure_valid(ExPolygons &&expolygons, coord_t resolution = SCALED_EPSILON);
 ExPolygons ensure_valid(coord_t resolution, ExPolygons &&expolygons);
