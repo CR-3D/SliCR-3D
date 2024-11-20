@@ -115,12 +115,16 @@ Vec3d MultipleBeds::get_bed_translation(int id) const
 void MultipleBeds::clear_inst_map()
 {
     m_inst_to_bed.clear();
+    m_occupied_beds_cache.fill(false);
 }
 
-void MultipleBeds::set_instance_bed(ObjectID id, int bed_idx)
+void MultipleBeds::set_instance_bed(ObjectID id, bool printable, int bed_idx)
 {
     assert(bed_idx < get_max_beds());
     m_inst_to_bed[id] = bed_idx;
+
+    if (printable)
+        m_occupied_beds_cache[bed_idx] = true;
 }
 
 void MultipleBeds::inst_map_updated()
@@ -296,6 +300,11 @@ Vec2d MultipleBeds::bed_gap() const
 
     double gap = std::min(100., m_build_volume_bb.size().norm() * (3./10.));
     return Vec2d::Ones() * gap;
+}
+
+bool MultipleBeds::is_bed_occupied(int i) const
+{
+    return m_occupied_beds_cache[i];
 }
 
 

@@ -214,6 +214,8 @@ public:
     void refresh_physical_printer_config();
     bool physical_printer_is_selected = false;
     void on_physical_printer_selected(wxCommandEvent &);
+    void reload_print();
+    void object_list_changed();
 
     
     //std::vector<size_t> load_files(const std::vector<boost::filesystem::path>& input_files, bool load_model = true, bool load_config = true, bool update_dirs = true, bool imperial_units = false);

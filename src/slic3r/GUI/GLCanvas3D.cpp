@@ -97,6 +97,16 @@ static const Slic3r::ColorRGBA DEFAULT_BG_LIGHT_COLOR = { 0.431f, 0.431f, 0.431f
 static const Slic3r::ColorRGBA ERROR_BG_DARK_COLOR    = { 0.478f, 0.192f, 0.039f, 1.0f };
 static const Slic3r::ColorRGBA ERROR_BG_LIGHT_COLOR   = { 0.753f, 0.192f, 0.039f, 1.0f };
 
+ const ImVec4 COL_GREY_DARK         = { 0.33f, 0.33f, 0.33f, 1.0f };
+ const ImVec4 COL_GREY_LIGHT        = { 0.4f, 0.4f, 0.4f, 1.0f };
+ const ImVec4 COL_ORANGE_DARK       = { 0.67f, 0.36f, 0.19f, 1.0f };
+ const ImVec4 COL_ORANGE_LIGHT      = { 0.923f, 0.504f, 0.264f, 1.0f };
+ const ImVec4 COL_WINDOW_BACKGROUND = { 0.13f, 0.13f, 0.13f, 0.8f };
+ const ImVec4 COL_BUTTON_BACKGROUND = COL_ORANGE_DARK;
+ const ImVec4 COL_BUTTON_HOVERED    = COL_ORANGE_LIGHT;
+ const ImVec4 COL_BUTTON_ACTIVE     = COL_BUTTON_HOVERED;
+
+
 // Number of floats
 static constexpr const size_t MAX_VERTEX_BUFFER_SIZE = 131072 * 6; // 3.15MB
 
@@ -131,6 +141,7 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
             wxGetApp().plater()->get_camera().translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
         }
         wxGetApp().plater()->schedule_background_process();
+        wxGetApp().plater()->object_list_changed(); // Updates Slice Now / Export buttons.
         if (s_multiple_beds.is_autoslicing() && triggered_by_user)
             s_multiple_beds.stop_autoslice(false);
     });
@@ -6896,38 +6907,45 @@ void GLCanvas3D::_render_overlays()
 void Slic3r::GUI::GLCanvas3D::_render_bed_selector()
 {
     static float btn_side = 80.f;
-    static float btn_border = 4.f;
+    static float btn_border = 2.f;
     static bool hide_title = true;
 
     ImVec2 btn_size = ImVec2(btn_side, btn_side);
 
     if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
-        auto render_bed_button = [btn_size, this](int i)
-        {
-            //ImGui::Text("%d", i);
-            //ImGui::SameLine();
+        auto render_bed_button = [btn_size, this](int i) {
+          bool empty = !s_multiple_beds.is_bed_occupied(i);
+          bool inactive = i != s_multiple_beds.get_active_bed() || s_multiple_beds.is_autoslicing();
 
-            bool inactive = i != s_multiple_beds.get_active_bed() || s_multiple_beds.is_autoslicing();
-            if (inactive)
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
-            if (bool clicked = (i >= int(s_th_tex_id.size()))
-                ? ImGui::Button(std::to_string(i).c_str(), btn_size)
-                : ImGui::ImageButton((void*)(int64_t)s_th_tex_id[i], btn_size, ImVec2(0, 1), ImVec2(1, 0));
-                clicked)
+          ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0., 0., 0., .5));
+          ImGui::PushStyleColor(ImGuiCol_Border, inactive ? COL_GREY_DARK : COL_BUTTON_ACTIVE);
+
+          if (empty)
+              ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+
+          bool clicked = false;
+          ImVec2 btn_padding = ImVec2(btn_border, btn_border);
+          
+          // Calculate final size explicitly
+          ImVec2 btn_size_with_padding = ImVec2(btn_size.x + btn_padding.x, btn_size.y + btn_padding.y);
+          ImVec2 btn_size_without_padding = ImVec2(btn_size.x - btn_padding.x, btn_size.y - btn_padding.y);
+
+          if (i >= int(s_th_tex_id.size()) || empty)
+              clicked = ImGui::Button(empty ? "empty" : std::to_string(i + 1).c_str(), btn_size_with_padding);
+          else
+              clicked = ImGui::ImageButton(
+                  (void*)(int64_t)s_th_tex_id[i],
+                  btn_size_without_padding,
+                  ImVec2(0, 1),
+                  ImVec2(1, 0),
+                  btn_border
+              );
+            if (clicked && ! empty)
                 select_bed(i, true);
 
-            if (inactive)
-                ImGui::PopStyleColor();
-
-            std::string status_text;
-            if (wxGetApp().plater()->get_fff_prints()[i]->finished())
-                status_text = "Finished";
-            else if (m_process->fff_print() == wxGetApp().plater()->get_fff_prints()[i].get() && m_process->running())
-                status_text = "Running";
-            else
-                status_text = "Idle";
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip(status_text.c_str());
+            //ImGui::PopStyleColor(2);
+            if (empty)
+                ImGui::PopItemFlag();
         };
 
         ImGuiWrapper& imgui = *wxGetApp().imgui();
@@ -6947,9 +6965,8 @@ void Slic3r::GUI::GLCanvas3D::_render_bed_selector()
 #endif
         ImGui::Begin("Bed selector", 0, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2());
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(btn_border, btn_border));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
 
         // Disable for now.
         //if (imgui.image_button(ImGui::SliceAllBtnIcon, "Slice All")) {
@@ -6968,7 +6985,7 @@ void Slic3r::GUI::GLCanvas3D::_render_bed_selector()
                 ImGui::SameLine();
         }
 
-        ImGui::PopStyleVar(4);
+        ImGui::PopStyleVar(3);
 
 #if use_scrolling
         bool extra_frame{ false };

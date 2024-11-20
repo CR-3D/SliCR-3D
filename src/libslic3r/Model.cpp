@@ -1712,7 +1712,7 @@ unsigned int ModelObject::update_instances_print_volume_state(const BuildVolume 
         if (inside_outside == INSIDE)
             ++num_printable;
         if (bed_idx != -1)
-            s_multiple_beds.set_instance_bed(model_instance->id(), bed_idx);
+            s_multiple_beds.set_instance_bed(model_instance->id(), model_instance->printable, bed_idx);
     }
     return num_printable;
 }

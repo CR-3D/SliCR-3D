@@ -36,9 +36,10 @@ public:
 	Vec3d get_bed_translation(int id) const;
 
 	void   clear_inst_map();
-	void   set_instance_bed(ObjectID id, int bed_idx);
+	void   set_instance_bed(ObjectID id, bool printable, int bed_idx);
 	void   inst_map_updated();
     const std::map<ObjectID, int> &get_inst_map() const { return m_inst_to_bed; }
+	bool   is_bed_occupied(int bed_idx) const;
 
 	int    get_number_of_beds() const   { return m_number_of_beds; }
 	bool   should_show_next_bed() const { return m_show_next_bed; }
@@ -82,6 +83,7 @@ private:
 	bool m_show_next_bed = false;
 	std::map<ObjectID, int> m_inst_to_bed;
 	std::map<PrintBase*, size_t> m_printbase_to_texture;
+	std::array<int, MAX_NUMBER_OF_BEDS> m_occupied_beds_cache;
 	int m_last_hovered_bed = -1;
 	BoundingBoxf m_build_volume_bb;
 	bool m_legacy_layout = false;

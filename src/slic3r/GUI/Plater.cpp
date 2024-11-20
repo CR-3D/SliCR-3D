@@ -3459,8 +3459,8 @@ void Plater::priv::object_list_changed()
     const bool export_in_progress = this->background_process.is_export_scheduled(); // || ! send_gcode_file.empty());
     // XXX: is this right?
     const bool model_fits = view3D->get_canvas3d()->check_volumes_outside_state() == ModelInstancePVS_Inside;
-    
-    sidebar->enable_buttons(!model.objects.empty() && !export_in_progress && model_fits);
+
+    sidebar->enable_buttons(s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed()) && !model.objects.empty() && !export_in_progress && model_fits);
 }
 
 void Plater::priv::select_all()
@@ -4569,13 +4569,17 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
             // FIXME: it may be better to have a single function making this check and let it be called wherever needed
             bool export_in_progress = this->background_process.is_export_scheduled();
             bool model_fits = view3D->get_canvas3d()->check_volumes_outside_state() != ModelInstancePVS_Partly_Outside;
-            if (!model.objects.empty() && !export_in_progress && model_fits) {
+            if (s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed()) && !model.objects.empty() && !export_in_progress && model_fits) {
                 preview->get_canvas3d()->init_gcode_viewer();
                 preview->load_gcode_shells();
                 q->reslice();
             }
             // keeps current gcode preview, if any
-            preview->reload_print(true);
+            preview->reload_print();
+
+            if (! s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed()))
+                preview->get_canvas3d()->reset_gcode_toolpaths();
+
         }
     }
     
@@ -6525,6 +6529,11 @@ std::vector<size_t> Plater::load_files(const std::vector<fs::path> &input_files,
 {
     return p->load_files(input_files, load_model, load_config, update_dirs, imperial_units);
 }
+
+void Plater::object_list_changed()
+{
+    p->object_list_changed();
+}
 // To be called when providing a list of files to the GUI slic3r on command line.
 std::vector<size_t> Plater::load_files(const std::vector<std::string> &input_files,
                                        bool                            load_model,
@@ -7507,8 +7516,9 @@ void Plater::apply_cut_object_to_model(size_t obj_idx, const ModelObjectPtrs& ne
     size_t last_id = p->model.objects.size() - 1;
     for (size_t i = 0; i < new_objects.size(); ++i) {
         selection.add_object((unsigned int)(last_id - i), i == 0);
-        const ObjectID instance_id{p->model.objects[last_id - i]->instances.front()->id().id};
-        s_multiple_beds.set_instance_bed(instance_id, s_multiple_beds.get_active_bed());
+        const ModelInstance* mi = p->model.objects[last_id - i]->instances.front();
+        const ObjectID instance_id{mi->id().id};
+        s_multiple_beds.set_instance_bed(instance_id, mi->printable, s_multiple_beds.get_active_bed());
     }
 
     UIThreadWorker w;

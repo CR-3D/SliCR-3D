@@ -212,8 +212,7 @@ arr2::SceneBuilder build_scene(Plater &plater, ArrangeSelectionMode mode)
                 const bool is_selected{gui_selection->selected_instances(object_index)[instance_index]};
 
                 const auto instance_bed_index{beds_map.find(instance->id())};
-                if (is_selected || ( instance_bed_index != beds_map.end() && instance_bed_index->second == current_bed)
-                ) {
+                if (is_selected || ( instance_bed_index != beds_map.end() && instance_bed_index->second == current_bed)) {
                     constraints.insert({instance->id(), current_bed});
                     considered_instances.insert(instance->id());
                 }
