@@ -142,6 +142,7 @@ void FillPlanePath::_fill_surface_single(
             assert(!polylines.front().empty());
             if (!all_poly.empty() && polylines.front().front().coincides_with_epsilon(all_poly.back().back())) {
                 // it continue the last polyline, so just append to it
+                all_poly.back().points.pop_back();
                 append(all_poly.back().points, std::move(polylines.front().points));
                 //append other polylines
                 if (polylines.size() > 1) {
