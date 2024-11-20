@@ -475,6 +475,22 @@ static Surfaces expand_merge_surfaces(
 void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered)
 {
     using namespace Slic3r::Algorithm;
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        for (auto &srf2 : m_fill_surfaces.surfaces) {
+            if (&srf != &srf2) {
+                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                double area = 0;
+                for (auto &expoly : intersect) {
+                    area += expoly.area();
+                }
+                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+            }
+        }
+    }
+#endif
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-initial");
@@ -889,6 +905,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     }
 
     Surfaces new_surfaces;
+    const coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
     {
         // Intersect the grown surfaces with the actual fill boundaries.
         Polygons bottom_polygons = to_polygons(bottom);
@@ -913,7 +930,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
             surfaces_append(
                 new_surfaces,
                 // Don't use a safety offset as fill_boundaries were already united using the safety offset.
-                intersection_ex(polys, fill_boundaries),
+                ensure_valid(intersection_ex(polys, fill_boundaries), scaled_resolution),
                 s1);
         }
     }
@@ -935,7 +952,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
         }
         ExPolygons new_expolys = diff_ex(polys, new_polygons);
         polygons_append(new_polygons, to_polygons(new_expolys));
-        surfaces_append(new_surfaces, std::move(new_expolys), s1);
+        surfaces_append(new_surfaces, ensure_valid(std::move(new_expolys), scaled_resolution), s1);
     }
     
     m_fill_surfaces.surfaces = std::move(new_surfaces);

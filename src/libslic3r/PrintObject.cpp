@@ -454,6 +454,27 @@ void PrintObject::prepare_infill()
     }
     this->clean_surfaces();
 
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (auto &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                for (auto &srf2 : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                    if (&srf != &srf2) {
+                        ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                        intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                        double area = 0;
+                        for (auto &expoly : intersect) {
+                            area += expoly.area();
+                        }
+                        assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                    }
+                }
+            }
+        }
+    }
+#endif
+
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
         for (const Layer *layer : m_layers) {
@@ -2208,6 +2229,16 @@ void PrintObject::process_external_surfaces()
 {
     BOOST_LOG_TRIVIAL(info) << "Processing external surfaces..." << log_memory_info();
 
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
+
     // Cached surfaces covered by some extrusion, defining regions, over which the from the surfaces one layer higher are allowed to expand.
     std::vector<Polygons> surfaces_covered;
     // Is there any printing region, that has zero infill? If so, then we don't want the expansion to be performed over the complete voids, but only
@@ -2264,7 +2295,17 @@ void PrintObject::process_external_surfaces()
         BOOST_LOG_TRIVIAL(debug) << "Collecting surfaces covered with extrusions in parallel - end";
     }
 
-	for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
+
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - start";
         Slic3r::parallel_for(size_t(0), m_layers.size(),
             [this, &surfaces_covered, region_id](const size_t layer_idx) {
@@ -2281,6 +2322,16 @@ void PrintObject::process_external_surfaces()
         m_print->throw_if_canceled();
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - end";
     }
+
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
 
     if (this->has_raft() && ! m_layers.empty()) {
         // Adjust bridge direction of 1st object layer over raft to be perpendicular to the raft contact layer direction.
