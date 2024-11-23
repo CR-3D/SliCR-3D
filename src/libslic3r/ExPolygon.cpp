@@ -576,7 +576,7 @@ void expolygons_simplify(ExPolygons &expolygons, coord_t resolution)
         expolygons[i].contour.douglas_peucker(resolution);
         for(auto &hole :expolygons[i].holes) assert(hole.is_clockwise());
         if (expolygons[i].contour.size() < 3) {
-            expolygons.erase(expolygons.begin() + i);
+            expolygons.erase(expolygons.begin() + i);   
             --i;
         } else {
             if (!expolygons[i].contour.is_counter_clockwise()) {
