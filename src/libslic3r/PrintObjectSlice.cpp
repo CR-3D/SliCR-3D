@@ -1271,7 +1271,7 @@ Polygon _smooth_curve(Polygon& p, double max_angle, double min_angle_convex, dou
         pout.points.push_back(p[idx]);
         //get angles
         //double angle1 = p[idx].ccw_angle(p.points[idx - 1], p.points[idx + 1]);
-        assert(ccw_angle_old_test(p[idx], p.points[idx - 1], p.points[idx + 1]) == abs_angle(angle_ccw( p.points[idx - 1] - p[idx],p.points[idx + 1] - p[idx])));
+        assert(is_approx(ccw_angle_old_test(p[idx], p.points[idx - 1], p.points[idx + 1]), abs_angle(angle_ccw( p.points[idx - 1] - p[idx],p.points[idx + 1] - p[idx])),EPSILON));
         double angle1 = abs_angle(angle_ccw( p.points[idx - 1] - p[idx],p.points[idx + 1] - p[idx]));
         bool angle1_concave = true;
         if (angle1 > PI) {
@@ -1279,7 +1279,7 @@ Polygon _smooth_curve(Polygon& p, double max_angle, double min_angle_convex, dou
             angle1_concave = false;
         }
         //double angle2 = p[idx + 1].ccw_angle(p.points[idx], p.points[idx + 2]);
-        assert(ccw_angle_old_test(p[idx + 1], p.points[idx], p.points[idx + 2]) == abs_angle(angle_ccw( p.points[idx] - p[idx + 1],p.points[idx + 2] - p[idx + 1])));
+        assert(is_approx(ccw_angle_old_test(p[idx + 1], p.points[idx], p.points[idx + 2]), abs_angle(angle_ccw( p.points[idx] - p[idx + 1],p.points[idx + 2] - p[idx + 1])),EPSILON));
         double angle2 = abs_angle(angle_ccw( p.points[idx] - p[idx + 1],p.points[idx + 2] - p[idx + 1]));
         bool angle2_concave = true;
         if (angle2 > PI) {
