@@ -3,10 +3,10 @@ page:Perimeters & Shell:shell
 group:Vertical shells
 	line:Perimeters
 		setting:label$Contour:width$6:sidetext_width$10:perimeters
-        setting:label$Holes:width$6:perimeters_hole
+		setting:label$Holes:width$6:perimeters_hole
 	end_line
 	setting:tags$Simple$Expert$SuSi:script:float:depends$perimeter_spacing$external_perimeter_spacing:label$Wall Thickness:tooltip$Change the perimeter extrusion widths to ensure that there is an exact number of perimeters for this wall thickness value. It won't put the perimeter width below the nozzle diameter, and up to double.\nNote that the value displayed is just a view of the current perimeter thickness, like the info text below. The number of perimeters used to compute this value is one loop, or the custom variable 'wall_thickness_lines' (advanced mode) if defined.\nIf the value is too low, it will revert the widths to the saved value.\nIf the value is set to 0, it will show 0.:s_wall_thickness
-    setting:perimeter_generator
+	setting:perimeter_generator
 	setting:spiral_vase
 	recommended_thin_wall_thickness_description
 group:Horizontal shells
@@ -18,9 +18,10 @@ group:Horizontal shells
 		setting:top_solid_min_thickness
 		setting:bottom_solid_min_thickness
 	end_line
-	top_bottom_shell_thickness_explanation
 	setting:solid_over_perimeters
+	setting:ensure_vertical_shell_thickness
 	setting:enforce_full_fill_volume
+	top_bottom_shell_thickness_explanation
 group:Infill
 	line:Sparse infill pattern
 		setting:tags$Simple:label_width$0:label$_:fill_pattern
@@ -59,7 +60,7 @@ group:Avoid crossing perimeters
 	end_line
 	line:Modifiers
 		setting:label_width$12:label$Not on first layer:avoid_crossing_not_first_layer
-        setting:avoid_crossing_top
+		setting:avoid_crossing_top
 	end_line
 	setting:avoid_crossing_curled_overhangs
 group:label_width$12:Overhangs
@@ -142,7 +143,7 @@ group:Filtering
 	setting:resolution_internal
 	setting:model_precision
 	setting:slice_closing_radius
-    setting:bridge_precision
+	setting:bridge_precision
 # gcode_resolution
 group:Modifying slices
 	line:Curve smoothing
@@ -169,11 +170,11 @@ group:Modifying slices
 		setting:sidetext_width$5:hole_to_polyhole_threshold
 		setting:hole_to_polyhole_twisted
 	end_line
-    line:Overhangs cut
-        setting:overhangs_max_slope
-        setting:overhangs_bridge_threshold
-        setting:overhangs_bridge_upper_layers
-    end_line
+	line:Overhangs cut
+		setting:overhangs_max_slope
+		setting:overhangs_bridge_threshold
+		setting:overhangs_bridge_upper_layers
+	end_line
 group:Other
 	setting:slicing_mode
 	setting:allow_empty_layers
@@ -184,7 +185,7 @@ group:title_width$0:Infill
 		setting:tags$Advanced$Expert$Prusa:label_left:label_width$6:label$Sparse:width$8:sidetext_width$1:fill_density
 		setting:tags$Advanced$Expert$Prusa:label_width$0:label$_:fill_pattern
 		setting:label$_:width$18:infill_connection
-        setting:label$Aligned:fill_aligned_z
+		setting:label$Aligned:fill_aligned_z
 	end_line
 	line:_
 		setting:label$Connection length:label_width$25:sidetext_width$7:width$12:infill_anchor_max
@@ -226,10 +227,10 @@ group:sidetext_width$5:Infill angle
 group:sidetext_width$5:Advanced
 	setting:solid_infill_every_layers
 	line:Solid infill if area below
-        setting:label$From region:solid_infill_below_area
-        setting:label$From the whole layer:solid_infill_below_layer_area
+		setting:label$From region:solid_infill_below_area
+		setting:label$From the whole layer:solid_infill_below_layer_area
 	end_line
-    setting:solid_infill_below_width
+	setting:solid_infill_below_width
 	line:Anchor solid infill by X mm
 		setting:label_width$8:width$5:external_infill_margin
 		setting:label_width$6:width$5:bridged_infill_margin
@@ -348,12 +349,12 @@ group:Organic supports
 	line:Branch diameter
 		setting:label$_:support_tree_branch_diameter
 		setting:label$Angle:support_tree_branch_diameter_angle
-        setting:support_tree_tip_diameter
+		setting:support_tree_tip_diameter
 	end_line
-    setting:support_tree_branch_diameter_double_wall
+	setting:support_tree_branch_diameter_double_wall
 	line:Branch
-        setting:label$Distance:support_tree_branch_distance
-        setting:label$Density:support_tree_top_rate
+		setting:label$Distance:support_tree_branch_distance
+		setting:label$Density:support_tree_top_rate
 	end_line
 
 page:Speed:time
@@ -374,9 +375,9 @@ group:label_width$8:sidetext_width$7:Speed for print moves
 	line:Bridge speed
 		setting:width$4:bridge_speed
 		setting:width$4:internal_bridge_speed
-    line:Overhangs speed
+	line:Overhangs speed
 		setting:width$4:overhangs_speed
-        setting:overhangs_dynamic_speed
+		setting:overhangs_dynamic_speed
 	line:Gap fill speed
 		setting:width$4:label$Maximum speed:gap_fill_speed
 		setting:width$4:label$Cap with:sidetext$% of perimeter flow:sidetext_width$20:gap_fill_flow_match_perimeter
@@ -448,7 +449,7 @@ group:Extrusion width
 	line:perimeter
 		setting:sidetext_width$10:label$width:perimeter_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:perimeter_extrusion_spacing
-        setting:sidetext_width$10:label_width$15:label$even layers:perimeter_extrusion_change_odd_layers
+		setting:sidetext_width$10:label_width$15:label$even layers:perimeter_extrusion_change_odd_layers
 	end_line
 	line:external perimeter
 		setting:sidetext_width$10:label$width:external_perimeter_extrusion_width
@@ -490,9 +491,9 @@ group:Overlap
 		setting:label_width$7:label$External:external_perimeter_overlap
 		setting:label_width$7:label$Gap Fill:gap_fill_overlap
 	end_line
-    line:Solid infill ovelrap
-        setting:label$Inside:width$4:solid_infill_overlap
-        setting:label$Top:width$4:top_solid_infill_overlap
+	line:Solid infill ovelrap
+		setting:label$Inside:width$4:solid_infill_overlap
+		setting:label$Top:width$4:top_solid_infill_overlap
 	end_line
 	line:Bridge lines density
 		setting:label_width$7:bridge_overlap_min
@@ -544,8 +545,8 @@ group:Wipe tower
 	end_line
 	setting:wipe_tower_no_sparse_layers
 	line:Priming
-        setting:single_extruder_multi_material_priming
-        setting:priming_position
+		setting:single_extruder_multi_material_priming
+		setting:priming_position
 	end_line
 group:Advanced
 	setting:interface_shells
@@ -571,7 +572,7 @@ group:Output file
 	setting:gcode_label_objects
 	setting:full_width:output_filename_format
 group:Other
-    gcode_substitutions
+	gcode_substitutions
 group:Post-processing script
 	setting:full_width:height$5:post_process
 	post_process_explanation

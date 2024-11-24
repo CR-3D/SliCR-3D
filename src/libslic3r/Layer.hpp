@@ -175,6 +175,7 @@ public:
         std::vector<ExPolygonRange>                            &fill_expolygons_ranges);
     void    make_milling_post_process(const SurfaceCollection& slices);
     void    process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered);
+    void    process_external_surfaces_old(const Layer *lower_layer, const Polygons *lower_layer_covered);
     double  infill_area_threshold() const;
     // Trim surfaces by trimming polygons. Used by the elephant foot compensation at the 1st layer.
     void    trim_surfaces(const Polygons &trimming_polygons);

@@ -466,7 +466,7 @@ private:
     ExPolygons _smooth_curves(const ExPolygons &input, const PrintRegionConfig &conf) const;
     void detect_surfaces_type();
     void apply_solid_infill_below_layer_area();
-    void process_external_surfaces();
+    void process_external_surfaces(bool old);
     void discover_vertical_shells();
     void bridge_over_infill();
     void replaceSurfaceType(SurfaceType st_to_replace, SurfaceType st_replacement, SurfaceType st_under_it);

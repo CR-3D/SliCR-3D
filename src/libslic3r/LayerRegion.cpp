@@ -429,7 +429,11 @@ static Surfaces expand_merge_surfaces(
     const Algorithm::RegionExpansionParameters  &expansion_params_into_sparse_infill,
     const coordf_t                              closing_radius,
     const coord_t                               scaled_resolution,
-    const double                                bridge_angle = -1.)
+    const double                                bridge_angle
+#ifdef _DEBUG
+    ,std::string                                 svg_name
+#endif
+    )
 {
     using namespace Slic3r::Algorithm;
 
@@ -437,7 +441,9 @@ static Surfaces expand_merge_surfaces(
     ExPolygons src = fill_surfaces_extract_expolygons(surfaces, {surface_type}, thickness);
     if (src.empty())
         return {};
-
+    ExPolygons init_src = src;
+    ExPolygons init_shells = shells;
+    ExPolygons sparse_shells = sparse;
     std::vector<RegionExpansion> expansions = propagate_waves(src, shells, expansion_params_into_solid_infill);
     bool                         expanded_into_shells = !expansions.empty();
     bool                         expanded_into_sparse = false;
@@ -497,8 +503,8 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 
     // Width of the perimeters.
-    float shell_width = 0;
-    float expansion_min = 0;
+    coord_t shell_width = 0;
+    coord_t expansion_min = 0;
     if (int num_perimeters = this->region().config().perimeters; num_perimeters > 0) {
         Flow external_perimeter_flow = this->flow(frExternalPerimeter);
         Flow perimeter_flow          = this->flow(frPerimeter);
@@ -507,18 +513,42 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
         expansion_min = perimeter_flow.scaled_spacing();
     } else {
         // TODO: Maybe there is better solution when printing with zero perimeters, but this works reasonably well, given the situation
-        shell_width   = float(SCALED_EPSILON);
-        expansion_min = float(SCALED_EPSILON);;
+        shell_width   = 0;//SCALED_EPSILON;
+        expansion_min = 0;//SCALED_EPSILON;
     }
+    
+    coord_t                         expansion_solid = shell_width;
+    coord_t                         expansion_bottom_bridge = shell_width;
+    const bool has_infill = this->region().config().fill_density.value > 0.;
+    //if no infill, reduce the margin for everything to only the perimeter
+    if (!has_infill) {
+        coord_t margin = scale_t(this->region().config().external_infill_margin.get_abs_value(unscaled(shell_width)));
+        coord_t margin_bridged = scale_t(this->region().config().bridged_infill_margin.get_abs_value(this->flow(frExternalPerimeter).width()));
+        expansion_solid = std::min(margin, shell_width);
+        expansion_bottom_bridge = std::min(margin_bridged, shell_width);
+    } else {
+        expansion_solid = scale_t(this->region().config().external_infill_margin.get_abs_value(unscaled(shell_width)));
+        expansion_bottom_bridge = scale_t(this->region().config().bridged_infill_margin.get_abs_value(this->flow(frExternalPerimeter).width()));
+    }
+    if (expansion_min <= 0) {
+        expansion_min = SCALED_EPSILON;
+    }
+    if (expansion_solid <= 0) {
+        expansion_solid = SCALED_EPSILON;
+    }
+    if (expansion_bottom_bridge <= 0) {
+        expansion_bottom_bridge = SCALED_EPSILON;
+    }
+    expansion_min = std::min(expansion_min, expansion_solid);
 
     // Scaled expansions of the respective external surfaces.
-    float                           expansion_top           = shell_width * sqrt(2.);
-    float                           expansion_bottom        = expansion_top;
-    float                           expansion_bottom_bridge = expansion_top;
-    // Expand by waves of expansion_step size (expansion_step is scaled), but with no more steps than max_nr_expansion_steps.
-    static constexpr const float    expansion_step          = scaled<float>(0.1);
+    coord_t                         expansion_top           = expansion_solid;
+    coord_t                         expansion_bottom        = expansion_top;
     // Don't take more than max_nr_steps for small expansion_step.
     static constexpr const size_t   max_nr_expansion_steps  = 5;
+    // Expand by waves of expansion_step size (expansion_step is scaled), but with no more steps than max_nr_expansion_steps.
+    coord_t                         expansion_step          = std::max(coord_t(expansion_solid / max_nr_expansion_steps), expansion_min / 2);
+        //std::min(this->flow(frPerimeter).scaled_width() / 4, expansion_min);
     // Radius (with added epsilon) to absorb empty regions emering from regularization of ensuring, viz  const float narrow_ensure_vertical_wall_thickness_region_radius = 0.5f * 0.65f * min_perimeter_infill_spacing;
     const coordf_t closing_radius = 0.55f * 0.65f * 1.05f * this->flow(frSolidInfill).scaled_spacing();
     const coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
@@ -527,7 +557,19 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     double     layer_thickness;
     ExPolygons shells = union_ex(fill_surfaces_extract_expolygons(m_fill_surfaces.surfaces, { stPosInternal | stDensSolid }, layer_thickness));
     ExPolygons sparse = union_ex(fill_surfaces_extract_expolygons(m_fill_surfaces.surfaces, { stPosInternal | stDensSparse }, layer_thickness));
+    ExPolygons init_shells = shells;
+    ExPolygons init_sparse = sparse;
+#ifdef _DEBUG
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+            srf.surface_type == (stPosInternal | stDensSparse) ||
+            srf.surface_type == (stPosInternal | stDensVoid) ||
+            srf.surface_type == (stPosTop | stDensSolid) ||
+            srf.surface_type == (stPosBottom | stDensSolid) ||
+            srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
 
+    }
+#endif
     SurfaceCollection bridges;
     const auto expansion_params_into_sparse_infill = RegionExpansionParameters::build(expansion_min, expansion_step, max_nr_expansion_steps);
     {
@@ -535,7 +577,11 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
         const double custom_angle = this->region().config().bridge_angle.value;
         const auto   expansion_params_into_solid_infill  = RegionExpansionParameters::build(expansion_bottom_bridge, expansion_step, max_nr_expansion_steps);
         if (this->region().config().bridge_angle.is_enabled()) {
-            bridges.surfaces = expand_merge_surfaces(m_fill_surfaces.surfaces, stPosBottom | stDensSolid | stModBridge, shells, expansion_params_into_solid_infill, sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution, Geometry::deg2rad(custom_angle));
+            bridges.surfaces = expand_merge_surfaces(m_fill_surfaces.surfaces, stPosBottom | stDensSolid | stModBridge, shells, expansion_params_into_solid_infill, sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution, Geometry::deg2rad(custom_angle)
+#ifdef _DEBUG
+            , std::to_string(this->layer()->id()) + "_expand_merge_surfaces_bridge_"
+#endif
+            );
             for(auto&srf : bridges.surfaces) srf.expolygon.assert_valid();
         } else {
             bridges.surfaces = expand_bridges_detect_orientations(m_fill_surfaces.surfaces, shells, expansion_params_into_solid_infill, sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution);
@@ -551,14 +597,31 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     }
 
     Surfaces    bottoms = expand_merge_surfaces(m_fill_surfaces.surfaces, stPosBottom | stDensSolid, shells,
-        RegionExpansionParameters::build(expansion_bottom, expansion_step, max_nr_expansion_steps), 
-        sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution);
+        RegionExpansionParameters::build(expansion_bottom, expansion_bottom/max_nr_expansion_steps , max_nr_expansion_steps), 
+        sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution, -1
+#ifdef _DEBUG
+            , std::to_string(this->layer()->id()) + "_expand_merge_surfaces_bot_"
+#endif
+            );
     Surfaces    tops    = expand_merge_surfaces(m_fill_surfaces.surfaces, stPosTop | stDensSolid, shells,
-        RegionExpansionParameters::build(expansion_top, expansion_step, max_nr_expansion_steps), 
-        sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution);
+        RegionExpansionParameters::build(expansion_top, expansion_top / max_nr_expansion_steps, max_nr_expansion_steps), 
+        sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution, -1
+#ifdef _DEBUG
+            , std::to_string(this->layer()->id()) + "_expand_merge_surfaces_top_"
+#endif
+            );
 
-//    m_fill_surfaces.remove_types({ stBottomBridge, stBottom, stTop, stInternal, stInternalSolid });
-    m_fill_surfaces.clear();
+#ifdef _DEBUG
+    m_fill_surfaces.remove_types({
+        stPosBottom | stDensSolid | stModBridge,
+        stPosBottom | stDensSolid,
+        stPosTop | stDensSolid,
+        stPosInternal | stDensSparse,
+        stPosInternal | stDensSolid });
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        assert(srf.surface_type == (stPosInternal | stDensVoid));
+    }
+#endif
     reserve_more(m_fill_surfaces.surfaces, shells.size() + sparse.size() + bridges.size() + bottoms.size() + tops.size());
     {
         Surface solid_templ(stPosInternal | stDensSolid, {});
@@ -579,24 +642,42 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     m_fill_surfaces.append(std::move(bottoms));
     m_fill_surfaces.append(std::move(tops));
 
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        for (auto &srf2 : m_fill_surfaces.surfaces) {
+            if (&srf != &srf2) {
+                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                double area = 0;
+                for (auto &expoly : intersect) {
+                    area += expoly.area();
+                }
+                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+            }
+        }
+    }
+#endif
+
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-final");
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 }
-#else
+//#else
 
 //#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 3.
 //#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 1.5
 #define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtSquare, 0.
 
-void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered)
+void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const Polygons *lower_layer_covered)
 {
 
     coord_t max_margin = 0;
     if ((this->region().config().perimeters > 0)) {
-        max_margin = this->flow(frExternalPerimeter).scaled_width() + this->flow(frPerimeter).scaled_spacing() * (this->region().config().perimeters.value - 1);
+        max_margin = (this->flow(frExternalPerimeter).scaled_width() + this->flow(frPerimeter).scaled_spacing()) /2 +
+            this->flow(frPerimeter).scaled_spacing() * (this->region().config().perimeters.value - 1);
     }
-    const Surfaces &surfaces = this->fill_surfaces.surfaces;
+    const Surfaces &surfaces = this->m_fill_surfaces.surfaces;
     const bool has_infill = this->region().config().fill_density.value > 0.;
     coord_t margin = scale_t(this->region().config().external_infill_margin.get_abs_value(unscaled(max_margin)));
     coord_t margin_bridged = scale_t(this->region().config().bridged_infill_margin.get_abs_value(this->flow(frExternalPerimeter).width()));

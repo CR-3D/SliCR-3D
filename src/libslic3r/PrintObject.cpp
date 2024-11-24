@@ -86,6 +86,7 @@ using namespace std::literals;
     #define PRINT_OBJECT_TIME_LIMIT_MILLIS(limit) do {} while(false)
 #endif // PRINT_OBJECT_TIMING
 
+//#define SLIC3R_DEBUG_SLICE_PROCESSING 1
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
 #define SLIC3R_DEBUG
 #endif
@@ -94,12 +95,14 @@ using namespace std::literals;
 
 // Make assert active if SLIC3R_DEBUG
 #ifdef SLIC3R_DEBUG
+#ifndef _DEBUG
 #undef NDEBUG
 #define DEBUG
 #define _DEBUG
 #include "SVG.hpp"
 #undef assert 
 #include <cassert>
+#endif
 #endif
 
     #include "SVG.hpp"
@@ -333,6 +336,20 @@ void PrintObject::prepare_infill()
             m_print->throw_if_canceled();
         }
     }
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
+                assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                       srf.surface_type == (stPosInternal | stDensSparse) ||
+                       srf.surface_type == (stPosInternal | stDensVoid) ||
+                       srf.surface_type == (stPosTop | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+            }
+        }
+    }
+#endif
 
     // This will assign a type (top/bottom/internal) to $layerm->slices.
     // Then the classifcation of $layerm->slices is transfered onto 
@@ -349,6 +366,21 @@ void PrintObject::prepare_infill()
     }
     this->detect_surfaces_type();
     m_print->throw_if_canceled();
+    
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
+                assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                       srf.surface_type == (stPosInternal | stDensSparse) ||
+                       srf.surface_type == (stPosInternal | stDensVoid) ||
+                       srf.surface_type == (stPosTop | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+            }
+        }
+    }
+#endif
     
     // Decide what surfaces are to be filled.
     // Here the stTop / stBottomBridge / stBottom infill is turned to just stInternal if zero top / bottom infill layers are configured.
@@ -374,11 +406,66 @@ void PrintObject::prepare_infill()
             m_print->throw_if_canceled();
         }
     }
+    
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
+                assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                       srf.surface_type == (stPosInternal | stDensSparse) ||
+                       srf.surface_type == (stPosInternal | stDensVoid) ||
+                       srf.surface_type == (stPosTop | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+            }
+        }
+    }
+#endif
+    EnsureVerticalShellThickness ensure_vertical_shell_thickness = this->default_region_config(this->print()->default_region_config())
+            .option<ConfigOptionEnum<EnsureVerticalShellThickness>>("ensure_vertical_shell_thickness")->value;
+    if (ensure_vertical_shell_thickness != EnsureVerticalShellThickness::Partial && ensure_vertical_shell_thickness != EnsureVerticalShellThickness::Enabled) {
+        // this will detect bridges and reverse bridges
+        // and rearrange top/bottom/internal surfaces
+        // It produces enlarged overlapping bridging areas.
+        //
+        // 1) stBottomBridge / stBottom infill is grown by 3mm and clipped by the total infill area. Bridges are
+        // detected. The areas may overlap. 2) stTop is grown by 3mm and clipped by the grown bottom areas. The areas
+        // may overlap. 3) Clip the internal surfaces by the grown top/bottom surfaces. 4) Merge surfaces with the
+        // same style. This will mostly get rid of the overlaps.
+        // FIXME This does not likely merge surfaces, which are supported by a material with different colors, but
+        // same properties.
+        if (m_print->objects().size() == 1) {
+            m_print->set_status(30, L("Process external surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        } else {
+            int32_t advancement_count = m_print->secondary_status_counter_increment(15);
+            m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(),
+                                L("Process objects: %s / %s"),
+                                {std::to_string(advancement_count),
+                                 std::to_string(m_print->secondary_status_counter_get_max())},
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
+        }
+        this->process_external_surfaces(true /* old*/);
+        m_print->throw_if_canceled();
 
+#ifdef _DEBUG
+        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+            for (const Layer *layer : m_layers) {
+                for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
+                    assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                           srf.surface_type == (stPosInternal | stDensSparse) ||
+                           srf.surface_type == (stPosInternal | stDensVoid) ||
+                           srf.surface_type == (stPosTop | stDensSolid) ||
+                           srf.surface_type == (stPosBottom | stDensSolid) ||
+                           srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+                }
+            }
+        }
+#endif
+    }
 
     // Add solid fills to ensure the shell vertical thickness.
     if (m_print->objects().size() == 1) {
-        m_print->set_status(30, L("Discover shells"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        m_print->set_status(45, L("Discover shells"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
     } else {
         int32_t advancement_count = m_print->secondary_status_counter_increment(30);
         m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
@@ -388,6 +475,61 @@ void PrintObject::prepare_infill()
     }
     this->discover_vertical_shells();
     m_print->throw_if_canceled();
+    
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
+                assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                       srf.surface_type == (stPosInternal | stDensSparse) ||
+                       srf.surface_type == (stPosInternal | stDensVoid) ||
+                       srf.surface_type == (stPosTop | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid) ||
+                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+            }
+        }
+    }
+#endif
+    
+    if (ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Partial || ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Enabled) {
+        // this will detect bridges and reverse bridges
+        // and rearrange top/bottom/internal surfaces
+        // It produces enlarged overlapping bridging areas.
+        //
+        // 1) stBottomBridge / stBottom infill is grown by 3mm and clipped by the total infill area. Bridges are
+        // detected. The areas may overlap. 2) stTop is grown by 3mm and clipped by the grown bottom areas. The areas
+        // may overlap. 3) Clip the internal surfaces by the grown top/bottom surfaces. 4) Merge surfaces with the
+        // same style. This will mostly get rid of the overlaps.
+        // FIXME This does not likely merge surfaces, which are supported by a material with different colors, but
+        // same properties.
+        if (m_print->objects().size() == 1) {
+            m_print->set_status(60, L("Process external surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        } else {
+            int32_t advancement_count = m_print->secondary_status_counter_increment(15);
+            m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(),
+                                L("Process objects: %s / %s"),
+                                {std::to_string(advancement_count),
+                                 std::to_string(m_print->secondary_status_counter_get_max())},
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
+        }
+        this->process_external_surfaces(false /*!old =  new*/);
+        m_print->throw_if_canceled();
+
+#ifdef _DEBUG
+        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+            for (const Layer *layer : m_layers) {
+                for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
+                    assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                           srf.surface_type == (stPosInternal | stDensSparse) ||
+                           srf.surface_type == (stPosInternal | stDensVoid) ||
+                           srf.surface_type == (stPosTop | stDensSolid) ||
+                           srf.surface_type == (stPosBottom | stDensSolid) ||
+                           srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+                }
+            }
+        }
+#endif
+    }
 
     // Debugging output.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
@@ -399,27 +541,6 @@ void PrintObject::prepare_infill()
         } // for each layer
     } // for each region
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
-
-    // this will detect bridges and reverse bridges
-    // and rearrange top/bottom/internal surfaces
-    // It produces enlarged overlapping bridging areas.
-    //
-    // 1) stBottomBridge / stBottom infill is grown by 3mm and clipped by the total infill area. Bridges are detected. The areas may overlap.
-    // 2) stTop is grown by 3mm and clipped by the grown bottom areas. The areas may overlap.
-    // 3) Clip the internal surfaces by the grown top/bottom surfaces.
-    // 4) Merge surfaces with the same style. This will mostly get rid of the overlaps.
-    //FIXME This does not likely merge surfaces, which are supported by a material with different colors, but same properties.
-    if (m_print->objects().size() == 1) {
-        m_print->set_status( 60, L("Process external surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
-    } else {
-        int32_t advancement_count = m_print->secondary_status_counter_increment(15);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
-    }
-    this->process_external_surfaces();
-    m_print->throw_if_canceled();
 
     // Debugging output.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
@@ -441,6 +562,16 @@ void PrintObject::prepare_infill()
     //note: only if not "ensure vertical shell" (which doesn't exist anymore)
     this->discover_horizontal_shells();
     m_print->throw_if_canceled();
+
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
 
     //as there is some too thin solid surface, please deleted them and merge all of the surfacesthat are contigous.
     if (m_print->objects().size() == 1) {
@@ -2129,7 +2260,7 @@ void PrintObject::detect_surfaces_type()
                         polygons_append(topbottom, to_polygons(bottom));
                         assert_valid(topbottom);
                         assert_valid(surfaces_prev_expolys);
-                        ExPolygons diff = diff_ex(surfaces_prev_expolys, topbottom);
+                        ExPolygons diff = diff_ex(union_ex(surfaces_prev_expolys), union_ex(topbottom));
                         ensure_valid(diff, scaled_resolution);
                         assert_valid(diff);
                         surfaces_append(surfaces_out, std::move(diff), stPosInternal | stDensSparse);
@@ -2225,7 +2356,7 @@ void PrintObject::detect_surfaces_type()
         }
     }
 
-void PrintObject::process_external_surfaces()
+void PrintObject::process_external_surfaces(bool old)
 {
     BOOST_LOG_TRIVIAL(info) << "Processing external surfaces..." << log_memory_info();
 
@@ -2308,15 +2439,23 @@ void PrintObject::process_external_surfaces()
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - start";
         Slic3r::parallel_for(size_t(0), m_layers.size(),
-            [this, &surfaces_covered, region_id](const size_t layer_idx) {
+            [this, &surfaces_covered, region_id, old](const size_t layer_idx) {
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                 m_print->throw_if_canceled();
                 // BOOST_LOG_TRIVIAL(trace) << "Processing external surface, layer" << m_layers[layer_idx]->print_z;
-                m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces(
-                    // lower layer
-                    (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
-                    // lower layer polygons with density > 0%
-                    (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
+                if (old) {
+                    m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces_old(
+                        // lower layer
+                        (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
+                        // lower layer polygons with density > 0%
+                        (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
+                } else {
+                    m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces(
+                        // lower layer
+                        (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
+                        // lower layer polygons with density > 0%
+                        (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
+                }
             }
         );
         m_print->throw_if_canceled();
@@ -2365,9 +2504,25 @@ void PrintObject::discover_vertical_shells()
 //    static constexpr const float top_bottom_expansion_coeff = 1.05f;
     // Just a tiny fraction of an infill extrusion width to merge neighbor regions reliably.
     static constexpr const float top_bottom_expansion_coeff = 0.15f; //TODO check if not too little
+    static constexpr const float top_bottom_max_expansion_coeff =  1.5f + top_bottom_expansion_coeff;
     if (top_bottom_surfaces_all_regions) {
         // This is a multi-material print and interface_shells are disabled, meaning that the vertical shell thickness
         // is calculated over all materials.
+        // Is the "ensure vertical wall thickness" applicable to any region?
+        bool has_extra_layers = false;
+        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+            const PrintRegionConfig &config = this->printing_region(region_id).config();
+            if (config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Enabled ||
+                config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Enabled_old ||
+                config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Partial) {
+                has_extra_layers = true;
+                break;
+            }
+        }
+        if (!has_extra_layers) {
+            // The "ensure vertical wall thickness" feature is not applicable to any of the regions. Quit.
+            return;
+        }
         BOOST_LOG_TRIVIAL(debug) << "Discovering vertical shells in parallel - start : cache top / bottom";
         const size_t num_regions = this->num_printing_regions();
         Slic3r::parallel_for(size_t(0), num_layers,
@@ -2377,26 +2532,16 @@ void PrintObject::discover_vertical_shells()
                 const Layer& layer = *m_layers[idx_layer];
                 DiscoverVerticalShellsCacheEntry& cache = cache_top_botom_regions[idx_layer];
                 // Simulate single set of perimeters over all merged regions.
-                float                             perimeter_offset = 0.f;
-                float                             perimeter_min_spacing = FLT_MAX;
+                coord_t                           perimeter_offset_for_holes = 0;
+                coord_t                           perimeter_min_spacing = std::numeric_limits<coord_t>::max();
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
                 static size_t debug_idx = 0;
                 ++debug_idx;
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
                 for (size_t region_id = 0; region_id < num_regions; ++ region_id) {
                     LayerRegion &layerm                       = *layer.m_regions[region_id];
-                    float        top_bottom_expansion = float(layerm.flow(frSolidInfill).scaled_spacing()) * top_bottom_expansion_coeff;
-                    // Top surfaces.
-                    append(cache.top_surfaces, offset_ex(to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid)), top_bottom_expansion));
-                    append(cache.top_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosTop | stDensSolid)), top_bottom_expansion));
-                    append(cache.top_fill_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosTop | stDensSolid)), top_bottom_expansion));
-                    append(cache.top_perimeter_surfaces, to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid)));
-                    // Bottom surfaces.
-                    auto surfaces_bottom = { stPosBottom | stDensSolid, stPosBottom | stDensSolid | stModBridge };
-                    append(cache.bottom_surfaces, offset_ex(to_expolygons(layerm.slices().filter_by_types(surfaces_bottom)), top_bottom_expansion));
-                    append(cache.bottom_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_types(surfaces_bottom)), top_bottom_expansion));
-                    append(cache.bottom_fill_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_types(surfaces_bottom)), top_bottom_expansion));
-                    append(cache.bottom_perimeter_surfaces, to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid)));
+                    coord_t expansion_solid = 0;
+                    coord_t expansion_bottom_bridge = 0;
                     // Calculate the maximum perimeter offset as if the slice was extruded with a single extruder only.
                     // First find the maxium number of perimeters per region slice.
                     unsigned int perimeters = 0;
@@ -2407,19 +2552,49 @@ void PrintObject::discover_vertical_shells()
                     if (perimeters > 0) {
                         Flow extflow = layerm.flow(frExternalPerimeter);
                         Flow flow = layerm.flow(frPerimeter);
-                        perimeter_offset = std::max(perimeter_offset,
-                            0.5f * float(extflow.scaled_width() + extflow.scaled_spacing()) + (float(perimeters) - 1.f) * flow.scaled_spacing());
-                        perimeter_min_spacing = std::min(perimeter_min_spacing, float(std::min(extflow.scaled_spacing(), flow.scaled_spacing())));
+                        coord_t current_shell_width = (extflow.scaled_width() + extflow.scaled_spacing()) / 2 + (perimeters - 1) * flow.scaled_spacing();
+                        perimeter_offset_for_holes = std::max(perimeter_offset_for_holes, current_shell_width);
+                        perimeter_min_spacing = std::min(perimeter_min_spacing, std::min(extflow.scaled_spacing(), flow.scaled_spacing()));
+                        const bool has_infill = layerm.region().config().fill_density.value > 0.;
+                        //if no infill, reduce the margin for everything to only the perimeter
+                        if (!has_infill) {
+                            coord_t margin = scale_t(layerm.region().config().external_infill_margin.get_abs_value(unscaled(current_shell_width)));
+                            coord_t margin_bridged = scale_t(layerm.region().config().bridged_infill_margin.get_abs_value(extflow.width()));
+                            expansion_solid = std::min(margin, current_shell_width);
+                            expansion_bottom_bridge = std::min(margin_bridged, current_shell_width);
+                        } else {
+                            expansion_solid = scale_t(layerm.region().config().external_infill_margin.get_abs_value(unscaled(current_shell_width)));
+                            expansion_bottom_bridge = scale_t(layerm.region().config().bridged_infill_margin.get_abs_value(extflow.width()));
+                        }
                     }
+                    // I'm not sure of what I want to do here. this doesn't really grow the resulting surface, it just helps with merging. 
+                    //coord_t        top_bottom_expansion = std::max(expansion_solid, coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff));
+                    //coord_t        bridge_expansion = std::max(expansion_bottom_bridge, coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff));
+                    coord_t        top_bottom_expansion = coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff);
+                    coord_t        bridge_expansion = coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff);
+                    // Top surfaces.
+                    append(cache.top_surfaces, offset_ex(to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid)), top_bottom_expansion));
+                    append(cache.top_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosTop | stDensSolid)), top_bottom_expansion));
+                    append(cache.top_fill_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosTop | stDensSolid)), top_bottom_expansion));
+                    append(cache.top_perimeter_surfaces, to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid)));
+                    // Bottom surfaces.
+                    append(cache.bottom_surfaces, offset_ex(to_expolygons(layerm.slices().filter_by_type(stPosBottom | stDensSolid)), top_bottom_expansion));
+                    append(cache.bottom_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosBottom | stDensSolid)), top_bottom_expansion));
+                    append(cache.bottom_fill_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosBottom | stDensSolid)), top_bottom_expansion));
+                    append(cache.bottom_perimeter_surfaces, to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid)));
+                    append(cache.bottom_surfaces, offset_ex(to_expolygons(layerm.slices().filter_by_type(stPosBottom | stDensSolid | stModBridge)), bridge_expansion));
+                    append(cache.bottom_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosBottom | stDensSolid | stModBridge)), bridge_expansion));
+                    append(cache.bottom_fill_surfaces, offset_ex(to_expolygons(layerm.fill_surfaces().filter_by_type(stPosBottom | stDensSolid | stModBridge)), top_bottom_expansion));
+                    // "holes"
                     expolygons_append(cache.holes, layerm.fill_expolygons());
                 }
                 // Save some computing time by reducing the number of polygons.
                 cache.top_surfaces    = union_ex(cache.top_surfaces);
                 cache.bottom_surfaces = union_ex(cache.bottom_surfaces);
                 // For a multi-material print, simulate perimeter / infill split as if only a single extruder has been used for the whole print.
-                if (perimeter_offset > 0.) {
+                if (perimeter_offset_for_holes > 0.) {
                     // The layer.lslices are forced to merge by expanding them first.
-                    expolygons_append(cache.holes, offset2_ex(layer.lslices(), 0.3f * perimeter_min_spacing, -perimeter_offset - 0.3f * perimeter_min_spacing));
+                    expolygons_append(cache.holes, offset2_ex(layer.lslices(), 0.3f * perimeter_min_spacing, -perimeter_offset_for_holes - 0.3f * perimeter_min_spacing));
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
                     {
                         Slic3r::SVG svg(debug_out_path("discover_vertical_shells-extra-holes-%d.svg", debug_idx), get_extents(layer.lslices()));
@@ -2441,6 +2616,13 @@ void PrintObject::discover_vertical_shells()
        
         const PrintRegion &region = this->printing_region(region_id);
 
+        if (region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Enabled &&
+            region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Enabled_old &&
+            region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Partial) {
+            // This region will be handled by discover_horizontal_shells().
+            continue;
+        }
+
         //solid_over_perimeters value, to remove solid fill where there's only perimeters on multiple layers
         const int nb_perimeter_layers_for_solid_fill = region.config().solid_over_perimeters.value;
         const int min_layer_no_solid = region.config().bottom_solid_layers.value - 1;
@@ -2457,8 +2639,39 @@ void PrintObject::discover_vertical_shells()
                         m_print->throw_if_canceled();
                         Layer       &layer                = *m_layers[idx_layer];
                         LayerRegion &layerm                       = *layer.m_regions[region_id];
-                        float        top_bottom_expansion = float(layerm.flow(frSolidInfill).scaled_spacing()) * top_bottom_expansion_coeff;
-                        float        max_top_bottom_expansion = float(layerm.flow(frSolidInfill).scaled_spacing()) * (1.5f + top_bottom_expansion_coeff);
+                        // I'm not sure of what I want to do here. this doesn't really grow the resulting surface, it just helps with merging. 
+                        // First find the maxium number of perimeters for the region
+                        //coord_t expansion_solid = 0;
+                        //coord_t expansion_bottom_bridge = 0;
+                        //unsigned int perimeters = 0;
+                        //for (const Surface &s : layerm.slices())
+                        //    perimeters = std::max<unsigned int>(perimeters, s.extra_perimeters);
+                        //perimeters += layerm.region().config().perimeters.value;
+                        //// Then calculate the infill offset.
+                        //if (perimeters > 0) {
+                        //    Flow extflow = layerm.flow(frExternalPerimeter);
+                        //    Flow flow = layerm.flow(frPerimeter);
+                        //    coord_t current_shell_width = (extflow.scaled_width() + extflow.scaled_spacing()) / 2 + (perimeters - 1) * flow.scaled_spacing();
+                        //    const bool has_infill = layerm.region().config().fill_density.value > 0.;
+                        //    //if no infill, reduce the margin for everything to only the perimeter
+                        //    if (!has_infill) {
+                        //        coord_t margin = scale_t(layerm.region().config().external_infill_margin.get_abs_value(unscaled(current_shell_width)));
+                        //        coord_t margin_bridged = scale_t(layerm.region().config().bridged_infill_margin.get_abs_value(extflow.width()));
+                        //        expansion_solid = std::min(margin, current_shell_width);
+                        //        expansion_bottom_bridge = std::min(margin_bridged, current_shell_width);
+                        //    } else {
+                        //        expansion_solid = scale_t(layerm.region().config().external_infill_margin.get_abs_value(unscaled(current_shell_width)));
+                        //        expansion_bottom_bridge = scale_t(layerm.region().config().bridged_infill_margin.get_abs_value(extflow.width()));
+                        //    }
+                        //}
+                        //coord_t top_bottom_expansion = std::max(expansion_solid, coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff));
+                        //coord_t top_bottom_max_expansion = std::max(expansion_solid, coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_max_expansion_coeff));
+                        //coord_t bridge_expansion = std::max(expansion_bottom_bridge, coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff));
+                        //coord_t bridge_max_expansion = std::max(expansion_bottom_bridge, coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_max_expansion_coeff));
+                        coord_t top_bottom_expansion = coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff);
+                        coord_t top_bottom_max_expansion = coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_max_expansion_coeff);
+                        coord_t bridge_expansion = coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_expansion_coeff);
+                        coord_t bridge_max_expansion = coord_t(layerm.flow(frSolidInfill).scaled_spacing() * top_bottom_max_expansion_coeff);
                         // Top surfaces.
                         auto& cache = cache_top_botom_regions[idx_layer];
                         ExPolygons raw_slice_temp = to_expolygons(layerm.slices().filter_by_type(stPosTop | stDensSolid));
@@ -2466,20 +2679,28 @@ void PrintObject::discover_vertical_shells()
                         cache.top_surfaces = offset_ex(raw_slice_temp, top_bottom_expansion);
                         append(cache.top_surfaces, offset_ex(raw_fill_temp, top_bottom_expansion));
                         if (nb_perimeter_layers_for_solid_fill != 0) {
-                            //it needs to be activated and we don't check the firs layers, where everything have to be solid.
-                            cache.top_fill_surfaces = offset_ex(raw_fill_temp, max_top_bottom_expansion);
+                            //it needs to be activated and we don't check the first layers, where everything have to be solid.
+                            cache.top_fill_surfaces = offset_ex(raw_fill_temp, top_bottom_max_expansion);
                             cache.top_perimeter_surfaces = raw_slice_temp;
                         }
                         // Bottom surfaces.
-                        const auto surfaces_bottom = { stPosBottom | stDensSolid, stPosBottom | stDensSolid | stModBridge };
-                        raw_slice_temp = to_expolygons(layerm.slices().filter_by_types(surfaces_bottom));
-                        raw_fill_temp = to_expolygons(layerm.fill_surfaces().filter_by_types(surfaces_bottom));
+                        raw_slice_temp = to_expolygons(layerm.slices().filter_by_type(stPosBottom | stDensSolid));
+                        raw_fill_temp = to_expolygons(layerm.fill_surfaces().filter_by_type(stPosBottom | stDensSolid));
                         cache.bottom_surfaces = offset_ex(raw_slice_temp, top_bottom_expansion);
                         append(cache.bottom_surfaces, offset_ex(raw_fill_temp, top_bottom_expansion));
                         if (nb_perimeter_layers_for_solid_fill != 0) {
                             cache.bottom_perimeter_surfaces = raw_slice_temp;
-                            cache.bottom_fill_surfaces = offset_ex(raw_fill_temp, max_top_bottom_expansion);
+                            cache.bottom_fill_surfaces = offset_ex(raw_fill_temp, top_bottom_max_expansion);
                         }
+                        // bridge surfaces.
+                        raw_slice_temp = to_expolygons(layerm.slices().filter_by_type(stPosBottom | stDensSolid | stModBridge));
+                        raw_fill_temp = to_expolygons(layerm.fill_surfaces().filter_by_type(stPosBottom | stDensSolid | stModBridge));
+                        append(cache.bottom_surfaces, offset_ex(raw_slice_temp, bridge_expansion));
+                        append(cache.bottom_surfaces, offset_ex(raw_fill_temp, bridge_expansion));
+                        if (nb_perimeter_layers_for_solid_fill != 0) {
+                            append(cache.bottom_perimeter_surfaces, raw_slice_temp);
+                            append(cache.bottom_fill_surfaces, offset_ex(raw_fill_temp, bridge_max_expansion));
+                        }  
                         // Holes over all regions. Only collect them once, they are valid for all idx_region iterations.
                         if (cache.holes.empty()) {
                             for (size_t region_id = 0; region_id < layer.regions().size(); ++ region_id)
@@ -2577,7 +2798,9 @@ void PrintObject::discover_vertical_shells()
 	                        ++ i) {
                             at_least_one_top_projected = true;
 	                        const DiscoverVerticalShellsCacheEntry &cache = cache_top_botom_regions[i];
-                            combine_holes(cache.holes);
+                            if (region_config.ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Partial) {
+                                combine_holes(cache.holes);
+                            }
                             combine_shells(cache.top_surfaces);
                             if (nb_perimeter_layers_for_solid_fill != 0 && (idx_layer > min_layer_no_solid || print_z < min_z_no_solid)) {
                                 if (!cache.top_fill_surfaces.empty()) {
@@ -2587,7 +2810,8 @@ void PrintObject::discover_vertical_shells()
                                     expolygons_append(max_perimeter_shell, cache.top_perimeter_surfaces);
                                     max_perimeter_shell = union_ex(max_perimeter_shell);
                                 }
-                            }	                    }
+                            }
+                        }
                         if (!at_least_one_top_projected && i < int(cache_top_botom_regions.size())) {
                             // Lets consider this a special case - with only 1 top solid and minimal shell thickness settings, the
                             // boundaries of solid layers are not anchored over/under perimeters, so lets fix it by adding at least one
@@ -2614,7 +2838,9 @@ void PrintObject::discover_vertical_shells()
 	                        -- i) {
                             at_least_one_bottom_projected = true;
 	                        const DiscoverVerticalShellsCacheEntry &cache = cache_top_botom_regions[i];
-							combine_holes(cache.holes);
+                            if (region_config.ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Partial) {
+                                combine_holes(cache.holes);
+                            }
                             combine_shells(cache.bottom_surfaces);
                             if (nb_perimeter_layers_for_solid_fill != 0 && (idx_layer > min_layer_no_solid || layer->print_z < min_z_no_solid)) {
                                 if (!cache.bottom_fill_surfaces.empty()) {
@@ -2644,14 +2870,10 @@ void PrintObject::discover_vertical_shells()
                     {
         				Slic3r::SVG svg(debug_out_path("discover_vertical_shells-perimeters-before-union-%d.svg", debug_idx), get_extents(shell));
                         svg.draw(shell);
-                        svg.draw_outline(shell, "black", scale_(0.05));
+                        svg.draw_outline(to_polygons(shell), "black", scale_(0.05));
                         svg.Close(); 
                     }
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
-#if 0
-//                    shell = union_(shell, true);
-                    shell = union_(shell, false); 
-#endif
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
                     shell_ex = union_safety_offset_ex(shell);
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
@@ -2671,24 +2893,24 @@ void PrintObject::discover_vertical_shells()
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
                     {
                         Slic3r::SVG svg(debug_out_path("discover_vertical_shells-internal-wshell-%d.svg", debug_idx), get_extents(shell));
-                        svg.draw(layerm->fill_surfaces().filter_by_type(stInternal), "yellow", 0.5);
-                        svg.draw_outline(layerm->fill_surfaces().filter_by_type(stInternal), "black", "blue", scale_(0.05));
+                        svg.draw(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensSparse), "yellow", 0.5);
+                        svg.draw_outline(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensSparse), "black", "blue", scale_(0.05));
                         svg.draw(shell_ex, "blue", 0.5);
                         svg.draw_outline(shell_ex, "black", "blue", scale_(0.05));
                         svg.Close();
                     } 
                     {
                         Slic3r::SVG svg(debug_out_path("discover_vertical_shells-internalvoid-wshell-%d.svg", debug_idx), get_extents(shell));
-                        svg.draw(layerm->fill_surfaces().filter_by_type(stInternalVoid), "yellow", 0.5);
-                        svg.draw_outline(layerm->fill_surfaces().filter_by_type(stInternalVoid), "black", "blue", scale_(0.05));
+                        svg.draw(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensVoid), "yellow", 0.5);
+                        svg.draw_outline(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensVoid), "black", "blue", scale_(0.05));
                         svg.draw(shell_ex, "blue", 0.5);
                         svg.draw_outline(shell_ex, "black", "blue", scale_(0.05));
                         svg.Close();
                     } 
                     {
                         Slic3r::SVG svg(debug_out_path("discover_vertical_shells-internalsolid-wshell-%d.svg", debug_idx), get_extents(shell));
-                        svg.draw(layerm->fill_surfaces().filter_by_type(stInternalSolid), "yellow", 0.5);
-                        svg.draw_outline(layerm->fill_surfaces().filter_by_type(stInternalSolid), "black", "blue", scale_(0.05));
+                        svg.draw(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensSolid), "yellow", 0.5);
+                        svg.draw_outline(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensSolid), "black", "blue", scale_(0.05));
                         svg.draw(shell_ex, "blue", 0.5);
                         svg.draw_outline(shell_ex, "black", "blue", scale_(0.05));
                         svg.Close();
@@ -2696,8 +2918,11 @@ void PrintObject::discover_vertical_shells()
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 
                     // Trim the shells region by the internal & internal void surfaces.
-                    const ExPolygons  polygonsInternal = to_expolygons(layerm->fill_surfaces()
-                        .filter_by_types({ stPosInternal | stDensSparse, stPosInternal | stDensVoid, stPosInternal | stDensSolid }));
+                    const ExPolygons  polygonsInternal =
+                        union_safety_offset_ex(
+                            to_expolygons(layerm->fill_surfaces().filter_by_types(
+                                { stPosInternal | stDensSparse, stPosInternal | stDensVoid, stPosInternal | stDensSolid }))
+                            );
                     {
                         shell = intersection_ex(shell, polygonsInternal, ApplySafetyOffset::Yes);
                         expolygons_append(shell, diff_ex(polygonsInternal, holes));
@@ -2726,7 +2951,7 @@ void PrintObject::discover_vertical_shells()
                     // only fills regions, which fit at least a single line. To avoid gaps in the sparse infill,
                     // make sure that this region does not contain parts narrower than the infill spacing width.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
-                    Polygons shell_before = shell;
+                    ExPolygons shell_before = shell;
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
                     ExPolygons regularized_shell;
                     {
@@ -4062,11 +4287,188 @@ void PrintObject::discover_horizontal_shells()
                 SurfaceType type = (region_config.fill_density == 100 || region_config.solid_infill_every_layers == 1) ?
                                        (stPosInternal | stDensSolid) :
                                        (stPosInternal | stDensSolid | stModBridge);
-                    for (Surface& surface : layerm->m_fill_surfaces.surfaces)
+                    for (Surface& surface : layerm->set_fill_surfaces().surfaces)
                         if (surface.surface_type == (stPosInternal | stDensSparse))
                             surface.surface_type = type;
+            }
+
+            // If ensure_vertical_shell_thickness, then the rest has already been performed by discover_vertical_shells().
+            if (region_config.ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Disabled)
+                continue;
+                
+            assert(region_config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Disabled);
+
+            coordf_t print_z = layer->print_z;
+            coordf_t bottom_z = layer->bottom_z();
+            // 0: topSolid, 1: botSolid, 2: boSolidBridged
+            for (size_t idx_surface_type = 0; idx_surface_type < 3; ++idx_surface_type) {
+                m_print->throw_if_canceled();
+                SurfaceType type = (idx_surface_type == 0) ? (stPosTop | stDensSolid) :
+                    ((idx_surface_type == 1) ? (stPosBottom | stDensSolid) : 
+                        (stPosBottom | stDensSolid | stModBridge));
+                int num_solid_layers = ((type & stPosTop) == stPosTop) ? region_config.top_solid_layers.value : region_config.bottom_solid_layers.value;
+                if (num_solid_layers == 0)
+                    continue;
+                // Find slices of current type for current layer.
+                // Use slices instead of fill_surfaces, because they also include the perimeter area,
+                // which needs to be propagated in shells; we need to grow slices like we did for
+                // fill_surfaces though. Using both ungrown slices and grown fill_surfaces will
+                // not work in some situations, as there won't be any grown region in the perimeter 
+                // area (this was seen in a model where the top layer had one extra perimeter, thus
+                // its fill_surfaces were thinner than the lower layer's infill), however it's the best
+                // solution so far. Growing the external slices by external_infill_margin will put
+                // too much solid infill inside nearly-vertical slopes.
+
+                // Surfaces including the area of perimeters. Everything, that is visible from the top / bottom
+                // (not covered by a layer above / below).
+                // This does not contain the areas covered by perimeters!
+                ExPolygons solid;
+                for (const Surface& surface : layerm->slices().surfaces)
+                    if (surface.surface_type == type)
+                        solid.push_back(surface.expolygon);
+                // Infill areas (slices without the perimeters).
+                for (const Surface& surface : layerm->fill_surfaces().surfaces)
+                    if (surface.surface_type == type)
+                        solid.push_back(surface.expolygon);
+                if (solid.empty())
+                    continue;
+                solid = union_ex(solid);
+                //                Slic3r::debugf "Layer %d has %s surfaces\n", $i, (($type & stTop) != 0) ? 'top' : 'bottom';
+
+                                // Scatter top / bottom regions to other layers. Scattering process is inherently serial, it is difficult to parallelize without locking.
+                for (int n = ((type & stPosTop) == stPosTop) ? int(i) - 1 : int(i) + 1;
+
+                    ((type & stPosTop) == stPosTop) ?
+                    (n >= 0 && (int(i) - n < num_solid_layers ||
+                        print_z - m_layers[n]->print_z < region_config.top_solid_min_thickness.value - EPSILON)) :
+                    (n < int(m_layers.size()) && (n - int(i) < num_solid_layers ||
+                        m_layers[n]->bottom_z() - bottom_z < region_config.bottom_solid_min_thickness.value - EPSILON));
+
+                    ((type & stPosTop) == stPosTop) ? --n : ++n)
+                {
+                    //                    Slic3r::debugf "  looking for neighbors on layer %d...\n", $n;                  
+                                        // Reference to the lower layer of a TOP surface, or an upper layer of a BOTTOM surface.
+                    LayerRegion* neighbor_layerm = m_layers[n]->regions()[region_id];
+
+                    // find intersection between neighbor and current layer's surfaces
+                    // intersections have contours and holes
+                    // we update $solid so that we limit the next neighbor layer to the areas that were
+                    // found on this one - in other words, solid shells on one layer (for a given external surface)
+                    // are always a subset of the shells found on the previous shell layer
+                    // this approach allows for DWIM in hollow sloping vases, where we want bottom
+                    // shells to be generated in the base but not in the walls (where there are many
+                    // narrow bottom surfaces): reassigning $solid will consider the 'shadow' of the 
+                    // upper perimeter as an obstacle and shell will not be propagated to more upper layers
+                    //FIXME How does it work for stInternalBRIDGE? This is set for sparse infill. Likely this does not work.
+                    ExPolygons new_internal_solid;
+                    {
+                        ExPolygons internal;
+                        for (const Surface& surface : neighbor_layerm->fill_surfaces().surfaces)
+                            if (surface.has_pos_internal() && (surface.has_fill_sparse() || surface.has_fill_solid()))
+                                internal.push_back(surface.expolygon);
+                        internal = union_ex(internal);
+                        new_internal_solid = intersection_ex(solid, internal, ApplySafetyOffset::Yes);
+                    }
+                    if (new_internal_solid.empty()) {
+                        // No internal solid needed on this layer. In order to decide whether to continue
+                        // searching on the next neighbor (thus enforcing the configured number of solid
+                        // layers, use different strategies according to configured infill density:
+                        if (region_config.fill_density.value == 0) {
+                            // If user expects the object to be void (for example a hollow sloping vase),
+                            // don't continue the search. In this case, we only generate the external solid
+                            // shell if the object would otherwise show a hole (gap between perimeters of 
+                            // the two layers), and internal solid shells are a subset of the shells found 
+                            // on each previous layer.
+                            goto EXTERNAL;
+                        } else {
+                            // If we have internal infill, we can generate internal solid shells freely.
+                            continue;
+                        }
+                    }
+
+                    if (region_config.fill_density.value == 0 && !m_print->config().spiral_vase.value) {
+                        // if we're printing a hollow object we discard any solid shell thinner
+                        // than a perimeter width, since it's probably just crossing a sloping wall
+                        // and it's not wanted in a hollow print even if it would make sense when
+                        // obeying the solid shell count option strictly (DWIM!)
+                        // (disregard if sprial vase, as it's a completly different process)
+                        float margin = float(neighbor_layerm->flow(frExternalPerimeter).scaled_width());
+                        ExPolygons too_narrow = diff_ex(
+                            new_internal_solid,
+                            opening(new_internal_solid, margin, margin + ClipperSafetyOffset, jtMiter, 5)); //-+
+                        // Trim the regularized region by the original region.
+                        if (!too_narrow.empty()) {
+                            solid = new_internal_solid = diff_ex(new_internal_solid, too_narrow);
+                        }
+                    }
+
+
+                    //merill: this is creating artifacts, and i can't recreate the issue it wants to fix.
+
+                    // make sure the new internal solid is wide enough, as it might get collapsed
+                    // when spacing is added in Fill.pm
+                    if(false){
+                        //FIXME Vojtech: Disable this and you will be sorry.
+                        // https://github.com/prusa3d/PrusaSlicer/issues/26 bottom
+                        float margin = 3.f * layerm->flow(frSolidInfill).scaled_width(); // require at least this size
+                        // we use a higher miterLimit here to handle areas with acute angles
+                        // in those cases, the default miterLimit would cut the corner and we'd
+                        // get a triangle in $too_narrow; if we grow it below then the shell
+                        // would have a different shape from the external surface and we'd still
+                        // have the same angle, so the next shell would be grown even more and so on.
+                        ExPolygons too_narrow = diff_ex(
+                            new_internal_solid,
+                        opening(new_internal_solid, margin, margin + ClipperSafetyOffset, ClipperLib::jtMiter, 5)); // -+
+                        if (!too_narrow.empty()) {
+                            // grow the collapsing parts and add the extra area to  the neighbor layer 
+                            // as well as to our original surfaces so that we support this 
+                            // additional area in the next shell too
+                            // make sure our grown surfaces don't exceed the fill area
+                            ExPolygons internal;
+                            for (const Surface& surface : neighbor_layerm->fill_surfaces().surfaces)
+                                if (surface.has_pos_internal() && !surface.has_mod_bridge())
+                                    internal.push_back(surface.expolygon);
+                            expolygons_append(new_internal_solid,
+                                intersection_ex(
+                                    offset_ex(too_narrow, +margin), //expand_ex
+                                    // Discard bridges as they are grown for anchoring and we can't
+                                    // remove such anchors. (This may happen when a bridge is being 
+                                    // anchored onto a wall where little space remains after the bridge
+                                    // is grown, and that little space is an internal solid shell so 
+                                    // it triggers this too_narrow logic.)
+                                    union_ex(internal)));
+                            // see https://github.com/prusa3d/PrusaSlicer/pull/3426
+                            // solid = new_internal_solid;
+                        }
+                    }
+
+                    // internal-solid are the union of the existing internal-solid surfaces
+                    // and new ones
+                    SurfaceCollection backup = std::move(neighbor_layerm->set_fill_surfaces());
+                    expolygons_append(new_internal_solid, to_expolygons(backup.filter_by_type(stPosInternal | stDensSolid)));
+                ExPolygons internal_solid = union_ex(new_internal_solid);
+                    // assign new internal-solid surfaces to layer
+                    neighbor_layerm->set_fill_surfaces().set(internal_solid, stPosInternal | stDensSolid);
+                    // subtract intersections from layer surfaces to get resulting internal surfaces
+                    //ExPolygons polygons_internal = to_polygons(std::move(internal_solid));
+                ExPolygons internal = diff_ex(to_expolygons(backup.filter_by_type(stPosInternal | stDensSparse)), internal_solid, ApplySafetyOffset::Yes);
+                    // assign resulting internal surfaces to layer
+                    neighbor_layerm->set_fill_surfaces().append(internal, stPosInternal | stDensSparse);
+                    expolygons_append(internal_solid, internal);
+                    // assign top and bottom surfaces to layer
+                    backup.keep_types({ stPosTop | stDensSolid, stPosBottom | stDensSolid, stPosBottom | stDensSolid | stModBridge });
+                    //backup.keep_types_flag(stPosTop | stPosBottom);
+                    std::vector<SurfacesPtr> top_bottom_groups;
+                    backup.group(&top_bottom_groups);
+                    for (SurfacesPtr& group : top_bottom_groups) {
+                        neighbor_layerm->set_fill_surfaces().append(
+                            diff_ex(to_expolygons(group), union_ex(internal_solid)),
+                            // Use an existing surface as a template, it carries the bridge angle etc.
+                            *group.front());
+                    }
                 }
-            // The rest has already been performed by discover_vertical_shells().
+            EXTERNAL:;
+            } // foreach type (stTop, stBottom, stBottomBridge)
         } // for each layer
     }     // for each region
 
@@ -4082,15 +4484,18 @@ void PrintObject::discover_horizontal_shells()
 } // void PrintObject::discover_horizontal_shells()
 
 void merge_surfaces(LayerRegion* lregion) {
+    for (const Surface &srf : lregion->fill_surfaces().surfaces) {
+        srf.expolygon.assert_valid();
+    }
     coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(lregion->layer()->object()->print()->config().resolution.value));
 
     //merge regions with same type (other things are all the same anyway)
-    std::map< SurfaceType, std::vector<const Surface*>> type2srfs;
+    std::map<SurfaceType, std::vector<const Surface *>> type2srfs;
     for (const Surface& surface : lregion->fill_surfaces().surfaces) {
         type2srfs[surface.surface_type].push_back(&surface);
     }
     bool changed = false;
-    std::map< SurfaceType, ExPolygons> type2newpolys;
+    std::map<SurfaceType, ExPolygons> type2newpolys;
     for (auto& entry : type2srfs) {
         if (entry.second.size() > 2) {
             ExPolygons merged = ensure_valid(union_safety_offset_ex(to_expolygons(entry.second)), scaled_resolution);
@@ -4123,6 +4528,9 @@ void PrintObject::clean_surfaces() {
     Slic3r::parallel_for(size_t(0), this->layers().size() - 1,
         [this](const size_t idx_layer) {
             for (LayerRegion* lregion : this->layers()[idx_layer]->regions()) {
+                for (const Surface &srf : lregion->fill_surfaces().surfaces) {
+                    srf.expolygon.assert_valid();
+                }
                 coord_t extrusion_width = lregion->flow(frInfill).scaled_width();
                 merge_surfaces(lregion);
                 // collapse too thin solid surfaces.

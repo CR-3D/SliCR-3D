@@ -30,15 +30,17 @@ inline double clipper_round_offset_error(double offset, double arc_tolerance)
 
 RegionExpansionParameters RegionExpansionParameters::build(
     // Scaled expansion value
-    float                full_expansion,
+    coord_t             _full_expansion,
     // Expand by waves of expansion_step size (expansion_step is scaled).
-    float                expansion_step,
+    coord_t             _expansion_step,
     // Don't take more than max_nr_steps for small expansion_step.
     size_t               max_nr_expansion_steps)
 {
-    assert(full_expansion > 0);
-    assert(expansion_step > 0);
+    assert(_full_expansion > 0);
+    assert(_expansion_step > 0);
     assert(max_nr_expansion_steps > 0);
+    float full_expansion = float(_full_expansion);
+    float expansion_step = float(_expansion_step);
 
     RegionExpansionParameters out;
     // Initial expansion of src to make the source regions intersect with boundary regions just a bit.
