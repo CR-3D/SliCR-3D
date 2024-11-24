@@ -1251,7 +1251,7 @@ Geometry::ArcWelder::Path ArcPolyline::_from_polyline(const Points &poly)
         path.emplace_back(std::move(point), 0, Geometry::ArcWelder::Orientation::Unknown);
     return path;
 }
-#pragma UNOPTIMIZE
+
 Geometry::ArcWelder::Path ArcPolyline::_from_polyline(std::initializer_list<Point> poly)
 {
     Geometry::ArcWelder::Path path;
