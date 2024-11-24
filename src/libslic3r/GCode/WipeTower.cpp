@@ -841,7 +841,7 @@ std::vector<WipeTower::ToolChangeResult> WipeTower::prime(
 
         WipeTowerWriter writer(m_layer_height, m_perimeter_width, m_gcode_flavor, m_config->tool_name.get_values(), m_filpar);
         writer.set_extrusion_flow(m_extrusion_flow)
-              .set_z(m_z_pos)
+              .set_z(m_z_pos + m_config->z_offset.value)
               .set_initial_tool(m_current_tool);
 
         // This is the first toolchange - initiate priming
@@ -937,7 +937,7 @@ WipeTower::ToolChangeResult WipeTower::tool_change(size_t tool)
 
 	WipeTowerWriter writer(m_layer_height, m_perimeter_width, m_gcode_flavor, m_config->tool_name.get_values(), m_filpar);
 	writer.set_extrusion_flow(m_extrusion_flow)
-		.set_z(m_z_pos)
+		.set_z(m_z_pos + m_config->z_offset.value)
 		.set_initial_tool(m_current_tool)
         .set_y_shift(m_y_shift + (tool!=(unsigned int)(-1) && (m_current_shape == SHAPE_REVERSED) ? m_layer_info->depth - m_layer_info->toolchanges_depth(): 0.f))
 		.append(";--------------------\n"
@@ -1415,7 +1415,7 @@ WipeTower::ToolChangeResult WipeTower::finish_layer()
 
 	WipeTowerWriter writer(m_layer_height, m_perimeter_width, m_gcode_flavor, m_config->tool_name.get_values(), m_filpar);
 	writer.set_extrusion_flow(m_extrusion_flow)
-		.set_z(m_z_pos)
+		.set_z(m_z_pos + m_config->z_offset.value)
 		.set_initial_tool(m_current_tool)
         .set_y_shift(m_y_shift - (m_current_shape == SHAPE_REVERSED ? m_layer_info->toolchanges_depth() : 0.f));
 
@@ -1639,7 +1639,7 @@ WipeTower::ToolChangeResult WipeTower::finish_layer()
         
 
         writer.set_extrusion_flow(brim_flow.mm3_per_mm() / filament_area())
-          .set_z(m_z_pos) // Let the writer know the current Z position as a base for Z-hop.
+          .set_z(m_z_pos + m_config->z_offset.value) // Let the writer know the current Z position as a base for Z-hop.
           .set_initial_tool(m_current_tool)
           .append(";-------------------------------------\n"
               "; CP WIPE TOWER FIRST LAYER BRIM START\n");

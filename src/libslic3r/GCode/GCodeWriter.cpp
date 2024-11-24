@@ -653,7 +653,7 @@ std::string GCodeWriter::travel_to_xyz(const Vec3d &point, const bool is_lift, c
     if (config.z_step > SCALING_FACTOR) {
         w.m_gcode_precision_xyz = 6;
     }
-    bool has_z = w.emit_z(point.z(), m_pos_str_z);
+    bool has_z = w.emit_z(point.z() + this->config.z_offset.value, m_pos_str_z);
     if (!has_x_y && !has_z) {
         //if point too close to the other, no move are needed.
         return "";
@@ -694,7 +694,7 @@ std::string GCodeWriter::get_travel_to_z_gcode(const double z, const std::string
     if (config.z_step > SCALING_FACTOR) {
         w.m_gcode_precision_xyz = 6;
     }
-    bool has_z = w.emit_z(z, m_pos_str_z);
+    bool has_z = w.emit_z(z + this->config.z_offset.value, m_pos_str_z);
     if (!has_z) {
         return "";
     }
@@ -794,7 +794,7 @@ std::string GCodeWriter::extrude_to_xyz(const Vec3d &point, const double dE, con
     if (!has_x_y) {
         w.clear();
     }
-    bool has_z = w.emit_z(point.z(), m_pos_str_z);
+    bool has_z = w.emit_z(point.z() + this->config.z_offset.value, m_pos_str_z);
     if (!has_z) {
         if (!has_x_y) {
             // m_pos has already been updated to the new (but indistinguishable from current one) posiiton
@@ -834,7 +834,7 @@ std::string GCodeWriter::extrude_arc_to_xyz(const Vec3d& point, const Vec2d& cen
 
     GCodeG2G3Formatter w(this->config.gcode_precision_xyz.value, this->config.gcode_precision_e.value, is_ccw);
     bool has_x_y = w.emit_xy(Vec2d(point.x(), point.y()), m_pos_str_x, m_pos_str_y);
-    bool has_z = w.emit_z(point.z(), m_pos_str_z);
+    bool has_z = w.emit_z(point.z() + this->config.z_offset.value, m_pos_str_z);
     if (!has_x_y && !has_z) {
         // m_pos has already been updated to the new (but indistinguishable from current one) posiiton
         // we return nothing, as it's not worth it.
@@ -974,7 +974,7 @@ std::string GCodeWriter::unretract()
     return gcode;
 }
 
-void GCodeWriter::update_position(const Vec3d &new_pos)
+void GCodeWriter::update_position_by_lift(const Vec3d &new_pos)
 {
     // move z ==> update lift
     m_lifted = m_lifted + new_pos.z() - m_pos.z();

@@ -113,7 +113,7 @@ public:
     // The new position Z coordinate contains the Z-hop.
     // GCodeWriter expects the custom script to NOT change print_z, only Z-hop, thus the print_z is maintained
     // by this function while the current Z-hop accumulator is updated.
-    void        update_position(const Vec3d &new_pos);
+    void        update_position_by_lift(const Vec3d &new_pos);
 
     // Returns whether this flavor supports separate print and travel acceleration.
     static bool supports_separate_travel_acceleration(GCodeFlavor flavor);
