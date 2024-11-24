@@ -8907,7 +8907,7 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::ve
 
     
     if (!config.has("ensure_vertical_shell_thickness") && config.has("perimeters")) {
-        config.set_key_value("ensure_vertical_shell_thickness", new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Partial));
+        config.set_key_value("ensure_vertical_shell_thickness", new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled));
     }
 
     //if (config.has("thumbnails")) {
