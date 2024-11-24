@@ -454,9 +454,10 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("small_area_infill_flow_compensation", has_solid_infill);
     bool have_small_area_infill_flow_compensation = has_solid_infill && config->opt_bool("small_area_infill_flow_compensation");
     toggle_field("small_area_infill_flow_compensation_model", have_small_area_infill_flow_compensation);
-
-    toggle_field("top_solid_min_thickness", ! has_spiral_vase && has_top_solid_infill);
-    toggle_field("bottom_solid_min_thickness", ! has_spiral_vase && has_bottom_solid_infill);
+    
+    const bool has_ensure_vertical_shell_thickness = config->opt_enum<EnsureVerticalShellThickness>("ensure_vertical_shell_thickness") != EnsureVerticalShellThickness::Disabled;
+    toggle_field("top_solid_min_thickness", ! has_spiral_vase && has_top_solid_infill && has_ensure_vertical_shell_thickness);
+    toggle_field("bottom_solid_min_thickness", ! has_spiral_vase && has_bottom_solid_infill && has_ensure_vertical_shell_thickness);
 
     //speed
     for (auto el : { "small_perimeter_min_length", "small_perimeter_max_length" })

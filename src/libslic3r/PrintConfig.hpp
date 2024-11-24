@@ -297,6 +297,13 @@ enum ZLiftTop {
     zltNotTop
 };
 
+enum class EnsureVerticalShellThickness {
+    Disabled,
+    Partial,
+    Enabled,
+    Enabled_old,
+};
+
 #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names(); \
     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values();
@@ -868,6 +875,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       default_acceleration))
     ((ConfigOptionFloatOrPercent,       default_speed))
     ((ConfigOptionBool,                 enforce_full_fill_volume))
+    ((ConfigOptionEnum<EnsureVerticalShellThickness>, ensure_vertical_shell_thickness))
     ((ConfigOptionFloatOrPercent,       external_infill_margin))
     ((ConfigOptionFloatOrPercent,       external_perimeter_acceleration))
     ((ConfigOptionFloatOrPercent,       external_perimeter_extrusion_width))

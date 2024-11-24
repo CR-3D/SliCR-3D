@@ -596,6 +596,10 @@ void Layer::restore_untyped_slices()
 void Layer::restore_untyped_slices_no_extra_perimeters()
 {
     restore_untyped_slices();
+    for (LayerRegion *lr : m_regions) {
+        lr->set_fill_surfaces().clear();
+    }
+
 //    if (layer_needs_raw_backup(this)) {
 //        for (LayerRegion *layerm : m_regions)
 //        	if (! layerm->region().config().extra_perimeters.value)
