@@ -1504,6 +1504,7 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             }
             Preset::normalize(config);
             // Report configuration fields, which are misplaced into a wrong group.
+            auto copy = config;
             std::string incorrect_keys = Preset::remove_invalid_keys(config, *default_config);
             if (! incorrect_keys.empty())
                 BOOST_LOG_TRIVIAL(error) << "Error in a Vendor Config Bundle \"" << path << "\": The printer preset \"" << 
@@ -1632,6 +1633,7 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             }
 
             // Report configuration fields, which are misplaced into a wrong group.
+            auto copy2 = config;
             std::string incorrect_keys = Preset::remove_invalid_keys(config, default_config);
             if (!incorrect_keys.empty())
                 BOOST_LOG_TRIVIAL(error) << "Error in a Vendor Config Bundle \"" << path << "\": The physical printer \"" <<

@@ -535,12 +535,10 @@ ObjectPart::ObjectPart(
             }
         }
         void use(const ExtrusionPath &path) override {
-            assert(!path.as_polyline().has_arc());
-            use_polyline(path.as_polyline().to_polyline(), path.width());
+            use_polyline(path.as_polyline().to_polyline(path.width()/10), path.width());
         }
         void use(const ExtrusionPath3D &path) override {
-            assert(!path.as_polyline().has_arc());
-            Polyline poly = path.as_polyline().to_polyline();
+            Polyline poly = path.as_polyline().to_polyline(path.width()/10);
             poly.douglas_peucker(SCALED_EPSILON * 2);
             if(poly.length() > SCALED_EPSILON)
                 use_polyline(std::move(poly), path.width());
