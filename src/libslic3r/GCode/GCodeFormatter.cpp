@@ -23,6 +23,16 @@ bool GCodeFormatter::emit_xy(const Vec2d &point, std::string &old_x, std::string
     return !same_point;
 }
 
+bool GCodeFormatter::emit_z(const double pt_z, std::string &old_z)
+{
+    char* start_digit = this->emit_axis('Z', pt_z, m_gcode_precision_xyz);
+    std::string z_str = std::string(start_digit, this->ptr_err.ptr);
+    bool same_point = (z_str == old_z);
+    // update str
+    old_z = z_str;
+    return !same_point;
+}
+
 // return the de that isn't emmited as it's truncated
 double GCodeFormatter::emit_e(const std::string_view axis, double v)
 {
