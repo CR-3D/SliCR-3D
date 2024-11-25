@@ -21,7 +21,8 @@ fi
 export ROOT=`pwd`
 export NCORES=`nproc`
 
-while getopts ":ihag" opt; do
+VERSION_NUMBER=""
+while getopts ":iagvh" opt; do
   case ${opt} in
     i )
         export BUILD_IMAGE="1"
@@ -32,10 +33,14 @@ while getopts ":ihag" opt; do
     g )
         export FORCE_GTK2="1"
         ;;
+    v )
+        export VERSION_NUMBER="-@SLIC3R_VERSION_FULL@"
+        ;;
     h ) echo "Usage: ./BuildLinuxImage.sh [-g][-i][-a][-h]"
         echo "   -g: force gtk2 build"
         echo "   -i: generate .tgz and Appimage (optional)"
         echo "   -a: generate app (optional)"
+        echo "   -v: with version number (optional)"
         echo "   -h: help"
         exit 0
         ;;
@@ -88,19 +93,27 @@ then
     pushd package > /dev/null
     if [[ -z "$FORCE_GTK2" ]]
     then
-       tar -czvf ../@SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-linux-x64-GTK3.tgz .  &>/dev/null
+       tar -czvf ../@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK3.tgz .  &>/dev/null
     else
-       tar -czvf ../@SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-linux-x64-GTK2.tgz .  &>/dev/null
+       tar -czvf ../@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK2.tgz .  &>/dev/null
     fi
 
+    echo "> ls package/.."
+    ls -al ..
+    echo "> ls package/../src"
+    ls -al ../src
+    echo "> ls -al ROOT(build)/bin"
+    ls -al $ROOT/bin
+    echo "> ls -al ROOT(build)/src"
+    ls -al $ROOT/src
     chmod +x ../src/build_appimage.sh
     ../src/build_appimage.sh
     popd  > /dev/null
     if [[ -z "$FORCE_GTK2" ]]
     then
-        mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-linux-x64-GTK3.AppImage"
+		mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK3.AppImage"
     else
-        mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-linux-x64-GTK2.AppImage"
+        mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK2.AppImage"
     fi
     echo -e "\n... done\n"
 fi

@@ -13,7 +13,12 @@ If you haven't, I advise to use a gui like tortoisegit.
 Download and run the exe accepting all defaults
 
 
-Clone the respository.  To place it in C:\local\Slic3r, run:
+Clone the respository.  To place it in C:\src\REPO_NAME (use Slic3r, SuperSlicer or PrusaSlicer as REPO_NAME), run:
+```
+c:> mkdir src
+c:> cd src
+c:\src> git clone https://github.com/supermerill/SuperSlicer.git
+```
 
 
 ## 1. Download sources
@@ -22,7 +27,7 @@ Clone the respository. Use a directory relatively close to the drive root, so th
 ```
 c:> mkdir src
 c:> cd src
-c:\src> git clone https://github.com/supermerill/SuperSlicer.git
+c:\src> git clone https://github.com/Slic3r/Slic3r.git
 ```
 
 

@@ -59,6 +59,15 @@ This license ensures that if you use any part of this software, your software mu
 * `tests`: Test suite for Slic3r. Implemented with [Catch2](https://github.com/catchorg/Catch2)
 * `utils/`: various useful scripts
 * `src/libslic3r/`: C++ sources for libslic3r
+### Can I help?
+
+Sure! You can do the following to find things that are available to help with:
+* Add an issue to the GitHub tracker **if it isn't already present**.
+
+Before sending patches and pull requests contact me (preferably through opening a GitHub issue or commenting on an existing, related, issue) to discuss your proposed
+changes. This way we can ensure that nobody wastes their time and no conflicts arise in development.
+
+## License and attribution
 
 ## Licensing and attribution
 

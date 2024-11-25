@@ -1,4 +1,4 @@
-name: C/C++ debug macos
+name: C/C++ Debug macos
 
 on:
   push:
@@ -6,26 +6,64 @@ on:
       - debug_macos
 
 jobs:
-  build:
-
+  build_dep:
     runs-on: macos-12
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - name: mkdir in deps
+      run: mkdir deps/build
+    - name: update automake for mpfr
+      run: |
+        curl -O -L http://ftpmirror.gnu.org/automake/automake-1.16.5.tar.gz
+        tar -xzf automake-1.16.5.tar.gz
+        cd automake-*
+        ./configure
+        make
+        sudo make install
+        automake --version
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
       with:
-        ref: 'debug_macos'
-    - name: build deps & slicer
-      run: ./BuildMacOS.sh -bdsi
-    - name: tar the pack
-      working-directory: ./build
-      run: ls
+        key: macos_intel_debug_2.7
+        path: deps/build/destdir
+    - if: steps.cache-action.outputs.cache-hit != 'true'
+      name: build deps if new cache
+      run: ./BuildMacOS.sh -bd
+
+  build:
+    runs-on: macos-12
+    needs: build_dep
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: check autoconf version
+      run: autoconf --version
+    - name: update automake for mpfr
+      run: |
+        curl -O -L http://ftpmirror.gnu.org/automake/automake-1.16.5.tar.gz
+        tar -xzf automake-1.16.5.tar.gz
+        cd automake-*
+        ./configure
+        make
+        sudo make install
+        automake --version
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
+      with:
+        key: macos_intel_debug_2.7
+        path: deps/build/destdir
+    - name: build slicer
+      run: ./BuildMacOS.sh -bsiv
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: nightly_macos_debug.dmg
-        path: build/${{ github.event.repository.name }}.dmg
+        name: debug_${{ github.event.repository.name }}-macOS-intel.tgz
+        path: build/${{ github.event.repository.name }}-macOS-intel.tgz
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: nightly_macos.tar
-        path: ${{ github.event.repository.name }}.tar
+        name: debug_${{ github.event.repository.name }}-macOS-intel.dmg
+        path: build/${{ github.event.repository.name }}-macOS-intel.dmg

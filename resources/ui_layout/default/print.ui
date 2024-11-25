@@ -3,7 +3,10 @@ page:Perimeters & Shell:shell
 group:Vertical shells
 	line:Perimeters
 		setting:label$Contour:width$6:sidetext_width$10:perimeters
+		setting:label$Holes:width$6:perimeters_hole
 	end_line
+	setting:tags$Simple$Expert$SuSi:script:float:depends$perimeter_spacing$external_perimeter_spacing:label$Wall Thickness:tooltip$Change the perimeter extrusion widths to ensure that there is an exact number of perimeters for this wall thickness value. It won't put the perimeter width below the nozzle diameter, and up to double.\nNote that the value displayed is just a view of the current perimeter thickness, like the info text below. The number of perimeters used to compute this value is one loop, or the custom variable 'wall_thickness_lines' (advanced mode) if defined.\nIf the value is too low, it will revert the widths to the saved value.\nIf the value is set to 0, it will show 0.:s_wall_thickness
+	setting:perimeter_generator
 	setting:spiral_vase
 	setting:tags$Simple$Expert$SuSi:script:float:depends$perimeter_spacing$external_perimeter_spacing:label$Wall Thickness:tooltip$Change the perimeter extrusion widths to ensure that there is an exact number of perimeters for this wall thickness value. It won't put the perimeter width below the nozzle diameter, and up to double.\nNote that the value displayed is just a view of the current perimeter thickness, like the info text below. The number of perimeters used to compute this value is one loop, or the custom variable 'wall_thickness_lines' (advanced mode) if defined.\nIf the value is too low, it will revert the widths to the saved value.\nIf the value is set to 0, it will show 0.:s_wall_thickness
     
@@ -22,9 +25,10 @@ group:Horizontal shells
 		setting:top_solid_min_thickness
 		setting:bottom_solid_min_thickness
 	end_line
-	top_bottom_shell_thickness_explanation
 	setting:solid_over_perimeters
+	setting:ensure_vertical_shell_thickness
 	setting:enforce_full_fill_volume
+	top_bottom_shell_thickness_explanation
 group:Infill
 	line:Sparse infill pattern
 		setting:tags$Simple:label_width$0:label$_:fill_pattern
@@ -794,7 +798,7 @@ group:Perimeter Extrusion Width
 	line:Perimeter
 		setting:sidetext_width$10:label$width:perimeter_extrusion_width
 		setting:sidetext_width$10:label_width$15:label$spacing:perimeter_extrusion_spacing
-        setting:sidetext_width$10:label_width$15:label$even layers:perimeter_extrusion_change_odd_layers
+		setting:sidetext_width$10:label_width$15:label$even layers:perimeter_extrusion_change_odd_layers
 	end_line
 
 	line:External Perimeter
@@ -912,8 +916,8 @@ group:Wipe tower
 	setting:wipe_tower_bridging
 	setting:wipe_tower_no_sparse_layers
 	line:Priming
-        setting:single_extruder_multi_material_priming
-        setting:priming_position
+		setting:single_extruder_multi_material_priming
+		setting:priming_position
 	end_line
 	setting:wipe_tower_extra_spacing
 
@@ -945,7 +949,7 @@ group:Output file
 	setting:gcode_comments
 	setting:full_width:output_filename_format
 group:Other
-    gcode_substitutions
+	gcode_substitutions
 group:Post-processing script
 	setting:full_width:height$5:post_process
 	post_process_explanation

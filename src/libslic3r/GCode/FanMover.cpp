@@ -245,7 +245,7 @@ bool parse_number(const std::string_view sv, int& out)
 // or just create that damn new gcode writer arch
 void FanMover::_process_T(const std::string_view command)
 {
-    if (command.length() > 1) {
+    if (command.length() > 1 && command[1] >= '0' && command[1] <= '9') {
         int eid = 0;
         if (!parse_number(command.substr(1), eid) || eid < 0 || eid > 255) {
             GCodeFlavor flavor = m_writer.config.gcode_flavor;

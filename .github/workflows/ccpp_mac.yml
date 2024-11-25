@@ -9,9 +9,35 @@ on:
       - debug_macos
 
 jobs:
-  build:
-
+  build_dep:
     runs-on: macos-12
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: mkdir in deps
+      run: mkdir deps/build
+    - name: update automake for mpfr
+      run: |
+        curl -O -L http://ftpmirror.gnu.org/automake/automake-1.16.5.tar.gz
+        tar -xzf automake-1.16.5.tar.gz
+        cd automake-*
+        ./configure
+        make
+        sudo make install
+        automake --version
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
+      with:
+        key: macos_intel_2.7
+        path: deps/build/destdir
+    - if: steps.cache-action.outputs.cache-hit != 'true'
+      name: build deps if new cache
+      run: ./BuildMacOS.sh -d
+
+  build:
+    runs-on: macos-12
+    needs: build_dep
 
     steps:
     - uses: actions/checkout@v3
@@ -26,15 +52,21 @@ jobs:
         make
         sudo make install
         automake --version
-    - name: build deps & slicer
-      run: ./BuildMacOS.sh -dsi
-    - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
       with:
-        name: nightly_macos.app
-        path: build/pack/${{ github.event.repository.name }}/${{ github.event.repository.name }}.app
+        key: macos_intel_2.7
+        path: deps/build/destdir
+    - name: build slicer
+      run: ./BuildMacOS.sh -siv
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: nightly_macos.dmg
-        path: ${{ github.event.repository.name }}.dmg
+        name: nightly_${{ github.event.repository.name }}-macOS-intel.tgz
+        path: build/${{ github.event.repository.name }}-macOS-intel.tgz
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly_${{ github.event.repository.name }}-macOS-intel.dmg
+        path: build/${{ github.event.repository.name }}-macOS-intel.dmg

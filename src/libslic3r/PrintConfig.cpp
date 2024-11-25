@@ -329,7 +329,16 @@ static t_config_enum_values s_keys_map_PerimeterGeneratorType{{"classic", int(Pe
                                                               {"arachne", int(PerimeterGeneratorType::Arachne)}};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(PerimeterGeneratorType)
 
-static void assign_printer_technology_to_unknown(t_optiondef_map &options, PrinterTechnology printer_technology) {
+static const t_config_enum_values s_keys_map_EnsureVerticalShellThickness {
+    { "disabled", int(EnsureVerticalShellThickness::Disabled) },
+    { "partial",  int(EnsureVerticalShellThickness::Partial)  },
+    { "enabled",  int(EnsureVerticalShellThickness::Enabled)  },
+    { "enabled_old",  int(EnsureVerticalShellThickness::Enabled_old)  },
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(EnsureVerticalShellThickness)
+
+static void assign_printer_technology_to_unknown(t_optiondef_map &options, PrinterTechnology printer_technology)
+{
     for (std::pair<const t_config_option_key, ConfigOptionDef> &kvp : options)
         if (kvp.second.printer_technology == ptUnknown)
             kvp.second.printer_technology = printer_technology;
@@ -1515,6 +1524,20 @@ void PrintConfigDef::init_fff_params() {
                      "upper layer's perimeters.");
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
+
+    def = this->add("ensure_vertical_shell_thickness", coEnum);
+    def->label = L("Ensure vertical shell thickness");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Add solid infill near sloping surfaces to guarantee the vertical shell thickness "
+                   "(top+bottom solid layers).");
+    def->set_enum<EnsureVerticalShellThickness>({
+        { "disabled", L("Disabled (2.5)") },
+        { "partial",  L("partial (2.9 experimental)")  },
+        { "enabled",  L("Enabled (2.7 experimental)")  },
+        { "enabled_old",  L("Enabled (2.5)")  },
+    });
+    def->mode = comAdvancedE | comPrusa;
+    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled_old));
 
     def = this->add("external_infill_margin", coFloatOrPercent);
     def->label = L("Default");
@@ -6050,7 +6073,7 @@ void PrintConfigDef::init_fff_params() {
         "\nSet zero to disable.");
     def->min = 0;
     def->mode = comAdvancedE | comSuSi;
-    def->set_default_value(new ConfigOptionInt(2));
+    def->set_default_value(new ConfigOptionInt(0));
 
     def = this->add("support_material", coBool);
     def->label = L("Generate support material");
@@ -8732,10 +8755,8 @@ static std::set<std::string> PrintConfigDef_ignore = {
     // Introduced in PrusaSlicer 2.3.0-alpha2, later replaced by automatic calculation based on extrusion width.
     "wall_add_middle_threshold", "wall_split_middle_threshold",
     // Replaced by new concentric ensuring in 2.6.0-alpha5
-    "ensure_vertical_shell_thickness",
-    // Disabled in 2.6.0-alpha6, this option is problematic
-    //    "infill_only_where_needed", <- ignore only if deactivated
-    "gcode_binary",     // Introduced in 2.7.0-alpha1, removed in 2.7.1 (replaced by binary_gcode).
+//    "infill_only_where_needed", <- ignore only if deactivated
+    "gcode_binary", // Introduced in 2.7.0-alpha1, removed in 2.7.1 (replaced by binary_gcode).
     "gcode_resolution", // now in printer config.
     "enable_dynamic_fan_speeds", "overhang_fan_speed_0", "overhang_fan_speed_1", "overhang_fan_speed_2",
     "overhang_fan_speed_3", // converted in composite_legacy
@@ -8862,6 +8883,17 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
     }
     if (opt_key == "preset_name") {
         opt_key = "preset_names";
+    }
+    if (opt_key == "ensure_vertical_shell_thickness") {
+        if (value == "1") {
+            value = "enabled_old";
+        } else if (value == "0") {
+            value = "disabled";
+        } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value) == enum_keys_map.end()) {
+            assert(value == "0" || value == "1");
+            // Values other than 0/1 are replaced with "partial" for handling values from different slicers.
+            value = "partial";
+        }
     }
     if (opt_key == "seam_travel") {
         if (value == "1") {
@@ -9267,15 +9299,20 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config,
         config.set_key_value("overhangs_dynamic_fan_speed", opt.clone());
     }
 
-    // if (config.has("thumbnails")) {
-    //     std::string extention;
-    //     if (config.has("thumbnails_format")) {
-    //         if (const ConfigOptionDef* opt = config.def()->get("thumbnails_format")) {
-    //             auto label = opt->enum_def->enum_to_label(config.option("thumbnails_format")->getInt());
-    //             if (label.has_value())
-    //                 extention = *label;
-    //         }
-    //     }
+    
+    if (!config.has("ensure_vertical_shell_thickness") && config.has("perimeters")) {
+        config.set_key_value("ensure_vertical_shell_thickness", new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled));
+    }
+
+    //if (config.has("thumbnails")) {
+    //    std::string extention;
+    //    if (config.has("thumbnails_format")) {
+    //        if (const ConfigOptionDef* opt = config.def()->get("thumbnails_format")) {
+    //            auto label = opt->enum_def->enum_to_label(config.option("thumbnails_format")->getInt());
+    //            if (label.has_value())
+    //                extention = *label;
+    //        }
+    //    }
 
     //    std::string thumbnails_str = config.opt_string("thumbnails");
     //    auto [thumbnails_list, errors] = GCodeThumbnails::make_and_check_thumbnail_list(thumbnails_str, extention);

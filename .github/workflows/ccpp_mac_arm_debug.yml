@@ -1,4 +1,4 @@
-name: C/C++ debug arm macos
+name: C/C++ Debug arm macos
 
 on:
   push:
@@ -6,26 +6,57 @@ on:
       - debug_macos
 
 jobs:
-  build:
-
+  build_dep:
     runs-on: macos-14
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+    - name: install autoconf
+      run: brew install autoconf
+    - name: check autoconf version
+      run: autoconf --version
+    - name: update automake for mpfr
+      run: |
+        curl -O -L http://ftpmirror.gnu.org/automake/automake-1.16.5.tar.gz
+        tar -xzf automake-1.16.5.tar.gz
+        cd automake-*
+        ./configure
+        make
+        sudo make install
+        automake --version
+    - name: mkdir in deps
+      run: mkdir deps/build
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
       with:
-        ref: 'debug_macos'
-    - name: build deps & slicer
-      run: ./BuildMacOS.sh -badsi
-    - name: ls build
-      working-directory: ./build
-      run: ls
+        key: macos_arm_debug_2.7
+        path: deps/build/destdir
+    - if: steps.cache-action.outputs.cache-hit != 'true'
+      name: build deps if new cache
+      run: ./BuildMacOS.sh -bad
+
+  build:
+    runs-on: macos-14
+    needs: build_dep
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
+      with:
+        key: macos_arm_debug_2.7
+        path: deps/build/destdir
+    - name: build slicer
+      run: ./BuildMacOS.sh -basiv
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: nightly_macos_arm_debug.dmg
-        path: build/${{ github.event.repository.name }}.dmg
+        name: nightly_${{ github.event.repository.name }}-macOS-arm.dmg
+        path: build/${{ github.event.repository.name }}-macOS-arm.dmg
     - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+      uses: actions/upload-artifact@v4
       with:
-        name: nightly_arm_macos.tar
-        path: build/${{ github.event.repository.name }}.tar
+        name: nightly_${{ github.event.repository.name }}-macOS-arm.tgz
+        path: build/${{ github.event.repository.name }}-macOS-arm.tgz

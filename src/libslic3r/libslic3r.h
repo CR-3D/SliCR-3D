@@ -58,9 +58,9 @@ using Coord2 = double;
 #endif
 
 
-inline std::uint16_t operator "" _u(unsigned long long value)
+inline uint16_t operator "" _u(unsigned long long value)
 {
-    return static_cast<std::uint16_t>(value);
+    return static_cast<uint16_t>(value);
 }
 
 using coordf_t = double;
