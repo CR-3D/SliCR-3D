@@ -444,9 +444,12 @@ FillConcentricWGapFill::fill_surface_extrusion(
                 mult_flow = 1.3;
             if (mult_flow < 0.8)
                 mult_flow = 0.8;
-            BOOST_LOG_TRIVIAL(info) << "concentric Infill (with gapfil) process extrude " << get_volume.volume
+            BOOST_LOG_TRIVIAL(debug) << "concentric Infill (with gapfil) process extrude " << get_volume.volume
                                     << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by "
                                     << mult_flow;
+#if _DEBUG
+            this->debug_verify_flow_mult = mult_flow;
+#endif
         }
         mult_flow *= params.flow_mult;
         if (mult_flow != 1) {

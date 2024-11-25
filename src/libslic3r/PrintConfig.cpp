@@ -7199,6 +7199,15 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(33, true));
 
+    def = this->add("wipe_tower_extrusion_width", coFloatOrPercent);
+    def->label = L("Wipe Tower purge line width");
+    def->category = OptionCategory::width;
+    def->tooltip = L("When wiping, the extrusion should be at least 125% of the nozzle diameter."
+        " This setting allow you to vary it, in case you need a wider one to properly flush the nozzle.");
+    def->sidetext = L("mm or %");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent(150, true));
+
     def = this->add("wiping_volumes_extruders", coFloats);
     def->label = L("Purging volumes - load/unload volumes");
     def->tooltip = L("This vector saves required volumes to change from/to each tool used on the "
@@ -9995,6 +10004,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "filament_wipe_min", // filament override
 "filament_wipe_only_crossing", // filament override
 "filament_wipe_speed", // filament override
+"wipe_tower_extrusion_width",
 "wipe_tower_speed",
 "wipe_tower_wipe_starting_speed",
 "xy_size_compensation",

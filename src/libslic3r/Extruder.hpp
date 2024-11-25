@@ -41,6 +41,8 @@ public:
     // second - number to emit to G-code: This may be delta for relative mode or a distance from last reset_E() for absolute mode.
     // They also quantize the E axis to G-code resolution.
     virtual std::pair<double, double> extrude(double dE);
+    // if the extrude fail, this function is called to remove the amount for the internal counters.
+    virtual void                      cancel_extrude(double dE);
     virtual std::pair<double, double> retract(double retract_length, std::optional<double> restart_extra, std::optional<double> restart_extra_from_toolchange);
     virtual std::pair<double, double> unretract();
     virtual void                      reset_retract();

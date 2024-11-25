@@ -499,6 +499,22 @@ static Surfaces expand_merge_surfaces(
 void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered)
 {
     using namespace Slic3r::Algorithm;
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        for (auto &srf2 : m_fill_surfaces.surfaces) {
+            if (&srf != &srf2) {
+                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                double area = 0;
+                for (auto &expoly : intersect) {
+                    area += expoly.area();
+                }
+                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+            }
+        }
+    }
+#endif
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-initial");
@@ -625,27 +641,6 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
             , std::to_string(this->layer()->id()) + "_expand_merge_surfaces_bot_"
 #endif
             );
-#ifdef _DEBUG
-        {
-            static int aodfjiaqsdz = 0;
-            std::stringstream stri;
-            stri << this->layer()->id() << "_process_external_surfaces_2_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-            SVG svg(stri.str());
-            svg.draw(this->layer()->lslices(), "grey");
-            svg.draw_outline(to_polygons(init_shells), "black", scale_t(0.15));
-            svg.draw_outline(to_polygons(init_sparse), "white", scale_t(0.14));
-            svg.draw_outline(to_polygons(shells), "purple", scale_t(0.13));
-            svg.draw_outline(to_polygons(sparse), "pink", scale_t(0.12));
-            for(auto&srf : bridges.surfaces)
-                svg.draw_outline(to_polygons(srf.expolygon), "cyan", scale_t(0.11));
-            svg.draw_outline(to_polygons(bottoms), "blue", scale_t(0.10));
-            for (const Surface *srf : fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.09));
-            for (const Surface *srf : fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-                svg.draw(offset_ex(srf->expolygon, expansion_top), "orange");
-            svg.Close();
-        }
-#endif
     Surfaces    tops    = expand_merge_surfaces(m_fill_surfaces.surfaces, stPosTop | stDensSolid, shells,
         RegionExpansionParameters::build(expansion_top, expansion_top / max_nr_expansion_steps, max_nr_expansion_steps), 
         sparse, expansion_params_into_sparse_infill, closing_radius, scaled_resolution, -1
@@ -653,24 +648,8 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
             , std::to_string(this->layer()->id()) + "_expand_merge_surfaces_top_"
 #endif
             );
-    
+
 #ifdef _DEBUG
-        {
-            static int aodfjiaqsdz = 0;
-            std::stringstream stri;
-            stri << this->layer()->id() << "_process_external_surfaces_3_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-            SVG svg(stri.str());
-            svg.draw(this->layer()->lslices(), "grey");
-            svg.draw_outline(to_polygons(init_shells), "black", scale_t(0.15));
-            svg.draw_outline(to_polygons(init_sparse), "white", scale_t(0.14));
-            svg.draw_outline(to_polygons(shells), "purple", scale_t(0.13));
-            svg.draw_outline(to_polygons(sparse), "pink", scale_t(0.12));
-            for(auto&srf : bridges.surfaces)
-                svg.draw_outline(to_polygons(srf.expolygon), "cyan", scale_t(0.11));
-            svg.draw_outline(to_polygons(bottoms), "blue", scale_t(0.10));
-            svg.draw_outline(to_polygons(tops), "red", scale_t(0.09));
-            svg.Close();
-        }
     m_fill_surfaces.remove_types({
         stPosBottom | stDensSolid | stModBridge,
         stPosBottom | stDensSolid,
@@ -741,6 +720,23 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                         svg.draw_outline(to_polygons(srf), "teal", scale_t(0.03));
                     svg.draw(intersect, "black");
                     svg.Close();
+                }
+                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+            }
+        }
+    }
+#endif
+
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        for (auto &srf2 : m_fill_surfaces.surfaces) {
+            if (&srf != &srf2) {
+                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                double area = 0;
+                for (auto &expoly : intersect) {
+                    area += expoly.area();
                 }
                 assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
             }
@@ -1075,6 +1071,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
     }
 
     Surfaces new_surfaces;
+    const coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
     {
         // Intersect the grown surfaces with the actual fill boundaries.
         Polygons bottom_polygons = to_polygons(bottom);
@@ -1099,7 +1096,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
             surfaces_append(
                 new_surfaces,
                 // Don't use a safety offset as fill_boundaries were already united using the safety offset.
-                intersection_ex(polys, fill_boundaries),
+                ensure_valid(intersection_ex(polys, fill_boundaries), scaled_resolution),
                 s1);
         }
     }
@@ -1121,7 +1118,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
         }
         ExPolygons new_expolys = diff_ex(polys, new_polygons);
         polygons_append(new_polygons, to_polygons(new_expolys));
-        surfaces_append(new_surfaces, std::move(new_expolys), s1);
+        surfaces_append(new_surfaces, ensure_valid(std::move(new_expolys), scaled_resolution), s1);
     }
     
     m_fill_surfaces.surfaces = std::move(new_surfaces);

@@ -389,19 +389,14 @@ group:Infill Angle
 
 group:Advanced
 	setting:solid_infill_every_layers
-
-	line:Solid Infill From Region
-        setting:label$_:solid_infill_below_area
+	line:Solid infill if area below
+		setting:label$From region:solid_infill_below_area
+		setting:label$From the whole layer:solid_infill_below_layer_area
 	end_line
-
-	line:Solid Infill From Whole Layer
-        setting:label$_:solid_infill_below_layer_area
-	end_line
-
-    setting:solid_infill_below_width
-
-	line:Anchor External Solid Infill Margin
-		setting:label$_:external_infill_margin
+	setting:solid_infill_below_width
+	line:Anchor solid infill by X mm
+		setting:label_width$8:width$5:external_infill_margin
+		setting:label_width$6:width$5:bridged_infill_margin
 	end_line
 
 	line:Anchor Bridged Infill Margin
@@ -576,31 +571,49 @@ group:Organic Supports
 
 	line:Tree Branch Diameter
 		setting:label$_:support_tree_branch_diameter
+		setting:label$Angle:support_tree_branch_diameter_angle
+		setting:support_tree_tip_diameter
 	end_line
-	line:Tree Branch Diameter Angle
-		setting:label$_:support_tree_branch_diameter_angle
-	line:Tree Tip Diameter
-        setting:label$_:support_tree_tip_diameter
-	end_line
-
-    setting:support_tree_branch_diameter_double_wall
-
-	line:Branch Distance
-        setting:label$_:support_tree_branch_distance
-	end_line
-
-	line:Branch Density
-        setting:label$_:support_tree_top_rate
+	setting:support_tree_branch_diameter_double_wall
+	line:Branch
+		setting:label$Distance:support_tree_branch_distance
+		setting:label$Density:support_tree_top_rate
 	end_line
 
 page:Speed:time
 group:Default Speed
 	line:Default speed
-		setting:label$_:default_speed
-
-group:Perimeter Speed
-	line:Internal Perimeter Speed
-		setting:label$_:perimeter_speed
+		setting:width$4:sidetext_width$15:default_speed
+	line:Perimeter speed
+		setting:width$4:perimeter_speed
+		setting:width$4:external_perimeter_speed
+	line:Infill speed
+		setting:width$4:solid_infill_speed
+		setting:width$4:infill_speed
+		setting:width$4:top_solid_infill_speed
+	line:Support speed
+		setting:width$4:support_material_speed
+		setting:width$4:support_material_interface_speed
+		setting:width$4:brim_speed
+	line:Bridge speed
+		setting:width$4:bridge_speed
+		setting:width$4:internal_bridge_speed
+	line:Overhangs speed
+		setting:width$4:overhangs_speed
+		setting:overhangs_dynamic_speed
+	line:Gap fill speed
+		setting:width$4:label$Maximum speed:gap_fill_speed
+		setting:width$4:label$Cap with:sidetext$% of perimeter flow:sidetext_width$20:gap_fill_flow_match_perimeter
+	line:Other speed
+		setting:width$4:thin_walls_speed
+		setting:width$4:ironing_speed
+	line:Wipe tower
+		setting:width$4:label$Main speed:wipe_tower_speed
+		setting:width$4:label$Wipe starting speed:wipe_tower_wipe_starting_speed
+group:Speed for non-print moves
+	line:Travel speed
+		setting:label$xy:travel_speed
+		setting:label$z:travel_speed_z
 	end_line
 	line:External Perimeter Speed
 		setting:label$_:external_perimeter_speed
@@ -836,8 +849,9 @@ group:Overlap
 	line:Perimeter Overlap
 		setting:label$_:perimeter_overlap
 	end_line
-	line:External Perimeter Overlap
-		setting:label$_:external_perimeter_overlap
+	line:Solid infill ovelrap
+		setting:label$Inside:width$4:solid_infill_overlap
+		setting:label$Top:width$4:top_solid_infill_overlap
 	end_line
 	line:Gap Fill Overlap
 		setting:label$_:gap_fill_overlap
@@ -914,6 +928,10 @@ group:Wipe tower
 	end_line
 
 	setting:wipe_tower_bridging
+	line:Purge lines
+		setting:label$Line width:wipe_tower_extrusion_width
+		setting:label$Spacing between lines:wipe_tower_extra_spacing
+	end_line
 	setting:wipe_tower_no_sparse_layers
 	line:Priming
 		setting:single_extruder_multi_material_priming

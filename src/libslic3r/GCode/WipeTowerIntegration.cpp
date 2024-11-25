@@ -14,8 +14,8 @@ static inline Point wipe_tower_point_to_object_point(GCodeGenerator &gcodegen, c
 
 std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id, double z) const
 {
-    // has previosu pos, or it's first layer.
-    assert(gcodegen.last_pos_defined() || gcodegen.layer()->lower_layer == nullptr);
+    // has previous pos, or it's first layer.
+    assert(gcodegen.last_pos_defined() || gcodegen.layer() == nullptr || gcodegen.layer()->lower_layer == nullptr);
 
     if (new_extruder_id != -1 && new_extruder_id != tcr.new_tool)
         throw Slic3r::InvalidArgument("Error: WipeTowerIntegration::append_tcr was asked to do a toolchange it didn't expect.");
@@ -103,7 +103,7 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
             gcodegen.m_wipe.reset_path(); // We don't want wiping on the ramming lines.
         toolchange_gcode_str = gcodegen.set_extruder(new_extruder_id, tcr.print_z); // TODO: toolchange_z vs print_z
         if (gcodegen.config().wipe_tower) {
-            const double retract_to_z = tcr.priming ? tcr.print_z + gcodegen.config().z_offset.value : z;
+            //const double retract_to_z = tcr.priming ? tcr.print_z : z;
             deretraction_str += gcodegen.writer().unlift();
             deretraction_str += gcodegen.unretract();
         }
@@ -114,8 +114,8 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
     // Insert the toolchange and deretraction gcode into the generated gcode.
     boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_from_wipe_tower_generator]", toolchange_gcode_str);
     boost::replace_first(tcr_rotated_gcode, "[deretraction_from_wipe_tower_generator]", deretraction_str);
-    boost::replace_first(tcr_rotated_gcode, "{layer_z}", to_string_nozero(gcodegen.writer().get_position().z(), 4));
-    boost::replace_first(tcr_rotated_gcode, "[[toolchange_gcode_disable_linear_advance]]", gcodegen.writer().set_pressure_advance(0));
+    boost::replace_first(tcr_rotated_gcode, "{layer_z}", to_string_nozero(gcodegen.writer().get_position().z() + gcodegen.writer().config.z_offset.value, 4));
+    boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_disable_linear_advance]", gcodegen.writer().set_pressure_advance(0));
     if (gcodegen.config().filament_pressure_advance.is_enabled(new_extruder_id)) {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]",
                              gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(new_extruder_id)));

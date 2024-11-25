@@ -349,27 +349,6 @@ void PrintObject::prepare_infill()
             }
         }
     }
-    for (auto &layer : m_layers) {
-        static int aodfjiaqsdz = 0;
-        std::stringstream stri;
-        stri << layer->id() << "_prepare_infill_1_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-        SVG svg(stri.str());
-        svg.draw(layer->lslices(), "grey");
-        const LayerRegion* region = layer->get_region(0);
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "purple", scale_t(0.15));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-            svg.draw(to_polylines(srf->expolygon), "pink", scale_t(0.14));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-            svg.draw(to_polylines(srf->expolygon), "white", scale_t(0.13));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-            svg.draw(to_polylines(srf->expolygon), "cyan", scale_t(0.12));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.11));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.10));
-        svg.Close();
-    }
 #endif
 
     // This will assign a type (top/bottom/internal) to $layerm->slices.
@@ -400,48 +379,6 @@ void PrintObject::prepare_infill()
                        srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
             }
         }
-    }
-    for (auto &layer : m_layers) {
-        static int aodfjiaqsdz = 0;
-        std::stringstream stri;
-        stri << layer->id() << "_prepare_infill_2_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-        SVG svg(stri.str());
-        svg.draw(layer->lslices(), "grey");
-        const LayerRegion* region = layer->get_region(0);
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "purple", scale_t(0.15));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-            svg.draw(to_polylines(srf->expolygon), "pink", scale_t(0.14));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-            svg.draw(to_polylines(srf->expolygon), "white", scale_t(0.13));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-            svg.draw(to_polylines(srf->expolygon), "cyan", scale_t(0.12));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.11));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.10));
-        svg.Close();
-    }
-    for (auto &layer : m_layers) {
-        static int aodfjiaqsdz = 0;
-        std::stringstream stri;
-        stri << layer->id() << "_prepare_infill_2b_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-        SVG svg(stri.str());
-        svg.draw(layer->lslices(), "grey");
-        const LayerRegion* region = layer->get_region(0);
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-            svg.draw((srf->expolygon), "purple");
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-            svg.draw((srf->expolygon), "pink");
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-            svg.draw((srf->expolygon), "white");
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-            svg.draw((srf->expolygon), "cyan");
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-            svg.draw((srf->expolygon), "blue");
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-            svg.draw((srf->expolygon), "red", scale_t(0.10));
-        svg.Close();
     }
 #endif
     
@@ -483,27 +420,6 @@ void PrintObject::prepare_infill()
             }
         }
     }
-    for (auto &layer : m_layers) {
-        static int aodfjiaqsdz = 0;
-        std::stringstream stri;
-        stri << layer->id() << "_prepare_infill_3_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-        SVG svg(stri.str());
-        svg.draw(layer->lslices(), "grey");
-        const LayerRegion* region = layer->get_region(0);
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "purple", scale_t(0.15));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-            svg.draw(to_polylines(srf->expolygon), "pink", scale_t(0.14));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-            svg.draw(to_polylines(srf->expolygon), "white", scale_t(0.13));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-            svg.draw(to_polylines(srf->expolygon), "cyan", scale_t(0.12));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.11));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.10));
-        svg.Close();
-    }
 #endif
     EnsureVerticalShellThickness ensure_vertical_shell_thickness = this->default_region_config(this->print()->default_region_config())
             .option<ConfigOptionEnum<EnsureVerticalShellThickness>>("ensure_vertical_shell_thickness")->value;
@@ -544,28 +460,6 @@ void PrintObject::prepare_infill()
                 }
             }
         }
-        for (auto &layer : m_layers) {
-            static int aodfjiaqsdz = 0;
-            std::stringstream stri;
-            stri << layer->id() << "_prepare_infill_4_" << "_" << (aodfjiaqsdz++) << ".svg";
-            SVG svg(stri.str());
-            svg.draw(layer->lslices(), "grey");
-            const LayerRegion *region = layer->get_region(0);
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "purple", scale_t(0.15));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-                svg.draw(to_polylines(srf->expolygon), "pink", scale_t(0.14));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-                svg.draw(to_polylines(srf->expolygon), "white", scale_t(0.13));
-            for (const Surface *srf :
-                 region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-                svg.draw(to_polylines(srf->expolygon), "cyan", scale_t(0.12));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.11));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.10));
-            svg.Close();
-        }
 #endif
     }
 
@@ -594,27 +488,6 @@ void PrintObject::prepare_infill()
                        srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
             }
         }
-    }
-    for (auto &layer : m_layers) {
-        static int aodfjiaqsdz = 0;
-        std::stringstream stri;
-        stri << layer->id() << "_prepare_infill_5_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-        SVG svg(stri.str());
-        svg.draw(layer->lslices(), "grey");
-        const LayerRegion* region = layer->get_region(0);
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "purple", scale_t(0.15));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-            svg.draw(to_polylines(srf->expolygon), "pink", scale_t(0.14));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-            svg.draw(to_polylines(srf->expolygon), "white", scale_t(0.13));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-            svg.draw(to_polylines(srf->expolygon), "cyan", scale_t(0.12));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.11));
-        for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-            svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.10));
-        svg.Close();
     }
 #endif
     
@@ -654,28 +527,6 @@ void PrintObject::prepare_infill()
                            srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
                 }
             }
-        }
-        for (auto &layer : m_layers) {
-            static int aodfjiaqsdz = 0;
-            std::stringstream stri;
-            stri << layer->id() << "_prepare_infill_6_" << "_" << (aodfjiaqsdz++) << ".svg";
-            SVG svg(stri.str());
-            svg.draw(layer->lslices(), "grey");
-            const LayerRegion *region = layer->get_region(0);
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "purple", scale_t(0.15));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensSparse}))
-                svg.draw(to_polylines(srf->expolygon), "pink", scale_t(0.14));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosInternal | stDensVoid}))
-                svg.draw(to_polylines(srf->expolygon), "white", scale_t(0.13));
-            for (const Surface *srf :
-                 region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid | stModBridge}))
-                svg.draw(to_polylines(srf->expolygon), "cyan", scale_t(0.12));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.11));
-            for (const Surface *srf : region->fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.10));
-            svg.Close();
         }
 #endif
     }
@@ -733,6 +584,27 @@ void PrintObject::prepare_infill()
                             PrintBase::SlicingStatus::SECONDARY_STATE);
     }
     this->clean_surfaces();
+
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (auto &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                for (auto &srf2 : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                    if (&srf != &srf2) {
+                        ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                        intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                        double area = 0;
+                        for (auto &expoly : intersect) {
+                            area += expoly.area();
+                        }
+                        assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                    }
+                }
+            }
+        }
+    }
+#endif
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
@@ -2488,6 +2360,16 @@ void PrintObject::process_external_surfaces(bool old)
 {
     BOOST_LOG_TRIVIAL(info) << "Processing external surfaces..." << log_memory_info();
 
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
+
     // Cached surfaces covered by some extrusion, defining regions, over which the from the surfaces one layer higher are allowed to expand.
     std::vector<Polygons> surfaces_covered;
     // Is there any printing region, that has zero infill? If so, then we don't want the expansion to be performed over the complete voids, but only
@@ -2544,7 +2426,17 @@ void PrintObject::process_external_surfaces(bool old)
         BOOST_LOG_TRIVIAL(debug) << "Collecting surfaces covered with extrusions in parallel - end";
     }
 
-	for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
+
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - start";
         Slic3r::parallel_for(size_t(0), m_layers.size(),
             [this, &surfaces_covered, region_id, old](const size_t layer_idx) {
@@ -2569,6 +2461,16 @@ void PrintObject::process_external_surfaces(bool old)
         m_print->throw_if_canceled();
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - end";
     }
+
+#ifdef _DEBUG
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
+#endif
 
     if (this->has_raft() && ! m_layers.empty()) {
         // Adjust bridge direction of 1st object layer over raft to be perpendicular to the raft contact layer direction.

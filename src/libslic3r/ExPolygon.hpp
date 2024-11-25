@@ -509,14 +509,8 @@ inline bool expolygons_contain(const ExPolygons &expolys, const Point &pt, bool 
     return false;
 }
 
-inline ExPolygons expolygons_simplify(const ExPolygons &expolys, double tolerance)
-{
-    ExPolygons out;
-    out.reserve(expolys.size());
-    for (const ExPolygon &exp : expolys)
-       exp.simplify(tolerance, out);
-    return out;
-}
+// expolygons_simplify will simplify the geometry via douglaspeuker.
+void expolygons_simplify(ExPolygons &expolys, coord_t tolerance);
 
 // Do expolygons match? If they match, they must have the same topology,
 // however their contours may be rotated.

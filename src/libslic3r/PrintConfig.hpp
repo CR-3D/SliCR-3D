@@ -1207,6 +1207,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,               wipe_advanced_nozzle_melted_volume))
     ((ConfigOptionFloat,               wipe_advanced_multiplier))
     ((ConfigOptionFloats,              wipe_extra_perimeter))
+    ((ConfigOptionFloatOrPercent,      wipe_tower_extrusion_width))
     ((ConfigOptionPercents,            wipe_inside_depth))
     ((ConfigOptionBools,               wipe_inside_end))
     ((ConfigOptionBools,               wipe_inside_start))
@@ -1218,6 +1219,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                wipe_tower_no_sparse_layers))
     ((ConfigOptionFloat,               wipe_tower_speed))
     ((ConfigOptionFloatOrPercent,      wipe_tower_wipe_starting_speed))
+    ((ConfigOptionFloat,               z_offset))
     ((ConfigOptionFloat,               z_step))
     ((ConfigOptionString,              color_change_gcode))
     ((ConfigOptionString,              pause_print_gcode))
@@ -1356,7 +1358,6 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInt,                  wipe_tower_extruder))
     ((ConfigOptionFloats,               wiping_volumes_matrix))
     ((ConfigOptionFloats,               wiping_volumes_extruders))
-    ((ConfigOptionFloat,                z_offset))
     ((ConfigOptionFloat,                init_z_rotate))
 
 )

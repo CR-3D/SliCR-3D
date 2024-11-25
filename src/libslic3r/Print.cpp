@@ -342,6 +342,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "wipe_tower_cone_angle"
             || opt_key == "wipe_tower_bridging"
             || opt_key == "wipe_tower_extra_spacing"
+            || opt_key == "wipe_tower_extrusion_width"
             || opt_key == "wipe_tower_no_sparse_layers"
             || opt_key == "wipe_tower_extruder"
             || opt_key == "wipe_tower_per_color_wipe"
