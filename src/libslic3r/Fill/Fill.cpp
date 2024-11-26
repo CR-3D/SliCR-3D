@@ -884,8 +884,9 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
                     island = &this->lslices_ex.front().islands.front();
                 }
                 std::vector<std::vector<ExtrusionEntityCollection*>> &fillsbypriority = island_2_fillsby_priority[island];
-                while(fillsbypriority.size() <= fills_by_priority[priority].size())
+                while(fillsbypriority.size() < fills_by_priority.size())
                     fillsbypriority.emplace_back();
+                assert(priority < fills_by_priority.size());
                 if (!fills_by_priority[priority][fill_idx]->empty()) {
                     fillsbypriority[priority].push_back(fills_by_priority[priority][fill_idx]);
                 } else {

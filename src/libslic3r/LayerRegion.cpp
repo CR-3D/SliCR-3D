@@ -744,6 +744,23 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     }
 #endif
 
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        for (auto &srf2 : m_fill_surfaces.surfaces) {
+            if (&srf != &srf2) {
+                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                double area = 0;
+                for (auto &expoly : intersect) {
+                    area += expoly.area();
+                }
+                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+            }
+        }
+    }
+#endif
+
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-final");
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */

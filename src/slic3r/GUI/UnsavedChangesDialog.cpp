@@ -1130,7 +1130,7 @@ static wxString get_string_value(std::string opt_key, const DynamicPrintConfig& 
     case coBool:
         serialized_str = from_u8(option->serialize());
         serialized_str.Replace("0", "false");
-        serialized_str.Replace("1", "false");
+        serialized_str.Replace("1", "true");
         serialized_str.Replace("!", "Disabled:");
         break;
     case coBools: {
@@ -1140,7 +1140,7 @@ static wxString get_string_value(std::string opt_key, const DynamicPrintConfig& 
             serialized_str = from_u8(option->serialize());
         }
         serialized_str.Replace("0", "false");
-        serialized_str.Replace("1", "false");
+        serialized_str.Replace("1", "true");
         serialized_str.Replace("!", "Disabled:");
         break;
     }

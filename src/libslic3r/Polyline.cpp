@@ -862,7 +862,9 @@ void ArcPolyline::clip_end(coordf_t dist)
 
 void ArcPolyline::split_at(coordf_t distance, ArcPolyline &p1, ArcPolyline &p2) const
 {
-    if(m_path.empty()) return;
+    if (m_path.empty()) return;
+    assert(distance > SCALED_EPSILON);
+    if (distance < SCALED_EPSILON) return;
     assert(this->is_valid());
     p1.m_path.push_back(m_path.front());
     size_t idx = 1;
@@ -915,6 +917,15 @@ void ArcPolyline::split_at(coordf_t distance, ArcPolyline &p1, ArcPolyline &p2) 
         p2.m_path.push_back(m_path[idx]);
         // increment
         ++idx;
+    }
+    assert(!p2.empty());
+    if (p2.back() != back()) {
+        if (p2.size() == 1 || !p2.back().coincides_with_epsilon(back())) {
+            p2.m_path.push_back(back());
+        } else {
+            // even with arc, the difference is not measurable (less than epsilon)
+            p2.set_back(back());
+        }
     }
     assert(p1.is_valid());
     assert(p2.is_valid());

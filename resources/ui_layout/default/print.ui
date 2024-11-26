@@ -240,9 +240,7 @@ group:Layer height
 group:Filtering
 	setting:model_precision
 	setting:slice_closing_radius
-    setting:bridge_precision
-	setting:resolution
-	setting:resolution_internal
+	setting:bridge_precision
 # gcode_resolution
 
 group:Curve Smoothing
