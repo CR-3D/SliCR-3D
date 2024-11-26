@@ -3693,7 +3693,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
 
     // Apply new config to the possibly running background task.
     bool               was_running = background_process.running();
-    Print::ApplyStatus invalidated = background_process.apply(q->model(), full_config);
+    Print::ApplyStatus invalidated = background_process.apply(q->model(), full_config, wxGetApp().preset_bundle->physical_printers.get_selected_printer_config());
 
     // Move all instances back to their respective beds.
     s_multiple_beds.move_active_to_first_bed(q->model(), q->build_volume(), false);
