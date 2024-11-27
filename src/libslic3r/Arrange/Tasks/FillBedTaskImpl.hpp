@@ -82,8 +82,11 @@ void extract(FillBedTask<ArrItem> &task,
                 prototype_item_shrinked = itm_conv.convert(arrbl, -SCALED_EPSILON);
         });
 
-    const int bed_constraint{get_bed_index(*task.prototype_item)};
-    set_bed_constraint(*task.prototype_item, bed_constraint);
+    const int bed_constraint{*get_bed_constraint(*task.prototype_item)};
+    if (bed_constraint != get_bed_index(*task.prototype_item)) {
+        return;
+    }
+
     set_bed_index(*task.prototype_item, Unarranged);
 
     auto collect_task_items = [&prototype_geometry_id, &task,
@@ -174,7 +177,7 @@ std::unique_ptr<FillBedTaskResult> FillBedTask<ArrItem>::process_native(
         void on_packed(ArrItem &itm) override
         {
             // Stop at the first filler that is not on the physical bed
-            do_stop = get_bed_index(itm) > get_bed_constraint(itm) && get_priority(itm) == 0;
+            do_stop = get_bed_index(itm) == -1 && get_priority(itm) == 0;
         }
 
     } subctl(ctl, *this);

@@ -163,7 +163,11 @@ void arrange(
                     set_bed_index(*it, Unarranged);
                     if (bed_constraint && bedidx == *bed_constraint) {
                         // Leave the item as is as it does not fit on the enforced bed.
+                        auto packed_range = Range{sorted_items.cbegin(),
+                                                  static_cast<SConstIt>(it)};
                         was_packed = true;
+                        sel.on_arranged_fn(*it, bed, packed_range, remaining);
+
                     }
                 }
             }
