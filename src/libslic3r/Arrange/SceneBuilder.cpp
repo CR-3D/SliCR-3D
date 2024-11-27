@@ -215,6 +215,7 @@ void SceneBuilder::build_arrangeable_slicer_model(ArrangeableSlicerModel &amodel
     amodel.m_selmask = std::move(m_selection);
     amodel.m_wths = std::move(m_wipetower_handlers);
     amodel.m_bed_constraints = std::move(m_bed_constraints);
+    amodel.m_considered_instances = std::move(m_considered_instances);
 
     for (auto &wth : amodel.m_wths) {
         wth->set_selection_predicate(
@@ -535,12 +536,25 @@ std::optional<int> get_bed_constraint(
     return found_constraint->second;
 }
 
+bool should_include_instance(
+    const ObjectID &instance_id,
+    const std::set<ObjectID> &considered_instances
+) {
+    if (considered_instances.find(instance_id) == considered_instances.end()) {
+        return false;
+    }
+    return true;
+}
+
+
 template<class Self, class Fn>
 void ArrangeableSlicerModel::for_each_arrangeable_(Self &&self, Fn &&fn)
 {
     InstPos pos;
     for (auto *obj : self.m_model->objects) {
         for (auto *inst : obj->instances) {
+            if (!self.m_considered_instances || should_include_instance(inst->id(), *self.m_considered_instances)) {
+
             ArrangeableModelInstance ainst{
                 inst,
                 self.m_vbed_handler.get(),
@@ -549,6 +563,7 @@ void ArrangeableSlicerModel::for_each_arrangeable_(Self &&self, Fn &&fn)
                 get_bed_constraint(inst->id(), self.m_bed_constraints)
             };
             fn(ainst);
+            }
             ++pos.inst_idx;
         }
         pos.inst_idx = 0;
