@@ -357,7 +357,7 @@ int CLI::run(int argc, char **argv)
     // Loop through transform options.
     bool user_center_specified = false;
 
-    const BedsGrid::Gap gap{s_multiple_beds.get_bed_gap()};
+    const Vec2crd gap{s_multiple_beds.get_bed_gap()};
     arr2::ArrangeBed bed = arr2::to_arrange_bed(get_bed_shape(m_print_config), gap);
     arr2::ArrangeSettings arrange_cfg;
     arrange_cfg.set_distance_from_objects(min_object_distance(&m_print_config));

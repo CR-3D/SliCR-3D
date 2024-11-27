@@ -312,7 +312,7 @@ arr2::SceneBuilder build_scene(Plater &plater, ArrangeSelectionMode mode)
     }
 
     if (plater.config()) {
-        const BedsGrid::Gap gap{s_multiple_beds.get_bed_gap()};
+        const Vec2crd gap{s_multiple_beds.get_bed_gap()};
         builder.set_bed(*plater.config(), gap);
     }
 

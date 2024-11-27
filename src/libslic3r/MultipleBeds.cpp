@@ -283,7 +283,7 @@ bool MultipleBeds::update_after_load_or_arrange(Model& model, const BuildVolume&
 }
 
 
-BedsGrid::Gap MultipleBeds::get_bed_gap() const {
+Vec2crd MultipleBeds::get_bed_gap() const {
     const Vec2d size_with_gap{
         m_build_volume_bb_incl_model.size().cwiseProduct(
             Vec2d::Ones() + Vec2d{bed_gap_x, bed_gap_y})};

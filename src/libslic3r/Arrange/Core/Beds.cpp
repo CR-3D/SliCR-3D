@@ -77,7 +77,7 @@ inline double distance_to(const Point &p1, const Point &p2)
     return std::sqrt(dx * dx + dy * dy);
 }
 
-static CircleBed to_circle(const Point &center, const Points &points, const BedsGrid::Gap &gap)
+static CircleBed to_circle(const Point &center, const Points &points, const Vec2crd &gap)
 {
     std::vector<double> vertex_distances;
     double              avg_dist = 0;
@@ -101,7 +101,7 @@ static CircleBed to_circle(const Point &center, const Points &points, const Beds
     return ret;
 }
 
-template<class Fn> auto call_with_bed(const Points &bed, const BedsGrid::Gap &gap, Fn &&fn)
+template<class Fn> auto call_with_bed(const Points &bed, const Vec2crd &gap, Fn &&fn)
 {
     if (bed.empty())
         return fn(InfiniteBed{});
@@ -121,7 +121,7 @@ template<class Fn> auto call_with_bed(const Points &bed, const BedsGrid::Gap &ga
     }
 }
 
-ArrangeBed to_arrange_bed(const Points &bedpts, const BedsGrid::Gap &gap)
+ArrangeBed to_arrange_bed(const Points &bedpts, const Vec2crd &gap)
 {
     ArrangeBed ret;
 

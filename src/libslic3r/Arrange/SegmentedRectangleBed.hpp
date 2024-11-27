@@ -20,14 +20,14 @@ template<class SegX = void, class SegY = void, class Pivot = void>
 struct SegmentedRectangleBed {
     Vec<2, size_t> segments = Vec<2, size_t>::Ones();
     BoundingBox bb;
-    BedsGrid::Gap gap;
+    Vec2crd gap;
     RectPivots pivot = RectPivots::Center;
 
     SegmentedRectangleBed() = default;
     SegmentedRectangleBed(const BoundingBox &bb,
                           size_t segments_x,
                           size_t segments_y,
-                          const BedsGrid::Gap &gap,
+                          const Vec2crd &gap,
                           const RectPivots pivot = RectPivots::Center)
         : segments{segments_x, segments_y}, bb{bb}, gap{gap}, pivot{pivot}
     {}
@@ -43,13 +43,13 @@ struct SegmentedRectangleBed<std::integral_constant<size_t, SegX>,
                              std::integral_constant<size_t, SegY>>
 {
     BoundingBox bb;
-    BedsGrid::Gap gap;
+    Vec2crd gap;
     RectPivots pivot = RectPivots::Center;
 
     SegmentedRectangleBed() = default;
 
     explicit SegmentedRectangleBed(const BoundingBox &b,
-                                   const BedsGrid::Gap &gap,
+                                   const Vec2crd &gap,
                                    const RectPivots pivot = RectPivots::Center)
         : bb{b},
           gap{gap}
@@ -67,11 +67,11 @@ struct SegmentedRectangleBed<std::integral_constant<size_t, SegX>,
                              std::integral_constant<RectPivots, pivot>>
 {
     BoundingBox bb;
-    BedsGrid::Gap gap;
+    Vec2crd gap;
 
     SegmentedRectangleBed() = default;
 
-    explicit SegmentedRectangleBed(const BoundingBox &b, const BedsGrid::Gap &gap) : bb{b}, gap{gap} {}
+    explicit SegmentedRectangleBed(const BoundingBox &b, const Vec2crd &gap) : bb{b}, gap{gap} {}
 
     size_t segments_x() const noexcept { return SegX; }
     size_t segments_y() const noexcept { return SegY; }

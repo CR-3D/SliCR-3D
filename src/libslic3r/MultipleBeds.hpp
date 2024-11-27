@@ -65,7 +65,7 @@ public:
         m_build_volume_bb = build_volume_bb;
         m_build_volume_bb_incl_model = build_volume_bb_incl_model;
     }
-    BedsGrid::Gap get_bed_gap() const;
+    Vec2crd get_bed_gap() const;
 	void   ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints);
 
 private:

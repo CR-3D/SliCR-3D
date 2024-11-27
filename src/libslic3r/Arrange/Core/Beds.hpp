@@ -33,17 +33,17 @@ struct InfiniteBed {
 BoundingBox bounding_box(const InfiniteBed &bed);
 
 inline InfiniteBed offset(const InfiniteBed &bed, coord_t) { return bed; }
-inline BedsGrid::Gap bed_gap(const InfiniteBed &)
+inline Vec2crd bed_gap(const InfiniteBed &)
 {
-    return BedsGrid::Gap::Zero();
+    return Vec2crd::Zero();
 }
 
 struct RectangleBed {
     BoundingBox bb;
-    BedsGrid::Gap gap;
+    Vec2crd gap;
 
-    explicit RectangleBed(const BoundingBox &bedbb, const BedsGrid::Gap &gap) : bb{bedbb}, gap{gap} {}
-    explicit RectangleBed(coord_t w, coord_t h, const BedsGrid::Gap &gap = BedsGrid::Gap::Zero(), Point c = {0, 0}):
+    explicit RectangleBed(const BoundingBox &bedbb, const Vec2crd &gap) : bb{bedbb}, gap{gap} {}
+    explicit RectangleBed(coord_t w, coord_t h, const Vec2crd &gap = Vec2crd::Zero(), Point c = {0, 0}):
         bb{{c.x() - w / 2, c.y() - h / 2}, {c.x() + w / 2, c.y() + h / 2}}, gap{gap}
     {}
 
@@ -57,7 +57,7 @@ inline RectangleBed offset(RectangleBed bed, coord_t v)
     bed.bb.offset(v);
     return bed;
 }
-inline BedsGrid::Gap bed_gap(const RectangleBed &bed) {
+inline Vec2crd bed_gap(const RectangleBed &bed) {
     return bed.gap;
 }
 
@@ -71,11 +71,11 @@ inline Polygon to_rectangle(const RectangleBed &bed)
 class CircleBed {
     Point  m_center;
     double m_radius;
-    BedsGrid::Gap m_gap;
+    Vec2crd m_gap;
 
 public:
-    CircleBed(): m_center(0, 0), m_radius(NaNd), m_gap(BedsGrid::Gap::Zero()) {}
-    explicit CircleBed(const Point& c, double r, const BedsGrid::Gap &g)
+    CircleBed(): m_center(0, 0), m_radius(NaNd), m_gap(Vec2crd::Zero()) {}
+    explicit CircleBed(const Point& c, double r, const Vec2crd &g)
         : m_center(c)
         , m_radius(r)
         , m_gap(g)
@@ -83,7 +83,7 @@ public:
 
     double radius() const { return m_radius; }
     const Point& center() const { return m_center; }
-    const BedsGrid::Gap &gap() const { return m_gap; }
+    const Vec2crd &gap() const { return m_gap; }
 };
 
 // Function to approximate a circle with a convex polygon
@@ -100,12 +100,12 @@ inline CircleBed offset(const CircleBed &bed, coord_t v)
 {
     return CircleBed{bed.center(), bed.radius() + v, bed.gap()};
 }
-inline BedsGrid::Gap bed_gap(const CircleBed &bed)
+inline Vec2crd bed_gap(const CircleBed &bed)
 {
     return bed.gap();
 }
 
-struct IrregularBed { ExPolygons poly; BedsGrid::Gap gap; };
+struct IrregularBed { ExPolygons poly; Vec2crd gap; };
 inline BoundingBox bounding_box(const IrregularBed &bed)
 {
     return get_extents(bed.poly);
@@ -116,7 +116,7 @@ inline IrregularBed offset(IrregularBed bed, coord_t v)
     bed.poly = offset_ex(bed.poly, v);
     return bed;
 }
-inline BedsGrid::Gap bed_gap(const IrregularBed &bed)
+inline Vec2crd bed_gap(const IrregularBed &bed)
 {
     return bed.gap;
 }
@@ -141,9 +141,9 @@ inline ArrangeBed offset(ArrangeBed bed, coord_t v)
     return bed;
 }
 
-inline BedsGrid::Gap bed_gap(const ArrangeBed &bed)
+inline Vec2crd bed_gap(const ArrangeBed &bed)
 {
-    BedsGrid::Gap ret;
+    Vec2crd ret;
     auto visitor = [&ret](const auto &b) { ret = bed_gap(b); };
     boost::apply_visitor(visitor, bed);
 
@@ -213,7 +213,7 @@ inline ExPolygons to_expolygons(const ArrangeBed &bed)
     return ret;
 }
 
-ArrangeBed to_arrange_bed(const Points &bedpts, const BedsGrid::Gap &gap);
+ArrangeBed to_arrange_bed(const Points &bedpts, const Vec2crd &gap);
 
 template<class Bed, class En = void> struct IsRectangular_ : public std::false_type {};
 template<> struct IsRectangular_<RectangleBed>: public std::true_type {};

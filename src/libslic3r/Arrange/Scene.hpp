@@ -175,9 +175,9 @@ inline BoundingBox bounding_box(const ExtendedBed &bed)
     return bedbb;
 }
 
-inline BedsGrid::Gap bed_gap(const ExtendedBed &bed)
+inline Vec2crd bed_gap(const ExtendedBed &bed)
 {
-    BedsGrid::Gap gap;
+    Vec2crd gap;
     visit_bed([&gap](auto &rawbed) { gap = bed_gap(rawbed); }, bed);
 
     return gap;
@@ -231,7 +231,7 @@ public:
         return std::move(static_cast<Subclass&>(*this));
     }
 
-    Subclass &&set_bed(const Points &pts, const BedsGrid::Gap &gap)
+    Subclass &&set_bed(const Points &pts, const Vec2crd &gap)
     {
         m_bed = arr2::to_arrange_bed(pts, gap);
         return std::move(static_cast<Subclass&>(*this));

@@ -180,7 +180,7 @@ void SceneBuilder::build_scene(Scene &sc) &&
 
     if (m_fff_print && !m_sla_print) {
         if (is_infinite_bed(m_bed)) {
-            set_bed(*m_fff_print, BedsGrid::Gap::Zero());
+            set_bed(*m_fff_print, Vec2crd::Zero());
         } else {
             set_brim_and_skirt();
         }
@@ -434,7 +434,7 @@ SceneBuilder &&SceneBuilder::set_sla_print(AnyPtr<const SLAPrint> mdl_print)
     return std::move(*this);
 }
 
-SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg, const BedsGrid::Gap &gap)
+SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg, const Vec2crd &gap)
 {
     Points bedpts = get_bed_shape(cfg);
 
@@ -447,7 +447,7 @@ SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg, const BedsGr
     return std::move(*this);
 }
 
-SceneBuilder &&SceneBuilder::set_bed(const Print &print, const BedsGrid::Gap &gap)
+SceneBuilder &&SceneBuilder::set_bed(const Print &print, const Vec2crd &gap)
 {
     Points bedpts = get_bed_shape(print.config());
 
@@ -928,7 +928,7 @@ std::unique_ptr<VirtualBedHandler> VirtualBedHandler::create(const ExtendedBed &
     if (is_infinite_bed(bed)) {
         ret = std::make_unique<PhysicalOnlyVBedHandler>();
     } else {
-        BedsGrid::Gap gap;
+        Vec2crd gap;
         visit_bed([&gap](auto &rawbed) { gap = bed_gap(rawbed); }, bed);
         BoundingBox bedbb;
         visit_bed([&bedbb](auto &rawbed) { bedbb = bounding_box(rawbed); }, bed);

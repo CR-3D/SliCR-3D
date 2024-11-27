@@ -255,7 +255,7 @@ void init_print(std::vector<TriangleMesh> &&meshes, Slic3r::Print &print, Slic3r
     double distance = min_object_distance(config);
     arr2::ArrangeSettings arrange_settings{};
     arrange_settings.set_distance_from_objects(distance);
-    arr2::ArrangeBed bed{arr2::to_arrange_bed(get_bed_shape(config), BedsGrid::Gap{0, 0})};
+    arr2::ArrangeBed bed{arr2::to_arrange_bed(get_bed_shape(config), Vec2crd{0, 0})};
     if (duplicate_count > 1) {
         duplicate(model, duplicate_count, bed, arrange_settings);
     }
