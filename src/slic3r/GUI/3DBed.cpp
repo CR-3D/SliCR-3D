@@ -592,7 +592,7 @@ void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, co
         return;
     }
 
-    if (!bottom)
+    if (!bottom) {
         render_model(view_matrix, projection_matrix);
     }
     
