@@ -337,7 +337,7 @@ bool GridStriderVBedHandler::assign_bed(VBedPlaceable &inst, int bed_idx)
     Vec2crd crd = BedsGrid::index2grid_coords(bed_idx);
 
     bool retx = m_xstrider.assign_bed(inst, crd.x());
-    bool rety = m_ystrider.assign_bed(inst, crd.y());
+    bool rety = m_ystrider.assign_bed(inst, crd.y() * 1.5);
 
     return retx && rety;
 }

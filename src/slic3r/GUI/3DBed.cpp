@@ -192,7 +192,10 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
 */
 
     BoundingBoxf bb = m_build_volume.bounding_volume2d();
-    bb.max = Vec2d(bb.max.x() + std::max(0., m_model.model.get_bounding_box().size().x() - bb.size().x()), bb.max.y() + std::max(0., m_model.model.get_bounding_box().size().y() - bb.size().y()));
+    bb.max = Vec2d(
+          bb.max.x() + std::max(0., m_model.model.get_bounding_box().size().x() - bb.size().x()),
+          bb.max.y() + std::max(0., (m_model.model.get_bounding_box().size().y() - bb.size().y()) * 2.0) // Scale Y size by 2.0
+    );
     s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
 
 
