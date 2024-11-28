@@ -884,8 +884,9 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
                     island = &this->lslices_ex.front().islands.front();
                 }
                 std::vector<std::vector<ExtrusionEntityCollection*>> &fillsbypriority = island_2_fillsby_priority[island];
-                while(fillsbypriority.size() < fills_by_priority[priority].size())
+                while(fillsbypriority.size() < fills_by_priority.size())
                     fillsbypriority.emplace_back();
+                assert(priority < fills_by_priority.size());
                 if (!fills_by_priority[priority][fill_idx]->empty()) {
                     fillsbypriority[priority].push_back(fills_by_priority[priority][fill_idx]);
                 } else {
@@ -1133,7 +1134,8 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
                                         intersection_ex(ExPolygons{surface_fill.surface.expolygon}, f->no_overlap_expolygons);
                     double real_surface = 0;
                     for(auto &t : temp) real_surface += t.area();
-                    assert(compute_volume.volume < unscaled(unscaled(surface_fill.surface.area())) * surface_fill.params.layer_height * surface_fill.params.flow_mult + EPSILON);
+                    assert(compute_volume.volume < unscaled(unscaled(surface_fill.surface.area())) * surface_fill.params.layer_height * surface_fill.params.flow_mult + EPSILON
+                        || f->debug_verify_flow_mult <= 0.80001);
                     double area = unscaled(unscaled(real_surface));
                     if(surface_fill.surface.has_pos_top())
                         area *= surface_fill.params.config->fill_top_flow_ratio.get_abs_value(1);

@@ -31,6 +31,7 @@ void CalibrationRetractionDialog::create_buttons(wxStdDialogButtonSizer* buttons
     steps = new wxComboBox(this, wxID_ANY, wxString{"0.2"}, wxDefaultPosition, wxDefaultSize, 5, choices_steps);
     steps->SetToolTip(_L("Each milliliter adds this value to the retraction value."));
     steps->SetForegroundColour(*wxBLACK); // Set text color to black
+
     steps->SetSelection(1);
 
     wxString choices_nb[] = {"2", "4", "6", "8", "10", "15", "20", "25"};
@@ -88,6 +89,8 @@ void CalibrationRetractionDialog::create_buttons(wxStdDialogButtonSizer* buttons
 
     wxButton *bt = new wxButton(this, wxID_FILE1, _L("Remove fil. slowdown"));
     bt->SetForegroundColour(*wxBLACK); // Set text color to black
+    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
+
     bt->Bind(wxEVT_BUTTON, &CalibrationRetractionDialog::remove_slowdown, this);
     buttons->Add(bt);
 
@@ -95,6 +98,8 @@ void CalibrationRetractionDialog::create_buttons(wxStdDialogButtonSizer* buttons
 
     bt = new wxButton(this, wxID_FILE1, _L("Generate"));
     bt->SetForegroundColour(*wxBLACK); // Set text color to black
+    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
+
     bt->Bind(wxEVT_BUTTON, &CalibrationRetractionDialog::create_geometry, this);
     buttons->Add(bt);
 }

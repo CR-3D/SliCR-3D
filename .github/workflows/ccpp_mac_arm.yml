@@ -9,8 +9,7 @@ on:
       - debug_macos
 
 jobs:
-  build:
-
+  build_dep:
     runs-on: macos-14
 
     steps:
@@ -28,15 +27,39 @@ jobs:
         make
         sudo make install
         automake --version
-    - name: build deps & slicer
-      run: ./BuildMacOS.sh -adsi
-    - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+    - name: mkdir in deps
+      run: mkdir deps/build
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
       with:
-        name: nightly_macos_arm_debug.dmg
-        path: build/${{ github.event.repository.name }}.dmg
-    - name: Upload artifact
-      uses: actions/upload-artifact@v1.0.0
+        key: macos_arm_2.7
+        path: deps/build/destdir
+    - if: steps.cache-action.outputs.cache-hit != 'true'
+      name: build deps if new cache
+      run: ./BuildMacOS.sh -ad
+
+  build:
+    runs-on: macos-14
+    needs: build_dep
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
       with:
-        name: nightly_arm_macos.tar
-        path: build/${{ github.event.repository.name }}.tar
+        key: macos_arm_2.7
+        path: deps/build/destdir
+    - name: build slicer
+      run: ./BuildMacOS.sh -asiv
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly_${{ github.event.repository.name }}-macOS-arm.dmg
+        path: build/${{ github.event.repository.name }}-macOS-arm.dmg
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly_${{ github.event.repository.name }}-macOS-arm.tgz
+        path: build/${{ github.event.repository.name }}-macOS-arm.tgz

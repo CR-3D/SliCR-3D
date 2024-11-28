@@ -211,9 +211,11 @@ static ExPolygons PolyTreeToExPolygons(ClipperLib::PolyTree &&polytree)
             size_t cnt = expolygons->size();
             expolygons->resize(cnt + 1);
             (*expolygons)[cnt].contour.points = std::move(polynode.Contour);
+            assert((*expolygons)[cnt].contour.is_counter_clockwise());
             (*expolygons)[cnt].holes.resize(polynode.ChildCount());
             for (int i = 0; i < polynode.ChildCount(); ++ i) {
                 (*expolygons)[cnt].holes[i].points = std::move(polynode.Childs[i]->Contour);
+                assert((*expolygons)[cnt].holes[i].is_clockwise());
                 // Add outer polygons contained by (nested within) holes.
                 for (int j = 0; j < polynode.Childs[i]->ChildCount(); ++ j)
                     PolyTreeToExPolygonsRecursive(std::move(*polynode.Childs[i]->Childs[j]), expolygons);

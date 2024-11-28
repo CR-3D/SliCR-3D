@@ -311,7 +311,7 @@ void GCodeGenerator::PlaceholderParserIntegration::init(const PrintConfig &print
     // Reserve buffer for current position.
     this->position.assign(3, 0);
     this->opt_position = new ConfigOptionFloats(this->position);
-    this->output_config.set_key_value("position", this->opt_position);
+    this->parser.set("position", this->opt_position);
     this->opt_position_parser = new ConfigOptionFloats(this->position);
     this->parser.set("current_position", this->opt_position_parser);
 
@@ -322,9 +322,12 @@ void GCodeGenerator::PlaceholderParserIntegration::init(const PrintConfig &print
 
 void GCodeGenerator::PlaceholderParserIntegration::update_from_gcodewriter(const GCodeWriter &writer, const WipeTowerData& wipe_tower_data)
 {
+    assert(this->position.size() == 3 && writer.get_position().size() == 3);
     memcpy(this->position.data(), writer.get_position().data(), sizeof(double) * 3);
+    // the z_offset is added by the writer when writing the z, we need to add it ourself to have the real z as it's printed in the gcode.
+    this->position[2] += writer.config.z_offset.value;
     this->opt_position->set(this->position);
-    this->opt_position_parser->set(this->position);
+    this->opt_position_parser->set(this->position);    
     this->opt_zhop->value = writer.get_lift();
 
     if (this->num_extruders > 0) {
@@ -345,7 +348,7 @@ void GCodeGenerator::PlaceholderParserIntegration::update_from_gcodewriter(const
             double wt_vol = 0.;
             const std::vector<std::pair<float, std::vector<float>>>& wtuf = wipe_tower_data.used_filament_until_layer;
             if (!wtuf.empty()) {
-                auto it = std::lower_bound(wtuf.begin(), wtuf.end(), writer.get_position().z(),
+                auto it = std::lower_bound(wtuf.begin(), wtuf.end(), this->position[2] /*z*/,
                                 [](const auto& a, const float& val) { return a.first < val; });
                 if (it == wtuf.end())
                     it = wtuf.end() - 1;
@@ -1712,8 +1715,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
         DynamicConfig config;
         config.set_key_value("previous_extruder", new ConfigOptionInt(-1));
         config.set_key_value("next_extruder", new ConfigOptionInt((int)initial_extruder_id));
-        config.set_key_value("layer_num", new ConfigOptionInt(0));
-        config.set_key_value("layer_z", new ConfigOptionFloat(0)); //TODO: if the process is changed, please use the real first layer height
+        config.set_key_value("filament_extruder_id", new ConfigOptionInt((int)initial_extruder_id));
         start_filament_gcode = this->placeholder_parser_process("start_filament_gcode", m_config.start_filament_gcode.get_at(initial_extruder_id), initial_extruder_id, &config);
     }
     std::string start_all_gcode = start_gcode + "\"n" + start_filament_gcode;
@@ -1946,9 +1948,9 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                     m_wipe_tower = std::make_unique<GCode::WipeTowerIntegration>(print.config(), *print.wipe_tower_data().priming.get(), print.wipe_tower_data().tool_changes, *print.wipe_tower_data().final_purge.get());
 
                     // Set position for wipe tower generation.
-                    Vec3d new_position = this->writer().get_position();
-                    new_position.z() = first_layer_height;
-                    this->writer().update_position(new_position);
+                    file.write(this->writer().travel_to_z(first_layer_height, "Move to first z, for wipe tower"));
+                    m_last_layer_z = first_layer_height;
+                    m_max_layer_z = std::max(m_max_layer_z, this->writer().get_unlifted_position().z());
 
                     if (print.config().single_extruder_multi_material_priming) {
                     // TODO: 2.7: check that the preamble_to_put_start_layer has the z-move at first (from m_wipe_tower->prime, I guess)
@@ -2017,9 +2019,6 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     if (initial_extruder_id != (uint16_t)-1) {
         uint16_t current_extruder_id = m_writer.tool()->id();
         DynamicConfig config;
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-        config.set_key_value("layer_z", new ConfigOptionFloat(m_writer.get_position().z() - m_config.z_offset.value));
-        config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
         config.set_key_value("filament_extruder_id", new ConfigOptionInt(current_extruder_id));
         config.set_key_value("previous_extruder", new ConfigOptionInt(current_extruder_id));
         config.set_key_value("next_extruder", new ConfigOptionInt(-1));
@@ -2502,29 +2501,21 @@ std::string GCodeGenerator::placeholder_parser_process(
 
     PlaceholderParserIntegration &ppi = m_placeholder_parser_integration;
     try {
-        //2.7: check where to add that (in PlaceholderParserIntegration ? )
-        //add some config conversion for colors
-        //auto func_add_colour = [&default_config](std::string key, std::string colour) {
-        //    if (colour.length() == 7) {
-        //        default_config.set_key_value(key, new ConfigOptionInt((int)strtol(colour.substr(1, 6).c_str(), NULL, 16)));
-        //    }
-        //};
-        //if (current_extruder_id >= 0 && current_extruder_id < config().filament_colour.size()) {
-        //    func_add_colour("filament_colour_int", config().filament_colour.get_at(current_extruder_id));
-        //    func_add_colour("extruder_colour_int", config().extruder_colour.get_at(current_extruder_id));
-        //}
-        //// should be the same as Vec2d gcode_pos = point_to_gcode(m_last_pos);
-        //Vec3d gcode_pos = this->writer().get_position();
-        //default_config.set_key_value("current_position", new ConfigOptionFloats( {gcode_pos.x(), gcode_pos.y(), gcode_pos.z()} ));
-        //default_config.set_key_value("current_object_position", new ConfigOptionFloats( {m_origin.x(), m_origin.y()} ));
-
+        // add special variables from writer & wipetower
         ppi.update_from_gcodewriter(m_writer, *this->m_wipe_tower_data);
+        // add special variables from gcodegenerator
+        ppi.parser.set("layer_num", new ConfigOptionInt(m_layer_index));
+        ppi.parser.set("layer_z", new ConfigOptionFloat(m_layer == nullptr ? m_last_layer_z : m_layer->print_z));
+        ppi.parser.set("layer_current_height", new ConfigOptionFloat(m_layer == nullptr ? m_last_height : m_layer->height));
+        ppi.parser.set("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
+        ppi.parser.set("current_object_position", new ConfigOptionFloats({m_origin.x(), m_origin.y()}));
+
         std::string output = ppi.parser.process(templ, current_extruder_id, config_override, &ppi.output_config, &ppi.context);
         ppi.validate_output_vector_variables();
 
         if (const std::vector<double> &pos = ppi.opt_position->get_values(); ppi.position != pos) {
-            // Update G-code writer.
-            m_writer.update_position({ pos[0], pos[1], pos[2] });
+            // Update G-code writer. (without z_offset)
+            m_writer.update_position_by_lift({ pos[0], pos[1], pos[2] - m_writer.config.z_offset.value});
             this->set_last_pos(this->gcode_to_point({pos[0], pos[1]}));
         }
 
@@ -3136,7 +3127,7 @@ LayerResult GCodeGenerator::process_layer(
     }
 
     // Extract 1st object_layer and support_layer of this set of layers with an equal print_z.
-    coordf_t             print_z       = layer.print_z + m_config.z_offset.value;
+    coordf_t             print_z       = layer.print_z;
     bool                 first_layer   = layer_id == 0;
     uint16_t             first_extruder_id = layer_tools.extruders.front();
 
@@ -3190,21 +3181,18 @@ LayerResult GCodeGenerator::process_layer(
         + float_to_string_decimal_point(height) + "\n";
 
     // update caches
-    const double previous_layer_z{m_last_layer_z};
+    const double previous_layer_z{m_layer != nullptr ? m_layer->print_z : 0};
+    assert(std::abs(previous_layer_z - (m_layer != nullptr ? m_last_layer_z : 0)) < 0.00000001);
     m_last_layer_z = print_z;
-    m_max_layer_z  = std::max(m_max_layer_z, m_last_layer_z);
+    m_max_layer_z = std::max(m_max_layer_z, m_last_layer_z);
     m_last_height = height;
     m_last_too_small.polyline.clear();
     //m_already_unretracted = false;
 
     // Set new layer - this will change Z and force a retraction if retract_layer_change is enabled.
-    assert(std::abs(previous_layer_z - (m_layer != nullptr ? m_layer->print_z : 0)) < 0.00000001);
     if (! print.config().before_layer_gcode.value.empty()) {
         DynamicConfig config;
         config.set_key_value("previous_layer_z", new ConfigOptionFloat(previous_layer_z));
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index + 1));
-        config.set_key_value("layer_z",     new ConfigOptionFloat(print_z));
-        config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
         gcode += this->placeholder_parser_process("before_layer_gcode",
             print.config().before_layer_gcode.value, m_writer.tool()->id(), &config)
             + "\n";
@@ -3241,9 +3229,6 @@ LayerResult GCodeGenerator::process_layer(
     if (!first_layer && ! print.config().layer_gcode.value.empty()) {
         DynamicConfig config;
         config.set_key_value("previous_layer_z", new ConfigOptionFloat(previous_layer_z));
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-        config.set_key_value("layer_z",   new ConfigOptionFloat(print_z));
-        config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
         gcode += this->placeholder_parser_process("layer_gcode",
             print.config().layer_gcode.value, m_writer.tool()->id(), &config)
             + "\n";
@@ -3529,9 +3514,7 @@ void GCodeGenerator::process_layer_single_object(
             
             if (!print_args.print_instance.print_object.config().object_gcode.value.empty()) {
                 DynamicConfig config;
-                config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-                assert(std::abs(m_writer.get_position().z() - m_config.z_offset.value - m_last_layer_z) < 0.0001);
-                config.set_key_value("layer_z",     new ConfigOptionFloat(m_last_layer_z));
+                assert(std::abs(m_writer.get_position().z() - m_last_layer_z) < 0.0001);
                 m_gcode_label_objects_start += this->placeholder_parser_process("object_gcode",
                     print_args.print_instance.print_object.config().object_gcode.value, m_writer.tool()->id(), &config)
                     + "\n";
@@ -3691,10 +3674,7 @@ void GCodeGenerator::emit_milling_commands(std::string& gcode, const ObjectsLaye
                 DynamicConfig config;
                 config.set_key_value("previous_extruder", new ConfigOptionInt((int)current_extruder_filament));
                 config.set_key_value("next_extruder", new ConfigOptionInt((int)milling_extruder_id));
-                config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
                 config.set_key_value("previous_layer_z", new ConfigOptionFloat(previous_print_z));
-                config.set_key_value("layer_z", new ConfigOptionFloat(m_layer->print_z));
-                config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
                 // Process the start_mill_gcode for the new filament.
                 gcode += this->placeholder_parser_process("milling_toolchange_start_gcode", start_mill_gcode,
                                                           current_extruder_filament, &config);
@@ -3725,10 +3705,7 @@ void GCodeGenerator::emit_milling_commands(std::string& gcode, const ObjectsLaye
                 DynamicConfig config;
                 config.set_key_value("previous_extruder", new ConfigOptionInt((int)milling_extruder_id));
                 config.set_key_value("next_extruder", new ConfigOptionInt((int)current_extruder_filament));
-                config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
                 config.set_key_value("previous_layer_z", new ConfigOptionFloat(previous_print_z));
-                config.set_key_value("layer_z", new ConfigOptionFloat(m_layer->print_z));
-                config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
                 // Process the end_mill_gcode for the new filament.
                 gcode += this->placeholder_parser_process("milling_toolchange_start_gcode", end_mill_gcode,
                                                           current_extruder_filament, &config);
@@ -3845,7 +3822,8 @@ std::string GCodeGenerator::preamble()
         position of our writer object so that any initial lift taking place
         before the first layer change will raise the extruder from the correct
         initial Z instead of 0.  */
-    m_writer.travel_to_z(m_config.z_offset.value);
+    // now, z_offset is added by m_writer directly.
+    //m_writer.travel_to_z(m_config.z_offset.value);
     //as this phony thing skip the acceleration writing, they have to be reset after that for real initialisation at the next move/extrusion
     m_writer.set_acceleration(0);
     
@@ -3853,7 +3831,6 @@ std::string GCodeGenerator::preamble()
 }
 
 // called by GCodeGenerator::process_layer()
-// print_z already has the z_offset
 std::string GCodeGenerator::change_layer(double print_z) {
     std::string gcode;
     if (layer_count() > 0)
@@ -3953,7 +3930,7 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
     //get extrusion length
     coordf_t length = 0;
     for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
-        path->simplify(std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value)), ArcFittingType::Disabled, 0); //not useful, this should have been done before.
+        //path->simplify(std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value)), false, 0); //not useful, this should have been done before.
         length += path->length() * SCALING_FACTOR;
     }
 
@@ -4305,8 +4282,12 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
     assert(notch_extrusion_start.empty());
     assert(notch_extrusion_end.empty());
     assert(!building_paths.empty());
+
+    if (building_paths.size() == 1)
+        assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
     if (original_loop.role().is_external_perimeter() && building_paths.front().size() > 1 && building_paths.back().size() > 1
-        && (this->m_config.seam_notch_all.get_abs_value(1.) > 0 || this->m_config.seam_notch_inner.get_abs_value(1.) > 0 || this->m_config.seam_notch_outer.get_abs_value(1.) > 0)) {
+        && (this->m_config.seam_notch_all.get_abs_value(1.) > 0 || this->m_config.seam_notch_inner.get_abs_value(1.) > 0 
+            || this->m_config.seam_notch_outer.get_abs_value(1.) > 0)) {
         //TODO: check there is at least 4 points
         coord_t notch_value = 0;
         //check if applicable to seam_notch_inner
@@ -4374,44 +4355,52 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         notch_value = std::min(notch_value, scale_t(building_paths.front().width()) / 2);
 
         // found a suitable path, move the seam inner
-        
+        if (building_paths.size() == 1)
+            assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
+
         // extract paths from the start
         coordf_t dist = notch_length;
-        while (dist > 0) {
+        while (dist > SCALED_EPSILON) {
             coordf_t length = building_paths.front().as_polyline().length();
-            if(length > dist){
-                //found the place to split
-                notch_extrusion_start.emplace_back(building_paths.front().attributes(), building_paths.front().can_reverse());
+            if (length > dist) {
+                // found the place to split
+                notch_extrusion_start.emplace_back(building_paths.front().attributes(),
+                                                   building_paths.front().can_reverse());
                 ArcPolyline ap2;
                 building_paths.front().as_polyline().split_at(dist, notch_extrusion_start.back().polyline, ap2);
                 building_paths.front().polyline = ap2;
                 dist = 0;
-            }else{
+            } else {
                 notch_extrusion_start.push_back(std::move(building_paths.front()));
                 building_paths.erase(building_paths.begin());
                 dist -= length;
             }
+            assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
         }
         // extract paths from the end
         dist = notch_length;
-        while (dist > 0) {
+        while (dist > SCALED_EPSILON) {
             coordf_t length = building_paths.back().as_polyline().length();
-            if(length > dist){
-                //found the place to split
-                notch_extrusion_end.emplace_back(building_paths.back().attributes(), building_paths.back().can_reverse());
-                ArcPolyline ap1;
-                building_paths.back().as_polyline().split_at(dist, ap1, notch_extrusion_end.back().polyline);
-                building_paths.back().polyline = ap1;
+            if (length > dist) {
+                // found the place to split
+                notch_extrusion_end.emplace_back(building_paths.back().attributes(),
+                                                 building_paths.back().can_reverse());
+                ArcPolyline ap2;
+                building_paths.back().polyline.split_at(length - dist, ap2, notch_extrusion_end.back().polyline);
+                building_paths.back().polyline = ap2;
                 dist = 0;
-            }else{
+            } else {
                 notch_extrusion_end.push_back(std::move(building_paths.back()));
-                building_paths.erase(building_paths.begin());
+                notch_extrusion_end.back().polyline.reverse();
+                building_paths.pop_back();
                 dist -= length;
             }
-            //notch_extrusion_end has benn created "in-reverse", I have to put it the right way
-            std::reverse(notch_extrusion_end.begin(), notch_extrusion_end.end());
+            assert(building_paths.back().polyline.back() == notch_extrusion_end.front().polyline.front());
         }
-        
+        // notch_extrusion_end has benn created "in-reverse", I have to put it the right way
+        std::reverse(notch_extrusion_end.begin(), notch_extrusion_end.end());
+        assert(building_paths.back().polyline.back() == notch_extrusion_end.front().polyline.front());
+
         //kind of the same as the wipe
         Point prev_point = notch_extrusion_end.back().first_point();       // second to last point
         Point end_point = notch_extrusion_end.back().last_point();
@@ -4419,9 +4408,10 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         Point next_point = notch_extrusion_start.front().last_point();  // second point
         //safeguard : if a ExtrusionRole::ror exist abord;
         if (next_point == start_point || prev_point == end_point) {
-            throw Slic3r::SlicingError(_u8L("ExtrusionRole::ror while writing gcode: two points are at the same position. Please send the .3mf project to the dev team for debugging. Extrude loop: seam notch."));
+            throw Slic3r::SlicingError(_u8L("ExtrusionRole::error while writing gcode: two points are at the same position. Please send the .3mf project to the dev team for debugging. Extrude loop: seam notch."));
         }
-        if(building_paths.size() == 1)
+
+        if (building_paths.size() == 1)
             assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
         double angle = PI / 2;
         if (is_hole_loop ? (is_full_loop_ccw) : (!is_full_loop_ccw)) {
@@ -4456,13 +4446,13 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             assert(ccw_angle_old_test(start_point, prev_point, next_point) == abs_angle(angle_ccw( prev_point -start_point,next_point- start_point)));
             check_angle = abs_angle(angle_ccw( prev_point -start_point,next_point- start_point));
         } else {
-            assert(ccw_angle_old_test(end_point, prev_point, start_point) == abs_angle(angle_ccw( start_point -end_point,prev_point- end_point)));
-            check_angle = abs_angle(angle_ccw( start_point -end_point,prev_point- end_point));
+            assert(is_approx(ccw_angle_old_test(end_point, prev_point, start_point), abs_angle(angle_ccw(prev_point- end_point, start_point -end_point)), EPSILON));
+            check_angle = abs_angle(angle_ccw(prev_point- end_point, start_point -end_point));
             if ((is_hole_loop ? -check_angle : check_angle) > min_angle) {
                 BOOST_LOG_TRIVIAL(debug) << "notch abord: too big angle\n";
                 return;
             }
-            assert(ccw_angle_old_test(start_point, end_point, next_point) == abs_angle(angle_ccw( end_point - start_point,next_point - start_point)));
+            assert(is_approx(ccw_angle_old_test(start_point, end_point, next_point), abs_angle(angle_ccw( end_point - start_point,next_point - start_point)), EPSILON));
             check_angle = abs_angle(angle_ccw( end_point - start_point,next_point - start_point));
         }
         assert(end_point != start_point);
@@ -4488,6 +4478,9 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             path.attributes_mutable().width = path.width() * ratio;
             path.attributes_mutable().mm3_per_mm = path.mm3_per_mm() * ratio;
         };
+        for (ExtrusionPath &ep : notch_extrusion_start) {
+            assert(!ep.can_reverse());
+        }
 
         //TODO change below things to avoid deleting more than one path, or at least preserve their flow
         
@@ -4500,13 +4493,16 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             Point p1 = Line(moved_start, Line(start_point, notch_extrusion_start.front().polyline.front()).midpoint()).midpoint();
             Point p2 = Line(p1, building_paths.front().first_point()).midpoint();
             p2 = Line(p2, notch_extrusion_start.back().polyline.back()).midpoint();
-            ExtrusionPath model = notch_extrusion_start.front();
+            ExtrusionPath model(notch_extrusion_start.front());
             model.polyline.clear();
             notch_extrusion_start.clear();
             create_new_extrusion(notch_extrusion_start, model, 0.25f, moved_start, p1);
             create_new_extrusion(notch_extrusion_start, model, 0.5f, p1, p2);
             create_new_extrusion(notch_extrusion_start, model, 0.75f, p2, building_paths.front().first_point());
         } //else : keep the path as-is
+        for (ExtrusionPath &ep : notch_extrusion_start) {
+            assert(!ep.can_reverse());
+        }
         //reduce the flow of the notch path, as it's longer than previously
         length_temp = notch_length;
         if (length_temp * length_temp < 
@@ -4533,6 +4529,9 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             create_new_extrusion(notch_extrusion_end, model, 0.f, p1, moved_end);
         } //else : keep the path as-is
     }
+        for (ExtrusionPath &ep : notch_extrusion_start) {
+            assert(!ep.can_reverse());
+        }
 }
 
 std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, const std::string_view description, double speed)
@@ -4623,6 +4622,8 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         //assert(!path.can_reverse() || !is_perimeter(path.role())); //just ensure the perimeter have their direction enforced.
         path.set_can_reverse(false);
     }
+    if (building_paths.size() == 1)
+        assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
     if (m_enable_loop_clipping && m_writer.tool_is_extruder()) {
         coordf_t clip_length = scale_(m_config.seam_gap.get_abs_value(m_writer.tool()->id(), nozzle_diam));
         if (loop_to_seam.role().is_external_perimeter()) {
@@ -4661,22 +4662,9 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         }
     }
     if (building_paths.empty()) return "";
-    
-    //simplify paths
-    for (size_t i=0 ; i< building_paths.size(); ++i){
-        ExtrusionPath &path = building_paths[i];
-        path.simplify(std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value)), ArcFittingType::Disabled, 0);
-        if (path.length() < std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value))) {
-            if (i + 1 < building_paths.size()) {
-                //building_paths[i+1].polyline.set_points().front() = path.polyline.front();
-                building_paths.erase(building_paths.begin() + i);
-                --i;
-            } else {
-                building_paths.pop_back();
-            }
-        }
-    }
-    
+    if (building_paths.size() == 1)
+        assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
+
     const ExtrusionPaths& wipe_paths = building_paths;
     for (const ExtrusionPath &path : wipe_paths)
         for (int i = 1; i < path.polyline.size(); ++i)
@@ -5534,8 +5522,6 @@ void GCodeGenerator::set_region_for_extrude(const Print &print, const PrintObjec
     if (!region_config.region_gcode.value.empty()) {
 //TODO 2.7: new placeholder_parser_process call
         DynamicConfig config;
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-        config.set_key_value("layer_z", new ConfigOptionFloat(m_layer == nullptr ? m_last_height : m_layer->print_z));
         assert(!m_gcode_label_objects_in_session || !m_gcode_label_objects_start.empty());
         m_gcode_label_objects_start += this->placeholder_parser_process("region_gcode",
                                                                         region_config.region_gcode.value,
@@ -6742,9 +6728,6 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
         config.set_key_value("next_extrusion_role", new ConfigOptionString(gcode_extrusion_role_to_string(grole)));
         config.set_key_value("previous_extrusion_role", new ConfigOptionString(gcode_extrusion_role_to_string(m_last_extrusion_role)));
         config.set_key_value("last_extrusion_role", new ConfigOptionString(gcode_extrusion_role_to_string(m_last_extrusion_role)));
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index + 1));
-        config.set_key_value("layer_z", new ConfigOptionFloat(m_layer == nullptr ? m_last_height : m_layer->print_z));
-        config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
         gcode += this->placeholder_parser_process("feature_gcode", m_config.feature_gcode.value,
                                                   m_writer.tool()->id(), &config)
             + "\n";
@@ -7378,7 +7361,7 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
         this->writer().set_lift(this->writer().get_position().z() - *m_new_z_target);
         m_new_z_target.reset();
     }
-    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON));
+    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON) || comment == "Travel to a Wipe Tower");
 }
 
 // generate a travel in xyz
@@ -7861,6 +7844,7 @@ void GCodeGenerator::set_extra_lift(const float previous_print_z, const int laye
 }
 
 std::string GCodeGenerator::toolchange(uint16_t extruder_id, double print_z) {
+    assert( (print_z == 0 && m_max_layer_z == 0) || (print_z != 0 && m_max_layer_z != 0));
 
     std::string gcode;
 
@@ -7872,10 +7856,7 @@ std::string GCodeGenerator::toolchange(uint16_t extruder_id, double print_z) {
         DynamicConfig config;
         config.set_key_value("previous_extruder", new ConfigOptionInt((int)(m_writer.tool() != nullptr ? m_writer.tool()->id() : -1)));
         config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-        config.set_key_value("layer_z", new ConfigOptionFloat(print_z));
-        config.set_key_value("toolchange_z", new ConfigOptionFloat(print_z));
-        config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
+        config.set_key_value("toolchange_z", new ConfigOptionFloat(print_z == 0 ? 0 : (print_z)));
         toolchange_gcode_parsed = placeholder_parser_process("toolchange_gcode", toolchange_gcode, extruder_id, &config);
         gcode += toolchange_gcode_parsed;
         check_add_eol(gcode);
@@ -7896,6 +7877,8 @@ std::string GCodeGenerator::toolchange(uint16_t extruder_id, double print_z) {
 
 std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, bool no_toolchange /*=false*/)
 {
+    assert( (print_z == 0 && m_max_layer_z == 0) || (print_z != 0 && m_max_layer_z != 0));
+
     if (!m_writer.need_toolchange(extruder_id))
         return "";
     
@@ -7905,7 +7888,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     ensure_end_object_change_labels(gcode);
 
     //just for testing
-    assert(is_approx(this->writer().get_position().z() - m_config.z_offset.value, print_z, EPSILON));
+    assert(is_approx(this->writer().get_position().z(), print_z, EPSILON));
 
     // if we are running a single-extruder setup, just set the extruder and return nothing
     if (!m_writer.multiple_extruders) {
@@ -7915,9 +7898,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
         const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
         if (! start_filament_gcode.empty()) {
             DynamicConfig config;
-            config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-            config.set_key_value("layer_z", new ConfigOptionFloat(print_z));
-            config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
+            assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
             config.set_key_value("filament_extruder_id", new ConfigOptionInt(int(extruder_id)));
             config.set_key_value("previous_extruder", new ConfigOptionInt((int)extruder_id));
             config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));
@@ -7954,9 +7935,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
         const std::string  &end_filament_gcode  = m_config.end_filament_gcode.get_at(old_extruder_id);
         if (! end_filament_gcode.empty()) {
             DynamicConfig config;
-            config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-            config.set_key_value("layer_z", new ConfigOptionFloat(print_z));
-            config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
+            assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
             config.set_key_value("filament_extruder_id", new ConfigOptionInt(int(old_extruder_id)));
             config.set_key_value("previous_extruder", new ConfigOptionInt((int)old_extruder_id));
             config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));
@@ -7991,9 +7970,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
     if (! start_filament_gcode.empty()) {
         DynamicConfig config;
-        config.set_key_value("layer_num", new ConfigOptionInt(m_layer_index));
-        config.set_key_value("layer_z", new ConfigOptionFloat(print_z));
-        config.set_key_value("max_layer_z", new ConfigOptionFloat(m_max_layer_z));
+        assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
         config.set_key_value("filament_extruder_id", new ConfigOptionInt(int(extruder_id)));
         config.set_key_value("previous_extruder", new ConfigOptionInt((int)old_extruder_id));
         config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));

@@ -2142,6 +2142,8 @@ struct Plater::priv
     int get_selected_volume_idx() const;
     void selection_changed();
     void object_list_changed();
+    std::set<uint16_t> m_previous_extruders;
+    std::set<uint16_t> m_extruders_used;
     
     void select_all();
     void deselect_all();
@@ -2266,7 +2268,7 @@ struct Plater::priv
     // fills the m_bed.m_grid_lines and sets m_bed.m_origin.
     // Sets m_bed.m_polygon to limit the object placement.
     void set_bed_shape(const Pointfs &    shape,
-                       const std::string& bed_exclude_area,
+                       const std::vector<std::string>& bed_exclude_area,
                        const double       max_print_height,
                        const std::string &custom_texture,
                        const std::string &custom_model,
@@ -3673,7 +3675,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
 {
     // bitmap of enum UpdateBackgroundProcessReturnState
     unsigned int return_state = 0;
-    
+
     // Get the config ready. The binary gcode flag depends on Preferences, which the backend has no access to.
     DynamicPrintConfig full_config = wxGetApp().preset_bundle->full_config();
     if (full_config.has("binary_gcode")) // needed for SLA
@@ -3775,6 +3777,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
             return_state |= UPDATE_BACKGROUND_PROCESS_INVALID;
     }
     
+    
     // actualizate warnings
     if (invalidated != Print::APPLY_STATUS_UNCHANGED || background_process.empty()) {
         if (background_process.empty())
@@ -3825,6 +3828,16 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
                                                  * when this function is called several times during calculations
                                                  * */
             show_action_buttons(true);
+    }
+    
+    // Set Bed Shape based on Extruders Used
+    std::set<uint16_t> extruders = this->fff_print.extruders();
+    if (extruders != m_previous_extruders) {
+        // Extruders have changed, execute the required logic
+        m_extruders_used = extruders;
+        q->set_bed_shape();
+        // Update the previous_extruders to the current extruders
+        m_previous_extruders = extruders;
     }
     
     // update tab if needed
@@ -5399,34 +5412,53 @@ bool Plater::priv::can_reload_from_disk() const
 }
 
 void Plater::priv::set_bed_shape(const Pointfs&    shape,
-                                 const std::string &bed_exclude_area,
+                                 const std::vector<std::string> &bed_exclude_area,
                                  const double      max_print_height,
                                  const std::string &custom_texture,
                                  const std::string &custom_model,
                                  bool              force_as_custom)
 {
+    // Check the nozzle size; if it's 1 or less, skip setting the exclude areas
+    size_t nozzle_size = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values().size();
+    if (nozzle_size <= 1) {
+        bool new_shape = bed.set_shape(shape, {}, max_print_height, custom_texture, custom_model, force_as_custom);
+        if (new_shape) {
+            if (view3D) view3D->bed_shape_changed();
+            if (preview) preview->bed_shape_changed();
+        }
+        return;
+    }
 
-    std::vector<Vec2d> points;
-    auto [invalid, out_of_range] = get_strings_points(bed_exclude_area, 0, 1000, points);
+    std::vector<std::vector<Vec2d>> exclude_areas;
 
-    std::vector<Vec2d> exclude_areas = points;
+    // Loop through each extruder in use and dynamically add its associated exclusion area if enabled
+    for (uint16_t extruder_id : m_extruders_used) {
+        if (extruder_id < bed_exclude_area.size()) {
+            std::vector<Vec2d> points;
+            get_string_points(bed_exclude_area[extruder_id], 0, 1000, points);
 
-    bool new_shape = bed.set_shape(shape,
-                                   exclude_areas,
-                                   max_print_height,
-                                   custom_texture,
-                                   custom_model,
-                                   force_as_custom);
-    
-    Pointfs prev_exclude_areas = bed.get_exclude_area();
-    
-    new_shape |= (prev_exclude_areas != exclude_areas);
+            if (points.size() > 4) {
+                points.resize(4);
+            }
+
+            exclude_areas.push_back(points);
+        }
+    }
+
+    bool new_shape = bed.set_shape(shape, exclude_areas, max_print_height, custom_texture, custom_model, force_as_custom);
+
+    std::vector<Pointfs> prev_exclude_areas = bed.get_exclude_areas();
+
+    for (const auto& area : exclude_areas) {
+        if (std::find(prev_exclude_areas.begin(), prev_exclude_areas.end(), area) == prev_exclude_areas.end()) {
+            new_shape = true;
+            break;
+        }
+    }
 
     if (new_shape) {
-        if (view3D)
-            view3D->bed_shape_changed();
-        if (preview)
-            preview->bed_shape_changed();
+        if (view3D) view3D->bed_shape_changed();
+        if (preview) preview->bed_shape_changed();
     }
 }
 
@@ -8483,6 +8515,10 @@ void Plater::on_config_change(const DynamicConfig &config)
             }
         }
         
+        std::string opt_id = opt_key;
+        if(size_t pos = opt_id.find("#"); pos != std::string::npos)
+            opt_id = opt_id.substr(0, pos);
+        
         //FIXME also mills?
         if (opt_key == "filament_colour")
         {
@@ -8560,14 +8596,14 @@ void Plater::on_config_change(const DynamicConfig &config)
 void Plater::set_bed_shape() const
 {
     set_bed_shape(p->config->option<ConfigOptionPoints>("bed_shape")->get_values(),
-                  p->config->option<ConfigOptionString>("bed_exclude_area")->value,
+                  p->config->option<ConfigOptionStrings>("bed_exclude_area")->get_values(),
                   p->config->option<ConfigOptionFloat>("max_print_height")->value,
                   p->config->option<ConfigOptionString>("bed_custom_texture")->value,
                   p->config->option<ConfigOptionString>("bed_custom_model")->value);
 }
 
 void Plater::set_bed_shape(const Pointfs &    shape,
-                           const std::string& bed_exclude_area,
+                           const std::vector<std::string>& bed_exclude_area,
                            const double       max_print_height,
                            const std::string &custom_texture,
                            const std::string &custom_model,

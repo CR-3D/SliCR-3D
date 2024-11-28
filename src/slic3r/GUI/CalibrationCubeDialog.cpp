@@ -47,11 +47,15 @@ void CalibrationCubeDialog::create_buttons(wxStdDialogButtonSizer* buttons){
     wxButton* bt = new wxButton(this, wxID_FILE1, _(L("Standard Cube")));
     bt->Bind(wxEVT_BUTTON, &CalibrationCubeDialog::create_geometry_standard, this);
     bt->SetToolTip(_L("Standard cubic xyz cube, with a flat top. Better for infill/perimeter overlap calibration."));
+    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
+
     buttons->Add(bt);
     buttons->AddSpacer(10);
     bt = new wxButton(this, wxID_FILE1, _(L("Voron Cube")));
     bt->Bind(wxEVT_BUTTON, &CalibrationCubeDialog::create_geometry_voron, this);
     bt->SetToolTip(_L("Voron cubic cube with many features inside, with a bearing slot on top. Better to check dimensional accuracy."));
+    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
+
     buttons->Add(bt);
 }
 

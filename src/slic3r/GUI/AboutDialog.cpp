@@ -296,7 +296,7 @@ AboutDialog::AboutDialog()
         // TRN AboutDialog: "Slic3r %1% GNU Affero General Public License"
         const wxString is_lecensed_str  = _L("is licensed under the");
         const wxString license_str      = _L("GNU Affero General Public License, version 3");
-        const wxString based_on_str     = _L("PrusaSlicer is based on Slic3r by Alessandro Ranellucci and the RepRap community.");
+        const wxString based_on_str     = _L("SuperSlicer is a skinned version of Slic3r, based on PrusaSlicer by Prusa and the original Slic3r by Alessandro Ranellucci & the RepRap community.");
         const wxString contributors_str = _L("Contributions by Henrik Brix Andersen, Nicolas Dandrimont, Mark Hindess, Petr Ledvina, Joseph Lenox, Y. Sapir, Mike Sheldrake, Vojtech Bubnik, Durand Rémi and numerous others.");
         const wxString manual_str       = _L("Manual by Gary Hodgson. Inspired by the RepRap community.");
         const wxString icon_str         = _L("Slic3r logo designed by Corey Daniels.");

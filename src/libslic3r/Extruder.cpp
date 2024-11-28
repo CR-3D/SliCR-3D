@@ -57,6 +57,17 @@ std::pair<double, double> Tool::extrude(double dE)
     return std::make_pair(dE, m_E);
 }
 
+void Tool::cancel_extrude(double dE) {
+    dE = m_formatter.quantize_e(dE);
+    if (m_config->use_relative_e_distances)
+        m_E = 0.;
+    else
+        m_E      -= dE;
+    m_absolute_E -= dE;
+    if (dE < 0.)
+        m_retracted += dE;
+}
+
 /* This method makes sure the extruder is retracted by the specified amount
    of filament and returns the amount of filament retracted.
    If the extruder is already retracted by the same or a greater amount, 

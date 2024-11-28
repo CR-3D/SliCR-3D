@@ -45,6 +45,7 @@ public:
     // Extruders are expected to be sorted in an increasing order.
     void                set_extruders(std::vector<uint16_t> extruder_ids);
     const std::vector<Extruder>& extruders() const { return m_extruders; }
+    
     std::vector<uint16_t> extruder_ids() const;
     void                set_mills(std::vector<uint16_t> extruder_ids);
     const std::vector<Mill>& mills() const { return m_millers; }
@@ -80,15 +81,15 @@ public:
     double      get_speed_mm_s() const;
     std::string travel_to_xy(const Vec2d &point, const double speed = 0.0, const std::string_view comment = {});
     std::string travel_arc_to_xy(const Vec2d& point, const Vec2d& center_offset, const bool is_ccw, const double speed, const std::string_view comment);
-    std::string travel_to_xyz(const Vec3d &point, bool is_lift, const double speed = 0.0, const std::string_view comment = {});
-    std::string travel_to_z(double z, const std::string_view comment = {});
+    std::string travel_to_xyz(const Vec3d &point, const bool is_lift, const double speed = 0.0, const std::string_view comment = {});
+    std::string travel_to_z(const double z, const std::string_view comment = {});
     // low-level method to force a z travel, disregarding the lift and other thigns. Prefer using "travel_to_z" "lift" and "unlift".
-    std::string get_travel_to_z_gcode(double z, const std::string_view comment = {});
-    bool        will_move_z(double z) const;
-    std::string extrude_to_xy(const Vec2d &point, double dE, const std::string_view comment = {});
-    std::string extrude_arc_to_xy(const Vec2d& point, const Vec2d& center_offset, double dE, const bool is_ccw, const std::string_view comment = {}); //BBS: generate G2 or G3 extrude which moves by arc
-    std::string extrude_arc_to_xyz(const Vec3d& point, const Vec2d& center_offset, double dE, const bool is_ccw, const std::string_view comment = {}); //BBS: generate G2 or G3 extrude which moves by arc
-    std::string extrude_to_xyz(const Vec3d &point, double dE, const std::string_view comment = {});
+    std::string get_travel_to_z_gcode(const double z, const std::string_view comment = {});
+    bool        will_move_z(const double z) const;
+    std::string extrude_to_xy(const Vec2d &point, const double dE, const std::string_view comment = {});
+    std::string extrude_arc_to_xy(const Vec2d& point, const Vec2d& center_offset, const double dE, const bool is_ccw, const std::string_view comment = {}); //BBS: generate G2 or G3 extrude which moves by arc
+    std::string extrude_arc_to_xyz(const Vec3d& point, const Vec2d& center_offset, const double dE, const bool is_ccw, const std::string_view comment = {}); //BBS: generate G2 or G3 extrude which moves by arc
+    std::string extrude_to_xyz(const Vec3d &point, const double dE, const std::string_view comment = {});
     std::string retract(bool before_wipe = false);
     std::string retract_for_toolchange(bool before_wipe = false);
     std::string unretract();
@@ -113,7 +114,7 @@ public:
     // The new position Z coordinate contains the Z-hop.
     // GCodeWriter expects the custom script to NOT change print_z, only Z-hop, thus the print_z is maintained
     // by this function while the current Z-hop accumulator is updated.
-    void        update_position(const Vec3d &new_pos);
+    void        update_position_by_lift(const Vec3d &new_pos);
 
     // Returns whether this flavor supports separate print and travel acceleration.
     static bool supports_separate_travel_acceleration(GCodeFlavor flavor);
@@ -155,9 +156,10 @@ private:
     // current lift, to remove from m_pos to have the current height.
     double          m_lifted = 0;
     Vec3d           m_pos = Vec3d::Zero();
-    // cached string representation of x & y m_pos
+    // cached string representation of x & y & z m_pos
     std::string     m_pos_str_x;
     std::string     m_pos_str_y;
+    std::string     m_pos_str_z;
     // stored de that wasn't written, because of the rounding
     double          m_de_left = 0;
     

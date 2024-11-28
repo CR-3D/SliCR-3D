@@ -136,11 +136,13 @@ void FillPlanePath::_fill_surface_single(
         Polyline mini_polyline;
         mini_polyline.points.reserve(iend - istart);
         mini_polyline.points.insert(mini_polyline.points.end(), polyline.points.begin()+istart, polyline.points.begin()+iend);
-        Polylines polylines = intersection_pl(polylines, expolygon);
+        Polylines polylines = intersection_pl(mini_polyline, expolygon);
+        ensure_valid(polylines, std::max(SCALED_EPSILON, params.fill_resolution));
         if (!polylines.empty()) {
             assert(!polylines.front().empty());
             if (!all_poly.empty() && polylines.front().front().coincides_with_epsilon(all_poly.back().back())) {
                 // it continue the last polyline, so just append to it
+                all_poly.back().points.pop_back();
                 append(all_poly.back().points, std::move(polylines.front().points));
                 //append other polylines
                 if (polylines.size() > 1) {
@@ -166,7 +168,7 @@ void FillPlanePath::_fill_surface_single(
 
 // Follow an Archimedean spiral, in polar coordinates: r=a+b\theta
 template<typename Output>
-static void generate_archimedean_chords(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double resolution, Output &output)
+static void generate_archimedean_chords(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t resolution, Output &output)
 {
     // Radius to achieve.
     coordf_t rmax = std::sqrt(coordf_t(max_x)*coordf_t(max_x)+coordf_t(max_y)*coordf_t(max_y)) * std::sqrt(2.) + 1.5;
@@ -187,7 +189,7 @@ static void generate_archimedean_chords(coord_t min_x, coord_t min_y, coord_t ma
     }
 }
 
-void FillArchimedeanChords::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double resolution, InfillPolylineOutput &output) const
+void FillArchimedeanChords::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t resolution, InfillPolylineOutput &output) const
 {
     if (output.clips())
         generate_archimedean_chords(min_x, min_y, max_x, max_y, resolution, static_cast<InfillPolylineClipper&>(output));
@@ -262,7 +264,7 @@ static void generate_hilbert_curve(coord_t min_x, coord_t min_y, coord_t max_x, 
     }
 }
 
-void FillHilbertCurve::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double /* resolution */, InfillPolylineOutput &output) const
+void FillHilbertCurve::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t /* resolution */, InfillPolylineOutput &output) const
 {
     if (output.clips())
         generate_hilbert_curve(min_x, min_y, max_x, max_y, static_cast<InfillPolylineClipper&>(output));
@@ -302,7 +304,7 @@ static void generate_octagram_spiral(coord_t min_x, coord_t min_y, coord_t max_x
     }
 }
 
-void FillOctagramSpiral::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double /* resolution */, InfillPolylineOutput &output) const
+void FillOctagramSpiral::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t /* resolution */, InfillPolylineOutput &output) const
 {
     if (output.clips())
         generate_octagram_spiral(min_x, min_y, max_x, max_y, static_cast<InfillPolylineClipper&>(output));

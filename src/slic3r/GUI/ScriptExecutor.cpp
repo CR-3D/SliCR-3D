@@ -1279,12 +1279,27 @@ void ScriptContainer::init(const std::string& tab_key, Tab* tab)
                                                           AngelScript::asFUNCTION(as_set_custom_string),
                                                           AngelScript::asCALL_CDECL);
 
+            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled(string &in)",
+                                                          AngelScript::asFUNCTION(as_is_enabled),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("bool is_enabled_idx(string &in, int)",
+                                                          AngelScript::asFUNCTION(as_is_enabled_idx),
+                                                          AngelScript::asCALL_CDECL);
+
+            m_script_engine.get()->RegisterGlobalFunction("void set_enabled(string &in, bool)",
+                                                          AngelScript::asFUNCTION(as_set_enabled),
+                                                          AngelScript::asCALL_CDECL);
+            m_script_engine.get()->RegisterGlobalFunction("void set_enabled_idx(string &in, bool, int)",
+                                                          AngelScript::asFUNCTIONl(as_set_enabled_idx),
+                                                          AngelScript::asCALL_CDECL);
+
             m_script_engine.get()->RegisterGlobalFunction("float get_computed_float(string &in)",   AngelScript::asFUNCTION(as_get_computed_float), AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("void back_initial_value(string &in)",    AngelScript::asFUNCTION(as_back_initial_value), AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("void back_custom_initial_value(int, string &in)",    AngelScript::asFUNCTION(as_back_custom_initial_value), AngelScript::asCALL_CDECL);
 
             m_script_engine.get()->RegisterGlobalFunction("void ask_for_refresh()",                 AngelScript::asFUNCTION(as_ask_for_refresh),    AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("bool is_widget_enabled(string &in)",                     AngelScript::asFUNCTION(as_is_widget_enabled), AngelScript::asCALL_CDECL);
+
 #endif
         }
 

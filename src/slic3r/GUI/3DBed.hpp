@@ -51,9 +51,9 @@ private:
     ExPolygon m_contour;
     // Slightly expanded print bed polygon, for collision detection.
     Polygon m_polygon;
-    GLModel m_exclude_triangles;
-    Pointfs m_exclude_areas;
-    Pointfs m_exclude_area;
+    std::vector<GLModel> m_exclude_triangles;
+    
+    std::vector<Pointfs> m_exclude_areas;
 
     GLModel m_triangles;
     GLModel m_gridlines;
@@ -81,7 +81,7 @@ public:
     //FIXME if the build volume max print height is updated, this function still returns zero
     // as this class does not use it, thus there is no need to update the UI.
     bool set_shape(const Pointfs& bed_shape,
-                   const Pointfs& exclude_areas,
+                   const std::vector<Pointfs>& exclude_areas,
                    const double max_print_height,
                    const std::string& custom_texture,
                    const std::string& custom_model,
@@ -106,12 +106,12 @@ public:
     void render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor, bool show_texture);
     void render_axes();
     void render_for_picking(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor);
-    void render_exclude_area();
-    void calc_exclude_triangles(const ExPolygon &poly);
-    void generate_exclude_polygon(ExPolygon &exclude_polygon);
+    void render_exclude_area(int area_id);
+    void calc_exclude_triangles(const std::vector<ExPolygon> &polys);
+    void generate_exclude_polygons(std::vector<ExPolygon> &exclude_polygons);
     void calc_bounding_boxes() const;
     //bool init_model_from_poly(GLModel &model, const Expolygon &poly, float z);
-    Pointfs get_exclude_area() { return m_exclude_area; }
+    std::vector<Pointfs> get_exclude_areas() { return m_exclude_areas; }
 
 private:
     // Calculate an extended bounding box from axes and current model for visualization purposes.

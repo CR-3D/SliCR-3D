@@ -82,22 +82,25 @@ Bed3D::Bed3D()
 }
 
 bool Bed3D::set_shape(const Pointfs& bed_shape,
-                      const Pointfs& exclude_areas,
+                      const std::vector<Pointfs>& exclude_areas,
                       const double max_print_height,
                       const std::string& custom_texture,
                       const std::string& custom_model,
-                      bool force_as_custom) {
-
-    //m_exclude_area = exclude_areas;
+                      bool  force_as_custom) {
     
-    Pointfs new_shape, new_exclude_areas;
+    Pointfs new_exclude_area;
+    std::vector<Pointfs> new_exclude_areas;
     
-    for (const Vec2d& p : bed_shape) {
-       //new_shape.push_back(Vec2d(p.x(), p.y()));
-    }
+    for (const auto& point_group : exclude_areas) {
+        for (const auto& p : point_group) {
+            new_exclude_area.push_back(Vec2d(p.x(), p.y()));
 
-    for (const Vec2d& p : exclude_areas) {
-       new_exclude_areas.push_back(Vec2d(p.x(), p.y()));
+            // Once we have 4 points, store them and clear the area
+            if (new_exclude_area.size() == 4) {
+                new_exclude_areas.push_back(new_exclude_area);
+                new_exclude_area.clear();
+            }
+        }
     }
 
     auto check_texture = [](const std::string& texture) {
@@ -135,7 +138,7 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
         model_filename.clear();
     }
 
-    m_exclude_area = std::move(new_exclude_areas);
+    m_exclude_areas = std::move(new_exclude_areas);
     m_type = type;
     m_build_volume = BuildVolume { bed_shape, max_print_height };
     m_texture_filename = texture_filename;
@@ -145,9 +148,10 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     m_extended_bounding_box = this->calc_extended_bounding_box();
 
     m_contour = ExPolygon(Polygon::new_scale(bed_shape));
-    ExPolygon exclude_poly;
-    generate_exclude_polygon(exclude_poly);
-    calc_exclude_triangles(exclude_poly);
+    
+    std::vector<ExPolygon> exclude_polys;
+    generate_exclude_polygons(exclude_polys);  // Assume this function fills multiple polygons
+    calc_exclude_triangles(exclude_polys);
     
     const BoundingBox bbox = m_contour.contour.bounding_box();
     if (!bbox.defined)
@@ -281,39 +285,56 @@ bool init_model_from_poly(GLModel &model, const ExPolygon &poly, float z) {
     return true;
 }
 
-void Bed3D::render_exclude_area() {
+void Bed3D::render_exclude_area(int area_id) {
 
-    ColorRGBA select_color{ 0.15f, 0.15f, 0.15f, 1.0f };
-
-    // draw exclude area
+    ColorRGBA select_color { 0.15f, 0.15f, 0.15f, 1.0f };
     glsafe(::glDepthMask(GL_FALSE));
-    m_exclude_triangles.set_color(select_color);
-    m_exclude_triangles.render();
+    
+    // Set color for each area
+    for (size_t i = 0; i < m_exclude_triangles.size(); ++i) {
+        m_exclude_triangles[i].set_color(select_color);
+        m_exclude_triangles[i].render();
+    }
     glsafe(::glDepthMask(GL_TRUE));
+    
 }
 
-void Bed3D::calc_exclude_triangles(const ExPolygon &poly) {
-    m_exclude_triangles.reset();
+void Bed3D::calc_exclude_triangles(const std::vector<ExPolygon>& polys) {
+    m_exclude_triangles.clear();  // Clear any existing triangle models
+    
+    for (const auto& sub_poly : polys) {
+        GLModel exclude_triangle_model;
 
-    if (!init_model_from_poly(m_exclude_triangles, poly, GROUND_Z)) {
-      // Error
+            // Case for quadrilateral: add directly as one model
+            if (init_model_from_poly(exclude_triangle_model, sub_poly, GROUND_Z)) {
+                m_exclude_triangles.push_back(exclude_triangle_model);
+            } else {
+                // Handle error if needed
+            }
     }
 }
 
-void Bed3D::generate_exclude_polygon(ExPolygon &exclude_polygon)
-{
-   if (m_exclude_area.size() == 4) {
-      // Rectangle case with no rounded corners
-      for (int i = 0; i < 4; i++) {
-          const Vec2d& p = m_exclude_area[i];
-          exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-      }
-   } else {
-      // If not a rectangle, just add all points in m_exclude_area
-      for (const Vec2d& p : m_exclude_area) {
-          exclude_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
-      }
-   }
+void Bed3D::generate_exclude_polygons(std::vector<ExPolygon> &exclude_polygons) {
+    
+    for (const auto& exclude_area : m_exclude_areas) {
+        ExPolygon polygon;
+
+        if (exclude_area.size() == 4) {
+            // Rectangle case with no rounded corners
+            for (int i = 0; i < 4; i++) {
+                const Vec2d& p = exclude_area[i];
+                polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+            }
+        } else {
+            // If not a rectangle, just add all points in exclude_area
+            for (const Vec2d& p : exclude_area) {
+                polygon.contour.append({ scale_(p(0)), scale_(p(1)) });
+            }
+        }
+
+        // Add the created polygon to the exclude_polygons vector
+        exclude_polygons.push_back(polygon);
+    }
 }
 
 void Bed3D::init_triangles()
@@ -662,7 +683,9 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         shader_flat->set_uniform("projection_matrix", projection_matrix);
 
         if (!bottom) {
-            render_exclude_area();
+            for (int i = 0; i < m_exclude_areas.size(); i++) {
+                render_exclude_area(i);
+            }
         }
 
         glsafe(::glDisable(GL_BLEND));

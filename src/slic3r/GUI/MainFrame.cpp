@@ -361,8 +361,9 @@ void MainFrame::update_icon() {
     case ESettingsLayout::Unknown:
     {
         break;
-    } case ESettingsLayout::Old:
-      case ESettingsLayout::Hidden:
+    }
+    case ESettingsLayout::Old:
+    case ESettingsLayout::Hidden:
     {
         if (m_tabpanel->GetPageCount() == 4 && icon_size >= 8) {
             m_tabpanel->SetPageImage(0, 0);

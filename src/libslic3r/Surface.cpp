@@ -94,16 +94,19 @@ BoundingBox get_extents(const SurfacesConstPtr &surfaces)
 void ensure_valid(Surfaces &surfaces, coord_t resolution /*= SCALED_EPSILON*/)
 {
     for (size_t i = 0; i < surfaces.size(); ++i) {
-        surfaces[i].expolygon.douglas_peucker(resolution);
-        if (surfaces[i].expolygon.contour.size() < 3) {
+        ExPolygons to_simplify = {surfaces[i].expolygon};
+        ensure_valid(to_simplify, resolution);
+        if (to_simplify.empty()) {
             surfaces.erase(surfaces.begin() + i);
             --i;
+        } else if (to_simplify.size() == 1) {
+            surfaces[i].expolygon = to_simplify.front();
         } else {
-            for (size_t i_hole = 0; i_hole < surfaces[i].expolygon.holes.size(); ++i_hole) {
-                if (surfaces[i].expolygon.holes[i_hole].size() < 3) {
-                    surfaces[i].expolygon.holes.erase(surfaces[i].expolygon.holes.begin() + i_hole);
-                    --i_hole;
-                }
+            surfaces[i].expolygon = to_simplify.front();
+            for (size_t idx = 1; idx < to_simplify.size(); idx++) {
+                surfaces.insert(surfaces.begin() + i + idx,
+                                Surface{surfaces[i], to_simplify[idx]});
+                i++;
             }
         }
     }

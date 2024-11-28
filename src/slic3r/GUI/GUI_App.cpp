@@ -359,7 +359,8 @@ private:
             version = _L("Version") + " " + std::string(SLIC3R_VERSION_FULL);
 
             // credits infornation
-            credits = "\n" + title + " " + _L("is based on PrusaSlicer by Prusa Research.") + "\n\n" +
+            credits = "\n" + title + " " +
+                _L("is based on PrusaSlicer by Prusa Research.") + "\n\n" +
                 _L("PrusaSlicer is based on Slic3r by Alessandro Ranellucci and the RepRap community.") + "\n\n" +
                 _L("Licensed under GNU AGPLv3.");
 
@@ -1374,7 +1375,7 @@ bool GUI_App::on_init_inner() {
                                                           "splashscreen" / file_name);
             if (boost::filesystem::exists(splash_screen_path)) {
                 wxString path_str = wxString::FromUTF8((splash_screen_path).string().c_str());
-                // make a bitmap with dark grey banner on the left side
+        // make a bitmap with dark grey banner on the left side
                 bmp = SplashScreen::MakeBitmap(wxBitmap(path_str, wxBITMAP_TYPE_JPEG), scrn_scaling);
 
                 // get the artist name from metadata

@@ -450,9 +450,10 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("small_area_infill_flow_compensation", has_solid_infill);
     bool have_small_area_infill_flow_compensation = has_solid_infill && config->opt_bool("small_area_infill_flow_compensation");
     toggle_field("small_area_infill_flow_compensation_model", have_small_area_infill_flow_compensation);
-
-    toggle_field("top_solid_min_thickness", ! has_spiral_vase && has_top_solid_infill);
-    toggle_field("bottom_solid_min_thickness", ! has_spiral_vase && has_bottom_solid_infill);
+    
+    const bool has_ensure_vertical_shell_thickness = config->opt_enum<EnsureVerticalShellThickness>("ensure_vertical_shell_thickness") != EnsureVerticalShellThickness::Disabled;
+    toggle_field("top_solid_min_thickness", ! has_spiral_vase && has_top_solid_infill && has_ensure_vertical_shell_thickness);
+    toggle_field("bottom_solid_min_thickness", ! has_spiral_vase && has_bottom_solid_infill && has_ensure_vertical_shell_thickness);
 
     //speed
     for (auto el : { "small_perimeter_min_length", "small_perimeter_max_length" })
@@ -587,7 +588,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     for (auto el : { "wipe_tower_x", "wipe_tower_y", "wipe_tower_width", "wipe_tower_rotation_angle", "wipe_tower_brim_width",
                      "wipe_tower_cone_angle", "wipe_tower_extra_spacing",
                      "wipe_tower_bridging", "wipe_tower_brim", "wipe_tower_no_sparse_layers", "single_extruder_multi_material_priming",
-                     "wipe_tower_speed", "wipe_tower_wipe_starting_speed" })
+                     "wipe_tower_speed", "wipe_tower_wipe_starting_speed",
+                     "wipe_tower_extrusion_width" })
         toggle_field(el, have_wipe_tower);
 
     bool have_non_zero_mmu_segmented_region_max_width = config->opt_float("mmu_segmented_region_max_width") > 0.;
@@ -729,16 +731,9 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
         // user can customize travel length if we have retraction length or we"re using
         // firmware retraction
         toggle_field("retract_before_travel", have_retract_length || use_firmware_retraction, i);
-        
-        // user can customize other retraction options if retraction is enabled
-        //std::vector<std::string> vec = {"retract_layer_change" }; // "retract_lift" "retract_before_travel"
-        // now possible outside retraction
-        // for (auto el : vec) {
-            // toggle_field(el, retraction, i);
-        // }
-                bool has_lift = /*retraction &&  now possible outside retraction */ config->get_float("retract_lift", i) > 0;
-        // retract lift above / below only applies if using retract lift
-        // vec.resize(0);
+
+        bool has_lift = /*retraction &&  now possible outside retraction */ config->get_float("retract_lift", i) > 0;
+
         std::vector<std::string> vec = { "retract_lift_above", "retract_lift_below", "retract_lift_top", "retract_lift_first_layer", "retract_lift_before_travel"};
         for (auto el : vec) {
             toggle_field(el, has_lift, i);

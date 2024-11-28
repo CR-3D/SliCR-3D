@@ -466,7 +466,7 @@ private:
     ExPolygons _smooth_curves(const ExPolygons &input, const PrintRegionConfig &conf) const;
     void detect_surfaces_type();
     void apply_solid_infill_below_layer_area();
-    void process_external_surfaces();
+    void process_external_surfaces(bool old);
     void discover_vertical_shells();
     void bridge_over_infill();
     void replaceSurfaceType(SurfaceType st_to_replace, SurfaceType st_replacement, SurfaceType st_under_it);
@@ -726,6 +726,7 @@ public:
     std::set<uint16_t>  object_extruders() const;
     std::set<uint16_t>  support_material_extruders() const;
     std::set<uint16_t>  extruders() const;
+        
     double              max_allowed_layer_height() const;
     bool                has_support_material() const;
     // Make sure the background processing has no access to this model_object during this call!

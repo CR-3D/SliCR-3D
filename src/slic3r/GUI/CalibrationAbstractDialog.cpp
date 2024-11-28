@@ -37,7 +37,8 @@ CalibrationAbstractDialog::CalibrationAbstractDialog(GUI_App* app, MainFrame* ma
     {
         this->gui_app = app;
         this->main_frame = mainframe;
-        SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+        SetBackgroundColour(*wxBLACK);
+        SetForegroundColour(*wxBLACK);
 
         // fonts
         const wxFont& font = wxGetApp().normal_font();
@@ -45,61 +46,6 @@ CalibrationAbstractDialog::CalibrationAbstractDialog(GUI_App* app, MainFrame* ma
         SetFont(font);
 
     }
-
-/*void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::string html_name, wxSize dialog_size, bool include_close_button){
-
-    auto main_sizer = new wxBoxSizer(wxVERTICAL);
-    gui_app->app_config->set("autocenter", "1");
-
-    //language
-    wxString language = wxGetApp().current_language_code();
-    boost::filesystem::path full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path/ (into_u8(language) + "_"+ html_name));
-    if (language == "en") {
-        full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (html_name));
-    }else if (!boost::filesystem::exists(full_file_path)) {
-        language = wxGetApp().current_language_code_safe();
-        full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (into_u8(language) + "_" + html_name));
-        if (!boost::filesystem::exists(full_file_path)) {
-            language = language.IsEmpty() ? "en" : language.BeforeFirst('_');
-            full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (into_u8(language) + "_" + html_name));
-            if (!boost::filesystem::exists(full_file_path)) {
-                full_file_path = (boost::filesystem::path(Slic3r::resources_dir()) / html_path / (html_name));
-            }
-        }
-    }
-
-    //html
-    html_viewer = new wxHtmlWindow(this, wxID_ANY,
-        wxDefaultPosition, wxDefaultSize, wxHW_SCROLLBAR_AUTO);
-    html_viewer->LoadPage(GUI::from_u8(full_file_path.string()));
-    // when using hyperlink, open the browser.
-    html_viewer->Bind(wxEVT_HTML_LINK_CLICKED, [this](wxHtmlLinkEvent& evt) {
-        wxLaunchDefaultBrowser(evt.GetLinkInfo().GetHref());
-    });
-    main_sizer->Add(html_viewer, 1, wxEXPAND | wxALL, 5);
-
-    wxDisplay display(wxDisplay::GetFromWindow(main_frame));
-    wxRect screen = display.GetClientArea();
-    dialog_size.x = std::min(int(dialog_size.x * this->scale_factor()), screen.width - 50);
-    dialog_size.y = std::min(int(dialog_size.y * this->scale_factor()), screen.height - 50);
-
-    wxStdDialogButtonSizer* buttons = new wxStdDialogButtonSizer();
-    create_buttons(buttons);
-
-    wxButton* close = new wxButton(this, wxID_CLOSE, _L("Close"));
-    close->Bind(wxEVT_BUTTON, &CalibrationAbstractDialog::close_me, this);
-    buttons->AddButton(close);
-    close->SetDefault();
-    close->SetFocus();
-    SetAffirmativeId(wxID_CLOSE);
-    buttons->Realize();
-    main_sizer->Add(buttons, 0, wxEXPAND | wxALL, 5);
-
-    SetSizer(main_sizer);
-    this->SetSize(dialog_size.x, dialog_size.y);
-    gui_app->app_config->set("autocenter", "0");
-
-}*/
 
 void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::string html_name, wxSize dialog_size, bool include_close_button){
 
