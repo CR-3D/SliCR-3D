@@ -44,7 +44,7 @@ SCENARIO("Model construction", "[Model]") {
             model_object->add_instance();
             print.apply(model, config); // apply config for arrange_objects
             arrange_objects(model,
-                            arr2::to_arrange_bed(get_bed_shape(config)),
+                            arr2::to_arrange_bed(get_bed_shape(config), Point::new_scale(10, 10)),
                             arr2::ArrangeSettings{}.set_distance_from_objects(
                                 min_object_distance(config)));
 

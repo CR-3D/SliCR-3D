@@ -44,6 +44,7 @@ private:
     std::string m_model_filename;
     // absolute path for m_model_filename
     boost::filesystem::path m_model_path;
+    bool m_models_overlap;
     // Print volume bounding box exteded with axes and model.
     BoundingBoxf3 m_extended_bounding_box;
 
@@ -119,13 +120,14 @@ private:
     void init_triangles();
     void init_gridlines();
     void init_contourlines();
-    static std::tuple<Type, std::string, std::string, bool> detect_type(const Pointfs& shape);
+    void init_internal_model_from_file();
+    static std::tuple<Type, std::string, std::string> detect_type(const Pointfs& shape);
     void render_internal(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor,
-        bool show_texture, bool picking);
-    void render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture);
-    void render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix);
+        bool show_texture, bool picking, bool active);
+    void render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool is_active);
+    void render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active);
     void render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix);
-    void render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking);
+    void render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking, bool is_active);
     void render_default(bool bottom, bool picking, bool show_texture, const Transform3d& view_matrix, const Transform3d& projection_matrix);
     void render_contour(const Transform3d& view_matrix, const Transform3d& projection_matrix);
     void render_grid(bool bottom, bool has_model);

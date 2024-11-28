@@ -77,7 +77,7 @@ inline double distance_to(const Point &p1, const Point &p2)
     return std::sqrt(dx * dx + dy * dy);
 }
 
-static CircleBed to_circle(const Point &center, const Points &points)
+static CircleBed to_circle(const Point &center, const Points &points, const Vec2crd &gap)
 {
     std::vector<double> vertex_distances;
     double              avg_dist = 0;
@@ -90,7 +90,7 @@ static CircleBed to_circle(const Point &center, const Points &points)
 
     avg_dist /= vertex_distances.size();
 
-    CircleBed ret(center, avg_dist);
+    CircleBed ret(center, avg_dist, gap);
     for (auto el : vertex_distances) {
         if (std::abs(el - avg_dist) > 10 * SCALED_EPSILON) {
             ret = {};
@@ -101,7 +101,7 @@ static CircleBed to_circle(const Point &center, const Points &points)
     return ret;
 }
 
-template<class Fn> auto call_with_bed(const Points &bed, Fn &&fn)
+template<class Fn> auto call_with_bed(const Points &bed, const Vec2crd &gap, Fn &&fn)
 {
     if (bed.empty())
         return fn(InfiniteBed{});
@@ -109,23 +109,23 @@ template<class Fn> auto call_with_bed(const Points &bed, Fn &&fn)
         return fn(InfiniteBed{bed.front()});
     else {
         auto      bb    = BoundingBox(bed);
-        CircleBed circ  = to_circle(bb.center(), bed);
+        CircleBed circ  = to_circle(bb.center(), bed, gap);
         auto      parea = poly_area(bed);
 
         if ((1.0 - parea / area(bb)) < 1e-3) {
-            return fn(RectangleBed{bb});
+            return fn(RectangleBed{bb, gap});
         } else if (!std::isnan(circ.radius()) && (1.0 - parea / area(circ)) < 1e-2)
             return fn(circ);
         else
-            return fn(IrregularBed{{ExPolygon(bed)}});
+            return fn(IrregularBed{{ExPolygon(bed)}, gap});
     }
 }
 
-ArrangeBed to_arrange_bed(const Points &bedpts)
+ArrangeBed to_arrange_bed(const Points &bedpts, const Vec2crd &gap)
 {
     ArrangeBed ret;
 
-    call_with_bed(bedpts, [&](const auto &bed) { ret = bed; });
+    call_with_bed(bedpts, gap, [&](const auto &bed) { ret = bed; });
 
     return ret;
 }

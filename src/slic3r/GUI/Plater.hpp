@@ -76,6 +76,7 @@ class NotificationManager;
 struct Camera;
 class GLToolbar;
 class PlaterPresetComboBox;
+enum class ArrangeSelectionMode;
 
 using t_optgroups = std::vector <std::shared_ptr<ConfigOptionsGroup>>;
 
@@ -181,15 +182,21 @@ public:
     Sidebar& sidebar();
     const Model& model() const;
     Model& model();
-    const Print& fff_print() const;
-    Print& fff_print();
-    const SLAPrint& sla_print() const;
-    SLAPrint& sla_print();
-    const PrintBase* current_print() const;
+    //const Print& fff_print() const;
+    //Print& fff_print();
+    //const SLAPrint& sla_print() const;
+    //SLAPrint& sla_print();
+    
+    Print& active_fff_print();
+    SLAPrint& active_sla_print();
 
     bool m_should_recreate = false;
     bool m_api_success = false;
     bool new_project(std::string project_name = "");
+    std::vector<std::unique_ptr<Print>>& get_fff_prints();
+    const std::vector<GCodeProcessorResult>& get_gcode_results() const;
+
+   // void new_project();
     void load_project();
     void load_project(const wxString& filename);
     void add_model(bool imperial_units = false);
@@ -207,6 +214,8 @@ public:
     void refresh_physical_printer_config();
     bool physical_printer_is_selected = false;
     void on_physical_printer_selected(wxCommandEvent &);
+    void reload_print();
+    void object_list_changed();
 
     
     //std::vector<size_t> load_files(const std::vector<boost::filesystem::path>& input_files, bool load_model = true, bool load_config = true, bool update_dirs = true, bool imperial_units = false);
@@ -380,9 +389,12 @@ public:
     GLCanvas3D* canvas3D();
     const GLCanvas3D * canvas3D() const;
     GLCanvas3D* get_current_canvas3D();
-    
+
+    void render_sliders(GLCanvas3D& canvas);
+
     void arrange();
-    void arrange(Worker &w, bool selected);
+    void arrange_current_bed();
+    void arrange(Worker &w, const ArrangeSelectionMode &selected);
 
     void set_current_canvas_as_dirty();
     void unbind_canvas_event_handlers();

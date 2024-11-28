@@ -17,6 +17,7 @@ class TrafoOnlyArrangeItem {
     int m_priority = 0;
     Vec2crd m_translation = Vec2crd::Zero();
     double  m_rotation = 0.;
+    std::optional<int> m_bed_constraint;
 
     ArbitraryDataStore m_datastore;
 
@@ -28,13 +29,15 @@ public:
         : m_bed_idx{arr2::get_bed_index(other)},
           m_priority{arr2::get_priority(other)},
           m_translation(arr2::get_translation(other)),
-          m_rotation{arr2::get_rotation(other)}
+          m_rotation{arr2::get_rotation(other)},
+          m_bed_constraint{arr2::get_bed_constraint(other)}
     {}
 
     const Vec2crd& get_translation() const noexcept { return m_translation; }
     double get_rotation() const noexcept { return m_rotation; }
     int get_bed_index() const noexcept { return m_bed_idx; }
     int get_priority() const noexcept { return m_priority; }
+    std::optional<int> get_bed_constraint() const noexcept { return m_bed_constraint; }
 
     const ArbitraryDataStore &datastore() const noexcept { return m_datastore; }
     ArbitraryDataStore &datastore() { return m_datastore; }

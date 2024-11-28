@@ -448,6 +448,8 @@ set(SLIC3R_SOURCES
     miniz_extension.hpp
     miniz_extension.cpp
     MarchingSquares.hpp
+    MultipleBeds.cpp
+    MultipleBeds.hpp
     Execution/Execution.hpp
     Execution/ExecutionSeq.hpp
     Execution/ExecutionTBB.hpp

@@ -8,6 +8,7 @@
 #include "SceneBuilder.hpp"
 
 #include "libslic3r/Model.hpp"
+#include "libslic3r/MultipleBeds.hpp"
 #include "libslic3r/Print.hpp"
 #include "libslic3r/SLAPrint.hpp"
 
@@ -179,7 +180,7 @@ void SceneBuilder::build_scene(Scene &sc) &&
 
     if (m_fff_print && !m_sla_print) {
         if (is_infinite_bed(m_bed)) {
-            set_bed(*m_fff_print);
+            set_bed(*m_fff_print, Vec2crd::Zero());
         } else {
             set_brim_and_skirt();
         }
@@ -200,28 +201,29 @@ void SceneBuilder::build_arrangeable_slicer_model(ArrangeableSlicerModel &amodel
         m_vbed_handler = VirtualBedHandler::create(m_bed);
     }
 
-    if (!m_wipetower_handler) {
-        m_wipetower_handler = std::make_unique<MissingWipeTowerHandler>();
-    }
-
     if (m_fff_print && !m_xl_printer)
         m_xl_printer = is_XL_printer(m_fff_print->config());
 
-    bool has_wipe_tower = false;
-    m_wipetower_handler->visit(
-        [&has_wipe_tower](const Arrangeable &arrbl) { has_wipe_tower = true; });
+    const bool has_wipe_tower = !m_wipetower_handlers.empty();
 
     if (m_xl_printer && !has_wipe_tower) {
-        m_bed = XLBed{bounding_box(m_bed)};
+        m_bed = XLBed{bounding_box(m_bed), bed_gap(m_bed)};
     }
 
     amodel.m_vbed_handler = std::move(m_vbed_handler);
     amodel.m_model = std::move(m_model);
     amodel.m_selmask = std::move(m_selection);
-    amodel.m_wth = std::move(m_wipetower_handler);
+    amodel.m_wths = std::move(m_wipetower_handlers);
+    amodel.m_bed_constraints = std::move(m_bed_constraints);
+    amodel.m_considered_instances = std::move(m_considered_instances);
 
-    amodel.m_wth->set_selection_predicate(
-        [&amodel] { return amodel.m_selmask->is_wipe_tower(); });
+    for (auto &wth : amodel.m_wths) {
+        wth->set_selection_predicate(
+            [&amodel](int wipe_tower_index){
+                return amodel.m_selmask->is_wipe_tower_selected(wipe_tower_index);
+            }
+        );
+    }
 }
 
 int XStriderVBedHandler::get_bed_index(const VBedPlaceable &obj) const
@@ -320,40 +322,19 @@ Transform3d YStriderVBedHandler::get_physical_bed_trafo(int bed_index) const
     return tr;
 }
 
-const int GridStriderVBedHandler::Cols =
-    2 * static_cast<int>(std::sqrt(std::numeric_limits<int>::max()) / 2);
-
-const int GridStriderVBedHandler::HalfCols = Cols / 2;
-const int GridStriderVBedHandler::Offset = HalfCols + Cols * HalfCols;
-
-Vec2i32 GridStriderVBedHandler::raw2grid(int bed_idx) const
-{
-    bed_idx += Offset;
-
-    Vec2i32 ret{bed_idx % Cols - HalfCols, bed_idx / Cols - HalfCols};
-
-    return ret;
-}
-
-int GridStriderVBedHandler::grid2raw(const Vec2i32 &crd) const
-{
-    // Overlapping virtual beds will happen if the crd values exceed limits
-    assert((crd.x() < HalfCols - 1 && crd.x() >= -HalfCols) &&
-           (crd.y() < HalfCols - 1 && crd.y() >= -HalfCols));
-
-    return (crd.x() + HalfCols) + Cols * (crd.y() + HalfCols) - Offset;
-}
-
 int GridStriderVBedHandler::get_bed_index(const VBedPlaceable &obj) const
 {
-    Vec2i32 crd = {m_xstrider.get_bed_index(obj), m_ystrider.get_bed_index(obj)};
+    Vec2crd crd = {m_xstrider.get_bed_index(obj), m_ystrider.get_bed_index(obj)};
 
-    return grid2raw(crd);
+    return BedsGrid::grid_coords2index(crd);
 }
 
 bool GridStriderVBedHandler::assign_bed(VBedPlaceable &inst, int bed_idx)
 {
-    Vec2i32 crd = raw2grid(bed_idx);
+    if (bed_idx < 0) {
+        return false;
+    }
+    Vec2crd crd = BedsGrid::index2grid_coords(bed_idx);
 
     bool retx = m_xstrider.assign_bed(inst, crd.x());
     bool rety = m_ystrider.assign_bed(inst, crd.y());
@@ -363,7 +344,7 @@ bool GridStriderVBedHandler::assign_bed(VBedPlaceable &inst, int bed_idx)
 
 Transform3d GridStriderVBedHandler::get_physical_bed_trafo(int bed_idx) const
 {
-    Vec2i32 crd = raw2grid(bed_idx);
+    Vec2crd crd = BedsGrid::index2grid_coords(bed_idx);
 
     Transform3d ret = m_xstrider.get_physical_bed_trafo(crd.x()) *
                       m_ystrider.get_physical_bed_trafo(crd.y());
@@ -454,7 +435,7 @@ SceneBuilder &&SceneBuilder::set_sla_print(AnyPtr<const SLAPrint> mdl_print)
     return std::move(*this);
 }
 
-SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg)
+SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg, const Vec2crd &gap)
 {
     Points bedpts = get_bed_shape(cfg);
 
@@ -462,19 +443,19 @@ SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg)
         m_xl_printer = true;
     }
 
-    m_bed = arr2::to_arrange_bed(bedpts);
+    m_bed = arr2::to_arrange_bed(bedpts, gap);
 
     return std::move(*this);
 }
 
-SceneBuilder &&SceneBuilder::set_bed(const Print &print)
+SceneBuilder &&SceneBuilder::set_bed(const Print &print, const Vec2crd &gap)
 {
     Points bedpts = get_bed_shape(print.config());
 
     if (is_XL_printer(print.config())) {
-        m_bed = XLBed{get_extents(bedpts)};
+        m_bed = XLBed{get_extents(bedpts), gap};
     } else {
-        m_bed = arr2::to_arrange_bed(bedpts);
+        m_bed = arr2::to_arrange_bed(bedpts, gap);
     }
 
     set_brim_and_skirt();
@@ -488,11 +469,13 @@ SceneBuilder &&SceneBuilder::set_sla_print(const SLAPrint *slaprint)
     return std::move(*this);
 }
 
-int ArrangeableWipeTowerBase::get_bed_index() const { return PhysicalBedId; }
+int ArrangeableWipeTowerBase::get_bed_index() const {
+    return this->bed_index;
+}
 
 bool ArrangeableWipeTowerBase::assign_bed(int bed_idx)
 {
-    return bed_idx == PhysicalBedId;
+    return bed_idx == this->bed_index;
 }
 
 bool PhysicalOnlyVBedHandler::assign_bed(VBedPlaceable &inst, int bed_idx)
@@ -512,7 +495,9 @@ void ArrangeableSlicerModel::for_each_arrangeable(
 {
     for_each_arrangeable_(*this, fn);
 
-    m_wth->visit(fn);
+    for (auto &wth : m_wths) {
+        wth->visit(fn);
+    }
 }
 
 void ArrangeableSlicerModel::for_each_arrangeable(
@@ -520,7 +505,9 @@ void ArrangeableSlicerModel::for_each_arrangeable(
 {
     for_each_arrangeable_(*this, fn);
 
-    m_wth->visit(fn);
+    for (auto &wth : m_wths) {
+        wth->visit(fn);
+    }
 }
 
 ObjectID ArrangeableSlicerModel::add_arrangeable(const ObjectID &prototype_id)
@@ -538,14 +525,45 @@ ObjectID ArrangeableSlicerModel::add_arrangeable(const ObjectID &prototype_id)
     return ret;
 }
 
+std::optional<int> get_bed_constraint(
+        const ObjectID &id,
+        const BedConstraints &bed_constraints
+) {
+    const auto found_constraint{bed_constraints.find(id)};
+    if (found_constraint == bed_constraints.end()) {
+        return std::nullopt;
+    }
+    return found_constraint->second;
+}
+
+bool should_include_instance(
+    const ObjectID &instance_id,
+    const std::set<ObjectID> &considered_instances
+) {
+    if (considered_instances.find(instance_id) == considered_instances.end()) {
+        return false;
+    }
+    return true;
+}
+
+
 template<class Self, class Fn>
 void ArrangeableSlicerModel::for_each_arrangeable_(Self &&self, Fn &&fn)
 {
     InstPos pos;
     for (auto *obj : self.m_model->objects) {
         for (auto *inst : obj->instances) {
-            ArrangeableModelInstance ainst{inst, self.m_vbed_handler.get(), self.m_selmask.get(), pos};
+            if (!self.m_considered_instances || should_include_instance(inst->id(), *self.m_considered_instances)) {
+
+            ArrangeableModelInstance ainst{
+                inst,
+                self.m_vbed_handler.get(),
+                self.m_selmask.get(),
+                pos,
+                get_bed_constraint(inst->id(), self.m_bed_constraints)
+            };
             fn(ainst);
+            }
             ++pos.inst_idx;
         }
         pos.inst_idx = 0;
@@ -556,16 +574,23 @@ void ArrangeableSlicerModel::for_each_arrangeable_(Self &&self, Fn &&fn)
 template<class Self, class Fn>
 void ArrangeableSlicerModel::visit_arrangeable_(Self &&self, const ObjectID &id, Fn &&fn)
 {
-    if (id == self.m_model->wipe_tower.id()) {
-        self.m_wth->visit(fn);
-
-        return;
+    for (auto &wth : self.m_wths) {
+        if (id == wth->get_id()) {
+            wth->visit(fn);
+            return;
+        }
     }
 
     auto [inst, pos] = find_instance_by_id(*self.m_model, id);
 
     if (inst) {
-        ArrangeableModelInstance ainst{inst, self.m_vbed_handler.get(), self.m_selmask.get(), pos};
+        ArrangeableModelInstance ainst{
+            inst,
+            self.m_vbed_handler.get(),
+            self.m_selmask.get(),
+            pos,
+            get_bed_constraint(id, self.m_bed_constraints)
+        };
         fn(ainst);
     }
 }
@@ -589,7 +614,7 @@ void ArrangeableSLAPrint::for_each_arrangeable_(Self &&self, Fn &&fn)
     for (auto *obj : self.m_model->objects) {
         for (auto *inst : obj->instances) {
             ArrangeableModelInstance ainst{inst, self.m_vbed_handler.get(),
-                                           self.m_selmask.get(), pos};
+                                           self.m_selmask.get(), pos, std::nullopt};
 
             auto obj_id = inst->get_object()->id();
             const SLAPrintObject *po =
@@ -616,7 +641,9 @@ void ArrangeableSLAPrint::for_each_arrangeable(
 {
     for_each_arrangeable_(*this, fn);
 
-    m_wth->visit(fn);
+    for (auto &wth : m_wths) {
+        wth->visit(fn);
+    }
 }
 
 void ArrangeableSLAPrint::for_each_arrangeable(
@@ -624,7 +651,9 @@ void ArrangeableSLAPrint::for_each_arrangeable(
 {
     for_each_arrangeable_(*this, fn);
 
-    m_wth->visit(fn);
+    for (auto &wth : m_wths) {
+        wth->visit(fn);
+    }
 }
 
 template<class Self, class Fn>
@@ -634,7 +663,7 @@ void ArrangeableSLAPrint::visit_arrangeable_(Self &&self, const ObjectID &id, Fn
 
     if (inst) {
         ArrangeableModelInstance ainst{inst, self.m_vbed_handler.get(),
-                                       self.m_selmask.get(), pos};
+                                       self.m_selmask.get(), pos, std::nullopt};
 
         auto obj_id = inst->get_object()->id();
         const SLAPrintObject *po =
@@ -914,16 +943,12 @@ std::unique_ptr<VirtualBedHandler> VirtualBedHandler::create(const ExtendedBed &
     if (is_infinite_bed(bed)) {
         ret = std::make_unique<PhysicalOnlyVBedHandler>();
     } else {
-        // The gap between logical beds expressed in ratio of
-        // the current bed width.
-        constexpr double LogicalBedGap = 1. / 10.;
-
+        Vec2crd gap;
+        visit_bed([&gap](auto &rawbed) { gap = bed_gap(rawbed); }, bed);
         BoundingBox bedbb;
         visit_bed([&bedbb](auto &rawbed) { bedbb = bounding_box(rawbed); }, bed);
 
-        auto bedwidth = bedbb.size().x();
-        coord_t xgap = LogicalBedGap * bedwidth;
-        ret = std::make_unique<GridStriderVBedHandler>(bedbb, xgap);
+        ret = std::make_unique<GridStriderVBedHandler>(bedbb, gap);
     }
 
     return ret;

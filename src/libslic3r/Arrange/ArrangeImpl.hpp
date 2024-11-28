@@ -46,7 +46,7 @@ void arrange(SelectionStrategy &&selstrategy,
     // Dispatch:
     arrange(std::forward<SelectionStrategy>(selstrategy),
             std::forward<PackStrategy>(packingstrategy), items, fixed,
-            RectangleBed{bed.bb}, SelStrategyTag<SelectionStrategy>{});
+            RectangleBed{bed.bb, bed.gap}, SelStrategyTag<SelectionStrategy>{});
 
     std::vector<int> bed_indices = get_bed_indices(items, fixed);
     std::map<int, BoundingBox> pilebb;
@@ -399,6 +399,7 @@ ArrItem ConvexItemConverter<ArrItem>::convert(const Arrangeable &arrbl,
 
     set_bed_index(ret, bed_index);
     set_priority(ret, arrbl.priority());
+    set_bed_constraint(ret, arrbl.bed_constraint());
 
     imbue_id(ret, arrbl.id());
     if constexpr (IsWritableDataStore<ArrItem>)
@@ -416,6 +417,7 @@ ArrItem AdvancedItemConverter<ArrItem>::convert(const Arrangeable &arrbl,
 
     set_bed_index(ret, bed_index);
     set_priority(ret, arrbl.priority());
+    set_bed_constraint(ret, arrbl.bed_constraint());
     imbue_id(ret, arrbl.id());
     if constexpr (IsWritableDataStore<ArrItem>)
         arrbl.imbue_data(AnyWritableDataStore{ret});

@@ -789,6 +789,8 @@ public:
             // z offset of the model
             float m_model_z_offset{ 0.5f };
             bool m_visible{ true };
+            bool m_fixed_screen_size{ false };
+            float m_scale_factor{ 1.0f };
 
         public:
             void init();

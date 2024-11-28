@@ -356,7 +356,11 @@ int CLI::run(int argc, char **argv)
     
     // Loop through transform options.
     bool user_center_specified = false;
-    arr2::ArrangeBed bed = arr2::to_arrange_bed(get_bed_shape(m_print_config));
+
+    const Vec2crd gap{s_multiple_beds.get_bed_gap()};
+    arr2::ArrangeBed bed = arr2::to_arrange_bed(get_bed_shape(m_print_config), gap);
+    arr2::ArrangeSettings arrange_cfg;
+    arrange_cfg.set_distance_from_objects(min_object_distance(&m_print_config));
     int dups = 1;
     
     for (auto const &opt_key : m_transforms) {
@@ -365,15 +369,6 @@ int CLI::run(int argc, char **argv)
             for (auto &model : m_models)
                 for (ModelObject *o : model.objects)
                     m.add_object(*o);
-            // Rearrange instances unless --dont-arrange is supplied
-            //should be done later
-            //if (! m_config.opt_bool("dont_arrange")) {
-            //    m.add_default_instances();
-            //    if (this->has_print_action())
-            //        arrange_objects(m, bed, arrange_cfg);
-            //    else
-            //        arrange_objects(m, arr2::InfiniteBed{}, arrange_cfg);
-            //}
             m_models.clear();
             m_models.emplace_back(std::move(m));
         } else if (opt_key == "duplicate") {

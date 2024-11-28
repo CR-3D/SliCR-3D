@@ -160,8 +160,7 @@ bool BoostThreadWorker::wait_for_current_job(unsigned timeout_ms)
     return ret;
 }
 
-bool BoostThreadWorker::wait_for_idle(unsigned timeout_ms)
-{
+bool BoostThreadWorker::wait_for_idle(unsigned timeout_ms) {
     bool timeout_reached = false;
     while (!timeout_reached && !is_idle()) {
         timeout_reached = !m_output_queue

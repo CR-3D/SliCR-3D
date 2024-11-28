@@ -123,6 +123,7 @@ constexpr coord_t  scale_t(double v) { return coord_t(v * UNSCALING_FACTOR); }
 constexpr coordf_t scale_d(double v) { return coordf_t(v * UNSCALING_FACTOR); }
 
 inline coordf_t coord_sqr(coord_t length) { return coordf_t(length) * coordf_t(length); }
+constexpr size_t MAX_NUMBER_OF_BEDS = 9;
 
 enum Axis { 
 	X=0,

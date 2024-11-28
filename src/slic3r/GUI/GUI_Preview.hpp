@@ -102,13 +102,9 @@ class Preview : public wxTitledPanel
 
     DynamicPrintConfig* m_config;
     BackgroundSlicingProcess& m_process;
-    GCodeProcessorResult& m_gcode_result;
+    std::vector<GCodeProcessorResult>* m_gcode_results;
 
-#ifdef __linux__
-    // We are getting mysterious crashes on Linux in gtk due to OpenGL context activation GH #1874 #1955.
-    // So we are applying a workaround here.
-    bool m_volumes_cleanup_required { false };
-#endif /* __linux__ */
+    GCodeProcessorResult* active_gcode_result();
 
     // Calling this function object forces Plater::schedule_background_process.
     std::function<void()> m_schedule_background_process;
@@ -145,9 +141,9 @@ public:
         NoForce,
         ForceGcode
     };
-
-Preview(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess& process, 
-    GCodeProcessorResult& gcode_result, std::function<void()> schedule_background_process = []() {});
+    
+    Preview(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess& process, 
+        std::vector<GCodeProcessorResult>* gcode_results, std::function<void()> schedule_background_process = []() {});
     virtual ~Preview();
 
     wxGLCanvas* get_wxglcanvas() { return m_canvas_widget; }
@@ -172,7 +168,13 @@ Preview(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, 
     void move_layers_slider(wxKeyEvent& evt);
     void edit_layers_slider(wxKeyEvent& evt);
 
+    void render_sliders(GLCanvas3D& canvas);
+    float get_layers_slider_width(bool disregard_visibility = false) const;
+    float get_moves_slider_height() const;
+
     bool is_loaded() const { return m_loaded; }
+
+    //void render_sliders(GLCanvas3D& canvas);
 
     void update_moves_slider();
     void enable_moves_slider(bool enable);

@@ -1290,7 +1290,7 @@ void ScriptContainer::init(const std::string& tab_key, Tab* tab)
                                                           AngelScript::asFUNCTION(as_set_enabled),
                                                           AngelScript::asCALL_CDECL);
             m_script_engine.get()->RegisterGlobalFunction("void set_enabled_idx(string &in, bool, int)",
-                                                          AngelScript::asFUNCTIONl(as_set_enabled_idx),
+                                                          AngelScript::asFUNCTION(as_set_enabled_idx),
                                                           AngelScript::asCALL_CDECL);
 
             m_script_engine.get()->RegisterGlobalFunction("float get_computed_float(string &in)",   AngelScript::asFUNCTION(as_get_computed_float), AngelScript::asCALL_CDECL);
