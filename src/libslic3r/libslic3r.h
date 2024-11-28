@@ -549,7 +549,6 @@ enum class ArcFittingType {
 //#define _DEBUGINFO
 inline void release_assert(bool valid) {
     if (!valid)
-        //   throw new std::exception();
         ;
 }
 #endif

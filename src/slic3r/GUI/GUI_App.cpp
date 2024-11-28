@@ -356,7 +356,7 @@ private:
             title = wxGetApp().is_editor() ? SLIC3R_APP_NAME : GCODEVIEWER_APP_NAME;
 
             // dynamically get the version to display
-            version = _L("Version") + " " + std::string(SLIC3R_VERSION_FULL);
+            version = _L("Version") + " " + std::string(SLIC3R_VERSION);
 
             // credits infornation
             credits = "\n" + title + " " +
@@ -935,7 +935,7 @@ void GUI_App::post_init() {
     }
 
     // Set Slic3r version and save to Slic3r.ini or Slic3rGcodeViewer.ini.
-    app_config->set("version", SLIC3R_VERSION_FULL);
+    app_config->set("version", SLIC3R_VERSION);
     app_config->save();
 
 #ifdef _WIN32
