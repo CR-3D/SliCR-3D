@@ -192,9 +192,9 @@ ExtrusionEntityCollection ExtrusionEntityCollection::flatten(bool preserve_order
 
 void ExtrusionEntityCollection::flatten(bool preserve_ordering, ExtrusionEntityCollection& out) const
 {
-    if (!this->can_sort()  && preserve_ordering) {
+    if (!this->can_sort()  && preserve_ordering && this->entities().size() > 1) {
         out.append(this->flatten(preserve_ordering));
-    }else{
+    } else {
         FlatenEntities flattener(preserve_ordering);
         flattener.use(*this);
         //tranfert owner of entities.
@@ -204,7 +204,10 @@ void ExtrusionEntityCollection::flatten(bool preserve_ordering, ExtrusionEntityC
 }
 
 void FlatenEntities::use(const ExtrusionEntityCollection &coll) {
-    if ((!coll.can_sort() || !this->to_fill.can_sort()) && preserve_ordering) {
+    if (coll.entities().size() == 1) {
+        // only one element, sort or reverse are meaningless.
+        coll.entities().front()->visit(*this);
+    } else if ((!coll.can_sort() || !this->to_fill.can_sort()) && preserve_ordering) {
         FlatenEntities unsortable(coll, preserve_ordering);
         for (const ExtrusionEntity* entity : coll.entities()) {
             entity->visit(unsortable);

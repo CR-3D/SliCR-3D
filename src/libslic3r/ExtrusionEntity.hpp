@@ -329,6 +329,7 @@ public:
 typedef std::vector<ExtrusionPath3D> ExtrusionPaths3D;
 
 // Single continuous extrusion path, possibly with varying extrusion thickness, extrusion height or bridging / non bridging.
+// it's like an unsortable collection of only unreversable THING
 template <typename THING = ExtrusionEntity>
 class ExtrusionMultiEntity : public ExtrusionEntity {
 public:
@@ -426,6 +427,7 @@ public:
 };
 
 // Single continuous extrusion path, possibly with varying extrusion thickness, extrusion height or bridging / non bridging.
+// it's like an unsortable collection of only unreversable ExtrusionPaths
 class ExtrusionMultiPath : public ExtrusionMultiEntity<ExtrusionPath> {
 public:
 

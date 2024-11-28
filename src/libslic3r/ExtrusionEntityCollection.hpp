@@ -201,6 +201,7 @@ class FlatenEntities : public ExtrusionVisitorConst {
     ExtrusionEntityCollection to_fill;
     bool preserve_ordering;
 public:
+    using ExtrusionVisitorConst::use;
     FlatenEntities(bool preserve_ordering) : preserve_ordering(preserve_ordering) {}
     FlatenEntities(ExtrusionEntityCollection pattern, bool preserve_ordering) : preserve_ordering(preserve_ordering) {
         to_fill.set_can_sort_reverse(pattern.can_sort(), pattern.can_reverse());
@@ -212,8 +213,8 @@ public:
         return to_fill;
     };
     ExtrusionEntityCollection&& flatten(const ExtrusionEntityCollection &to_flatten) &&;
-    virtual void default_use(const ExtrusionEntity &entity) override { to_fill.append(entity); }
-    virtual void use(const ExtrusionEntityCollection &coll) override;
+    void default_use(const ExtrusionEntity &entity) override { to_fill.append(entity); }
+    void use(const ExtrusionEntityCollection &coll) override;
 };
 
 inline void extrusion_entities_append_paths(ExtrusionEntityCollection &dst, Polylines &polylines, ExtrusionRole role, double mm3_per_mm, float width, float height, bool can_reverse = true)

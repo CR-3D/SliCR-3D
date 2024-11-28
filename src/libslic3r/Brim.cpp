@@ -1241,7 +1241,8 @@ void make_brim_ears(const Print& print, const Flow& flow, const PrintObjectPtrs&
                         decimated_polygon.points = MultiPoint::douglas_peucker(poly.contour.points, SCALED_EPSILON);
                     }
                 }
-                for (const Point& p : decimated_polygon.convex_points(brim_config.brim_ears_max_angle.value* PI / 180.0)) {
+                Points pts = decimated_polygon.convex_points(0, brim_config.brim_ears_max_angle.value * PI / 180.0);
+                for (const Point& p : pts) {
                     pt_ears.push_back(p);
                     pt_ears.back() += (copy_pt.shift);
                 }

@@ -4303,10 +4303,10 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
                 if (is_hole_loop) {
                     //test if convex (as it's clockwise bc it's a hole, we have to do the opposite)
                     // 3.07 instead of PI to allow for some convex outliers (sometimes, stl can be a bit imprecise)
-                    is_convex = polygon_to_test.convex_points(3.07).empty();
+                    is_convex = polygon_to_test.convex_points(0, 3.07).empty();
                 } else {
                     // 3.3 instead of PI to allow for some concave outliers (sometimes, stl can be a bit imprecise)
-                    is_convex = polygon_to_test.concave_points(3.3).empty();
+                    is_convex = polygon_to_test.concave_points(0, 3.3).empty();
                 }
                 if (is_convex) {
                     // Computing circle center
@@ -5347,8 +5347,14 @@ std::string GCodeGenerator::extrude_entity(const ExtrusionEntityReference &entit
 
 void GCodeGenerator::use(const ExtrusionEntityCollection &collection) {
     if (!collection.can_sort() /*|| collection.role() == ExtrusionRole::Mixed*/ || collection.entities().size() <= 1) {
-        for (const ExtrusionEntity* next_entity : collection.entities()) {
-            next_entity->visit(*this);
+        if (this->visitor_flipped && collection.can_reverse()) {
+            for (size_t idx = collection.entities().size() - 1; idx <collection.entities().size(); --idx) {
+                collection.entities()[idx]->visit(*this);
+            }
+        } else {
+            for (const ExtrusionEntity *next_entity : collection.entities()) {
+                next_entity->visit(*this);
+            }
         }
     } else {
         bool reversed = this->visitor_flipped;
@@ -5372,7 +5378,9 @@ std::string GCodeGenerator::extrude_path(const ExtrusionPath &path, const std::s
     for (int i = 1; i < simplifed_path.polyline.size(); ++i)
         assert(!simplifed_path.polyline.get_point(i - 1).coincides_with_epsilon(simplifed_path.polyline.get_point(i)));
     if (this->visitor_flipped) {
-        assert(path.can_reverse());
+        // in a multipath, the multipath can be reversed, but all individual path are marqued as 'unreversable', even if they can be reversed by the multipath.
+        // hence, it's possible to have a !can_reverse and a visitor_flipped from the multipath.
+        //assert(path.can_reverse());
         simplifed_path.reverse();
     }
 
@@ -5624,9 +5632,9 @@ void GCodeGenerator::extrude_infill(const ExtrudeArgs& print_args, const LayerIs
             }
             if (!temp_fill_extrusions.empty()) {
                 set_region_for_extrude(print, nullptr, &layerm, gcode);
-                for (const ExtrusionEntityReference &fill :
-                     chain_extrusion_references(temp_fill_extrusions, last_pos_defined() ? &last_pos() : nullptr)) {
-                    gcode += this->extrude_entity(fill, "infill"sv);
+                std::vector<ExtrusionEntityReference> fills_eer = chain_extrusion_references(temp_fill_extrusions, last_pos_defined() ? &last_pos() : nullptr);
+                for (const ExtrusionEntityReference &fill_eer : fills_eer) {
+                    gcode += this->extrude_entity(fill_eer, "infill"sv);
                 }
             }
         }
