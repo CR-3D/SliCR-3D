@@ -1938,7 +1938,7 @@ void GLCanvas3D::set_model(Model* model)
 
 void GLCanvas3D::bed_shape_changed()
 {
-    refresh_camera_scene_box();
+    //refresh_camera_scene_box();
     //wxGetApp().plater()->get_camera().requires_zoom_to_bed = true;
     m_dirty = true;
 }

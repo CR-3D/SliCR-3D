@@ -3931,11 +3931,12 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     }
     
     // Set Bed Shape based on Extruders Used
+    // TODO: Fix set_bed_shape if an extruder has changed overall
    std::set<uint16_t> extruders = q->active_fff_print().extruders();
     if (extruders != m_previous_extruders) {
         // Extruders have changed, execute the required logic
         m_extruders_used = extruders;
-        q->set_bed_shape();
+        //q->set_bed_shape();
         // Update the previous_extruders to the current extruders
         m_previous_extruders = extruders;
     }

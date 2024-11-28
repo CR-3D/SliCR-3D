@@ -109,7 +109,7 @@ Vec3d MultipleBeds::get_bed_translation(int id) const
     Vec2d  gap = bed_gap();
     double gap_x = (m_legacy_layout ? m_build_volume_bb.size().x() * (2./10.) : gap.x());
     return Vec3d(x * (m_build_volume_bb.size().x() + gap_x),
-                 y * (m_build_volume_bb.size().y() + gap.y() * 2.0), // When using legacy layout, y is zero anyway.
+                 y * (m_build_volume_bb.size().y() + gap.y()), // When using legacy layout, y is zero anyway.
                  0.);
 
 }
