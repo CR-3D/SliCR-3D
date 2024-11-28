@@ -176,7 +176,6 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     init_internal_model_from_file();
     init_triangles();
 
-/* TODO: FIX LAGS
     m_models_overlap = false;
     if (! m_model_filename.empty()) {
         // Calculate bb of the bed model and figure out if the models would overlap when rendered next to each other.
@@ -185,19 +184,25 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
         BoundingBoxf bed_bb = m_build_volume.bounding_volume2d();
         bed_bb.translate(-m_model_offset.x(), -m_model_offset.y());
         Vec2d gap = unscale(s_multiple_beds.get_bed_gap());
-        m_models_overlap = (model_bb.size().x() - bed_bb.size().x() > 2 * gap.x() || model_bb.size().y() - bed_bb.size().y() > 2 * gap.y());
+        //m_models_overlap = model_bb.size().y() - bed_bb.size().y() > 2 * gap.y());
     }
 
     s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
-*/
 
+
+
+/*
     BoundingBoxf bb = m_build_volume.bounding_volume2d();
+    bb.translate(-m_model_offset.x(), -m_model_offset.y());
+    Vec2d gap = unscale(s_multiple_beds.get_bed_gap());
+
     bb.max = Vec2d(
           bb.max.x() + std::max(0., m_model.model.get_bounding_box().size().x() - bb.size().x()),
-          bb.max.y() + std::max(0., (m_model.model.get_bounding_box().size().y() - bb.size().y()) * 2.0) // Scale Y size by 2.0
+          bb.max.y() + std::max(0., (m_model.model.get_bounding_box().size().y() - bb.size().y()) * gap.y())
     );
+    
     s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
-
+*/
 
     // Set the origin and size for rendering the coordinate system axes.
     m_axes.set_origin({ 0.0, 0.0, static_cast<double>(GROUND_Z) });
