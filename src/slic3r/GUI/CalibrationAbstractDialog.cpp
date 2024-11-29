@@ -10,6 +10,7 @@
 #include <wx/scrolwin.h>
 #include <wx/display.h>
 #include <wx/file.h>
+#include <wx/webview.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/path.hpp>
@@ -37,8 +38,8 @@ CalibrationAbstractDialog::CalibrationAbstractDialog(GUI_App* app, MainFrame* ma
     {
         this->gui_app = app;
         this->main_frame = mainframe;
-        SetBackgroundColour(*wxBLACK);
-        SetForegroundColour(*wxBLACK);
+        //this->SetBackgroundColour(*wxBLUE);
+        
 
         // fonts
         const wxFont& font = wxGetApp().normal_font();
@@ -50,17 +51,20 @@ CalibrationAbstractDialog::CalibrationAbstractDialog(GUI_App* app, MainFrame* ma
 void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::string html_name, wxSize dialog_size, bool include_close_button){
 
     const AppConfig* app_config = get_app_config();
-    bool dark_mode = app_config->get_bool("dark_color_mode");
-    std::string user_color_text = app_config->get("color_dark");
+    
+    std::string user_color_text = "ffffff";
     wxColour text_color("#" + user_color_text);
 
-    std::string color_background = dark_mode ? "333233" : "ffffff";//dark grey and white. whats the offical dark mode color ?
+    std::string color_background = "333233";
     wxColour background_color("#" + color_background);
 
     // Create a panel for the entire content
     wxPanel* main_panel = new wxPanel(this, wxID_ANY);
     main_panel->SetBackgroundColour(background_color);
-
+    main_panel->SetForegroundColour(text_color);
+    this->SetBackgroundColour(background_color);
+    this->SetForegroundColour(text_color);
+   
     // Create the sizer for the panel's content
     wxBoxSizer* panel_sizer = new wxBoxSizer(wxVERTICAL);
     gui_app->app_config->set("autocenter", "1");
@@ -82,15 +86,13 @@ void CalibrationAbstractDialog::create(boost::filesystem::path html_path, std::s
         }
     }
 
-    // Create the HTML viewer and load the page
-    html_viewer = new wxHtmlWindow(main_panel, wxID_ANY,
-        wxDefaultPosition, wxDefaultSize, wxHW_SCROLLBAR_AUTO);
-    html_viewer->LoadPage(GUI::from_u8(full_file_path.string()));
-    // when using hyperlink, open the browser.
-    html_viewer->Bind(wxEVT_HTML_LINK_CLICKED, [this](wxHtmlLinkEvent& evt) {
-        wxLaunchDefaultBrowser(evt.GetLinkInfo().GetHref());
-    });
-    panel_sizer->Add(html_viewer, 1, wxEXPAND | wxALL, 5);
+wxWebView* web_viewer = wxWebView::New(main_panel, wxID_ANY,
+                                       "about:blank", wxDefaultPosition,
+                                       wxDefaultSize);
+   std::string file_path = "file://" + full_file_path.string(); // Ensure it's prefixed with "file://"
+
+   web_viewer->LoadURL(file_path); // Load the HTML content
+   panel_sizer->Add(web_viewer, 1, wxEXPAND | wxALL, 5);
 
     // Adjust the dialog size
     wxDisplay display(wxDisplay::GetFromWindow(main_frame));

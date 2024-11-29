@@ -22,6 +22,7 @@ wxFont Label::sysFont(int size, bool bold)
     }
     return font;
 }
+
 wxFont Label::Head_24;
 wxFont Label::Head_20;
 wxFont Label::Head_18;
