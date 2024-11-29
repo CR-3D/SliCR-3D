@@ -56,16 +56,12 @@ void CalibrationCr3dCubeDialog::create_buttons(wxStdDialogButtonSizer* buttons){
     bt->Bind(wxEVT_BUTTON, &CalibrationCr3dCubeDialog::create_geometry_single, this);
     bt->SetToolTip(_L("CR-3D Single Extruder calibration Cube"));
     buttons->Add(bt);
-    bt->SetForegroundColour(*wxBLACK); // Set text color to black
-    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
 
     buttons->AddSpacer(10);
 
     bt = new wxButton(this, wxID_FILE1, _(L("Dual Extruder Calibration Cube")));
     bt->Bind(wxEVT_BUTTON, &CalibrationCr3dCubeDialog::create_geometry_dual, this);
     bt->SetToolTip(_L("CR-3D Dual Extruder calibration Cube"));
-    bt->SetForegroundColour(*wxBLACK); // Set text color to black
-    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
 
     buttons->Add(bt);
 }
@@ -74,8 +70,6 @@ void CalibrationCr3dSampleCardDialog::create_buttons(wxStdDialogButtonSizer* but
     wxButton* bt = new wxButton(this, wxID_FILE1, _(L("Box")));
     bt->Bind(wxEVT_BUTTON, &CalibrationCr3dSampleCardDialog::create_geometry_box, this);
     bt->SetToolTip(_L("CR-3D Sample Box"));
-    bt->SetForegroundColour(*wxBLACK); // Set text color to black
-    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
 
     buttons->Add(bt);
 
@@ -84,8 +78,6 @@ void CalibrationCr3dSampleCardDialog::create_buttons(wxStdDialogButtonSizer* but
     bt = new wxButton(this, wxID_FILE1, _(L("Card")));
     bt->Bind(wxEVT_BUTTON, &CalibrationCr3dSampleCardDialog::create_geometry_card, this);
     bt->SetToolTip(_L("CR-3D Sample Card"));
-    bt->SetForegroundColour(*wxBLACK); // Set text color to black
-    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
 
     buttons->Add(bt);
 }
@@ -100,8 +92,6 @@ void CalibrationCr3dIDEXDialog::create_buttons(wxStdDialogButtonSizer *buttons)
     wxButton *bt = new wxButton(this, wxID_FILE1, _(L("Generate")));
     bt->Bind(wxEVT_BUTTON, &CalibrationCr3dIDEXDialog::create_geometry_single, this);
     bt->SetToolTip(_L("CR-3D IDEX Calibration"));
-    bt->SetForegroundColour(*wxBLACK); // Set text color to black
-    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
    
     buttons->Add(bt);
 }

@@ -45,7 +45,6 @@ void CalibrationBridgeDialog::create_buttons(wxStdDialogButtonSizer* buttons){
     wxButton* bt = new wxButton(this, wxID_FILE1, _L("Test Flow Ratio"));
     bt->Bind(wxEVT_BUTTON, &CalibrationBridgeDialog::create_geometry_flow_ratio, this);
     buttons->Add(bt);
-    bt->SetBackgroundColour(*wxBLACK); // Set text color to black
 
     //buttons->AddSpacer(15);
     //bt = new wxButton(this, wxID_FILE1, _(L("Test Overlap")));
