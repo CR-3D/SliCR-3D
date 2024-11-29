@@ -18,11 +18,13 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "Plater.hpp"
+#include "slic3r/GUI/BitmapCache.hpp"
 #include "slic3r/GUI/Jobs/UIThreadWorker.hpp"
 
 #include <cstddef>
 #include <algorithm>
 #include <chrono>
+#include <nanosvgrast.h>
 #include <numeric>
 #include <optional>
 #include <vector>
@@ -161,10 +163,10 @@ using Slic3r::PrintHostJob;
 using Slic3r::GUI::format_wxstr;
 
 static const std::pair<unsigned int, unsigned int> THUMBNAIL_SIZE_3MF = { 256, 256 };
-
 std::vector<GLuint> s_th_tex_id;
 
-namespace Slic3r { namespace GUI {
+namespace Slic3r {
+namespace GUI {
 
 // Trigger Plater::schedule_background_process().
 wxDEFINE_EVENT(EVT_SCHEDULE_BACKGROUND_PROCESS,     SimpleEvent);
@@ -3699,6 +3701,25 @@ void Plater::priv::process_validation_warning(const std::vector<std::string>& wa
     }
 }
 
+std::array<Print::ApplyStatus, MAX_NUMBER_OF_BEDS> apply_to_inactive_beds(
+    Model &model,
+    std::vector<std::unique_ptr<Print>> &prints,
+    const DynamicPrintConfig &config
+) {
+    std::array<Print::ApplyStatus, MAX_NUMBER_OF_BEDS> result;
+    for (std::size_t bed_index{0}; bed_index < prints.size(); ++bed_index) {
+        const std::unique_ptr<Print> &print{prints[bed_index]};
+        if (!print || bed_index == s_multiple_beds.get_active_bed()) {
+            continue;
+        }
+        using MultipleBedsUtils::with_single_bed_model;
+        with_single_bed_model(model, bed_index, [&](){
+            result[bed_index] = print->apply(model, config);
+        });
+    }
+    return result;
+}
+
 // Update background processing thread from the current config and Model.
 // Returns a bitmask of UpdateBackgroundProcessReturnState.
 unsigned int Plater::priv::update_background_process(bool force_validation, bool postpone_error_messages)
@@ -3713,7 +3734,8 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     
     background_process.select_technology(this->printer_technology);
 
-    if (s_beds_just_switched) {
+
+    if (s_beds_just_switched && printer_technology == ptFFF) {
         PrintBase::SlicingStatus status(q->active_fff_print(), -1);
         SlicingStatusEvent evt(EVT_SLICING_UPDATE, 0, status);
         on_slicing_update(evt);
@@ -3721,10 +3743,12 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         notification_manager->close_notification_of_type(NotificationType::ExportOngoing);
         q->sidebar().show_sliced_info_sizer(background_process.finished());
     }
-    
 
     // bitmap of enum UpdateBackgroundProcessReturnState
     unsigned int return_state = 0;
+    if (s_multiple_beds.is_autoslicing()) {
+        return_state = return_state | UPDATE_BACKGROUND_PROCESS_FORCE_RESTART;
+    }
 
     // Get the config ready. The binary gcode flag depends on Preferences, which the backend has no access to.
     DynamicPrintConfig full_config = wxGetApp().preset_bundle->full_config();
@@ -3737,18 +3761,33 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     // Update the "out of print bed" state of ModelInstances.
     update_print_volume_state();
 
-    // Move all instances according to their active bed:
-    s_multiple_beds.move_active_to_first_bed(q->model(), q->build_volume(), true);
+    Print::ApplyStatus invalidated{Print::ApplyStatus::APPLY_STATUS_INVALIDATED};
+    bool was_running = background_process.running();
+    using MultipleBedsUtils::with_single_bed_model;
 
-    // Apply new config to the possibly running background task.
-    bool               was_running = background_process.running();
-    Print::ApplyStatus invalidated = background_process.apply(q->model(), full_config, wxGetApp().preset_bundle->physical_printers.get_selected_printer_config());
+//wxGetApp().preset_bundle->physical_printers.get_selected_printer_config()
+    std::array<Print::ApplyStatus, MAX_NUMBER_OF_BEDS> apply_statuses{
+        apply_to_inactive_beds(q->model(), q->p->fff_prints, full_config)
+    };
+    with_single_bed_model(q->model(), s_multiple_beds.get_active_bed(), [&](){
+        // Apply new config to the possibly running background task.
+        invalidated = background_process.apply(q->model(), 
+                                               full_config, 
+                                               wxGetApp().preset_bundle->physical_printers.get_selected_printer_config());
+                                               
+        apply_statuses[s_multiple_beds.get_active_bed()] = invalidated;
+    });
 
-    // Move all instances back to their respective beds.
-    s_multiple_beds.move_active_to_first_bed(q->model(), q->build_volume(), false);
+    const bool any_status_changed{std::any_of(
+        apply_statuses.begin(),
+        apply_statuses.end(),
+        [](Print::ApplyStatus status){
+            return status != Print::ApplyStatus::APPLY_STATUS_UNCHANGED;
+        }
+    )};
 
     // If current bed was invalidated, update thumbnails for all beds:
-    if (int num = s_multiple_beds.get_number_of_beds(); num > 1 && ! (invalidated & Print::ApplyStatus::APPLY_STATUS_UNCHANGED)) {
+    if (int num = s_multiple_beds.get_number_of_beds(); num > 1 && any_status_changed) {
         ThumbnailData data;
         ThumbnailsParams params;
         params.parts_only = true;
@@ -3762,19 +3801,21 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         int curr_unpack_alignment = 0;
         glsafe(glGetIntegerv(GL_UNPACK_ALIGNMENT, &curr_unpack_alignment));
         glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
-        glsafe(glDeleteTextures(s_th_tex_id.size(), s_th_tex_id.data()));
-        
-        s_th_tex_id.resize(num);
-        glsafe(glGenTextures(num, s_th_tex_id.data()));
+        glsafe(glDeleteTextures(s_bed_selector_thumbnail_texture_ids.size(), s_bed_selector_thumbnail_texture_ids.data()));
+        s_bed_selector_thumbnail_changed.fill(false);
+
+        s_bed_selector_thumbnail_texture_ids.resize(num);
+        glsafe(glGenTextures(num, s_bed_selector_thumbnail_texture_ids.data()));
         for (int i = 0; i < num; ++i) {
             s_multiple_beds.set_thumbnail_bed_idx(i);
             generate_thumbnail(data, w, h, params, GUI::Camera::EType::Ortho);
             s_multiple_beds.set_thumbnail_bed_idx(-1);
-            glsafe(glBindTexture(GL_TEXTURE_2D, s_th_tex_id[i]));
+            glsafe(glBindTexture(GL_TEXTURE_2D, s_bed_selector_thumbnail_texture_ids[i]));
             glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
             glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
             glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0));
             glsafe(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, data.pixels.data()));
+            s_bed_selector_thumbnail_changed[i] = true;
         }
         glsafe(glBindTexture(GL_TEXTURE_2D, curr_bound_texture));
         glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, curr_unpack_alignment));
@@ -3977,12 +4018,15 @@ bool Plater::priv::restart_background_process(unsigned int state)
         return false;
     }
 
-    if ( ! this->background_process.empty() &&
-         (state & priv::UPDATE_BACKGROUND_PROCESS_INVALID) == 0 &&
-         ( ((state & UPDATE_BACKGROUND_PROCESS_FORCE_RESTART) != 0 && ! this->background_process.finished()) ||
-           (state & UPDATE_BACKGROUND_PROCESS_FORCE_EXPORT) != 0 ||
-           (state & UPDATE_BACKGROUND_PROCESS_RESTART) != 0 ) ) {
-        
+    if (
+        !this->background_process.empty()
+        && (state & priv::UPDATE_BACKGROUND_PROCESS_INVALID) == 0
+        && (
+            ((state & UPDATE_BACKGROUND_PROCESS_FORCE_RESTART) != 0 && !this->background_process.finished())
+            || (state & UPDATE_BACKGROUND_PROCESS_FORCE_EXPORT) != 0
+            || (state & UPDATE_BACKGROUND_PROCESS_RESTART) != 0
+        )
+    ) {
         // The print is valid and it can be started.
 
         if (this->background_process.start()) {

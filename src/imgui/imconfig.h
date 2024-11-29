@@ -210,6 +210,9 @@ namespace ImGui
 
     // icon for multiple beds
     const wchar_t SliceAllBtnIcon          = 0x2811;
+    const wchar_t PrintIdle                = 0x2812;
+    const wchar_t PrintRunning             = 0x2813;
+    const wchar_t PrintFinished            = 0x2814;
     //    void MyFunction(const char* name, const MyMatrix44& v);
 }
 

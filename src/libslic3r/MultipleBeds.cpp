@@ -5,6 +5,7 @@
 #include "Print.hpp"
 
 #include <cassert>
+#include <algorithm>
 
 namespace Slic3r {
 
@@ -156,41 +157,114 @@ void MultipleBeds::set_active_bed(int i)
         m_active_bed = i;
 }
 
-void MultipleBeds::move_active_to_first_bed(Model& model, const BuildVolume& build_volume, bool to_or_from) const
-{
-    static std::vector<std::pair<Vec3d, bool>> old_state;
-    size_t i = 0;
-    assert(! to_or_from || old_state.empty());
-
+namespace MultipleBedsUtils {
+InstanceOffsets get_instance_offsets(Model& model) {
+    InstanceOffsets result;
     for (ModelObject* mo : model.objects) {
         for (ModelInstance* mi : mo->instances) {
-            if (to_or_from) {
-                old_state.resize(i+1);
-                old_state[i] = std::make_pair(mi->get_offset(), mi->printable);
-                if (this->is_instance_on_active_bed(mi->id()))
-                    mi->set_offset(mi->get_offset() - get_bed_translation(get_active_bed()));
-                else
-                    mi->printable = false;
-            } else {
-                mi->set_offset(old_state[i].first);
-                mi->printable = old_state[i].second;
-            }
-            ++i;
+            result.emplace_back(mi->get_offset());
         }
     }
-    if (! to_or_from)
-        old_state.clear();
+    return result;
 }
 
+ObjectInstances get_object_instances(const Model& model) {
+    ObjectInstances result;
 
+    std::transform(
+        model.objects.begin(),
+        model.objects.end(),
+        std::back_inserter(result),
+        [](ModelObject *object){
+            return std::pair{object, object->instances};
+        }
+    );
 
-bool MultipleBeds::is_instance_on_active_bed(ObjectID id) const
+    return result;
+}
+
+void restore_instance_offsets(Model& model, const InstanceOffsets &offsets)
+{
+    size_t i = 0;
+    for (ModelObject* mo : model.objects) {
+        for (ModelInstance* mi : mo->instances) {
+            mi->set_offset(offsets[i++]);
+        }
+    }
+}
+
+void restore_object_instances(Model& model, const ObjectInstances &object_instances) {
+    ModelObjectPtrs objects;
+
+    std::transform(
+        object_instances.begin(),
+        object_instances.end(),
+        std::back_inserter(objects),
+        [](const std::pair<ModelObject *, ModelInstancePtrs> &key_value){
+            auto [object, instances]{key_value};
+            object->instances = std::move(instances);
+            return object;
+        }
+    );
+
+    model.objects = objects;
+}
+
+void with_single_bed_model(Model &model, const int bed_index, const std::function<void()> &callable) {
+    const InstanceOffsets original_offssets{MultipleBedsUtils::get_instance_offsets(model)};
+    const ObjectInstances original_objects{get_object_instances(model)};
+    Slic3r::ScopeGuard guard([&]() {
+        restore_object_instances(model, original_objects);
+        restore_instance_offsets(model, original_offssets);
+    });
+
+    s_multiple_beds.move_from_bed_to_first_bed(model, bed_index);
+    s_multiple_beds.remove_instances_outside_outside_bed(model, bed_index);
+    callable();
+}
+
+}
+
+bool MultipleBeds::is_instance_on_bed(const ObjectID id, const int bed_index) const
 {
     auto it = m_inst_to_bed.find(id);
-    return (it != m_inst_to_bed.end() && it->second == m_active_bed);
+    return (it != m_inst_to_bed.end() && it->second == bed_index);
 }
 
+void MultipleBeds::remove_instances_outside_outside_bed(Model& model, const int bed_index) const {
+    for (ModelObject* mo : model.objects) {
+        mo->instances.erase(std::remove_if(
+            mo->instances.begin(),
+            mo->instances.end(),
+            [&](const ModelInstance* instance){
+                return !this->is_instance_on_bed(instance->id(), bed_index);
+            }
+        ), mo->instances.end());
+    }
 
+    model.objects.erase(std::remove_if(
+        model.objects.begin(),
+        model.objects.end(),
+        [](const ModelObject *object){
+            return object->instances.empty();
+        }
+    ), model.objects.end());
+}
+
+void MultipleBeds::move_from_bed_to_first_bed(Model& model, const int bed_index) const
+{
+    if (bed_index < 0 || bed_index >= MAX_NUMBER_OF_BEDS) {
+        assert(false);
+        return;
+    }
+    for (ModelObject* mo : model.objects) {
+        for (ModelInstance* mi : mo->instances) {
+            if (this->is_instance_on_bed(mi->id(), bed_index)) {
+                mi->set_offset(mi->get_offset() - get_bed_translation(bed_index));
+            }
+        }
+    }
+}
 
 bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx, int instance_idx) const
 {
