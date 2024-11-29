@@ -312,6 +312,7 @@ set(SLIC3R_GUI_SOURCES
     GUI/Widgets/SwitchButton.hpp
     GUI/Widgets/TextInput.cpp
     GUI/Widgets/TextInput.hpp
+    GUI/Widgets/UIColors.cpp
     GUI/Widgets/UIColors.hpp
     GUI/FileArchiveDialog.cpp
     GUI/FileArchiveDialog.hpp

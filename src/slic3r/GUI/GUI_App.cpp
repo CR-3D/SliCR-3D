@@ -109,6 +109,7 @@
 #include "Downloader.hpp"
 #include "PhysicalPrinterDialog.hpp"
 #include "WifiConfigDialog.hpp"
+#include "Widgets/UIColors.hpp"
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
@@ -1314,6 +1315,7 @@ bool GUI_App::on_init_inner()
         if (!older_data_dir_path.empty())
             m_last_app_conf_lower_version = true;
     }
+    
 
 #ifdef _MSW_DARK_MODE
     // app_config can be updated in check_older_app_config(), so check if dark_color_mode and sys_menu_enabled was changed
@@ -1321,12 +1323,12 @@ bool GUI_App::on_init_inner()
         init_dark_color_mode != new_dark_color_mode) {
         NppDarkMode::SetDarkMode(new_dark_color_mode);
         init_ui_colours();
-        update_ui_colours_from_appconfig();
     }
     if (bool new_sys_menu_enabled = app_config->get_bool("sys_menu_enabled");
         init_sys_menu_enabled != new_sys_menu_enabled)
         NppDarkMode::SetSystemMenuForApp(new_sys_menu_enabled);
 #endif
+    update_ui_colours_from_appconfig();
 
     if (is_editor()) {
         std::string msg = Http::tls_global_init();
@@ -1695,7 +1697,8 @@ void GUI_App::init_ui_colours()
     m_color_highlight_label_default = is_dark_mode ? wxColour(230, 230, 230): wxSystemSettings::GetColour(/*wxSYS_COLOUR_HIGHLIGHTTEXT*/wxSYS_COLOUR_WINDOWTEXT);
     m_color_highlight_default       = is_dark_mode ? wxColour(78, 78, 78)   : wxSystemSettings::GetColour(wxSYS_COLOUR_3DLIGHT);
     // Prusa: is_dark_mode ? wxColour(253, 111, 40) : wxColour(252, 77, 1); (fd6f28 & fc4d01) SV: 84 99 ; 100 99 (with light hue diff)
-    m_color_hovered_btn_label       = is_dark_mode ? wxColour(253, 111, 40) : wxColour(252, 77, 1);
+    m_color_hovered_btn_label       = is_dark_mode ? wxColour(253, 111, 240) : wxColour(252, 77, 1);
+    m_color_hovered_btn             = is_dark_mode ? wxColour(253, 111, 240) : wxColour(252, 77, 1);
     m_color_default_btn_label       = is_dark_mode ? wxColour(255, 181, 100): wxColour(203, 61, 0);
     // Prusa: is_dark_mode ? wxColour(95, 73, 62)   : wxColour(228, 220, 216); (f2ba9e & e4dcd8) SV: 35 37 ;  5 90
     m_color_selected_btn_bg         = is_dark_mode ? wxColour(95, 73, 62)   : wxColour(228, 220, 216);
@@ -1743,6 +1746,11 @@ void GUI_App::update_ui_colours_from_appconfig()
         if (str != "")
             m_color_label_phony = wxColour(str);
     }
+
+    Slic3r::GUI::Widget::set_clr_border_hovered(change_endian_int24(
+        app_config->create_color(0.86f, 0.93f, AppConfig::EAppColorType::Highlight)));
+    Slic3r::GUI::Widget::set_clr_background_focused(change_endian_int24(
+        app_config->create_color(0.86f, 0.93f, AppConfig::EAppColorType::Main)));
 
 #ifdef _WIN32
     bool is_dark_mode = dark_mode();

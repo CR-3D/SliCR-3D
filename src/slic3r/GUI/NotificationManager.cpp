@@ -529,13 +529,16 @@ void NotificationManager::PopNotification::render_hypertext(ImGuiWrapper& imgui,
 	}
 	ImGui::PopStyleColor(3);
 
-	//hover color
-	ImVec4 orange_color = ImVec4(.99f, .313f, .0f, 1.0f);
+	// hover color (hypertext is always blue)
+	//wxColour orange_color = color_from_int(wxGetApp().app_config->create_color(1.f, 0.99f, AppConfig::EAppColorType::Main));
+	//ImVec4 blue_color_vec = ImVec4(orange_color.Red(), orange_color.Green(), orange_color.Blue(), 1.0f);
+	ImVec4 blue_color_vec = ImVec4(.0f, .313f, 1.0f, 1.0f);
+		//ImVec4(.99f, .313f, .0f, 1.0f);
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
-		orange_color.y += 0.2f;
+		blue_color_vec.y += 0.2f;
 
 	//text
-	push_style_color(ImGuiCol_Text, orange_color, m_state == EState::FadingOut, m_current_fade_opacity);
+	push_style_color(ImGuiCol_Text, blue_color_vec, m_state == EState::FadingOut, m_current_fade_opacity);
 	ImGui::SetCursorPosX(text_x);
 	ImGui::SetCursorPosY(text_y);
 	imgui.text(text.c_str());
@@ -546,7 +549,7 @@ void NotificationManager::PopNotification::render_hypertext(ImGuiWrapper& imgui,
 	lineEnd.y -= 2;
 	ImVec2 lineStart = lineEnd;
 	lineStart.x = ImGui::GetItemRectMin().x;
-	ImGui::GetWindowDrawList()->AddLine(lineStart, lineEnd, IM_COL32((int)(orange_color.x * 255), (int)(orange_color.y * 255), (int)(orange_color.z * 255), (int)(orange_color.w * 255.f * (m_state == EState::FadingOut ? m_current_fade_opacity : 1.f))));
+	ImGui::GetWindowDrawList()->AddLine(lineStart, lineEnd, IM_COL32((int)(blue_color_vec.x * 255), (int)(blue_color_vec.y * 255), (int)(blue_color_vec.z * 255), (int)(blue_color_vec.w * 255.f * (m_state == EState::FadingOut ? m_current_fade_opacity : 1.f))));
 
 }
 

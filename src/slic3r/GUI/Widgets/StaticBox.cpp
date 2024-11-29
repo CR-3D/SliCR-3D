@@ -22,12 +22,12 @@ StaticBox::StaticBox()
     : state_handler(this)
     , radius(8)
 {
-    border_color = StateColor(std::make_pair(clr_border_disabled,   (int) StateColor::Disabled),
+    border_color = StateColor(std::make_pair(Slic3r::GUI::Widget::clr_border_disabled,   (int) StateColor::Disabled),
 #ifndef __WXMSW__
-                              std::make_pair(clr_border_normal,     (int) StateColor::Focused),
+                              std::make_pair(Slic3r::GUI::Widget::clr_border_normal,     (int) StateColor::Focused),
 #endif
-                              std::make_pair(clr_border_hovered,    (int) StateColor::Hovered),
-                              std::make_pair(clr_border_normal,     (int) StateColor::Normal));
+                              std::make_pair(Slic3r::GUI::Widget::get_clr_border_hovered(),    (int) StateColor::Hovered),
+                              std::make_pair(Slic3r::GUI::Widget::clr_border_normal,     (int) StateColor::Normal));
 #ifndef __WXMSW__
     border_color.setTakeFocusedAsHovered(false);
 #endif
