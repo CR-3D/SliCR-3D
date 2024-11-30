@@ -556,6 +556,14 @@ uint32_t rgb2int(const ColorRGB& rgb_color)
     int_color |= std::min(255, int(rgb_color.b() * 255)) << 16;
     return int_color;
 }
+uint32_t change_endian_int24(uint32_t int_color)
+{
+    uint32_t out_int = 0;
+    out_int |= (int_color & 0xFF) << 16;
+    out_int |= ((int_color & 0xFF00) >> 8) << 8;
+    out_int |= ((int_color & 0xFF0000) >> 16);
+    return out_int;
+}
 
 void ColorReplaces::add(const std::string &sold, const std::string &snew) {
     changes.push_back(ColorReplace{sold, {}, snew, {}});

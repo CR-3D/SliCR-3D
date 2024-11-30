@@ -3674,7 +3674,7 @@ void PerimeterGenerator::processs_no_bridge(const Parameters params, Surfaces& a
                                     if (contour_bigger.size() == 1) poly_unsupp_bigger.contour = contour_bigger[0];
 
                                     //check convex, has some bridge, not overhang
-                                    if (contour_simplified.size() == 1 && contour_bigger.size() == 1 && contour_simplified[0].concave_points().size() == 0
+                                    if (contour_simplified.size() == 1 && contour_bigger.size() == 1 && contour_simplified[0].concave_points(0, PI).size() == 0
                                         && intersection_ex(bridgeable, ExPolygons{ poly_unsupp }).size() > 0
                                         && diff_ex(ExPolygons{ poly_unsupp_bigger }, union_ex(for_union(last, offset_ex(bridgeable, bridged_infill_margin + params.get_perimeter_spacing() / 2))), ApplySafetyOffset::Yes).size() == 0
                                         ) {

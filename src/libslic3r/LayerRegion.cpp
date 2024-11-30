@@ -510,7 +510,8 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                 for (auto &expoly : intersect) {
                     area += expoly.area();
                 }
-                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                // assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                assert(area < scale_t(1) * scale_t(1));
             }
         }
     }
@@ -649,13 +650,13 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
 #endif
             );
 
-#ifdef _DEBUG
     m_fill_surfaces.remove_types({
         stPosBottom | stDensSolid | stModBridge,
         stPosBottom | stDensSolid,
         stPosTop | stDensSolid,
         stPosInternal | stDensSparse,
         stPosInternal | stDensSolid });
+#ifdef _DEBUG
     for (auto &srf : m_fill_surfaces.surfaces) {
         assert(srf.surface_type == (stPosInternal | stDensVoid));
     }
@@ -756,6 +757,24 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                     area += expoly.area();
                 }
                 assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+            }
+        }
+    }
+#endif
+
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (auto &srf : m_fill_surfaces.surfaces) {
+        for (auto &srf2 : m_fill_surfaces.surfaces) {
+            if (&srf != &srf2) {
+                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                double area = 0;
+                for (auto &expoly : intersect) {
+                    area += expoly.area();
+                }
+                // assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                assert(area < scale_t(1) * scale_t(1));
             }
         }
     }

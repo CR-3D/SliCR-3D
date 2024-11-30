@@ -462,7 +462,7 @@ private:
     // Has any support (not counting the raft).
     ExPolygons _shrink_contour_holes(double contour_delta, double default_delta, double convex_delta, const ExPolygons& input) const;
     void _transform_hole_to_polyholes();
-    void _min_overhang_threshold();
+    void _max_overhang_threshold();
     ExPolygons _smooth_curves(const ExPolygons &input, const PrintRegionConfig &conf) const;
     void detect_surfaces_type();
     void apply_solid_infill_below_layer_area();

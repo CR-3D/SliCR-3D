@@ -402,6 +402,102 @@ SCENARIO("Line distances"){
 }
 
 SCENARIO("Polygon convex/concave detection"){
+
+    //GIVEN("Polygon with many angles"){
+    //   // this test was failing on Windows (GH #1950)
+    //    Points pts;
+    //    double x = 0;
+    //    pts.push_back(Point::new_scale(x,0));
+    //    for (int angle = 0; angle < 90; angle += 10) {
+    //        //std::cout<<"angles:"<<angle<<"\n";
+    //        double xadd = std::cos(PI * angle / 180.);
+    //        x += xadd;
+    //        pts.push_back(Point::new_scale(x, std::sin(PI * angle / 180.)));
+    //        if (pts.size() > 2) {
+    //            std::cout << "add pt " << ((int(unscaled(pts[pts.size() - 2].x()) * 100)) / 100.) << ":"
+    //                      << ((int(unscaled(pts[pts.size() - 2].y()) * 100)) / 100.) << "[" << (pts.size() - 2)
+    //                      << "] (convex if ccw) with angle :"
+    //                      << (180 *
+    //                          angle_ccw(pts[pts.size() - 3] - pts[pts.size() - 2],
+    //                                    pts[pts.size() - 1] - pts[pts.size() - 2]) /
+    //                          PI)
+    //                      << "\n";
+    //        }
+    //        x += xadd;
+    //        pts.push_back(Point::new_scale(x, 0));
+    //        std::cout << "add pt " << ((int(unscaled(pts[pts.size() - 2].x()) * 100)) / 100.) << ":"
+    //                  << ((int(unscaled(pts[pts.size() - 2].y()) * 100)) / 100.) << "[" << (pts.size() - 2)
+    //                  << "] (convex if cw) with angle :"
+    //                  << (180 *
+    //                      angle_ccw(pts[pts.size() - 3] - pts[pts.size() - 2],
+    //                                pts[pts.size() - 1] - pts[pts.size() - 2]) /
+    //                      PI)
+    //                  << "\n";
+    //    }
+    //    Slic3r::Polygon polygon_ccw(pts);
+    //    polygon_ccw.points.push_back(Point::new_scale(x, 2));
+    //            std::cout << "add ccw pt " << (pts.size() - 1) << " with angle :"
+    //                      << (180 *
+    //                          angle_ccw(pts[pts.size() - 2] - pts[pts.size() - 1],
+    //                                    Point::new_scale(x, 2) - pts[pts.size() - 1]) /
+    //                          PI)
+    //                      << "\n";
+    //    polygon_ccw.points.push_back(Point::new_scale(0, 2));
+    //    Slic3r::Polygon polygon_cw(pts);
+    //    polygon_cw.points.push_back(Point::new_scale(x, -2));
+    //            std::cout << "add cw pt " << (pts.size() - 1) << " with angle :"
+    //                      << (180 *
+    //                          angle_ccw(pts[pts.size() - 2] - pts[pts.size() - 1],
+    //                                    Point::new_scale(x, -2) - pts[pts.size() - 1]) /
+    //                          PI)
+    //                      << "\n";
+    //    polygon_cw.points.push_back(Point::new_scale(0, -2));
+    //
+    //    std::cout<<"TEST MAX\n";
+    //    for (int angle = 5; angle < 180; angle += 10) {
+    //        std::cout<<"===== angle "<<angle<<" =====\n";
+    //        std::vector<size_t> concave_1 = polygon_ccw.concave_points_idx(0, PI * angle / 180.);
+    //        std::cout<<"concave ccw  :";
+    //        for(size_t idx : concave_1) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //        std::vector<size_t> concave_2 = polygon_cw.concave_points_idx(0, PI * angle / 180.);
+    //        std::cout<<"concave cw  :";
+    //        for(size_t idx : concave_2) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //        std::vector<size_t> convex_1 = polygon_ccw.convex_points_idx(0, PI * angle / 180.);
+    //        std::cout<<"convex ccw  :";
+    //        for(size_t idx : convex_1) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //        std::vector<size_t> convex_2 = polygon_cw.convex_points_idx(0, PI * angle / 180.);
+    //        std::cout<<"convex cw  :";
+    //        for(size_t idx : convex_2) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //    }
+    //
+    //    std::cout<<"TEST MIN\n";
+    //    for (int angle = 5; angle < 180; angle += 10) {
+    //        std::cout<<"===== angle "<<angle<<" =====\n";
+    //        std::vector<size_t> concave_1 = polygon_ccw.concave_points_idx(PI * angle / 180., PI);
+    //        std::cout<<"concave ccw  :";
+    //        for(size_t idx : concave_1) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //        std::vector<size_t> concave_2 = polygon_cw.concave_points_idx(PI * angle / 180., PI);
+    //        std::cout<<"concave cw  :";
+    //        for(size_t idx : concave_2) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //        std::vector<size_t> convex_1 = polygon_ccw.convex_points_idx(PI * angle / 180., PI);
+    //        std::cout<<"convex ccw  :";
+    //        for(size_t idx : convex_1) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //        std::vector<size_t> convex_2 = polygon_cw.convex_points_idx(PI * angle / 180., PI);
+    //        std::cout<<"convex cw  :";
+    //        for(size_t idx : convex_2) std::cout<<", "<<idx;
+    //        std::cout<<"\n";
+    //    }
+
+    //    REQUIRE(true);
+    //}
+
     GIVEN(("A Square with dimension 100")){
         Slic3r::Polygon square/*new_scale*/( Points{
             Point::new_scale(100,100),
@@ -409,13 +505,17 @@ SCENARIO("Polygon convex/concave detection"){
             Point::new_scale(200,200),
             Point::new_scale(100,200)});
         THEN("It has 4 convex points counterclockwise"){
-            REQUIRE(square.concave_points(PI*4/3).size() == 0);
-            REQUIRE(square.convex_points(PI*2/3).size() == 4);
+            REQUIRE(square.concave_points(0, PI).size() == 0);
+            REQUIRE(square.concave_points(0, PI*2/3).size() == 0);
+            REQUIRE(square.convex_points(0, PI).size() == 4);
+            REQUIRE(square.convex_points(0, PI*2/3).size() == 4);
         }
         THEN("It has 4 concave points clockwise"){
             square.make_clockwise();
-            REQUIRE(square.concave_points(PI*4/3).size() == 4);
-            REQUIRE(square.convex_points(PI*2/3).size() == 0);
+            REQUIRE(square.concave_points(0, PI).size() == 4);
+            REQUIRE(square.concave_points(0, PI*2/3).size() == 4);
+            REQUIRE(square.convex_points(0, PI).size() == 0);
+            REQUIRE(square.convex_points(0, PI*2/3).size() == 0);
         }
     }
     GIVEN("A Square with an extra colinearvertex"){
@@ -426,8 +526,10 @@ SCENARIO("Polygon convex/concave detection"){
             Point::new_scale(100,200),
             Point::new_scale(100,100)} );
         THEN("It has 4 convex points counterclockwise"){
-            REQUIRE(square.concave_points(PI*4/3).size() == 0);
-            REQUIRE(square.convex_points(PI*2/3).size() == 4);
+            REQUIRE(square.concave_points(0, PI).size() == 1);
+            REQUIRE(square.concave_points(0, PI*2/3).size() == 0);
+            REQUIRE(square.convex_points(0, PI).size() == 5);
+            REQUIRE(square.convex_points(0, PI*2/3).size() == 4);
         }
     }
     GIVEN("A Square with an extra collinear vertex in different order"){
@@ -438,8 +540,14 @@ SCENARIO("Polygon convex/concave detection"){
             Point::new_scale(150,100),
             Point::new_scale(200,100)} );
         THEN("It has 4 convex points counterclockwise"){
-            REQUIRE(square.concave_points(PI*4/3).size() == 0);
-            REQUIRE(square.convex_points(PI*2/3).size() == 4);
+            auto concave_points  = square.concave_points(0, PI*2/3);
+            auto concave_points23  = square.concave_points(0, PI);
+            auto convex_points  = square.convex_points(0, PI);
+            auto convex_points23  = square.convex_points(0, PI*2/3);
+            REQUIRE(square.concave_points(0, PI).size() == 1);
+            REQUIRE(square.concave_points(0, PI*2/3).size() == 0);
+            REQUIRE(square.convex_points(0, PI).size() == 5);
+            REQUIRE(square.convex_points(0, PI*2/3).size() == 4);
         }
     }
 
@@ -450,8 +558,10 @@ SCENARIO("Polygon convex/concave detection"){
             Point{31286371,461008}
         } );
         THEN("it has three convex vertices"){
-            REQUIRE(triangle.concave_points(PI*4/3).size() == 0);
-            REQUIRE(triangle.convex_points(PI*2/3).size() == 3);
+            REQUIRE(triangle.concave_points(0, PI).size() == 0);
+            REQUIRE(triangle.concave_points(0, PI*2/3).size() == 0);
+            REQUIRE(triangle.convex_points(0, PI).size() == 3);
+            REQUIRE(triangle.convex_points(0, PI*2/3).size() == 3);
         }
     }
 
@@ -463,12 +573,14 @@ SCENARIO("Polygon convex/concave detection"){
             Point{31286371,461012}
         } );
         THEN("it has three convex vertices"){
-            REQUIRE(triangle.concave_points(PI*4/3).size() == 0);
-            REQUIRE(triangle.convex_points(PI*2/3).size() == 3);
+            REQUIRE(triangle.concave_points(0, PI).size() == 1);
+            REQUIRE(triangle.concave_points(0, PI*2/3).size() == 0);
+            REQUIRE(triangle.convex_points(0, PI).size() == 4);
+            REQUIRE(triangle.convex_points(0, PI*2/3).size() == 3);
         }
     }
     GIVEN("A polygon with concave vertices with angles of specifically 4/3pi"){
-        // Two concave vertices of this polygon have angle = PI*4/3, so this test fails
+        // Two concave vertices of this polygon have angle = PI *4/3, so this test fails
         // if epsilon is not used.
         Slic3r::Polygon polygon( Points{
             Point{60246458,14802768},Point{64477191,12360001},
@@ -481,10 +593,17 @@ SCENARIO("Polygon convex/concave detection"){
             Point{38092663,692699},Point{52100125,692699}
         } );
         THEN("the correct number of points are detected"){
-            REQUIRE(polygon.concave_points(PI*4/3).size() == 6);
-            REQUIRE(polygon.convex_points(PI*2/3).size() == 10);
+            auto concave_points  = polygon.concave_points(0, PI*2/3);
+            auto concave_points23  = polygon.concave_points(0, PI);
+            auto convex_points  = polygon.convex_points(0, PI);
+            auto convex_points23  = polygon.convex_points(0, PI*2/3);
+            REQUIRE(polygon.concave_points(0, PI).size() == 6);
+            REQUIRE(polygon.concave_points(0, PI*2/3).size() == 6);
+            REQUIRE(polygon.convex_points(0, PI).size() == 10);
+            REQUIRE(polygon.convex_points(0, PI*2/3).size() == 10);
         }
     }
+
 }
 
 TEST_CASE("Triangle Simplification does not result in less than 3 points"){

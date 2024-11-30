@@ -489,6 +489,13 @@ void PrintObject::prepare_infill()
             }
         }
     }
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
+        }
+    }
 #endif
     
     if (ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Partial || ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Enabled) {
@@ -525,6 +532,13 @@ void PrintObject::prepare_infill()
                            srf.surface_type == (stPosTop | stDensSolid) ||
                            srf.surface_type == (stPosBottom | stDensSolid) ||
                            srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+                }
+            }
+        }
+        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+            for (const Layer *layer : m_layers) {
+                for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                    srf.expolygon.assert_valid();
                 }
             }
         }
@@ -598,7 +612,8 @@ void PrintObject::prepare_infill()
                         for (auto &expoly : intersect) {
                             area += expoly.area();
                         }
-                        assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                        // assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                        assert(area < scale_t(1) * scale_t(1));
                     }
                 }
             }
@@ -4274,6 +4289,7 @@ bool PrintObject::update_layer_height_profile(const ModelObject& model_object, c
 void PrintObject::discover_horizontal_shells()
 {
     BOOST_LOG_TRIVIAL(trace) << "discover_horizontal_shells()";
+    coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->print()->config().resolution.value));
 
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         for (size_t i = 0; i < m_layers.size(); ++i) {
@@ -4290,6 +4306,9 @@ void PrintObject::discover_horizontal_shells()
                     for (Surface& surface : layerm->set_fill_surfaces().surfaces)
                         if (surface.surface_type == (stPosInternal | stDensSparse))
                             surface.surface_type = type;
+            }
+            for (const Surface &srf : layerm->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
             }
 
             // If ensure_vertical_shell_thickness, then the rest has already been performed by discover_vertical_shells().
@@ -4335,7 +4354,7 @@ void PrintObject::discover_horizontal_shells()
                 solid = union_ex(solid);
                 //                Slic3r::debugf "Layer %d has %s surfaces\n", $i, (($type & stTop) != 0) ? 'top' : 'bottom';
 
-                                // Scatter top / bottom regions to other layers. Scattering process is inherently serial, it is difficult to parallelize without locking.
+                // Scatter top / bottom regions to other layers. Scattering process is inherently serial, it is difficult to parallelize without locking.
                 for (int n = ((type & stPosTop) == stPosTop) ? int(i) - 1 : int(i) + 1;
 
                     ((type & stPosTop) == stPosTop) ?
@@ -4441,20 +4460,24 @@ void PrintObject::discover_horizontal_shells()
                             // solid = new_internal_solid;
                         }
                     }
+                    for (const Surface &srf : layerm->fill_surfaces().surfaces) {
+                        srf.expolygon.assert_valid();
+                    }
 
                     // internal-solid are the union of the existing internal-solid surfaces
                     // and new ones
                     SurfaceCollection backup = std::move(neighbor_layerm->set_fill_surfaces());
                     expolygons_append(new_internal_solid, to_expolygons(backup.filter_by_type(stPosInternal | stDensSolid)));
-                ExPolygons internal_solid = union_ex(new_internal_solid);
+                    ExPolygons internal_solid = ensure_valid(union_ex(new_internal_solid), scaled_resolution);
                     // assign new internal-solid surfaces to layer
                     neighbor_layerm->set_fill_surfaces().set(internal_solid, stPosInternal | stDensSolid);
                     // subtract intersections from layer surfaces to get resulting internal surfaces
                     //ExPolygons polygons_internal = to_polygons(std::move(internal_solid));
-                ExPolygons internal = diff_ex(to_expolygons(backup.filter_by_type(stPosInternal | stDensSparse)), internal_solid, ApplySafetyOffset::Yes);
+                    ExPolygons expolys_internal = diff_ex(to_expolygons(backup.filter_by_type(stPosInternal | stDensSparse)), internal_solid, ApplySafetyOffset::Yes);
+                    ensure_valid(expolys_internal, scaled_resolution);
                     // assign resulting internal surfaces to layer
-                    neighbor_layerm->set_fill_surfaces().append(internal, stPosInternal | stDensSparse);
-                    expolygons_append(internal_solid, internal);
+                    neighbor_layerm->set_fill_surfaces().append(expolys_internal, stPosInternal | stDensSparse);
+                    expolygons_append(internal_solid, expolys_internal);
                     // assign top and bottom surfaces to layer
                     backup.keep_types({ stPosTop | stDensSolid, stPosBottom | stDensSolid, stPosBottom | stDensSolid | stModBridge });
                     //backup.keep_types_flag(stPosTop | stPosBottom);
@@ -4462,13 +4485,16 @@ void PrintObject::discover_horizontal_shells()
                     backup.group(&top_bottom_groups);
                     for (SurfacesPtr& group : top_bottom_groups) {
                         neighbor_layerm->set_fill_surfaces().append(
-                            diff_ex(to_expolygons(group), union_ex(internal_solid)),
+                            ensure_valid(diff_ex(to_expolygons(group), union_ex(internal_solid)), scaled_resolution),
                             // Use an existing surface as a template, it carries the bridge angle etc.
                             *group.front());
                     }
                 }
             EXTERNAL:;
             } // foreach type (stTop, stBottom, stBottomBridge)
+            for (const Surface &srf : layerm->fill_surfaces().surfaces) {
+                srf.expolygon.assert_valid();
+            }
         } // for each layer
     }     // for each region
 

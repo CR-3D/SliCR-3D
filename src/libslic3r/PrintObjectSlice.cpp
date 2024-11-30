@@ -618,7 +618,7 @@ void PrintObject::slice()
     //create polyholes
     this->_transform_hole_to_polyholes();
 
-    this->_min_overhang_threshold();
+    this->_max_overhang_threshold();
 
     // Update bounding boxes, back up raw slices of complex models.
     tbb::parallel_for(
@@ -649,10 +649,14 @@ void PrintObject::slice()
 }
 
 // modify the polygon so it doesn't have any concave angle spiker than 90°
-// used by _min_overhang_threshold
-void only_convex_90(Polygon &poly) {
+// used by _max_overhang_threshold
+void only_convex_or_gt90deg(Polygon &poly) {
+    static int only_convex_or_gt90deg_i = 0;
+    only_convex_or_gt90deg_i++;
+    Polygon srcp = poly;
     const bool ccw = poly.is_counter_clockwise();
-    std::vector<size_t> concave = ccw ? poly.concave_points_idx( PI/2 - EPSILON) : poly.convex_points_idx(PI/2 - EPSILON);
+    std::vector<size_t> concave = ccw ? poly.concave_points_idx(0, PI / 2 - 0.001) : poly.convex_points_idx(0, PI / 2 - 0.001);
+    size_t iter = 0;
     while (!concave.empty()) {
         assert(std::is_sorted(concave.begin(), concave.end()));
         Points new_pts;
@@ -677,8 +681,13 @@ void only_convex_90(Polygon &poly) {
                 Point next_point = ccw? (idx == poly.size() - 1 ? poly.front() : poly[idx + 1]) : (idx == 0 ? poly.back() : poly[idx - 1]);
                 assert(is_approx(ccw_angle_old_test(poly[idx], previous_point, next_point), abs_angle(angle_ccw(previous_point - poly[idx], next_point - poly[idx])), 0.00000001));
                 double angle = abs_angle(angle_ccw(previous_point - poly[idx], next_point - poly[idx]));
-                assert(angle <= PI/2 && angle >= 0);
+                if (angle < PI / 2 + 0.001 && angle > PI / 2) {
+                    angle = PI / 2;
+                }
+                assert(angle <= PI / 2 + EPSILON && angle >= 0);
                 coordf_t dist_to_move = std::cos(angle) * poly[idx].distance_to(small_side_point) + SCALED_EPSILON / 2;
+                // increase dist if big number of iteration (means it's too slow to pull 2 points one after another)
+                dist_to_move *= (0.95 + ((iter + 2) * (iter + 1) / 40)); // 0->1; 1->1.1; 3->1.45; 5->2; 10->4.2; 20->12.5
                 // if distance to move too big, just deleted point (don't add it)
                 if (dist_to_move < poly[idx].distance_to(big_side_point)) {
                     Line l(poly[idx], big_side_point);
@@ -688,14 +697,19 @@ void only_convex_90(Polygon &poly) {
                     assert(angle_new != angle);
                 }
             }
-        }
+        };
         poly.points = new_pts;
-        concave = ccw ? poly.concave_points_idx( 3 * PI/2 + EPSILON) : poly.convex_points_idx(PI/2 - EPSILON);
-    }
+        concave = ccw ? poly.concave_points_idx(0, PI / 2 - 0.001) : poly.convex_points_idx(0, PI / 2 - 0.001);
 
+        if (iter > 20) {
+            // abord where we are.
+            return;
+        }
+        iter++;
+    }
 }
 
-void PrintObject::_min_overhang_threshold() {
+void PrintObject::_max_overhang_threshold() {
     bool has_enlargment = false;
 
     coord_t max_nz_diam = 0;
@@ -839,10 +853,12 @@ void PrintObject::_min_overhang_threshold() {
                 ExPolygons new_enlarged_support = union_safety_offset_ex(enlarged_support);
                 // if possible, be sure to not have concave points in unsupported area
                 for (ExPolygon &expoly : new_enlarged_support) {
-                    only_convex_90(expoly.contour);
-                    //same with holes (convex as they are in reverse order)
+                    assert(expoly.contour.is_counter_clockwise());
+                    only_convex_or_gt90deg(expoly.contour);
+                    //same with holes (concave as they are in reverse order, this is taken care inside only_convex_or_90deg)
                     for (Polygon &hole : expoly.holes) {
-                        only_convex_90(hole);
+                        assert(hole.is_clockwise());
+                        only_convex_or_gt90deg(hole);
                     }
                 }
                 enlarged_support = intersection_ex(new_enlarged_support, enlarged_support);
@@ -945,7 +961,7 @@ void PrintObject::_transform_hole_to_polyholes()
                     for (Surface& surf : layer->m_regions[region_idx]->m_slices.surfaces) {
                         for (Polygon& hole : surf.expolygon.holes) {
                             //test if convex (as it's clockwise bc it's a hole, we have to do the opposite)
-                            if (hole.convex_points().empty() && hole.points.size() > 8) {
+                            if (hole.convex_points(0, PI).empty() && hole.points.size() > 8) {
                                 // Computing circle center
                                 Point center = hole.centroid();
                                 double diameter_min = std::numeric_limits<float>::max(), diameter_max = 0;

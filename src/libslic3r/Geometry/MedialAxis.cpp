@@ -2024,7 +2024,7 @@ check_circular(ExPolygon& expolygon, coord_t max_variation) {
     if (expolygon.holes.size() > 0) return 0;
 
     //test if convex
-    if (expolygon.contour.concave_points().empty() && expolygon.contour.points.size() > 3) {
+    if (expolygon.contour.concave_points(0, PI).empty() && expolygon.contour.points.size() > 3) {
         // Computing circle center
         Point center = expolygon.contour.centroid();
         coordf_t radius_min = std::numeric_limits<float>::max(), radius_max = 0;

@@ -3220,7 +3220,7 @@ LayerResult GCodeGenerator::process_layer(
             set_extra_lift(m_last_layer_z, layer.id(), print.config(), m_writer, first_extruder_id);
         gcode += this->change_layer(print_z);  // this will increase m_layer_index
         //forget wipe from previous layer
-        gcode += "; m_wipe.reset_path(); after change_layer\n";
+        //gcode += "; m_wipe.reset_path(); after change_layer\n";
         assert(m_new_z_target || is_approx(print_z, m_writer.get_unlifted_position().z(), EPSILON));
     }
     m_layer = &layer;
@@ -6631,20 +6631,20 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
                             poly_start.clip_end(length * ratio);
                             poly_end.clip_start(length * (1 - ratio));
                         }
-                        gcode += "; acceleration to travel\n";
+                        //gcode += "; acceleration to travel\n";
                         m_writer.set_travel_acceleration((uint32_t) floor(travel_acceleration + 0.5));
                         this->write_travel_to(gcode, poly_start,
                                               "move to first " + description + " point (acceleration)");
                         // travel acceleration should be already set at startup via special gcode, and so it's
                         // automatically used by G0.
-                        gcode += "; decel to extrusion\n";
+                        //gcode += "; decel to extrusion\n";
                         m_writer.set_travel_acceleration((uint32_t) floor(acceleration + 0.5));
                         this->write_travel_to(gcode, poly_end,
                                               "move to first " + description + " point (deceleration)");
                         // restore travel accel and ensure the new extrusion accel is set
                         m_writer.set_travel_acceleration((uint32_t) floor(travel_acceleration + 0.5));
                         m_writer.set_acceleration((uint32_t) floor(acceleration + 0.5));
-                        gcode += "; end travel\n";
+                        //gcode += "; end travel\n";
                         assert(!moved_to_point);
                         moved_to_point = true;
                     }
@@ -6696,7 +6696,7 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
         m_delayed_layer_change.clear();
         gcode += unlift;
         //now that we move to the new layer, forget previous layer wipe (if any).
-        gcode += "; m_wipe.reset_path(); after m_delayed_layer_change\n";
+        //gcode += "; m_wipe.reset_path(); after m_delayed_layer_change\n";
     }
     gcode += m_writer.unretract();
 

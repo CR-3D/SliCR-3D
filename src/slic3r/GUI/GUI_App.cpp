@@ -115,6 +115,7 @@
 #include "Downloader.hpp"
 #include "PhysicalPrinterDialog.hpp"
 #include "WifiConfigDialog.hpp"
+#include "Widgets/UIColors.hpp"
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
@@ -1327,6 +1328,7 @@ bool GUI_App::on_init_inner() {
         if (!older_data_dir_path.empty())
             m_last_app_conf_lower_version = true;
     }
+    
 
 #ifdef _MSW_DARK_MODE
     // app_config can be updated in check_older_app_config(), so check if dark_color_mode and sys_menu_enabled was changed
@@ -1336,14 +1338,13 @@ bool GUI_App::on_init_inner() {
         NppDarkMode::SetDarkMode(new_dark_color_mode);
 #endif
         init_ui_colours();
-        update_ui_colours_from_appconfig();
     }
     if (bool new_sys_menu_enabled = app_config->get_bool("sys_menu_enabled");
         init_sys_menu_enabled != new_sys_menu_enabled)
 #if WIN32
         NppDarkMode::SetSystemMenuForApp(new_sys_menu_enabled);
 #endif
-#endif
+    update_ui_colours_from_appconfig();
 
     if (is_editor()) {
         std::string msg = Http::tls_global_init();
@@ -1744,7 +1745,12 @@ void GUI_App::update_ui_colours_from_appconfig() {
             m_color_label_phony = wxColour(str);
     }
 
-#if WIN32
+    Slic3r::GUI::Widget::set_clr_border_hovered(change_endian_int24(
+        app_config->create_color(0.86f, 0.93f, AppConfig::EAppColorType::Highlight)));
+    Slic3r::GUI::Widget::set_clr_background_focused(change_endian_int24(
+        app_config->create_color(0.86f, 0.93f, AppConfig::EAppColorType::Main)));
+
+#ifdef _WIN32
     bool is_dark_mode = dark_mode();
     m_color_hovered_btn_label = is_dark_mode ?
         color_from_int(app_config->create_color(0.84f, 0.99f, AppConfig::EAppColorType::Highlight)) :

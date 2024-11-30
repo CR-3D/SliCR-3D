@@ -252,7 +252,7 @@ Points filter_points_by_vectors(const Points &poly, FilterFn filter) {
         // p2 is next point to the currently visited point p1.
         Vec2d v2 = (p2 - p1).cast<double>();
         if (filter(v1, v2))
-            out.emplace_back(p2);
+            out.emplace_back(p1);
         v1 = v2;
         p1 = p2;
     }
@@ -267,11 +267,13 @@ Points filter_convex_concave_points_by_angle_threshold(const Points &poly,
                                                        ConvexConcaveFilterFn convex_concave_filter) {
     assert(min_angle >= 0.);
     assert(max_angle >= 0.);
+    assert(max_angle <= PI);
     if (min_angle > EPSILON || max_angle < PI - EPSILON) {
         double min_dot = -cos(min_angle);
         double max_dot = -cos(max_angle);
         return filter_points_by_vectors(poly,
                                         [convex_concave_filter, min_dot, max_dot](const Vec2d &v1, const Vec2d &v2) {
+                                            //first, check if it's the right kind of angle.
                                             bool is_convex = convex_concave_filter(v1, v2);
                                             if (!is_convex)
                                                 return false;
@@ -287,12 +289,12 @@ Points filter_convex_concave_points_by_angle_threshold(const Points &poly,
 
 Points Polygon::convex_points(double min_angle, double max_angle) const
 {
-    return filter_convex_concave_points_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return cross2(v1, v2) >= 0.; });
+    return filter_convex_concave_points_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return (cross2(v1, v2) >= 0.); });
 }
 
 Points Polygon::concave_points(double min_angle, double max_angle) const
 {
-    return filter_convex_concave_points_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return cross2(v1, v2) <= 0.; });
+    return filter_convex_concave_points_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return (cross2(v1, v2) <= 0.); });
 }
 
 template<typename FilterFn>
@@ -325,7 +327,6 @@ std::vector<size_t> filter_points_idx_by_vectors(const Points &poly, FilterFn fi
         if (filter(v1, v2))
             out.push_back(poly.size() - 1);
     }
-
     return out;
 }
 
@@ -336,17 +337,19 @@ std::vector<size_t> filter_convex_concave_points_idx_by_angle_threshold(const Po
                                                                         ConvexConcaveFilterFn convex_concave_filter) {
     assert(min_angle >= 0.);
     assert(max_angle >= 0.);
+    assert(max_angle <= PI);
     if (min_angle > EPSILON || max_angle < PI - EPSILON) {
         double min_dot = -cos(min_angle);
         double max_dot = -cos(max_angle);
         return filter_points_idx_by_vectors(poly,
                                             [convex_concave_filter, min_dot, max_dot](const Vec2d &v1, const Vec2d &v2) {
-                                                // if v1 and v2 has same direction = flat angle.
-                                                // if v1.dot(v2) is negative -> sharp angle
+                                                //first, check if it's the right kind of angle.
                                                 bool is_convex = convex_concave_filter(v1, v2);
                                                 if (!is_convex)
                                                     return false;
                                                 double dot = v1.normalized().dot(v2.normalized());
+                                                // if v1 and v2 has same direction = flat angle.
+                                                // if v1.dot(v2) is negative -> sharp angle
                                                 return (min_dot <= dot) && (dot <= max_dot);
                                             });
     } else {
@@ -358,12 +361,12 @@ std::vector<size_t> filter_convex_concave_points_idx_by_angle_threshold(const Po
 
 std::vector<size_t> Polygon::convex_points_idx(double min_angle, double max_angle) const
 {
-    return filter_convex_concave_points_idx_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return cross2(v1, v2) > 0.; });
+    return filter_convex_concave_points_idx_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return (cross2(v1, v2) > 0.); });
 }
 
 std::vector<size_t> Polygon::concave_points_idx(double min_angle, double max_angle) const
 {
-    return filter_convex_concave_points_idx_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return cross2(v1, v2) < 0.; });
+    return filter_convex_concave_points_idx_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return (cross2(v1, v2) < 0.); });
 }
 
 // Projection of a point onto the polygon. Return {Point, pt_idx}

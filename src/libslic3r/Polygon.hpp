@@ -113,13 +113,14 @@ public:
     bool first_intersection(const Line& line, Point* intersection) const;
     bool intersections(const Line &line, Points *intersections) const;
 
-    // Considering CCW orientation of this polygon, find all convex resp. concave points
-    // with the angle at the vertex larger than a threshold.
-    // Zero angle_threshold means to accept all convex resp. concave points.
-    Points convex_points(double min_angle = 0., double max_angle = PI) const;
-    Points concave_points(double min_angle = 0., double max_angle = PI) const;
-    std::vector<size_t> concave_points_idx(double min_angle = 0., double max_angle = PI) const;
-    std::vector<size_t> convex_points_idx(double min_angle = 0., double max_angle = PI) const;
+    // Considering CCW orientation of this polygon
+    // (it means that a ccw (contour) is mostly convex, while a cw (hole) is mostly concave),
+    // find all convex resp. concave points
+    // with the angle at the vertex between two threshold.
+    Points convex_points(double min_angle /*=0*/, double max_angle /*=PI*/) const;
+    Points concave_points(double min_angle, double max_angle) const;
+    std::vector<size_t> concave_points_idx(double min_angle, double max_angle) const;
+    std::vector<size_t> convex_points_idx(double min_angle, double max_angle) const;
     // Projection of a point onto the polygon.
     std::pair<Point, size_t> point_projection(const Point &point) const override;
     std::vector<float> parameter_by_length() const;
