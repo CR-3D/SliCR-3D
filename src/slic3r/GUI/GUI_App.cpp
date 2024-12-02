@@ -1337,15 +1337,17 @@ bool GUI_App::on_init_inner() {
 #if WIN32
         NppDarkMode::SetDarkMode(new_dark_color_mode);
 #endif
+
         init_ui_colours();
     }
+
     if (bool new_sys_menu_enabled = app_config->get_bool("sys_menu_enabled");
         init_sys_menu_enabled != new_sys_menu_enabled)
 #if WIN32
         NppDarkMode::SetSystemMenuForApp(new_sys_menu_enabled);
 #endif
     update_ui_colours_from_appconfig();
-
+#endif
     if (is_editor()) {
         std::string msg = Http::tls_global_init();
         std::string ssl_cert_store = app_config->get("tls_accepted_cert_store_location");
