@@ -37,9 +37,6 @@ protected:
     wxHtmlWindow* html_viewer;
     MainFrame* main_frame;
     GUI_App* gui_app;
-
-
-
 };
 
 

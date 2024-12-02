@@ -133,7 +133,7 @@ void FillSizerWithTextColorDescriptions(wxSizer* sizer, wxWindow* parent,
 
 	add_color(default_colour, wxGetApp().get_label_clr_default(), wxGetApp().get_label_default_clr_default(), _L("Value is the same as the last saved preset, but is not the system value"));
 	add_color(sys_colour, wxGetApp().get_label_clr_sys(),	  wxGetApp().get_label_default_clr_system(),	_L("Value is the same as the system value"));
-	add_color(mod_colour, wxGetApp().get_label_clr_modified(),wxGetApp().get_label_default_clr_modified(),	_L("Value was changed and is not equal to the system value or the last saved preset"));
+	add_color(mod_colour, wxGetApp().get_label_clr_modified(), wxGetApp().get_label_default_clr_modified(),	_L("Value was changed and is not equal to the system value or the last saved preset"));
 	add_color(phony_colour, wxGetApp().get_label_clr_phony(), wxGetApp().get_label_default_clr_phony(),     _L("Value isn't taken into account, it's computed over an other field."));
 }
 

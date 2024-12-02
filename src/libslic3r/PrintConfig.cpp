@@ -648,7 +648,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("arc_fitting_resolution", coFloatOrPercent);
     def->label = L("Arc fitting resolution");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->category = OptionCategory::firmware;
     def->tooltip = L("When using the arc_fitting option, resolution used to simplify the path into an arc."
     "\n can be a mm or a % of the slice resolution.");
@@ -658,7 +658,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("arc_fitting_tolerance", coFloatOrPercent);
     def->label = L("Arc fitting tolerance");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->category = OptionCategory::firmware;
     def->tooltip = L("When using the arc_fitting option, allow the curve to deviate a cetain % from the collection "
                      "of strait paths."
@@ -702,7 +702,7 @@ void PrintConfigDef::init_fff_params() {
         "If the detour is longer than this value, avoid crossing perimeters is not applied for this travel path. "
         "Detour length can be specified either as an absolute value or as percentage (for example 50%) of a direct "
         "travel path.");
-    def->sidetext = L("mm or % (zero to disable)");
+    def->sidetext = L("mm/% (zero to disable)");
     def->min = 0;
     def->max_literal = {1000, false};
     def->mode = comExpert | comPrusa;
@@ -811,7 +811,7 @@ void PrintConfigDef::init_fff_params() {
     def->full_label = L("Bridge margin");
     def->category = OptionCategory::infill;
     def->tooltip = L("This parameter grows the bridged solid infill layers by the specified mm to anchor them into the sparse infill and over the perimeters below. Put 0 to deactivate it. Can be a % of the width of the external perimeter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "external_perimeter_extrusion_width";
     def->min = 0;
     def->max_literal = { 50, true };
@@ -909,7 +909,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This is the precision of the bridge detection. If you put it too low, the bridge detection "
                      "will be very inneficient."
                      "\nCan be a % of the bridge spacing.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(25, true));
@@ -949,7 +949,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Speed for printing bridges."
                      "\nThis can be expressed as a percentage (for example: 60%) over the Default speed."
                      "\nSet zero to use the autospeed for this feature");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->aliases = {"bridge_feed_rate"};
     def->ratio_over = "default_speed";
     def->min = 0;
@@ -1072,7 +1072,7 @@ void PrintConfigDef::init_fff_params() {
         "This separate setting will affect the speed of brim and skirt. "
         "\nIf expressed as percentage (for example: 80%) it will be calculated over the Support speed setting."
         "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "support_material_speed";
     def->min = 0;
     def->mode = comExpert | comSuSi;
@@ -1569,7 +1569,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This parameter grows the top/bottom/solid layers by the specified mm to anchor them into the "
                      "sparse infill and support the perimeters above."
                      " Put 0 to deactivate it. Can be a % of the width of the perimeters.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "perimeter_extrusion_width";
     def->min = 0;
     def->max_literal = {50, true};
@@ -1583,7 +1583,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This parameter grows the bridged solid infill layers by the specified mm to anchor them into "
                      "the sparse infill and over the perimeters below. Put 0 to deactivate it. Can be a % of the "
                      "width of the external perimeter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "external_perimeter_extrusion_width";
     def->min = 0;
     def->max_literal = {50, true};
@@ -1600,7 +1600,7 @@ void PrintConfigDef::init_fff_params() {
         "If expressed as percentage (for example 112.5%), it will be computed over nozzle diameter."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter 'Overlap' "
         "percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -1619,7 +1619,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nSetting the spacing will deactivate the width setting, and vice versa."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -1639,7 +1639,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nThis could be combined with extra permeters on even layers."
                      "\nWorks as absolute spacing or a % of the spacing."
                      "\nset 0 to disable");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(false, 0));
 
@@ -1711,7 +1711,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nIf expressed as percentage (for example: 80%) it will be calculated over the Internal "
                      "Perimeters speed setting."
                      "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "perimeter_speed";
     def->min = 0;
     def->mode = comExpert | comPrusa;
@@ -2009,7 +2009,7 @@ void PrintConfigDef::init_fff_params() {
                      "If expressed as percentage (for example: 105%), it will be computed over nozzle diameter."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -2028,7 +2028,7 @@ void PrintConfigDef::init_fff_params() {
                      "bit, it's not the same)."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -2935,7 +2935,7 @@ void PrintConfigDef::init_fff_params() {
                      "If disabled, nothing is changed compared to a normal layer."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -2954,7 +2954,7 @@ void PrintConfigDef::init_fff_params() {
                      "it's not the same)."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -2977,7 +2977,7 @@ void PrintConfigDef::init_fff_params() {
         "If disabled, the first layer width is also used for first layer infills (if enabled)."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter 'Overlap' "
         "percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -2996,7 +2996,7 @@ void PrintConfigDef::init_fff_params() {
                      "bit, it's not the same)."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -3013,7 +3013,7 @@ void PrintConfigDef::init_fff_params() {
                      "bottom layer to improve adhesion and tolerance for non perfect build plates. "
                      "This can be expressed as an absolute value or as a percentage (for example: 75%) "
                      "over the lowest nozzle diameter used in by the object.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max_literal = {20, false};
@@ -3028,7 +3028,7 @@ void PrintConfigDef::init_fff_params() {
                      "print moves (but infill) of the first layer."
                      "\nIf expressed as a percentage it will scale the current speed."
                      "\nSet it at 100% to remove any first layer speed modification (but for infill).");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "depends";
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
@@ -3042,7 +3042,7 @@ void PrintConfigDef::init_fff_params() {
         "of the first object layer above raft interface, regardless of their type."
         "\nIf expressed as a percentage it will scale the current speed (max 100%)."
         "\nSet it at 100% to remove this speed modification.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "depends";
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
@@ -3057,7 +3057,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nIf expressed as a percentage it will scale the current infill speed."
                      "\nSet it at 100% to remove any infill first layer speed modification."
                      "\nSet zero to disable (using first_layer_speed instead).");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "depends";
     def->min = 0;
     def->mode = comExpert | comSuSi;
@@ -3119,7 +3119,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("The maximum distance that each skin point can be offset (both ways), "
                      "measured perpendicular to the perimeter wall."
                      "\nCan be a % of the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloatOrPercent(150, true));
@@ -3131,7 +3131,7 @@ void PrintConfigDef::init_fff_params() {
                      "Lowering the Fuzzy skin point distance will increase the number of randomly offset points on "
                      "the perimeter wall."
                      "\nCan be a % of the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
@@ -3167,7 +3167,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
                      "of the perimeter width");
     def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->max_literal = {50, true};
     def->mode = comExpert | comSuSi;
@@ -3219,7 +3219,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This setting represents the maximum width of a gapfill. Points wider than this threshold won't "
                      "be created.\nCan be a % of the perimeter width\n0 to auto");
     def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
@@ -3243,7 +3243,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This setting represents the minimum mm for a gapfill extrusion to be extruded.\nCan be a % of "
                      "the perimeter width\n0 to auto");
     def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
@@ -3255,7 +3255,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This setting represents the minimum width of a gapfill. Points thinner than this threshold "
                      "won't be created.\nCan be a % of the perimeter width\n0 to auto");
     def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
@@ -3282,7 +3282,7 @@ void PrintConfigDef::init_fff_params() {
         "to avoid too much shaking and resonance issues."
         "\nGap fill extrusions are ignored from the automatic volumetric speed computation, unless you set it to 0."
         "\nThis can be expressed as a percentage (for example: 80%) over the Internal Perimeter speed.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "perimeter_speed";
     def->min = 0;
     def->mode = comExpert | comPrusa;
@@ -3428,7 +3428,7 @@ void PrintConfigDef::init_fff_params() {
         "and the length of the perimeter segment taken is limited to this parameter, but no longer than "
         "anchor_length_max. "
         "\nSet this parameter to zero to disable anchoring perimeters connected to a single infill line.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "infill_extrusion_width";
     def->max_literal = {1000, false};
     def->set_enum_values(ConfigOptionDef::GUIType::f_enum_open,
@@ -3589,7 +3589,7 @@ void PrintConfigDef::init_fff_params() {
         "You may want to use fatter extrudates to speed up the infill and make your parts stronger. "
         "If expressed as percentage (for example 110%) it will be computed over nozzle diameter."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -3609,7 +3609,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nThis could be combined with extra permeters on even layers."
                      "\nWorks as absolute spacing or a % of the spacing."
                      "\nset 0 to disable");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(false, 0));
 
@@ -3621,7 +3621,7 @@ void PrintConfigDef::init_fff_params() {
         "Like First layer width but spacing is the distance between two lines (as they overlap a bit, it's not the "
         "same)."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -3671,7 +3671,7 @@ void PrintConfigDef::init_fff_params() {
                      "as percentage (example: 15%) it is calculated over perimeter extrusion width."
                      "\nDon't put a value higher than 50% (of the perimeter width), as it will fuse with it and "
                      "follow the perimeter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "perimeter_extrusion_width";
     def->min = 0;
     def->max_literal = {0.5, true};
@@ -3685,7 +3685,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Speed for printing the internal fill."
                      "\nThis can be expressed as a percentage (for example: 80%) over the Solid Infill speed."
                      "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "solid_infill_speed";
     def->aliases = {"print_feed_rate", "infill_feed_rate"};
     def->min = 0;
@@ -3762,7 +3762,7 @@ void PrintConfigDef::init_fff_params() {
     def->full_label = L("Internal bridge speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing the bridges that support the top layer.\nCan be a % of the bridge speed.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "bridge_speed";
     def->min = 0;
     def->mode = comExpert | comSuSi;
@@ -3847,7 +3847,7 @@ void PrintConfigDef::init_fff_params() {
     def->category = OptionCategory::ironing;
     def->tooltip = L("Distance between ironing lines."
                      "\nCan be a % of the nozzle diameter used for ironing.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->mode = comExpert | comPrusa;
@@ -4166,7 +4166,7 @@ void PrintConfigDef::init_fff_params() {
                      "is 75% of the extrusion width to achieve reasonable inter-layer adhesion. "
                      "\nCan be a % of the nozzle diameter."
                      "\nIf disabled, layer height is limited to 75% of the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max_literal = {1, true};
@@ -4184,7 +4184,7 @@ void PrintConfigDef::init_fff_params() {
         "in order to keep constant extruder pressure. This experimental setting is used "
         "to set the highest print speed you want to allow."
         "\nThis can be expressed as a percentage (for example: 100%) over the machine Max Feedrate for X axis.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "machine_max_feedrate_x";
     def->min = 1;
     def->mode = comExpert | comPrusa;
@@ -4275,7 +4275,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This is the lowest printable layer height for this extruder and limits "
                      "the resolution for variable layer height. Typical values are between 0.05 mm and 0.1 mm."
                      "\nCan be a % of the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max_literal = {5, false};
@@ -4293,7 +4293,7 @@ void PrintConfigDef::init_fff_params() {
                      " This value can be a mm or a % of the perimeter extrusion width."
                      "\nWarning: If enabled, artifacts can be created is you have some thin features on the next "
                      "layer, like letters. Set this setting to 0 to remove these artifacts.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "perimeter_extrusion_width";
     def->min = 0;
     def->max_literal = {15, false};
@@ -4603,7 +4603,7 @@ void PrintConfigDef::init_fff_params() {
                      " It doesn't cut into detected bridgeable areas."
                      "\nCan be a % of the highest nozzle diameter."
                      "\nSet to 0 to disable.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->mode = comExpert | comSuSi;
@@ -4645,7 +4645,7 @@ void PrintConfigDef::init_fff_params() {
         "\nCan be in mm or in a % of the nozzle diameter."
         "\nCan be overriden by the overhang flow threshold if its value lower than this threshold."
         "\nIf dynamic speed is used, then the dynamic speed will be computed between 0% and this threshold.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->can_be_disabled = true;
@@ -4662,7 +4662,7 @@ void PrintConfigDef::init_fff_params() {
         "\nIf lower than the threshold for overhangs speed, then this threshold is used for both."
         "\nIf dynamic speed is used, and the overhangs speed threshold isn't enabled or is higher than this one,"
         " then the dynamic speed will be computed between 0% and this threshold.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max_literal = {10, true};
@@ -4790,7 +4790,7 @@ void PrintConfigDef::init_fff_params() {
         "If expressed as percentage (for example 105%) it will be computed over nozzle diameter."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter 'Overlap' "
         "percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->aliases = {"perimeters_extrusion_width"};
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
@@ -4809,7 +4809,7 @@ void PrintConfigDef::init_fff_params() {
                      "a bit, it's not the same)."
                      "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using the perimeter "
                      "'Overlap' percentages and default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->aliases = {"perimeters_extrusion_width"};
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
@@ -4830,7 +4830,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nThis could be combined with extra permeters on even layers."
                      "\nWorks as absolute spacing or a % of the spacing."
                      "\nset 0 to disable");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
@@ -4930,7 +4930,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Speed for perimeters (contours, aka vertical shells)."
                      "\nThis can be expressed as a percentage (for example: 80%) over the Default speed."
                      "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->aliases = {"perimeter_feed_rate"};
     def->ratio_over = "default_speed";
     def->min = 0;
@@ -5223,7 +5223,7 @@ void PrintConfigDef::init_fff_params() {
         "for features"
         " (Too many too small commands may overload the firmware / connection)."
         "\nDisabled if set to 0.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
@@ -5238,7 +5238,7 @@ void PrintConfigDef::init_fff_params() {
         "Maximum deviation of exported G-code paths from their full resolution counterparts"
         " when some commands are culled by 'gcode_min_length' or 'max_gcode_per_second' to not overload the firmware."
         "\nCan be a % of perimeter width.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
@@ -5511,7 +5511,7 @@ void PrintConfigDef::init_fff_params() {
     def->category = OptionCategory::extruders;
     def->tooltip = L("To avoid visible seam, the extrusion can be stoppped a bit before the end of the loop."
                      "\nCan be a mm or a % of the current extruder diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->max_literal = {5, false};
     def->mode = comExpert | comSuSi;
@@ -5525,7 +5525,7 @@ void PrintConfigDef::init_fff_params() {
         "To avoid visible seam, the extrusion can be stoppped a bit before the end of the loop."
         "\n this setting is enforced only for external perimeter. It overrides 'seam_gap' if different than 0"
         "\nCan be a mm or a % of the current seam gap.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->max_literal = {5, false};
     def->mode = comExpert | comSuSi;
@@ -5542,7 +5542,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nThe size of the cavity is in mm or a % of the external perimeter width. It's overriden by "
                      "the two other 'seam notch' setting when applicable."
                      "\nSet zero to disable.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->max_literal = {5, false};
     def->mode = comExpert | comSuSi;
@@ -5571,7 +5571,7 @@ void PrintConfigDef::init_fff_params() {
         "holes, unless it's in an overhang)."
         "\nThe size of the cavity is in mm or a % of the external perimeter width"
         "\nSet zero to disable.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->max = 50;
     def->max_literal = {5, false};
@@ -5588,7 +5588,7 @@ void PrintConfigDef::init_fff_params() {
         "convex, unless it's in an overhang)."
         "\nThe size of the cavity is in mm or a % of the external perimeter width"
         "\nSet zero to disable.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->max = 50;
     def->max_literal = {5, false};
@@ -5693,7 +5693,7 @@ void PrintConfigDef::init_fff_params() {
         "Horizontal width of the skirt that will be printed around each object."
         " If left as zero, first layer extrusion width will be used if set and the skirt is only 1 layer height"
         ", or perimeter extrusion width will be used (using the computed value if not set).");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -5745,7 +5745,7 @@ void PrintConfigDef::init_fff_params() {
         "\nIf expressed as percentage (for example: 80%) it will be calculated on the Internal Perimeters speed "
         "setting above."
         "\nSet zero to disable.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "perimeter_speed";
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
@@ -5758,7 +5758,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This sets the threshold for small perimeter length. Every loop with a length lower than this "
                      "will be printed at small perimeter speed"
                      "\nCan be a mm value or a % of the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max_literal = {100, false};
@@ -5773,7 +5773,7 @@ void PrintConfigDef::init_fff_params() {
                      " Every perimeter loop lower than this will see their speed reduced a bit, from their normal "
                      "speed at this length down to small perimeter speed."
                      "\nCan be a mm or a % of the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max_literal = {500, false};
@@ -5805,7 +5805,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Force solid infill for parts of regions having a smaller width than the specified threshold."
                      "\nCan be a % of the current solid infill spacing."
                      "\nSet 0 to disable");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
@@ -5854,7 +5854,7 @@ void PrintConfigDef::init_fff_params() {
         "used. "
         "If expressed as percentage (for example 110%) it will be computed over nozzle diameter."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -5874,7 +5874,7 @@ void PrintConfigDef::init_fff_params() {
                      "\nThis could be combined with extra permeters on even layers."
                      "\nWorks as absolute spacing or a % of the spacing."
                      "\nset 0 to disable");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(false, 0));
 
@@ -5886,7 +5886,7 @@ void PrintConfigDef::init_fff_params() {
         "Like Solid infill width but spacing is the distance between two lines (as they overlap a bit, it's not the "
         "same)."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -5919,7 +5919,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Speed for printing solid regions (top/bottom/internal horizontal shells). "
                      "\nThis can be expressed as a percentage (for example: 80%) over the Default speed."
                      "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "default_speed";
     def->aliases = {"solid_infill_feed_rate"};
     def->min = 0;
@@ -6155,7 +6155,7 @@ void PrintConfigDef::init_fff_params() {
     def->category = OptionCategory::support;
     def->tooltip = L("XY separation between an object and its support. If expressed as percentage "
                      "(for example 50%), it will be calculated over external perimeter width.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "external_perimeter_extrusion_width";
     def->min = 0;
     def->max_literal = {10, false};
@@ -6275,7 +6275,7 @@ void PrintConfigDef::init_fff_params() {
         "Set this to a non-zero value to set a manual extrusion width for support material. "
         "If left as zero, default extrusion width will be used if set, otherwise nozzle diameter will be used. "
         "If expressed as percentage (for example 110%) it will be computed over nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -6398,7 +6398,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Maximum layer height for the support interface."
                      "\nCan be a % of the nozzle diameter"
                      "\nIf set to 0, the extruder maximum height will be used.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->mode = comAdvancedE | comSuSi;
@@ -6421,7 +6421,7 @@ void PrintConfigDef::init_fff_params() {
         "Speed for printing support material interface layers."
         "\nIf expressed as percentage (for example 50%) it will be calculated over support material speed."
         "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "support_material_speed";
     def->min = 0;
     def->mode = comExpert | comPrusa;
@@ -6485,7 +6485,7 @@ void PrintConfigDef::init_fff_params() {
                      "and before the interface layers."
                      "\nCan be a % of the nozzle diameter"
                      "\nIf set to 0, the extruder maximum height will be used.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->mode = comAdvancedE | comSuSi;
@@ -6507,7 +6507,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Speed for printing support material."
                      "\nThis can be expressed as a percentage (for example: 80%) over the Default speed."
                      "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "default_speed";
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
@@ -6812,7 +6812,7 @@ void PrintConfigDef::init_fff_params() {
         "Speed for thin walls (external extrusions that are alone because the obect is too thin at these places)."
         "\nThis can be expressed as a percentage (for example: 80%) over the External Perimeter speed."
         "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "external_perimeter_speed";
     def->min = 0;
     def->mode = comExpert | comSuSi;
@@ -6919,7 +6919,7 @@ void PrintConfigDef::init_fff_params() {
         "If left as zero, default extrusion width will be used if set, otherwise nozzle diameter will be used. "
         "If expressed as percentage (for example 110%) it will be computed over nozzle diameter."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -6936,7 +6936,7 @@ void PrintConfigDef::init_fff_params() {
         "Like Top solid infill width but spacing is the distance between two lines (as they overlap a bit, it's not "
         "the same)."
         "\nYou can set either 'Spacing', or 'Width'; the other will be calculated, using default layer height.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "nozzle_diameter";
     def->min = 0;
     def->max = 1000;
@@ -6984,7 +6984,7 @@ void PrintConfigDef::init_fff_params() {
                      "to slow down this to get a nicer surface finish."
                      "\nThis can be expressed as a percentage (for example: 80%) over the Solid Infill speed."
                      "\nSet zero to use autospeed for this feature.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "solid_infill_speed";
     def->min = 0;
     def->mode = comExpert | comPrusa;
@@ -7227,7 +7227,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Start of the wiping speed ramp up (for wipe tower)."
                      "\nCan be a % of the 'Wipe tower main speed'."
                      "\nSet to 0 to disable.");
-    def->sidetext = L("mm/s or %");
+    def->sidetext = L("mm/%");
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(33, true));
 
@@ -7236,7 +7236,7 @@ void PrintConfigDef::init_fff_params() {
     def->category = OptionCategory::width;
     def->tooltip = L("When wiping, the extrusion should be at least 125% of the nozzle diameter."
         " This setting allow you to vary it, in case you need a wider one to properly flush the nozzle.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(150, true));
 
@@ -7488,7 +7488,7 @@ void PrintConfigDef::init_fff_params() {
                      "circle circumference."
                      " This setting allows you some leeway to broaden the detection."
                      "\nIn mm or in % of the radius.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->max_literal = {10, false};
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0.01, false));
@@ -7557,7 +7557,7 @@ void PrintConfigDef::init_fff_params() {
         "When transitioning between different numbers of perimeters as the part becomes"
         "thinner, a certain amount of space is allotted to split or join the perimeter segments. "
         "If expressed as a percentage (for example 100%), it will be computed based on the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comPrusa;
     def->min = 0;
     def->set_default_value(new ConfigOptionFloatOrPercent(100, true));
@@ -7607,7 +7607,7 @@ void PrintConfigDef::init_fff_params() {
         "not be printed, while features thicker than the Minimum feature size will be widened to "
         "the Minimum perimeter width. "
         "If expressed as a percentage (for example 25%), it will be computed based on the nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comPrusa;
     def->min = 0;
     def->set_default_value(new ConfigOptionFloatOrPercent(25, true));
@@ -7619,7 +7619,7 @@ void PrintConfigDef::init_fff_params() {
                      "of the model. If the Minimum perimeter width is thinner than the thickness of the feature,"
                      " the perimeter will become as thick as the feature itself. "
                      "If expressed as percentage (for example 85%), it will be computed over nozzle diameter.");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->mode = comExpert | comPrusa;
     def->min = 0;
     def->set_default_value(new ConfigOptionFloatOrPercent(85, true));
@@ -7932,7 +7932,7 @@ void PrintConfigDef::init_milling_params() {
     def->tooltip = L(
         "This increases the size of the object by a certain amount to have enough plastic to mill."
         " You can set a number of mm or a percentage of the calculated optimal extra width (from flow calculation).");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "computed_on_the_fly";
     def->max_literal = {20, false};
     def->mode = comAdvancedE | comSuSi;
@@ -7943,7 +7943,7 @@ void PrintConfigDef::init_milling_params() {
     def->category = OptionCategory::milling;
     def->tooltip = L("This setting restricts the post-process milling to a certain height, to avoid milling the bed. "
                      "It can be a mm or a % of the first layer height (so it can depend on the object).");
-    def->sidetext = L("mm or %");
+    def->sidetext = L("mm/%");
     def->ratio_over = "first_layer_height";
     def->max_literal = {10, false};
     def->mode = comAdvancedE | comSuSi;

@@ -1653,20 +1653,19 @@ bool GUI_App::dark_mode() {
 }
 
 const wxColour GUI_App::get_label_default_clr_system() {
-    return wxColour(255, 255, 255);
+    return wxColour(225, 225, 225);
 }
 
 const wxColour GUI_App::get_label_default_clr_modified() {
-    return wxColour(255, 255, 255);
+    return wxColour(0, 206, 206);
 }
 
 const wxColour GUI_App::get_label_default_clr_default() {
-    return wxColour(255, 255, 255);
+    return wxColour(225, 225, 225);
 }
 
-const wxColour GUI_App::get_label_default_clr_phony() {
-    return dark_mode() ? wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT) :
-                         wxSystemSettings::GetColour(wxSYS_COLOUR_GRAYTEXT);
+const wxColour GUI_App::get_label_default_clr_phony() { 
+    return wxColour(215, 215, 215);
 }
 
 #ifdef GUI_TAG_PALETTE

@@ -5465,12 +5465,12 @@ void GLCanvas3D::_render_3d_navigator() {
     strcpy(style.AxisLabels[ImGuizmo::Axis::Axis_X], "y");
     strcpy(style.AxisLabels[ImGuizmo::Axis::Axis_Y], "z");
     strcpy(style.AxisLabels[ImGuizmo::Axis::Axis_Z], "x");
-    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_FRONT],   _L("Front").c_str());
-    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_BACK],    _L("Back").c_str());
-    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_TOP],     _L("Top").c_str());
-    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_BOTTOM],  _L("Bottom").c_str());
-    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_LEFT],    _L("Left").c_str());
-    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_RIGHT],   _L("Right").c_str());
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_FRONT],   "Front");
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_BACK],    "Back");
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_TOP],     "Top");
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_BOTTOM],  "Bottom");
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_LEFT],    "Left");
+    strcpy(style.FaceLabels[ImGuizmo::FACES::FACE_RIGHT],   "Right");
 
     float sc = get_scale();
     const float size = 110 * sc;
