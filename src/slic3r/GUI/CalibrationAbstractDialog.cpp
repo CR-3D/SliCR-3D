@@ -36,10 +36,12 @@ CalibrationAbstractDialog::CalibrationAbstractDialog(GUI_App* app, MainFrame* ma
 #endif // ENABLE_SCROLLABLE
 , "calibration")
     {
+        text_color = wxColour("#ffffff");
+
+        background_color = wxColour("#333233");
+
         this->gui_app = app;
-        this->main_frame = mainframe;
-        //this->SetBackgroundColour(*wxBLUE);
-        
+        this->main_frame = mainframe;        
 
         // fonts
         const wxFont& font = wxGetApp().normal_font();
@@ -108,6 +110,8 @@ wxWebView* web_viewer = wxWebView::New(main_panel, wxID_ANY,
         wxButton* close = new wxButton(main_panel, wxID_CLOSE, _L("Close"));
         close->Bind(wxEVT_BUTTON, &CalibrationAbstractDialog::close_me, this);
         buttons->AddButton(close);
+        close->SetBackgroundColour(background_color);
+        close->SetForegroundColour(text_color);
         close->SetDefault();
         close->SetFocus();
         SetAffirmativeId(wxID_CLOSE);

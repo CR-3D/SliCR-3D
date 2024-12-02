@@ -26,13 +26,21 @@ static wxSize get_screen_size(wxWindow* window)
 namespace Slic3r {
 namespace GUI {
 
-void CalibrationOverBridgeDialog::create_buttons(wxStdDialogButtonSizer* buttons){
-    wxButton* bt1 = new wxButton(this, wxID_FILE1, _L("'Above the Bridges' flow calibration"));
-    wxButton* bt2 = new wxButton(this, wxID_FILE1, _L("'Top Fill' flow calibration"));
+void CalibrationOverBridgeDialog::create_buttons(wxStdDialogButtonSizer* buttons) {
+
+    wxButton* bt1 = new wxButton(this, wxID_ANY, _L("'Above the Bridges' flow calibration"));
+    wxButton* bt2 = new wxButton(this, wxID_ANY, _L("'Top Fill' flow calibration"));
+    bt1->SetForegroundColour(text_color);
+    bt1->SetBackgroundColour(background_color);    
+    
+    bt2->SetForegroundColour(text_color);
+    bt2->SetBackgroundColour(background_color);
+
     bt1->Bind(wxEVT_BUTTON, &CalibrationOverBridgeDialog::create_geometry1, this);
     bt2->Bind(wxEVT_BUTTON, &CalibrationOverBridgeDialog::create_geometry2, this);
 
     buttons->Add(bt1);
+    buttons->AddSpacer(20);
     buttons->Add(bt2);
 }
 

@@ -25,9 +25,12 @@ static wxSize get_screen_size(wxWindow* window)
 namespace Slic3r {
 namespace GUI {
 
-void CalibrationBedDialog::create_buttons(wxStdDialogButtonSizer* buttons){
+void CalibrationBedDialog::create_buttons(wxStdDialogButtonSizer* buttons) {
+
     wxButton* bt = new wxButton(this, wxID_FILE1, _L("Generate"));
     bt->Bind(wxEVT_BUTTON, &CalibrationBedDialog::create_geometry, this);
+    bt->SetBackgroundColour(background_color);
+    bt->SetForegroundColour(text_color);
     buttons->Add(bt);
 }
 

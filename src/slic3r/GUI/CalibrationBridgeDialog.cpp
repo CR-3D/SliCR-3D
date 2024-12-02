@@ -27,14 +27,22 @@ namespace Slic3r {
 namespace GUI {
 
 void CalibrationBridgeDialog::create_buttons(wxStdDialogButtonSizer* buttons){
+
     wxString choices_steps[] = { "5","10","15" };
     steps = new wxComboBox(this, wxID_ANY, wxString{ "10" }, wxDefaultPosition, wxDefaultSize, 3, choices_steps);
     steps->SetToolTip(_L("Select the step in % between two tests.\nNote that only multiple of 5 are engraved on the parts."));
     steps->SetSelection(1);
+    steps->SetForegroundColour(text_color);
+    steps->SetBackgroundColour(background_color);
+
+
     wxString choices_nb[] = { "1","2","3","4","5","6" };
     nb_tests = new wxComboBox(this, wxID_ANY, wxString{ "5" }, wxDefaultPosition, wxDefaultSize, 6, choices_nb);
     nb_tests->SetToolTip(_L("Select the number of tests"));
     nb_tests->SetSelection(4);
+    nb_tests->SetForegroundColour(text_color);
+    nb_tests->SetBackgroundColour(background_color);
+
 
     buttons->Add(new wxStaticText(this, wxID_ANY,_L("Step:")));
     buttons->Add(steps);
@@ -42,14 +50,14 @@ void CalibrationBridgeDialog::create_buttons(wxStdDialogButtonSizer* buttons){
     buttons->Add(new wxStaticText(this, wxID_ANY, _L("Nb tests:")));
     buttons->Add(nb_tests);
     buttons->AddSpacer(40);
+
     wxButton* bt = new wxButton(this, wxID_FILE1, _L("Test Flow Ratio"));
     bt->Bind(wxEVT_BUTTON, &CalibrationBridgeDialog::create_geometry_flow_ratio, this);
-    buttons->Add(bt);
+    bt->SetForegroundColour(text_color);
+    bt->SetBackgroundColour(background_color);
 
-    //buttons->AddSpacer(15);
-    //bt = new wxButton(this, wxID_FILE1, _(L("Test Overlap")));
-    //bt->Bind(wxEVT_BUTTON, &CalibrationBridgeDialog::create_geometry_overlap, this);
-    //buttons->Add(bt);
+    buttons->Add(bt);
+    
 }
 
 void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool add) {

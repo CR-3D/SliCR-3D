@@ -28,19 +28,16 @@ namespace GUI {
 
 void CalibrationFlowDialog::create_buttons(wxStdDialogButtonSizer* buttons){
     wxButton* bt = new wxButton(this, wxID_FILE1, _L("Generate 10% intervals around current value"));
-    std::string user_color_text = "ffffff";
-    wxColour text_color("#" + user_color_text);
 
-    std::string color_background = "333233";
-    wxColour background_color("#" + color_background);
-
+    bt->SetBackgroundColour(background_color);
     bt->SetForegroundColour(text_color);
    
     bt->Bind(wxEVT_BUTTON, &CalibrationFlowDialog::create_geometry_10, this);
     buttons->Add(bt);
     bt = new wxButton(this, wxID_FILE2, _L("Generate 2% intervals below current value"));
     bt->Bind(wxEVT_BUTTON, &CalibrationFlowDialog::create_geometry_2_5, this);
-
+    bt->SetBackgroundColour(background_color);
+    bt->SetForegroundColour(text_color);
 
     buttons->Add(bt);
 }

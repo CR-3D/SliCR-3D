@@ -27,8 +27,6 @@ namespace Slic3r {
 namespace GUI {
 
 void CalibrationTempDialog::create_buttons(wxStdDialogButtonSizer* buttons) {
-    std::string user_color_text = "ffffff";
-    wxColour text_color("#" + user_color_text);
 
     wxString choices_steps[] = {"5", "10", "15", "20"};
     steps = new wxComboBox(this, wxID_ANY, wxString{"10"}, wxDefaultPosition, wxDefaultSize, 4, choices_steps);
@@ -36,18 +34,20 @@ void CalibrationTempDialog::create_buttons(wxStdDialogButtonSizer* buttons) {
         _L("Select the step in Celsius between two tests.\nNote that only multiples of 5 are engraved on the part."));
     steps->SetSelection(1);
     steps->SetForegroundColour(text_color);
+    steps->SetBackgroundColour(background_color);
 
     wxString choices_nb[] = {"0", "1", "2", "3", "4", "5", "6", "7"};
     nb_down = new wxComboBox(this, wxID_ANY, wxString{"2"}, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
     nb_down->SetToolTip(_L("Select the number of tests with lower temperature than the current one."));
     nb_down->SetSelection(2);
     nb_down->SetForegroundColour(text_color);
-
+    nb_down->SetBackgroundColour(background_color);
 
     nb_up = new wxComboBox(this, wxID_ANY, wxString{"2"}, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
     nb_up->SetToolTip(_L("Select the number of tests with higher temperature than the current one."));
     nb_up->SetSelection(2);
     nb_up->SetForegroundColour(text_color);
+    nb_up->SetBackgroundColour(background_color);
 
     wxStaticText *labelNbDown = new wxStaticText(this, wxID_ANY, _L("Nb down:"));
     buttons->Add(labelNbDown);
@@ -68,8 +68,10 @@ void CalibrationTempDialog::create_buttons(wxStdDialogButtonSizer* buttons) {
     labelSteps->SetForegroundColour(text_color);
 
     wxButton* bt = new wxButton(this, wxID_FILE1, _L("Generate"));
-
+    bt->SetBackgroundColour(background_color);
+    bt->SetForegroundColour(text_color);
     bt->Bind(wxEVT_BUTTON, &CalibrationTempDialog::create_geometry, this);
+
     buttons->Add(bt);
 }
 
