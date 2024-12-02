@@ -707,7 +707,6 @@ private:
     };
 
     CameraTarget m_camera_target;
-    CameraTarget m_camera_pivot;
     GLModel m_target_validation_box;
 #endif // ENABLE_SHOW_CAMERA_TARGET
     GLModel m_background;
@@ -1108,7 +1107,6 @@ private:
     void _render_view_toolbar() const;
 #if ENABLE_SHOW_CAMERA_TARGET
     void _render_camera_target();
-    void _render_camera_pivot();
     void _render_camera_target_validation_box();
 #endif // ENABLE_SHOW_CAMERA_TARGET
     void _render_sla_slices();
@@ -1133,7 +1131,7 @@ private:
 
     // Convert the screen space coordinate to an object space coordinate.
     // If the Z screen space coordinate is not provided, a depth buffer value is substituted.
-    Vec3d _mouse_to_3d(const Point& mouse_pos, const float* z = nullptr);
+    Vec3d _mouse_to_3d(const Point& mouse_pos, const float* z = nullptr, bool use_ortho = false);
 
     // Convert the screen space coordinate to world coordinate on the bed.
     Vec3d _mouse_to_bed_3d(const Point& mouse_pos);

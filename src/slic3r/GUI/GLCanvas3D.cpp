@@ -2440,8 +2440,6 @@ void GLCanvas3D::render()
     // and the viewport was set incorrectly, leading to tripping glAsserts further down
     // the road (in apply_projection). That's why the minimum size is forced to 10.
     Camera& camera = wxGetApp().plater()->get_camera();
-    camera.set_scene_box_scale_factor((s_multiple_beds.get_number_of_beds() > 1) ?
-        Camera::MultipleBedSceneBoxScaleFactor : Camera::SingleBedSceneBoxScaleFactor);
     camera.set_viewport(0, 0, std::max(10u, (unsigned int)cnv_size.get_width()), std::max(10u, (unsigned int)cnv_size.get_height()));
     camera.apply_viewport();
 
@@ -2457,7 +2455,6 @@ void GLCanvas3D::render()
     if (m_last_active_bed_id != curr_active_bed_id) {
         const Vec3d bed_offset = s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed());
         const Vec2d bed_center = m_bed.build_volume().bed_center() + Vec2d(bed_offset.x(), bed_offset.y());
-        camera.set_rotation_pivot({ bed_center.x(), bed_center.y(), 0.0f });
         m_last_active_bed_id = curr_active_bed_id;
     }
 
@@ -2528,7 +2525,6 @@ void GLCanvas3D::render()
 
 #if ENABLE_SHOW_CAMERA_TARGET
     _render_camera_target();
-    _render_camera_pivot();
     _render_camera_target_validation_box();
 #endif // ENABLE_SHOW_CAMERA_TARGET
 
@@ -4512,8 +4508,8 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
             if (m_mouse.is_start_position_2D_defined()) {
                 // get point in model space at Z = 0
                 const float z = 0.0f;
-                const Vec3d cur_pos = _mouse_to_3d(pos, &z);
-                const Vec3d orig = _mouse_to_3d(m_mouse.drag.start_position_2D, &z);
+                const Vec3d cur_pos = _mouse_to_3d(pos, &z, true);
+                const Vec3d orig = _mouse_to_3d(m_mouse.drag.start_position_2D, &z, true);
                 if (!wxGetApp().app_config->get_bool("use_free_camera"))
                     // Forces camera right vector to be parallel to XY plane in case it has been misaligned using the 3D mouse free rotation.
                     // It is cheaper to call this function right away instead of testing wxGetApp().plater()->get_mouse3d_controller().connected(),
@@ -4535,6 +4531,25 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
 
         if (evt.LeftUp() && m_sequential_print_clearance.is_dragging())
             m_sequential_print_clearance.stop_dragging();
+        if (evt.RightUp() && m_mouse.is_start_position_2D_defined()) {
+            // forces camera target to be on the plane z = 0
+            Camera& camera = wxGetApp().plater()->get_camera();
+            if (std::abs(camera.get_dir_forward().dot(Vec3d::UnitZ())) > EPSILON) {
+                const Vec3d old_pos = camera.get_position();
+                const double old_distance = camera.get_distance();
+                const Vec3d old_target = camera.get_target();
+                const Linef3 ray(old_pos, old_target);
+                const Vec3d new_target = ray.intersect_plane(0.0);
+                const BoundingBoxf3 validation_box = camera.get_target_validation_box();
+                if (validation_box.contains(new_target)) {
+                    const double new_distance = (new_target - old_pos).norm();
+                    camera.set_target(new_target);
+                    camera.set_distance(new_distance);
+                    if (camera.get_type() == Camera::EType::Perspective)
+                        camera.set_zoom(camera.get_zoom() * old_distance / new_distance);
+                }
+            }
+        }
 
         if (m_layers_editing.state != LayersEditing::Unknown) {
             m_layers_editing.state = LayersEditing::Unknown;
@@ -7721,84 +7736,10 @@ void GLCanvas3D::_render_camera_target()
     }
 }
 
-void GLCanvas3D::_render_camera_pivot()
-{
-    static const float half_length = 10.0f;
-
-    glsafe(::glDisable(GL_DEPTH_TEST));
-#if !SLIC3R_OPENGL_ES
-    if (!OpenGLManager::get_gl_info().is_core_profile())
-        glsafe(::glLineWidth(2.0f));
-#endif // !SLIC3R_OPENGL_ES
-
-    m_camera_pivot.target = wxGetApp().plater()->get_camera().get_rotation_pivot();
-
-    for (int i = 0; i < 3; ++i) {
-        if (!m_camera_pivot.axis[i].is_initialized()) {
-            m_camera_pivot.axis[i].reset();
-
-            GLModel::Geometry init_data;
-            init_data.format = { GLModel::Geometry::EPrimitiveType::Lines, GLModel::Geometry::EVertexLayout::P3 };
-            init_data.color = (i == X) ? ColorRGBA::X() : (i == Y) ? ColorRGBA::Y() : ColorRGBA::Z();
-            init_data.reserve_vertices(2);
-            init_data.reserve_indices(2);
-
-            // vertices
-            if (i == X) {
-                init_data.add_vertex(Vec3f(-half_length, 0.0f, 0.0f));
-                init_data.add_vertex(Vec3f(+half_length, 0.0f, 0.0f));
-            }
-            else if (i == Y) {
-                init_data.add_vertex(Vec3f(0.0f, -half_length, 0.0f));
-                init_data.add_vertex(Vec3f(0.0f, +half_length, 0.0f));
-            }
-            else {
-                init_data.add_vertex(Vec3f(0.0f, 0.0f, -half_length));
-                init_data.add_vertex(Vec3f(0.0f, 0.0f, +half_length));
-            }
-
-            // indices
-            init_data.add_line(0, 1);
-
-            m_camera_pivot.axis[i].init_from(std::move(init_data));
-        }
-    }
-
-#if SLIC3R_OPENGL_ES
-    GLShaderProgram* shader = wxGetApp().get_shader("dashed_lines");
-#else
-    GLShaderProgram* shader = OpenGLManager::get_gl_info().is_core_profile() ? wxGetApp().get_shader("dashed_thick_lines") : wxGetApp().get_shader("flat");
-#endif // SLIC3R_OPENGL_ES
-    if (shader != nullptr) {
-        shader->start_using();
-        const Camera& camera = wxGetApp().plater()->get_camera();
-        shader->set_uniform("view_model_matrix", camera.get_view_matrix() * Geometry::translation_transform(m_camera_pivot.target));
-        shader->set_uniform("projection_matrix", camera.get_projection_matrix());
-#if !SLIC3R_OPENGL_ES
-        if (OpenGLManager::get_gl_info().is_core_profile()) {
-#endif // !SLIC3R_OPENGL_ES
-            const std::array<int, 4>& viewport = camera.get_viewport();
-            shader->set_uniform("viewport_size", Vec2d(double(viewport[2]), double(viewport[3])));
-            shader->set_uniform("width", 0.5f);
-            shader->set_uniform("gap_size", 0.0f);
-#if !SLIC3R_OPENGL_ES
-        }
-#endif // !SLIC3R_OPENGL_ES
-        for (int i = 0; i < 3; ++i) {
-            m_camera_pivot.axis[i].render();
-        }
-        shader->stop_using();
-    }
-}
-
 void GLCanvas3D::_render_camera_target_validation_box()
 {
     const BoundingBoxf3& curr_box = m_target_validation_box.get_bounding_box();
-    BoundingBoxf3 camera_box = wxGetApp().plater()->get_camera().get_scene_box();
-    Vec3d camera_box_center = camera_box.center();
-    camera_box.translate(-camera_box_center);
-    camera_box.scale(wxGetApp().plater()->get_camera().get_scene_box_scale_factor());
-    camera_box.translate(camera_box_center);
+    const BoundingBoxf3 camera_box = wxGetApp().plater()->get_camera().get_target_validation_box();
 
     if (!m_target_validation_box.is_initialized() || !is_approx(camera_box.min, curr_box.min) || !is_approx(camera_box.max, curr_box.max)) {
         m_target_validation_box.reset();
@@ -8103,7 +8044,7 @@ void GLCanvas3D::_perform_layer_editing_action(wxMouseEvent* evt)
     _start_timer();
 }
 
-Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, const float* z)
+Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, const float* z, bool use_ortho)
 {
     if (m_canvas == nullptr)
         return Vec3d(DBL_MAX, DBL_MAX, DBL_MAX);
@@ -8113,10 +8054,21 @@ Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, const float* z)
         return hit.is_valid() ? hit.position.cast<double>() : _mouse_to_bed_3d(mouse_pos);
     }
     else {
-        const Camera& camera = wxGetApp().plater()->get_camera();
+        Camera& camera = wxGetApp().plater()->get_camera();
+        const Camera::EType type = camera.get_type();
+        if (use_ortho)
+            camera.set_type(Camera::EType::Ortho);
+        //const std::array<int, 4> & viewport = camera.get_viewport().data();
         const Vec4i32 viewport(camera.get_viewport().data());
         Vec3d out;
-        igl::unproject(Vec3d(mouse_pos.x(), viewport[3] - mouse_pos.y(), *z), camera.get_view_matrix().matrix(), camera.get_projection_matrix().matrix(), viewport, out);
+        igl::unproject(Vec3d(mouse_pos.x(),
+                             viewport[3] - mouse_pos.y(), *z),
+                             camera.get_view_matrix().matrix(),
+                             camera.get_projection_matrix().matrix(),
+                             viewport,
+                             out);
+        if (use_ortho)
+            camera.set_type(type);
         return out;
     }
 }
