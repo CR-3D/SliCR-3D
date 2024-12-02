@@ -25,6 +25,7 @@ struct ExPolygonWithOffset;
 class FillRectilinear : public Fill
 {
 public:
+    FillRectilinear() : Fill() { can_fill_surface_single = true; }
     Fill* clone() const override { return new FillRectilinear(*this); }
     ~FillRectilinear() override = default;
     virtual void init_spacing(coordf_t spacing, const FillParams& params) override;
@@ -154,7 +155,13 @@ protected:
 
 class FillRectilinearSawtooth : public FillRectilinear {
 public:
-
+    
+    FillRectilinearSawtooth() : FillRectilinear() { can_fill_surface_single = false; }
+    Polylines fill_surface(const Surface *surface, const FillParams &params) const override {
+        BOOST_LOG_TRIVIAL(error)<<"Error, the fill isn't implemented";
+        assert(false);
+        return {};
+    };
     Fill* clone() const override { return new FillRectilinearSawtooth(*this); };
     ~FillRectilinearSawtooth() override = default;
     void fill_surface_extrusion(const Surface* surface, const FillParams& params, ExtrusionEntitiesPtr& out) const override;
@@ -164,8 +171,14 @@ public:
 class FillRectilinearWGapFill : public FillRectilinear
 {
 public:
+    FillRectilinearWGapFill() : FillRectilinear() { can_fill_surface_single = false; }
     Fill* clone() const override { return new FillRectilinearWGapFill(*this); };
     ~FillRectilinearWGapFill() override = default;
+    Polylines fill_surface(const Surface *surface, const FillParams &params) const override {
+        BOOST_LOG_TRIVIAL(error)<<"Error, the fill isn't implemented";
+        assert(false);
+        return {};
+    };
     void fill_surface_extrusion(const Surface* surface, const FillParams& params, ExtrusionEntitiesPtr& out) const override;
     static void split_polygon_gap_fill(const Surface& surface, const FillParams& params, ExPolygons& rectilinear, ExPolygons& gapfill);
 protected:

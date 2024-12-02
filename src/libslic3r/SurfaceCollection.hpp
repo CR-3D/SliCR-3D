@@ -51,7 +51,9 @@ public:
             if (surface.surface_type == type) return true;
         return false;
     }
-
+    Surface& operator[](size_t idx)            { return this->surfaces[idx]; }
+    Surface& at(size_t idx)                    { return this->surfaces.at(idx); }
+    const Surface& at(size_t idx)        const { return this->surfaces.at(idx); }
     Surfaces::const_iterator    cbegin() const { return this->surfaces.cbegin(); }
     Surfaces::const_iterator    cend()   const { return this->surfaces.cend(); }
     Surfaces::const_iterator    begin()  const { return this->surfaces.cbegin(); }

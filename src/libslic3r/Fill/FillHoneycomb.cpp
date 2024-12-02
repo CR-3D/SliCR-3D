@@ -88,10 +88,12 @@ void FillHoneycomb::_fill_surface_single(
     }
     
     all_polylines = intersection_pl(std::move(all_polylines), expolygon);
+    ensure_valid(all_polylines, std::max(SCALED_EPSILON, params.fill_resolution));
     if (params.connection == icNotConnected || all_polylines.size() <= 1)
         append(polylines_out, chain_polylines(std::move(all_polylines)));
     else
         connect_infill(std::move(all_polylines), expolygon, polylines_out, scale_t(this->get_spacing()), params);
+    assert_valid(polylines_out);
 }
 
 } // namespace Slic3r

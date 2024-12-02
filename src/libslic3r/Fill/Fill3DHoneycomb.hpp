@@ -17,6 +17,7 @@ namespace Slic3r {
 class Fill3DHoneycomb : public Fill
 {
 public:
+    Fill3DHoneycomb() : Fill() { can_fill_surface_single = true; }
     Fill* clone() const override { return new Fill3DHoneycomb(*this); };
     ~Fill3DHoneycomb() override {}
 

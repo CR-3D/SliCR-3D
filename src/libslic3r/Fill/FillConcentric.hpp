@@ -18,6 +18,7 @@ namespace Slic3r {
 class FillConcentric : public Fill
 {
 public:
+    FillConcentric() : Fill() { can_fill_surface_single = true; }
     ~FillConcentric() override = default;
 
 protected:

@@ -90,7 +90,7 @@ Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) c
     surface->expolygon.assert_valid();
     // Perform offset.
     Slic3r::ExPolygons expp = offset_ex(surface->expolygon, scale_d(0 - 0.5 * this->get_spacing()));
-    ensure_valid(expp, params.fill_resolution);
+    ensure_valid(expp, std::max(SCALED_EPSILON, params.fill_resolution));
     // Create the infills for each of the regions.
     Polylines polylines_out;
     for (ExPolygon &expoly : expp) {

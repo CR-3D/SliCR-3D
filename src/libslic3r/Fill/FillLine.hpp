@@ -17,6 +17,7 @@ class Surface;
 class FillLine : public Fill
 {
 public:
+    FillLine() : Fill() { can_fill_surface_single = true; }
     Fill* clone() const override { return new FillLine(*this); };
     ~FillLine() override = default;
 

@@ -549,7 +549,7 @@ void FreqChangedParams::init()
     wxBitmap preheat_off_bmp = preheat_off.get_bitmap();
     m_preheat_button->Disable();
     m_preheat_button->SetBitmap(preheat_off_bmp);
-    m_preheat_button->SetBackgroundColour(wxColour(60, 60, 60));
+    //m_preheat_button->SetBackgroundColour(wxColour(60, 60, 60));
     m_preheat_button->SetForegroundColour(wxColour(255, 255, 255));
     
     static bool isOn = false;
@@ -617,7 +617,7 @@ void FreqChangedParams::init()
     ScalableBitmap refresh_bmp = ScalableBitmap(m_parent, "revert_all_", 9 );
     m_refresh_button->Disable();
     m_refresh_button->SetBitmap(refresh_bmp.get_bitmap());
-    m_refresh_button->SetBackgroundColour(wxColour(60, 60, 60));
+    //m_refresh_button->SetBackgroundColour(wxColour(60, 60, 60));
     m_refresh_button->SetForegroundColour(wxColour(255, 255, 255));
 
     m_refresh_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {

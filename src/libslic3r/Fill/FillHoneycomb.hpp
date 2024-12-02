@@ -21,6 +21,7 @@ namespace Slic3r {
 class FillHoneycomb : public Fill
 {
 public:
+    FillHoneycomb() : Fill() { can_fill_surface_single = true; }
     ~FillHoneycomb() override {}
 
 protected:

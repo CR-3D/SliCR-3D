@@ -611,12 +611,14 @@ void ArcPolyline::append(const Points &src)
         //m_path.push_back(Geometry::ArcWelder::Segment(point, 0.f, Geometry::ArcWelder::Orientation::Unknown));
     assert(is_valid());
 }
+
 void ArcPolyline::append(Points &&src)
 {
     for (Point &point : src)
         m_path.emplace_back(std::move(point), 0, Geometry::ArcWelder::Orientation::Unknown);
     assert(is_valid());
 }
+
 void ArcPolyline::append(const Points::const_iterator &begin, const Points::const_iterator &end)
 {
     Points::const_iterator it = begin;
@@ -626,10 +628,10 @@ void ArcPolyline::append(const Points::const_iterator &begin, const Points::cons
     }
     assert(is_valid());
 }
+
 void ArcPolyline::append(const ArcPolyline &src)
 {
     assert(this->empty() || this->is_valid());
-    const auto saved  = m_path;
     this->m_only_strait &= src.m_only_strait;
     if (m_path.empty()) {
         m_path = std::move(src.m_path);
@@ -878,6 +880,7 @@ void ArcPolyline::split_at(coordf_t distance, ArcPolyline &p1, ArcPolyline &p2) 
                 Point split_point = p1.back() + (v * (distance / sqrt(lsqr))).cast<coord_t>();
                 p1.m_path.push_back({split_point, 0, Geometry::ArcWelder::Orientation::Unknown});
                 p2.m_path.push_back({split_point, 0, Geometry::ArcWelder::Orientation::Unknown});
+                p2.m_path.push_back(current);
                 // Length to go is zero.
                 distance = 0;
             } else {
@@ -902,6 +905,7 @@ void ArcPolyline::split_at(coordf_t distance, ArcPolyline &p1, ArcPolyline &p2) 
                         Geometry::ArcWelder::arc_center(p1.back().cast<double>(), current.point.cast<double>(), double(current.radius), current.ccw()).cast<coord_t>());
                 p1.m_path.push_back({split_point, current.radius, current.orientation });
                 p2.m_path.push_back({split_point, 0, Geometry::ArcWelder::Orientation::Unknown});
+                p2.m_path.push_back(current);
                 // Length to go is zero.
                 distance = 0;
             } else {
@@ -927,8 +931,19 @@ void ArcPolyline::split_at(coordf_t distance, ArcPolyline &p1, ArcPolyline &p2) 
             p2.set_back(back());
         }
     }
+    //check if the last p1 segment is long enough
+    if (p1.size() > 3 && p1.back().distance_to_square(p1.get_point(p1.size()-2)) < SCALED_EPSILON * SCALED_EPSILON) {
+        //to short of a segment, move the previous point (even if arc, should be short enough of a move)
+        p1.m_path[p1.size()-2].point = p1.back();
+        p1.m_path.pop_back();
+    }
+    if (has_arc()) {
+        p1.m_only_strait = not_arc(p1);
+        p2.m_only_strait = not_arc(p2);
+    }
     assert(p1.is_valid());
     assert(p2.is_valid());
+    assert(is_approx(this->length(), p1.length() + p2.length(), coordf_t(SCALED_EPSILON)));
 }
 
 void ArcPolyline::split_at(Point &point, ArcPolyline &p1, ArcPolyline &p2) const

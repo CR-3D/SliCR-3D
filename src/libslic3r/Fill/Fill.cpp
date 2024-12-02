@@ -298,13 +298,14 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
 
     // Fill in a map of a region & surface to SurfaceFillParams.
     std::set<SurfaceFillParams>                         set_surface_params;
-    std::vector<std::vector<const SurfaceFillParams*>>     region_to_surface_params(layer.regions().size(), std::vector<const SurfaceFillParams*>());
-    SurfaceFillParams                                    params;
-    bool                                                 has_internal_voids = false;
+    std::vector<std::vector<const SurfaceFillParams*>>  region_to_surface_params(layer.regions().size(), std::vector<const SurfaceFillParams*>());
+    bool                                                has_internal_voids = false;
     for (size_t region_id = 0; region_id < layer.regions().size(); ++ region_id) {
         const LayerRegion  &layerm = *layer.regions()[region_id];
-		region_to_surface_params[region_id].assign(layerm.fill_surfaces().size(), nullptr);
-	    for (const Surface &surface : layerm.fill_surfaces())
+        region_to_surface_params[region_id].assign(layerm.fill_surfaces().size(), nullptr);
+        for (size_t idx_fill_srf=0; idx_fill_srf < layerm.fill_surfaces().size(); ++idx_fill_srf) {
+            const Surface &surface = layerm.fill_surfaces().at(idx_fill_srf);
+            SurfaceFillParams params;
             if (surface.surface_type == (stPosInternal | stDensVoid)) {
                 has_internal_voids = true;
             } else {
@@ -348,6 +349,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                     if (region_config.infill_dense.get_bool()
                         && region_config.fill_density < 40
                         && surface.maxNbSolidLayersOnTop == 1) {
+                        assert(surface.has(stPosInternal | stDensSparse | stModBridge));
                         params.density = 0.42f;
                         is_denser = true;
                         is_bridge = true;
@@ -355,6 +357,8 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         params.priority = surface.priority;
                         params.dont_adjust = true; // keep the 42% density
                         params.connection = InfillConnection::icConnected;
+                    } else {
+                        assert(region_config.fill_density >= 40 || !surface.has(stPosInternal | stDensSparse | stModBridge));
                     }
                     if (params.density <= 0 && !is_denser)
                         continue;
@@ -463,10 +467,12 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 }
 
                 auto it_params = set_surface_params.find(params);
-                if (it_params == set_surface_params.end())
+                if (it_params == set_surface_params.end()) {
                     it_params = set_surface_params.insert(it_params, params);
-		        region_to_surface_params[region_id][&surface - &layerm.fill_surfaces().surfaces.front()] = &(*it_params);
+                }
+                region_to_surface_params[region_id][idx_fill_srf] = &(*it_params);
             }
+        }
     }
 
     surface_fills.reserve(set_surface_params.size());
@@ -581,13 +587,16 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
             else if (region_some_infill != -1)
                 region_id = region_some_infill;
             const LayerRegion& layerm = *layer.regions()[region_id];
-            for (SurfaceFill &surface_fill : surface_fills)
-                if (surface_fill.surface.surface_type == (stPosInternal | stDensVoid) && std::abs(layer.height - surface_fill.params.flow.height()) < EPSILON) {
+            for (SurfaceFill &surface_fill : surface_fills) {
+                if (surface_fill.surface.surface_type == (stPosInternal | stDensVoid) &&
+                    std::abs(layer.height - surface_fill.params.flow.height()) < EPSILON) {
                     internal_solid_fill = &surface_fill;
                     break;
                 }
+            }
             if (internal_solid_fill == nullptr) {
                 // Produce another solid fill.
+                SurfaceFillParams params;
                 params.extruder = layerm.region().extruder(frSolidInfill, *layer.object());
                 params.pattern  = layerm.region().config().solid_fill_pattern.value;
                 params.density  = 100.f;
@@ -1212,19 +1221,25 @@ Polylines Layer::generate_sparse_infill_polylines_for_anchoring(FillAdaptive::Oc
         // expolygons are copied from surface(s) to surface_fill by group_fills
         assert_valid(surface_fill.expolygons);
         assert(surface_fill.surface.expolygon.empty());
-		if (surface_fill.surface.surface_type != (stPosInternal | stDensSparse)) {
-			continue;
-		}
+        if (!surface_fill.surface.has(stPosInternal | stDensSparse)) {
+            continue;
+        }
 
         switch (surface_fill.params.pattern) {
         case ipCount: continue; break;
         case ipSupportBase: continue; break;
         case ipEnsuring: continue; break;
+        case ipSmooth: assert(false); continue; break; // it's supposed to be solid
         case ipLightning:
-		case ipAdaptiveCubic:
+        case ipAdaptiveCubic:
         case ipSupportCubic:
         case ipRectilinear:
+        case ipRectilinearWGapFill:
+        case ipRectiWithPerimeter:
+        case ipSawtooth:
+        case ipScatteredRectilinear:
         case ipMonotonic:
+        case ipMonotonicWGapFill:
         case ipMonotonicLines:
         case ipAlignedRectilinear:
         case ipGrid:
@@ -1233,17 +1248,31 @@ Polylines Layer::generate_sparse_infill_polylines_for_anchoring(FillAdaptive::Oc
         case ipCubic:
         case ipLine:
         case ipConcentric:
+        case ipConcentricGapFill:
         case ipHoneycomb:
         case ip3DHoneycomb:
         case ipGyroid:
         case ipHilbertCurve:
         case ipArchimedeanChords:
         case ipOctagramSpiral: break;
+        default: {
+                // all pattern should be in this list
+                assert(false);
+                continue; break;
+            }
         }
         LayerRegion &layerm = *m_regions[surface_fill.region_id];
 
         // Create the filler object.
         std::unique_ptr<Fill> f = std::unique_ptr<Fill>(Fill::new_from_type(surface_fill.params.pattern));
+        if (surface_fill.surface.has(stPosInternal | stDensSparse | stModBridge) && surface_fill.params.density < 40) {
+            assert(surface_fill.params.config);
+            assert(surface_fill.params.config->infill_dense.get_bool());
+            assert(surface_fill.surface.maxNbSolidLayersOnTop == 1);
+            assert(ipRectiWithPerimeter == surface_fill.params.pattern);
+            // dense infill : ipRectiWithPerimeter
+            //f = std::unique_ptr<Fill>(Fill::new_from_type(ipRectiWithPerimeter));
+        }
         f->set_bounding_box(bbox);
         f->layer_id = this->id() - this->object()->get_layer(0)->id(); // We need to subtract raft layers.
         f->z        = this->print_z;
@@ -1276,18 +1305,33 @@ Polylines Layer::generate_sparse_infill_polylines_for_anchoring(FillAdaptive::Oc
 
         // apply half spacing using this flow's own spacing and generate infill
         FillParams params = surface_fill.params;
-        params.density           = float(0.01 * surface_fill.params.density);
+        params.density           = surface_fill.params.density;
         params.dont_adjust       = false; //  surface_fill.params.dont_adjust;
         params.anchor_length     = surface_fill.params.anchor_length;
         params.anchor_length_max = surface_fill.params.anchor_length_max;
-        params.fill_resolution        = resolution;
+        params.fill_resolution   = resolution;
         params.use_arachne       = false;
         params.layer_height      = layerm.layer()->height;
 
         for (ExPolygon &expoly : surface_fill.expolygons) {
             surface_fill.surface.expolygon = std::move(expoly);
             try {
-                Polylines polylines = f->fill_surface(&surface_fill.surface, params);
+                Polylines polylines;
+                if (f->can_fill_surface_single) {
+                    polylines = f->fill_surface(&surface_fill.surface, params);
+                } else {
+                    ExtrusionEntityCollection coll;
+                    f->fill_surface_extrusion(&surface_fill.surface, params, coll.set_entities());
+                    //extract polylines from paths
+                    GetPathsVisitor visitor;
+                    coll.visit(visitor);
+                    for (ExtrusionPath *path : visitor.paths) {
+                        polylines.push_back(path->as_polyline().to_polyline());
+                    }
+                    for (ExtrusionPath3D *path : visitor.paths3D) {
+                        polylines.push_back(path->as_polyline().to_polyline());
+                    }
+                }
                 sparse_infill_polylines.insert(sparse_infill_polylines.end(), polylines.begin(), polylines.end());
             } catch (InfillFailedException &) {}
         }
@@ -1462,7 +1506,9 @@ void Layer::make_ironing()
                     bool internal_infill_solid = region_config.fill_density.value > 95.;
 					for (const Surface &surface : ironing_params.layerm->fill_surfaces())
                         // stInternal or stInternalBridge or stInternalVoid
-                        if ((!internal_infill_solid && surface.surface_type == (stPosInternal | stDensSparse)) || surface.surface_type == (stPosInternal | stDensSolid | stModBridge) || surface.surface_type == (stPosInternal | stDensVoid)) {
+                        if ((!internal_infill_solid && surface.has(stPosInternal | stDensSparse)) ||
+                            surface.surface_type == (stPosInternal | stDensSolid | stModBridge) ||
+                            surface.has(stPosInternal | stDensVoid)) {
                             // Some fill region is not quite solid. Don't iron over the whole surface.
                             iron_completely = false;
                             break;

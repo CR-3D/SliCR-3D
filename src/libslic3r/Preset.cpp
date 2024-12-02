@@ -718,6 +718,7 @@ static std::vector<std::string> s_Preset_print_options {
         "first_layer_flow_ratio",
         "enforce_full_fill_volume",
         "external_infill_margin", "bridged_infill_margin",
+        "internal_bridge_expansion",
         "small_area_infill_flow_compensation", "small_area_infill_flow_compensation_model",
         // compensation
         "first_layer_size_compensation",

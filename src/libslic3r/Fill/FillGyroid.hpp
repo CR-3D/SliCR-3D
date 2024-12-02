@@ -16,7 +16,7 @@ namespace Slic3r {
 class FillGyroid : public Fill
 {
 public:
-    FillGyroid() {}
+    FillGyroid() : Fill() { can_fill_surface_single = true; }
     Fill* clone() const override { return new FillGyroid(*this); }
 
     // Density adjustment to have a good %of weight.

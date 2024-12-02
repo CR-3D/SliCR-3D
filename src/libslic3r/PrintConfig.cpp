@@ -806,6 +806,18 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0.), false));
 
+    def = this->add("bridged_infill_margin", coFloatOrPercent);
+    def->label = L("Bridged");
+    def->full_label = L("Bridge margin");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("This parameter grows the bridged solid infill layers by the specified mm to anchor them into the sparse infill and over the perimeters below. Put 0 to deactivate it. Can be a % of the width of the external perimeter.");
+    def->sidetext = L("mm or %");
+    def->ratio_over = "external_perimeter_extrusion_width";
+    def->min = 0;
+    def->max_literal = { 50, true };
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
+
     def = this->add("bridge_fan_speed", coInts);
     def->label = L("Bridges fan speed");
     def->category = OptionCategory::cooling;
@@ -821,6 +833,17 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->set_default_value(disable_defaultoption(new ConfigOptionInts{100}, false));
+
+    def = this->add("bridge_fill_pattern", coEnum);
+    def->label = L("Bridging fill pattern");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("Fill pattern for bridges and internal bridge infill.");
+    def->set_enum<InfillPattern>({
+        { "rectilinear", L("Rectilinear") },
+        { "monotonic", L("Monotonic") },
+    });
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipRectilinear));
 
     def = this->add("bridge_type", coEnum);
     def->label = L("Bridge flow baseline");
@@ -946,7 +969,7 @@ void PrintConfigDef::init_fff_params() {
     def->category = OptionCategory::skirtBrim;
     def->tooltip = L("Create a brim per object instead of a brim for the plater."
                      " Useful for complete_object or if you have your brim detaching before printing the object."
-                     "\nBe aware that the brim may be truncated if objects are too close together..");
+                     "\nBe aware that the brim may be truncated if objects are too close together.");
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionBool(false));
 
@@ -3707,6 +3730,15 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
     def->aliases = {"bridge_internal_acceleration"};
+
+    def = this->add("internal_bridge_expansion", coBool);
+    def->label = L("Extends internal bridge to infill");
+    def->category = OptionCategory::skirtBrim;
+    def->tooltip = L("When creating internal bridges, extends the line to the nearest internal line it can use to support itself."
+        " This way, it can avoid curling up as when bridges lines ends over a void.");
+    def->category = OptionCategory::infill;
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionBool(true));
 
     def = this->add("internal_bridge_fan_speed", coInts);
     def->label = L("Infill bridges fan speed");
@@ -9856,6 +9888,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "infill_fan_speed",
 "init_z_rotate",
 "internal_bridge_acceleration",
+"internal_bridge_expansion",
 "internal_bridge_fan_speed",
 "internal_bridge_speed",
 "ironing_acceleration",

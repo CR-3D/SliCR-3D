@@ -95,6 +95,7 @@ Flow LayerRegion::bridging_flow(FlowRole role, BridgeType force_type) const
 // Fill in layerm->m_fill_surfaces by trimming the layerm->slices by layerm->fill_expolygons.
 void LayerRegion::slices_to_fill_surfaces_clipped(coord_t opening_offset)
 {
+    const coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
     // Collect polygons per surface type.
     std::map<SurfaceType, ExPolygons> polygons_by_surface;
     for (const Surface &surface : this->slices().surfaces) {
@@ -104,7 +105,7 @@ void LayerRegion::slices_to_fill_surfaces_clipped(coord_t opening_offset)
     m_fill_surfaces.surfaces.clear();
     for (auto const& [srf_type, expoly] : polygons_by_surface) {
         if (!expoly.empty())
-            for (ExPolygon& expoly_to_test : intersection_ex(expoly, this->fill_expolygons())) {
+            for (ExPolygon& expoly_to_test : ensure_valid(intersection_ex(expoly, this->fill_expolygons()), scaled_resolution)) {
                 ExPolygons expolys_to_test = expoly_to_test.simplify(std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value)));
                 if (!opening_ex(expolys_to_test, opening_offset).empty()) {
                     expoly_to_test.assert_valid();
@@ -582,6 +583,8 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     for (auto &srf : m_fill_surfaces.surfaces) {
         assert(srf.surface_type == (stPosInternal | stDensSolid) ||
             srf.surface_type == (stPosInternal | stDensSparse) ||
+            //srf.surface_type == (stPosInternal | stDensSolid | stModBridge) || // not created yet
+            //srf.surface_type == (stPosInternal | stDensSparse | stModBridge) || // not created yet
             srf.surface_type == (stPosInternal | stDensVoid) ||
             srf.surface_type == (stPosTop | stDensSolid) ||
             srf.surface_type == (stPosBottom | stDensSolid) ||
@@ -655,6 +658,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
         stPosBottom | stDensSolid,
         stPosTop | stDensSolid,
         stPosInternal | stDensSparse,
+        //stPosInternal | stDensSparse | stModBridge, // not yet created
         stPosInternal | stDensSolid });
 #ifdef _DEBUG
     for (auto &srf : m_fill_surfaces.surfaces) {
@@ -790,6 +794,37 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
 //#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 1.5
 #define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtSquare, 0.
 
+size_t get_island_idx(const Polygon &contour,
+                      const std::vector<BoundingBox> &bboxes,
+                      const ExPolygons &fill_boundaries) {
+    assert(bboxes.size() == fill_boundaries.size());
+    std::vector<size_t> candidates;
+    for (size_t idx = 0; idx < bboxes.size(); ++idx) {
+        if (bboxes[idx].contains(contour.front()) && bboxes[idx].contains(contour.points[contour.size() / 2])) {
+            candidates.push_back(idx);
+        }
+    }
+    assert(!candidates.empty());
+    if (candidates.size() > 1) {
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            if (!bboxes[candidates[i]].contains(contour.points)) {
+                candidates.erase(candidates.begin() + i);
+            }
+        }
+    }
+    assert(!candidates.empty());
+    // note: fill_boundaries don't overlap, you only need to test one point.
+    if (candidates.size() > 1) {
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            if (!fill_boundaries[candidates[i]].contains(contour.front())) {
+                candidates.erase(candidates.begin() + i);
+            }
+        }
+    }
+    assert(candidates.size() == 1);
+    return candidates.size() == 1 ? candidates.front() : -1;
+}
+
 void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const Polygons *lower_layer_covered)
 {
 
@@ -823,50 +858,67 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
     Surfaces                    internal;
     // Areas, where an infill of various types (top, bottom, bottom bride, sparse, void) could be placed.
     Polygons                    lower_layer_covered_tmp;
-    Polygons                    fill_boundaries = to_polygons(this->fill_expolygons());
+    ExPolygons                  fill_boundaries = this->fill_expolygons();
+    assert_valid(fill_boundaries);
 
     // Collect top surfaces and internal surfaces.
     // Collect fill_boundaries: If we're slicing with no infill, we can't extend external surfaces over non-existent infill.
     // This loop destroys the surfaces (aliasing this->fill_surfaces.surfaces) by moving into top/internal/fill_boundaries!
 
     {
+        // to search your fill island
+        std::vector<BoundingBox> fill_ex_bboxes = get_extents_vector(this->fill_expolygons());
         // Voids are sparse infills if infill rate is zero.
         Polygons voids;
         bool has_infill = this->region().config().fill_density.value > 0.;
-        for (const Surface &surface : this->fill_surfaces()) {
+        //transfert surfaces from m_fill_surfaces to specialized collection (bottom, bridges, top, internal, ...)
+        for (Surface &surface : this->set_fill_surfaces()) {
             assert(! surface.empty());
             if (! surface.empty()) {
                 if (surface.has_pos_top()) {
                     // Collect the top surfaces, inflate them and trim them by the bottom surfaces.
                     // This gives the priority to bottom surfaces.
-                    surfaces_append(top, offset_ex(surface.expolygon, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS), surface);
+                    // grow
+                    ExPolygons grown_expoly = offset_ex(surface.expolygon, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                    // intersect with our island to avoid growing inside another island
+                    grown_expoly = intersection_ex(grown_expoly,
+                                                   {this->fill_expolygons()[get_island_idx(surface.expolygon.contour,
+                                                                                           fill_ex_bboxes,
+                                                                                           this->fill_expolygons())]});
+                    surfaces_append(top, std::move(grown_expoly), surface);
                 } else if (surface.has_pos_bottom() && (!surface.has_mod_bridge() || lower_layer == nullptr)) {
-                    // Grown by 3mm.
-                    surfaces_append(bottom, offset_ex(surface.expolygon, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS), surface);
+                    // Grow.
+                    ExPolygons grown_expoly = offset_ex(surface.expolygon, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                    // intersect with our island to avoid growing inside another island
+                    grown_expoly = intersection_ex(grown_expoly,
+                                                   {this->fill_expolygons()[get_island_idx(surface.expolygon.contour,
+                                                                                           fill_ex_bboxes,
+                                                                                           this->fill_expolygons())]});
+                    surfaces_append(bottom, std::move(grown_expoly), surface);
                 } else if (surface.has_pos_bottom() && surface.has_mod_bridge()) {
-                    bridges.emplace_back(surface);
-
+                    bridges.emplace_back(std::move(surface));
                 } else if (has_infill || !(surface.has_pos_internal())) { //i'm totally confused here.
                     assert(surface.has_pos_internal());
                     if (!surface.has_pos_external())
                         // Make a copy as the following line uses the move semantics.
                         internal.push_back(surface);
-                    polygons_append(fill_boundaries, std::move(surface.expolygon));
+                    fill_boundaries.push_back(std::move(surface.expolygon));
                 } else {
                     assert(surface.has_pos_internal());
-                    if (!surface.has_pos_external()){
-                        if (! has_infill && lower_layer != nullptr)
-                            polygons_append(voids, surface.expolygon);
-                        internal.push_back(std::move(surface));
-                    }
                     //push surface as perimeter-only inside the fill_boundaries
                     if (margin_bridged > 0) {
                         ExPolygons peri_poly = diff_ex(ExPolygons() = { surface.expolygon }, offset_ex(surface.expolygon, -margin_bridged));
-                        polygons_append(fill_boundaries, peri_poly);
+                        append(fill_boundaries, peri_poly);
+                    }
+                    if (!surface.has_pos_external()){
+                        if (!has_infill && lower_layer != nullptr)
+                            polygons_append(voids, surface.expolygon);
+                        internal.push_back(std::move(surface));
                     }
                 }
             }
         }
+        set_fill_surfaces().clear();
         if (!voids.empty()) {
             // There are some voids (empty infill regions) on this layer. Usually one does not want to expand
             // any infill into these voids, with the exception the expanded infills are supported by layers below
@@ -881,7 +933,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                 // Allow the top / bottom surfaces to expand into the voids of this layer if supported by the layer below.
             	voids = diff(voids, *lower_layer_covered);
             if (! voids.empty())
-                fill_boundaries = diff(fill_boundaries, voids);
+                fill_boundaries = diff_ex(fill_boundaries, voids);
         }
     }
 
@@ -891,23 +943,20 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
         bridges.export_to_svg(debug_out_path("bridges-before-grouping-%d.svg", iRun ++), true);
     }
 #endif
-
-    if (bridges.empty())
-    {
-        fill_boundaries = union_safety_offset(fill_boundaries);
-    } else
+    
+    fill_boundaries = union_safety_offset_ex(fill_boundaries);
+    if (!bridges.empty())
     {
         // 1) Calculate the inflated bridge regions, each constrained to its island.
-        ExPolygons               fill_boundaries_ex = union_safety_offset_ex(fill_boundaries);
         std::vector<Polygons>    bridges_grown;
         std::vector<BoundingBox> bridge_bboxes;
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
         {
             static int iRun = 0;
-            SVG svg(debug_out_path("4_process_external_surfaces-fill_regions-%d.svg", iRun ++).c_str(), get_extents(fill_boundaries_ex));
-            svg.draw(fill_boundaries_ex);
-            svg.draw_outline(fill_boundaries_ex, "black", "blue", scale_(0.05)); 
+            SVG svg(debug_out_path("4_process_external_surfaces-fill_regions-%d.svg", iRun ++).c_str(), get_extents(fill_boundaries));
+            svg.draw(fill_boundaries);
+            svg.draw_outline(fill_boundaries, "black", "blue", scale_(0.05)); 
             svg.Close();
         }
 //        export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-initial");
@@ -915,16 +964,16 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
  
         {
             // Bridge expolygons, grown, to be tested for intersection with other bridge regions.
-            std::vector<BoundingBox> fill_boundaries_ex_bboxes = get_extents_vector(fill_boundaries_ex);
+            std::vector<BoundingBox> fill_boundaries_bboxes = get_extents_vector(fill_boundaries);
             bridges_grown.reserve(bridges.size());
             bridge_bboxes.reserve(bridges.size());
             for (size_t i = 0; i < bridges.size(); ++ i) {
                 // Find the island of this bridge.
                 const Point pt = bridges[i].expolygon.contour.points.front();
-                int idx_island = -1;
-                for (int j = 0; j < int(fill_boundaries_ex.size()); ++ j)
-                    if (fill_boundaries_ex_bboxes[j].contains(pt) && 
-                        fill_boundaries_ex[j].contains(pt)) {
+                int idx_island = get_island_idx(bridges[i].expolygon.contour, fill_boundaries_bboxes, fill_boundaries);
+                for (int j = 0; j < int(fill_boundaries.size()); ++ j)
+                    if (fill_boundaries_bboxes[j].contains(pt) && 
+                        fill_boundaries[j].contains(pt)) {
                         idx_island = j;
                         break;
                     }
@@ -954,7 +1003,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                             bottom, 
                             diff_ex(
                                 intersection_ex(
-                                    ExPolygons{ fill_boundaries_ex[idx_island] }, 
+                                    ExPolygons{ fill_boundaries[idx_island] }, 
                                     offset_ex(cut, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS)
                                 ),
                                 ex_polys),
@@ -965,7 +1014,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                     }
                     // Found an island, to which this bridge region belongs. Trim the expanded bridging region
                     // with its source region, so it does not overflow into a neighbor region.
-                    polys = intersection(polys, fill_boundaries_ex[idx_island]);
+                    polys = intersection(polys, fill_boundaries[idx_island]);
                 }
                 //keep bridges & bridge_bboxes & bridges_grown the SAME SIZE
                 if (!polys.empty()) {
@@ -979,7 +1028,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
         }
       if (bridges.empty())
       {
-        fill_boundaries = union_safety_offset(fill_boundaries);
+        fill_boundaries = union_safety_offset_ex(fill_boundaries);
       } else {
         // 2) Group the bridge surfaces by overlaps.
         std::vector<size_t> bridge_group(bridges.size(), (size_t)-1);
@@ -1092,8 +1141,6 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                 // without safety offset, artifacts are generated (GH #2494)
                 surfaces_append(bottom, union_safety_offset_ex(grown), bridges[idx_last]);
             }
-
-            fill_boundaries = to_polygons(fill_boundaries_ex);
 			BOOST_LOG_TRIVIAL(trace) << "Processing external surface, detecting bridges - done";
 		}
 
@@ -1157,7 +1204,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
         surfaces_append(new_surfaces, ensure_valid(std::move(new_expolys), scaled_resolution), s1);
     }
     
-    m_fill_surfaces.surfaces = std::move(new_surfaces);
+    set_fill_surfaces().surfaces = std::move(new_surfaces);
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-final");

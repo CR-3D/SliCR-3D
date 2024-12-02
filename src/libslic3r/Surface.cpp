@@ -14,19 +14,23 @@
 
 namespace Slic3r {
 
+bool Surface::has(SurfaceType type) const {
+    return (this->surface_type & type) == type;
+}
+
 bool
 Surface::has_fill_void() const {
-    return (this->surface_type & stDensVoid) != 0;
+    return has(stDensVoid);
 }
 
 bool
 Surface::has_fill_sparse() const {
-    return (this->surface_type & stDensSparse) != 0;
+    return has(stDensSparse);
 }
 
 bool
 Surface::has_fill_solid() const {
-    return (this->surface_type & stDensSolid) != 0;
+    return has(stDensSolid);
 }
 
 bool
@@ -38,30 +42,30 @@ Surface::has_pos_external() const
 bool
 Surface::has_pos_top() const
 {
-    return (this->surface_type & stPosTop) != 0;
+    return has(stPosTop);
 }
 
 bool
 Surface::has_pos_internal() const
 {
-    return (this->surface_type & stPosInternal) != 0;
+    return has(stPosInternal);
 }
 
 bool
 Surface::has_pos_bottom() const
 {
-    return (this->surface_type & stPosBottom) != 0;
+    return has(stPosBottom);
 }
 
 bool
 Surface::has_mod_bridge() const
 {
-    return (this->surface_type & stModBridge) != 0;
+    return has(stModBridge);
 }
 bool
 Surface::has_mod_overBridge() const
 {
-    return (this->surface_type & stModOverBridge) != 0;
+    return has(stModOverBridge);
 }
 
 BoundingBox get_extents(const Surface &surface)
@@ -121,7 +125,7 @@ const char* surface_type_to_color_name(const SurfaceType surface_type)
     if (surface_type == (stPosInternal | stDensSolid | stModOverBridge)) return "rgb(0,255,128)"; // green-cyan
     if (surface_type == (stPosInternal | stDensSolid)) return "rgb(255,0,255)"; // magenta
     if (surface_type == (stPosInternal | stDensVoid)) return "rgb(128,128,128)"; // gray
-    if (surface_type == (stPosInternal | stDensSparse)) return "rgb(255,255,128)"; // yellow 
+    if ((surface_type & (stPosInternal | stDensSparse)) == (stPosInternal | stDensSparse)) return "rgb(255,255,128)"; // yellow 
     if ((surface_type & stPosPerimeter) != 0) return "rgb(128,0,0)"; // maroon
     return "rgb(64,64,64)"; //dark gray
 }

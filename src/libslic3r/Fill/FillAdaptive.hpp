@@ -60,6 +60,7 @@ FillAdaptive::OctreePtr         build_octree(
 class Filler : public Slic3r::Fill
 {
 public:
+    Filler() : Fill() { can_fill_surface_single = true; }
     ~Filler() override {}
 
 protected:

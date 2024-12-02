@@ -1558,7 +1558,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
             for (const Arachne::ExtrusionJunction& ej : extrusion->junctions) {
                 //remove duplicate points from arachne
                 if (extrusion_path.empty() ||
-                    (ej.p.x() != extrusion_path.back().x() || ej.p.y() != extrusion_path.back().y())) {
+                    (std::abs(ej.p.x() - extrusion_path.back().x()) > SCALED_EPSILON || std::abs(ej.p.y() - extrusion_path.back().y()) > SCALED_EPSILON)) {
                     extrusion_path.emplace_back(ej.p.x(), ej.p.y(), ej.w);
                 }
                 extrusion_path_bbox.merge(Point{ej.p.x(), ej.p.y()});

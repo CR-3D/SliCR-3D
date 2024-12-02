@@ -137,6 +137,7 @@ public:
 	double area() 		 const { return this->expolygon.area(); }
     bool empty() const { return expolygon.empty(); }
     void clear() { expolygon.clear(); }
+    bool has(SurfaceType type) const;
     bool has_fill_solid() const;
     bool has_fill_sparse() const;
     bool has_fill_void() const;

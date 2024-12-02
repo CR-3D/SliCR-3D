@@ -25,6 +25,7 @@ namespace Slic3r {
 class FillPlanePath : public Fill
 {
 public:
+    FillPlanePath() : Fill() { can_fill_surface_single = true; }
     ~FillPlanePath() override = default;
 
 protected:

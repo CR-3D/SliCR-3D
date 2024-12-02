@@ -134,6 +134,8 @@ public:
     coord_t     loop_clipping;
     // In scaled coordinates. Bounding box of the 2D projection of the object.
     BoundingBox bounding_box;
+    // true if it's possibel to call fill_surface instead of fill_surface_extrusion
+    float       can_fill_surface_single = false;
 
     // Octree builds on mesh for usage in the adaptive cubic infill
     FillAdaptive::Octree* adapt_fill_octree = nullptr;

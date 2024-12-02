@@ -4306,7 +4306,7 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
                     is_convex = polygon_to_test.convex_points(0, 3.07).empty();
                 } else {
                     // 3.3 instead of PI to allow for some concave outliers (sometimes, stl can be a bit imprecise)
-                    is_convex = polygon_to_test.concave_points(0, 3.3).empty();
+                    is_convex = polygon_to_test.concave_points(0, 3.07).empty();
                 }
                 if (is_convex) {
                     // Computing circle center

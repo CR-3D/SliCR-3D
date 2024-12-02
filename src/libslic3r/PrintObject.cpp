@@ -340,12 +340,15 @@ void PrintObject::prepare_infill()
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         for (const Layer *layer : m_layers) {
             for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
-                assert(srf.surface_type == (stPosInternal | stDensSolid) ||
-                       srf.surface_type == (stPosInternal | stDensSparse) ||
-                       srf.surface_type == (stPosInternal | stDensVoid) ||
-                       srf.surface_type == (stPosTop | stDensSolid) ||
-                       srf.surface_type == (stPosBottom | stDensSolid) ||
-                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+                // only sparse for now
+                assert( // srf.surface_type == (stPosInternal | stDensSolid) ||
+                    srf.surface_type == (stPosInternal | stDensSparse)// ||
+                    // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
+                    // srf.surface_type == (stPosInternal | stDensVoid) ||
+                    // srf.surface_type == (stPosTop | stDensSolid) ||
+                    // srf.surface_type == (stPosBottom | stDensSolid) ||
+                    // srf.surface_type == (stPosBottom | stDensSolid | stModBridge)
+                );
             }
         }
     }
@@ -371,12 +374,14 @@ void PrintObject::prepare_infill()
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         for (const Layer *layer : m_layers) {
             for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
-                assert(srf.surface_type == (stPosInternal | stDensSolid) ||
+                assert(// srf.surface_type == (stPosInternal | stDensSolid) ||  //solid will be put by process_external_surfaces / discover_vertical_shells
                        srf.surface_type == (stPosInternal | stDensSparse) ||
-                       srf.surface_type == (stPosInternal | stDensVoid) ||
+                       // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
+                       // ? srf.surface_type == (stPosInternal | stDensVoid) ||
                        srf.surface_type == (stPosTop | stDensSolid) ||
                        srf.surface_type == (stPosBottom | stDensSolid) ||
-                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
+                       srf.surface_type == (stPosBottom | stDensSolid | stModBridge)
+                );
             }
         }
     }
@@ -407,12 +412,19 @@ void PrintObject::prepare_infill()
         }
     }
     
+    // solid_infill_below_area (Force solid infill for regions having a smaller area than the specified threshold) has
+    // just beeing applied at the end of prepare_fill_surfaces()
+    // Force solid infill for the whole layer when the combined area of all objects that are printed at the same layer
+    // is smaller than solid_infill_below_layer_area.
+    apply_solid_infill_below_layer_area();
+
 #ifdef _DEBUG
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         for (const Layer *layer : m_layers) {
             for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
                 assert(srf.surface_type == (stPosInternal | stDensSolid) ||
                        srf.surface_type == (stPosInternal | stDensSparse) ||
+                       // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
                        srf.surface_type == (stPosInternal | stDensVoid) ||
                        srf.surface_type == (stPosTop | stDensSolid) ||
                        srf.surface_type == (stPosBottom | stDensSolid) ||
@@ -453,6 +465,7 @@ void PrintObject::prepare_infill()
                 for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
                     assert(srf.surface_type == (stPosInternal | stDensSolid) ||
                            srf.surface_type == (stPosInternal | stDensSparse) ||
+                           // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
                            srf.surface_type == (stPosInternal | stDensVoid) ||
                            srf.surface_type == (stPosTop | stDensSolid) ||
                            srf.surface_type == (stPosBottom | stDensSolid) ||
@@ -482,6 +495,7 @@ void PrintObject::prepare_infill()
             for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
                 assert(srf.surface_type == (stPosInternal | stDensSolid) ||
                        srf.surface_type == (stPosInternal | stDensSparse) ||
+                       // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
                        srf.surface_type == (stPosInternal | stDensVoid) ||
                        srf.surface_type == (stPosTop | stDensSolid) ||
                        srf.surface_type == (stPosBottom | stDensSolid) ||
@@ -528,6 +542,7 @@ void PrintObject::prepare_infill()
                 for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
                     assert(srf.surface_type == (stPosInternal | stDensSolid) ||
                            srf.surface_type == (stPosInternal | stDensSparse) ||
+                           // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
                            srf.surface_type == (stPosInternal | stDensVoid) ||
                            srf.surface_type == (stPosTop | stDensSolid) ||
                            srf.surface_type == (stPosBottom | stDensSolid) ||
@@ -662,8 +677,21 @@ void PrintObject::prepare_infill()
                              std::to_string(m_print->secondary_status_counter_get_max())},
                             PrintBase::SlicingStatus::SECONDARY_STATE);
     }
+
+    // Count the distance from the nearest solid surface, to allow to use denser infill
+    // if needed and if infill_dense_layers is positive.
+    // Get the surfaces with "stPosInternal | stDensSparse | stModBridge" type if dense infill
+    // Need to be before bridge_over_infill, to stop bridge expanding too much over dense infill.
+    this->tag_under_bridge();
+    m_print->throw_if_canceled();
+
+    // create internal bridge, converting (internal | solid) to (internal | solid | bridge)
+    // also expand the surface into sparse/void infill to bridge to the first internal extrusion from below.
     this->bridge_over_infill();
     m_print->throw_if_canceled();
+
+    // apply stModOverBridge over bridge surfaces
+    // TODO: use a visitor that change the flow on infill extrusion after infill, instead of this stuff.
     this->replaceSurfaceType(stPosInternal | stDensSolid,
         stPosInternal | stDensSolid | stModOverBridge,
         stPosInternal | stDensSolid | stModBridge);
@@ -694,10 +722,6 @@ void PrintObject::prepare_infill()
     this->combine_infill();
     m_print->throw_if_canceled();
 
-    // count the distance from the nearest top surface, to allow to use denser infill
-    // if needed and if infill_dense_layers is positive.
-    this->tag_under_bridge();
-    m_print->throw_if_canceled();
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
@@ -1412,6 +1436,7 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "infill_dense"
             || opt_key == "infill_dense_algo"
             || opt_key == "infill_only_where_needed"
+            || opt_key == "internal_bridge_expansion"
             || opt_key == "ironing"
             || opt_key == "ironing_type"
             || opt_key == "over_bridge_flow_ratio"
@@ -1689,6 +1714,7 @@ bool has_boundary_point(const MultiPoint& contour, const Point &point)
     double dist = (contour.point_projection(point).first - point).cast<double>().norm();
     return dist < SCALED_EPSILON;
 }
+
 bool has_boundary_point(const ExPolygon& expoly, const Point &point)
 {
     if (has_boundary_point(expoly.contour, point)) return true;
@@ -1697,6 +1723,7 @@ bool has_boundary_point(const ExPolygon& expoly, const Point &point)
     }
     return false;
 }
+
 // Function used by fit_to_size. 
 // It check if polygon_to_check can be decimated, using only point into allowedPoints and also cover polygon_to_cover
 ExPolygon try_fit_to_size(ExPolygon polygon_to_check, const ExPolygons& allowedPoints) {
@@ -2026,6 +2053,7 @@ void PrintObject::tag_under_bridge() {
                                             ensure_valid(offseted_dense_polys, scaled_resolution);
                                             for (ExPolygon offseted_dense_poly : offseted_dense_polys) {
                                                 Surface dense_surf(surface, offseted_dense_poly);
+                                                dense_surf.surface_type = stPosInternal | stDensSparse | stModBridge;
                                                 dense_surf.maxNbSolidLayersOnTop = 1;
                                                 dense_surf.priority = dense_priority[idx_dense];
                                                 surf_to_add.push_back(dense_surf);
@@ -2040,6 +2068,7 @@ void PrintObject::tag_under_bridge() {
                                         //layerm->fill_surfaces.surfaces.erase(it_surf);
                                     } else {
                                         surface.maxNbSolidLayersOnTop = 1;
+                                        surface.surface_type = stPosInternal | stDensSparse | stModBridge;
                                         surf_to_add.clear();
                                         surface.expolygon.assert_valid();
                                         surf_to_add.push_back(surface);
@@ -2333,43 +2362,43 @@ void PrintObject::detect_surfaces_type()
     // Mark the object to have the region slices classified (typed, which also means they are split based on whether they are supported, bridging, top layers etc.)
     m_typed_slices = true;
 }
-    
-    void PrintObject::apply_solid_infill_below_layer_area()
-    {
-        // compute the total layer surface for the bed, for solid_infill_below_layer_area
-        for (auto *my_layer : this->m_layers) {
-            bool exists = false;
-            for (auto *region : my_layer->m_regions) {
-                exists |= region->region().config().solid_infill_below_layer_area.value > 0;
-            }
-            if (!exists)
-                return;
-            double total_area = 0;
-            if (this->print()->config().complete_objects.value) {
-                // sequential printing: only consider myself
-                for (const ExPolygon &slice : my_layer->lslices()) { total_area += slice.area(); }
-            } else {
-                // parallel printing: get all objects
-                for (const PrintObject *object : this->print()->objects()) {
-                    for (auto *layer : object->m_layers) {
-                        if (std::abs(layer->print_z - my_layer->print_z) < EPSILON) {
-                            for (const ExPolygon &slice : layer->lslices()) { total_area += slice.area(); }
-                        }
-                    }
-                }
-            }
-            // is it low enough to apply solid_infill_below_layer_area?
-            for (auto *region : my_layer->m_regions) {
-                if (!this->print()->config().spiral_vase.value && region->region().config().fill_density.value > 0) {
-                    double min_area = scale_d(scale_d(region->region().config().solid_infill_below_layer_area.value));
-                    for (Surface& surface : region->set_fill_surfaces()) {
-                        if (surface.has_fill_sparse() && surface.has_pos_internal() && total_area <= min_area)
-                            surface.surface_type = stPosInternal | stDensSolid;
+
+void PrintObject::apply_solid_infill_below_layer_area()
+{
+    // compute the total layer surface for the bed, for solid_infill_below_layer_area
+    for (auto *my_layer : this->m_layers) {
+        bool exists = false;
+        for (auto *region : my_layer->m_regions) {
+            exists |= region->region().config().solid_infill_below_layer_area.value > 0;
+        }
+        if (!exists)
+            return;
+        double total_area = 0;
+        if (this->print()->config().complete_objects.value) {
+            // sequential printing: only consider myself
+            for (const ExPolygon &slice : my_layer->lslices()) { total_area += slice.area(); }
+        } else {
+            // parallel printing: get all objects
+            for (const PrintObject *object : this->print()->objects()) {
+                for (auto *layer : object->m_layers) {
+                    if (std::abs(layer->print_z - my_layer->print_z) < EPSILON) {
+                        for (const ExPolygon &slice : layer->lslices()) { total_area += slice.area(); }
                     }
                 }
             }
         }
+        // is it low enough to apply solid_infill_below_layer_area?
+        for (auto *region : my_layer->m_regions) {
+            if (!this->print()->config().spiral_vase.value && region->region().config().fill_density.value > 0) {
+                double min_area = scale_d(scale_d(region->region().config().solid_infill_below_layer_area.value));
+                for (Surface& surface : region->set_fill_surfaces()) {
+                    if (surface.has_fill_sparse() && surface.has_pos_internal() && total_area <= min_area)
+                        surface.surface_type = stPosInternal | stDensSolid;
+                }
+            }
+        }
     }
+}
 
 void PrintObject::process_external_surfaces(bool old)
 {
@@ -3205,8 +3234,10 @@ void PrintObject::bridge_over_infill()
                     // initially consider the whole layer unsupported, but also gather solid layers to later cut off supported parts
                     unsupported_area.insert(unsupported_area.end(), fill_polys.begin(), fill_polys.end());
                     for (const Surface &surface : region->fill_surfaces()) {
-                        // > 80 instead of ==100, because at 80% it's like solid for bridge, it doesn't have space.
-                        if ( (surface.surface_type & stDensSolid) == stDensSolid  || region->region().config().fill_density.value > 80) {
+                        // collect below solid surface where you don't need to have brdige on top.
+                        if (    surface.has(stDensSolid) ||
+                                // > 80 instead of == 100, because at 80% it's like solid for bridge, it doesn't have space.
+                                (surface.has(stDensSparse) && region->region().config().fill_density.value > 80)) {
                             Polygons p = to_polygons(surface.expolygon);
                             lower_layer_solids.insert(lower_layer_solids.end(), p.begin(), p.end());
                         }
@@ -3383,10 +3414,10 @@ void PrintObject::bridge_over_infill()
             (const size_t job_idx) {
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                 size_t lidx = layers_to_generate_infill[job_idx];
-                infill_lines.at(
-                    lidx) = po->get_layer(lidx)->generate_sparse_infill_polylines_for_anchoring(po->m_adaptive_fill_octrees.first.get(),
-                                                                                                po->m_adaptive_fill_octrees.second.get(),
-                                                                                                po->m_lightning_generator.get());
+                infill_lines.at(lidx) =
+                    po->get_layer(lidx)->generate_sparse_infill_polylines_for_anchoring(
+                        po->m_adaptive_fill_octrees.first.get(),
+                        po->m_adaptive_fill_octrees.second.get(), po->m_lightning_generator.get());
             }
         );
 #ifdef DEBUG_BRIDGE_OVER_INFILL
@@ -3466,7 +3497,7 @@ void PrintObject::bridge_over_infill()
             for (const LayerRegion *region : layer->regions()) {
                 bool has_low_density = region->region().config().fill_density.value < 100;
                 for (const Surface &surface : region->fill_surfaces()) {
-                    if ((surface.surface_type == (stPosInternal | stDensSparse) && has_low_density) || surface.surface_type == (stPosInternal | stDensVoid) ) {
+                    if ((surface.has(stPosInternal | stDensSparse) && has_low_density) || surface.has(stPosInternal | stDensVoid) ) {
                         layers_sparse_infill.push_back(surface.expolygon);
                     } else {
                         not_sparse_infill.push_back(surface.expolygon);
@@ -3804,17 +3835,19 @@ void PrintObject::bridge_over_infill()
                 Polygons expansion_area;
                 Polygons total_fill_area;
                 for (const LayerRegion *region : layer->regions()) {
-                    Polygons internal_polys = to_polygons(region->fill_surfaces().filter_by_types({(stPosInternal | stDensSparse), (stPosInternal | stDensSolid)}));
+                    Polygons internal_polys = to_polygons(region->fill_surfaces().filter_by_types({(stPosInternal | stDensSparse), (stPosInternal | stDensSparse | stModBridge), (stPosInternal | stDensSolid)}));
                     expansion_area.insert(expansion_area.end(), internal_polys.begin(), internal_polys.end());
                     Polygons fill_polys = to_polygons(region->fill_expolygons());
                     total_fill_area.insert(total_fill_area.end(), fill_polys.begin(), fill_polys.end());
                     if (region->region().config().fill_pattern.value == ipLightning) {
-                        Polygons l = to_polygons(region->fill_surfaces().filter_by_type((stPosInternal | stDensSparse)));
+                        Polygons l = to_polygons(region->fill_surfaces().filter_by_types(
+                            {(stPosInternal | stDensSparse), (stPosInternal | stDensSparse | stModBridge)}));
                         lightning_area.insert(lightning_area.end(), l.begin(), l.end());
                     }
                 }
                 total_fill_area   = closing(total_fill_area, float(SCALED_EPSILON));
                 expansion_area    = closing(expansion_area, float(SCALED_EPSILON));
+                Polygons expansion_area_1 = expansion_area;
                 expansion_area    = intersection(expansion_area, deep_infill_area);
                 Polylines anchors = intersection_pl(infill_lines[lidx - 1], shrink(expansion_area, spacing));
                 Polygons internal_unsupported_area = shrink(deep_infill_area, spacing * 4.5);
@@ -3828,62 +3861,76 @@ void PrintObject::bridge_over_infill()
                 expanded_surfaces.reserve(surfaces_by_layer[lidx].size());
                 for (const CandidateSurface &candidate : surfaces_by_layer[lidx]) {
                     const Flow &flow              = candidate.region->bridging_flow(frSolidInfill, candidate.region->region().config().bridge_type);
-                    Polygons    area_to_be_bridge = expand(candidate.new_polys, flow.scaled_spacing());
+                    Polygons    area_to_be_bridge = candidate.new_polys; //expand(candidate.new_polys, flow.scaled_spacing()); //why?
                     area_to_be_bridge             = intersection(area_to_be_bridge, deep_infill_area);
-
                     area_to_be_bridge.erase(std::remove_if(area_to_be_bridge.begin(), area_to_be_bridge.end(),
-                                                           [internal_unsupported_area](const Polygon &p) {
-                                                               return intersection({p}, internal_unsupported_area).empty();
-                                                           }),
+                                                            [internal_unsupported_area](const Polygon &p) {
+                                                                return intersection({p}, internal_unsupported_area)
+                                                                    .empty();
+                                                            }),
                                             area_to_be_bridge.end());
-
-                    Polygons limiting_area = union_(area_to_be_bridge, expansion_area);
-
                     if (area_to_be_bridge.empty())
                         continue;
 
+                    Polygons limiting_area = union_(area_to_be_bridge, expansion_area);
                     Polylines boundary_plines = to_polylines(expand(total_fill_area, 1.3 * flow.scaled_spacing()));
                     {
-                        Polylines limiting_plines = to_polylines(expand(limiting_area, 0.3*flow.spacing()));
-                        boundary_plines.insert(boundary_plines.end(), limiting_plines.begin(), limiting_plines.end());
+                        Polylines limiting_plines = to_polylines(expand(limiting_area, 0.3 * flow.spacing()));
+                        boundary_plines.insert(boundary_plines.end(), limiting_plines.begin(),
+                                                limiting_plines.end());
                     }
+
+                    Polygons bridging_area;
+                    double bridging_angle = 0;
+                    if (!candidate.region->region().config().internal_bridge_expansion.value) {
+                        bridging_area = area_to_be_bridge;
+                        bridging_angle = determine_bridging_angle(area_to_be_bridge, to_lines(boundary_plines),
+                                                                    InfillPattern::ipLine);
+                    } else {
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
-                    int r = rand();
-                    debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" + std::to_string(job_idx) + "_" +
-                                   "_anchors_" + std::to_string(r),
-                               to_lines(area_to_be_bridge), to_lines(boundary_plines), to_lines(anchors), to_lines(expansion_area));
+                        int r = rand();
+                        debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" +
+                                       std::to_string(job_idx) + "_" + "_anchors_" + std::to_string(r),
+                                   to_lines(area_to_be_bridge), to_lines(boundary_plines), to_lines(anchors),
+                                   to_lines(expansion_area));
 #endif
-
-                    double bridging_angle = 0;
-                    if (!anchors.empty()) {
-                        bridging_angle = determine_bridging_angle(area_to_be_bridge, to_lines(anchors),
-                                                                  candidate.region->region().config().fill_pattern.value);
-                    } else {
-                        // use expansion boundaries as anchors.
-                        // Also, use Infill pattern that is neutral for angle determination, since there are no infill lines.
-                        bridging_angle = determine_bridging_angle(area_to_be_bridge, to_lines(boundary_plines), InfillPattern::ipLine);
-                    }
-
-                    boundary_plines.insert(boundary_plines.end(), anchors.begin(), anchors.end());
-                    if (!lightning_area.empty() && !intersection(area_to_be_bridge, lightning_area).empty()) {
-                        boundary_plines = intersection_pl(boundary_plines, expand(area_to_be_bridge, scale_(10)));
-                    }
-                    Polygons bridging_area = construct_anchored_polygon(area_to_be_bridge, to_lines(boundary_plines), flow, bridging_angle);
-
-                    // Check collision with other expanded surfaces
-                    {
-                        bool     reconstruct       = false;
-                        Polygons tmp_expanded_area = expand(bridging_area, 3.0 * flow.scaled_spacing());
-                        for (const CandidateSurface &s : expanded_surfaces) {
-                            if (!intersection(s.new_polys, tmp_expanded_area).empty()) {
-                                bridging_angle = s.bridge_angle;
-                                reconstruct    = true;
-                                break;
-                            }
+                        if (!anchors.empty()) {
+                            bridging_angle =
+                                determine_bridging_angle(area_to_be_bridge, to_lines(anchors),
+                                                         candidate.region->region().config().fill_pattern.value);
+                        } else {
+                            // use expansion boundaries as anchors.
+                            // Also, use Infill pattern that is neutral for angle determination, since there are no
+                            // infill lines.
+                            bridging_angle = determine_bridging_angle(area_to_be_bridge, to_lines(boundary_plines),
+                                                                      InfillPattern::ipLine);
                         }
-                        if (reconstruct) {
-                            bridging_area = construct_anchored_polygon(area_to_be_bridge, to_lines(boundary_plines), flow, bridging_angle);
+
+                        boundary_plines.insert(boundary_plines.end(), anchors.begin(), anchors.end());
+                        if (!lightning_area.empty() && !intersection(area_to_be_bridge, lightning_area).empty()) {
+                            boundary_plines = intersection_pl(boundary_plines, expand(area_to_be_bridge, scale_(10)));
+                        }
+                        bridging_area = construct_anchored_polygon(area_to_be_bridge,
+                                                                            to_lines(boundary_plines), flow,
+                                                                            bridging_angle);
+
+                        // Check collision with other expanded surfaces
+                        {
+                            bool reconstruct = false;
+                            Polygons tmp_expanded_area = expand(bridging_area, 3.0 * flow.scaled_spacing());
+                            for (const CandidateSurface &s : expanded_surfaces) {
+                                if (!intersection(s.new_polys, tmp_expanded_area).empty()) {
+                                    bridging_angle = s.bridge_angle;
+                                    reconstruct = true;
+                                    break;
+                                }
+                            }
+                            if (reconstruct) {
+                                bridging_area = construct_anchored_polygon(area_to_be_bridge,
+                                                                           to_lines(boundary_plines), flow,
+                                                                           bridging_angle);
+                            }
                         }
                     }
 
@@ -3923,33 +3970,42 @@ void PrintObject::bridge_over_infill()
                     cut_from_infill.insert(cut_from_infill.end(), surface.new_polys.begin(), surface.new_polys.end());
                 }
             }
-
-            Polygons additional_ensuring_areas{};
-            if (surfaces_by_layer.find(lidx + 1) != surfaces_by_layer.end()) {
-                for (const auto &surface : surfaces_by_layer.at(lidx + 1)) {
-                    auto additional_area = diff(surface.new_polys,
-                                                shrink(surface.new_polys, surface.region->flow(frSolidInfill).scaled_spacing()));
-                    additional_ensuring_areas.insert(additional_ensuring_areas.end(), additional_area.begin(), additional_area.end());
-                }
-            }
+            
+            // why doing that? I guess there's a reason, but currently it shrink internal sparse to put some solid infill near periemters.
+            //Polygons additional_ensuring_areas{};
+            //if (surfaces_by_layer.find(lidx + 1) != surfaces_by_layer.end()) {
+            //    for (const auto &surface : surfaces_by_layer.at(lidx + 1)) {
+            //        auto additional_area = diff(surface.new_polys,
+            //                                    shrink(surface.new_polys, surface.region->flow(frSolidInfill).scaled_spacing()));
+            //        additional_ensuring_areas.insert(additional_ensuring_areas.end(), additional_area.begin(), additional_area.end());
+            //    }
+            //}
 
             for (LayerRegion *region : layer->regions()) {
                 Surfaces new_surfaces;
 
-                Polygons near_perimeters = to_polygons(union_safety_offset_ex(to_polygons(region->fill_surfaces().surfaces)));
-                near_perimeters          = diff(near_perimeters, shrink(near_perimeters, region->flow(frSolidInfill).scaled_spacing()));
-                ExPolygons additional_ensuring = intersection_ex(additional_ensuring_areas, near_perimeters);
+                // why doing that? it creates extra solid infill 
+                //Polygons near_perimeters = to_polygons(union_safety_offset_ex(to_polygons(region->fill_surfaces().surfaces)));
+                //near_perimeters          = diff(near_perimeters, shrink(near_perimeters, region->flow(frSolidInfill).scaled_spacing()));
+                //ExPolygons additional_ensuring = intersection_ex(additional_ensuring_areas, near_perimeters);
 
-                SurfacesPtr internal_infills = region->m_fill_surfaces.filter_by_type((stPosInternal | stDensSparse));
-                ExPolygons new_internal_infills = diff_ex(internal_infills, cut_from_infill);
-                new_internal_infills            = diff_ex(new_internal_infills, additional_ensuring);
-                ensure_valid(new_internal_infills, scaled_resolution);
-                assert_valid(new_internal_infills);
-                for (const ExPolygon &ep : new_internal_infills) {
-                    ep.assert_valid();
-                    new_surfaces.emplace_back((stPosInternal | stDensSparse), ep);
+                SurfacesPtr internal_infills = region->m_fill_surfaces.filter_by_types(
+                    {(stPosInternal | stDensSparse), (stPosInternal | stDensSparse | stModBridge)});
+                ExPolygons old_infill;
+                ExPolygons new_infill;
+                for (const Surface *srf : internal_infills) {
+                    old_infill.push_back(srf->expolygon);
+                    ExPolygons new_internal_infills = diff_ex(srf->expolygon, cut_from_infill);
+                    //new_internal_infills = diff_ex(new_internal_infills, additional_ensuring);
+                    ensure_valid(new_internal_infills, scaled_resolution);
+                    assert_valid(new_internal_infills);
+                    for (const ExPolygon &ep : new_internal_infills) {
+                        ep.assert_valid();
+                        new_surfaces.emplace_back(*srf, ep);
+                        new_infill.push_back(ep);
+                    }
                 }
-
+                ExPolygons new_internal_solid_bridges;
                 SurfacesPtr internal_solids = region->m_fill_surfaces.filter_by_type((stPosInternal | stDensSolid));
                 if (surfaces_by_layer.find(lidx) != surfaces_by_layer.end()) {
                     for (const CandidateSurface &cs : surfaces_by_layer.at(lidx)) {
@@ -3959,6 +4015,7 @@ void PrintObject::bridge_over_infill()
                                 tmp.surface_type = (stPosInternal | stDensSolid | stModBridge);
                                 tmp.bridge_angle = cs.bridge_angle;
                                 for (const ExPolygon &ep : ensure_valid(union_ex(cs.new_polys), scaled_resolution)) {
+                                    new_internal_solid_bridges.push_back(ep);
                                     ep.assert_valid();
                                     new_surfaces.emplace_back(tmp, ep);
                                 }
@@ -3968,7 +4025,7 @@ void PrintObject::bridge_over_infill()
                     }
                 }
                 ExPolygons new_internal_solids = to_expolygons(internal_solids);
-                new_internal_solids.insert(new_internal_solids.end(), additional_ensuring.begin(), additional_ensuring.end());
+                //new_internal_solids.insert(new_internal_solids.end(), additional_ensuring.begin(), additional_ensuring.end());
                 new_internal_solids = diff_ex(new_internal_solids, cut_from_infill);
                 new_internal_solids = union_safety_offset_ex(new_internal_solids);
                 ensure_valid(new_internal_solids, scaled_resolution);
@@ -3977,16 +4034,16 @@ void PrintObject::bridge_over_infill()
                     new_surfaces.emplace_back((stPosInternal | stDensSolid), ep);
                 }
 
-#ifdef DEBUG_BRIDGE_OVER_INFILL
-                debug_draw("Aensuring_" + std::to_string(reinterpret_cast<uint64_t>(&region)), to_polylines(additional_ensuring),
-                           to_polylines(near_perimeters), to_polylines(to_polygons(internal_infills)),
-                           to_polylines(to_polygons(internal_solids)));
-                debug_draw("Aensuring_" + std::to_string(reinterpret_cast<uint64_t>(&region)) + "_new", to_polylines(additional_ensuring),
-                           to_polylines(near_perimeters), to_polylines(to_polygons(new_internal_infills)),
-                           to_polylines(to_polygons(new_internal_solids)));
-#endif
+//#ifdef DEBUG_BRIDGE_OVER_INFILL
+//                debug_draw("Aensuring_" + std::to_string(reinterpret_cast<uint64_t>(&region)), to_polylines(additional_ensuring),
+//                           to_polylines(near_perimeters), to_polylines(to_polygons(internal_infills)),
+//                           to_polylines(to_polygons(internal_solids)));
+//                debug_draw("Aensuring_" + std::to_string(reinterpret_cast<uint64_t>(&region)) + "_new", to_polylines(additional_ensuring),
+//                           to_polylines(near_perimeters), to_polylines(to_polygons(new_internal_infills)),
+//                           to_polylines(to_polygons(new_internal_solids)));
+//#endif
 
-                region->m_fill_surfaces.remove_types({(stPosInternal | stDensSolid), (stPosInternal | stDensSparse)});
+                region->m_fill_surfaces.remove_types({(stPosInternal | stDensSolid), (stPosInternal | stDensSparse), (stPosInternal | stDensSparse | stModBridge)});
                 for(auto &srf : new_surfaces)
                     srf.expolygon.assert_valid();
                 region->m_fill_surfaces.append(new_surfaces);
