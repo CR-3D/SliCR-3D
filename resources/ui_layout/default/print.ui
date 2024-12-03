@@ -105,7 +105,7 @@ group:Avoid crossing perimeters
 
 group:label_width$12:Overhangs
 	line:Threshold For
-		setting:script:bool:advanced:depends$overhangs_width_speed$overhangs_width:label$_:label_width$0:tooltip$Simple widget to enable/disable the overhangs detection (using 55% and 75% for the two thresholds)\nUse the expert mode to get more detailled widgets:s_overhangs
+		setting:script:bool:tags$Simple$Advanced$Prusa$SuSi:depends$overhangs_width_speed$overhangs_width:label$Activate (threshold):label_width$0:tooltip$Simple widget to enable/disable the overhangs detection (using stored thresholds)\nUse the expert mode to get more detailled widgets:s_overhangs
 	end_line
 
 	line:Extrusion Direction Reverse On Even 

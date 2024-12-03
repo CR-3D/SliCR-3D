@@ -115,9 +115,9 @@ void AppConfig::set_defaults()
         // Disable background processing by default as it is not stable.
         if (get("background_processing").empty())
             set("background_processing", "0");
-        // Enable support issues alerts by default
+        // Disable support issues alerts by default
         if (get("alert_when_supports_needed").empty())
-            set("alert_when_supports_needed", "1");
+            set("alert_when_supports_needed", "0");
         // If set, the "Controller" tab for the control of the printer over serial line and the serial port settings are hidden.
         // By default, Prusa has the controller hidden.
         if (get("no_controller").empty())

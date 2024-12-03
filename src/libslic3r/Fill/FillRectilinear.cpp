@@ -3104,13 +3104,19 @@ bool FillRectilinear::fill_surface_by_lines(const Surface *surface, const FillPa
     return true;
 }
 
-void FillRectilinear::make_fill_lines(const ExPolygonWithOffset &poly_with_offset, Point refpt, double angle, coord_t x_margin, coord_t line_spacing, coord_t pattern_shift, Polylines &fill_lines, const FillParams& params) const
-{
+void FillRectilinear::make_fill_lines(const ExPolygonWithOffset &poly_with_offset,
+                                      Point refpt,
+                                      double angle,
+                                      coord_t x_margin,
+                                      coord_t line_spacing,
+                                      coord_t pattern_shift,
+                                      Polylines &fill_lines,
+                                      const FillParams &params) const {
     BoundingBox bounding_box = poly_with_offset.bounding_box_src();
     // Don't produce infill lines, which fully overlap with the infill perimeter.
     coord_t     x_min = bounding_box.min.x() + x_margin;
     coord_t     x_max = bounding_box.max.x() - x_margin;
-    coord_t     min_dist = std::max(SCALED_EPSILON, line_spacing / 2);
+    coord_t     min_dist = std::max(SCALED_EPSILON, x_margin / 2);
     // extend bounding box so that our pattern will be aligned with other layers
     // align_to_grid will not work correctly with positive pattern_shift.
     coord_t pattern_shift_scaled = pattern_shift % line_spacing;
@@ -3122,12 +3128,12 @@ void FillRectilinear::make_fill_lines(const ExPolygonWithOffset &poly_with_offse
     const double sin_a    = sin(angle);
     std::vector<SegmentedIntersectionLine> segs = _vert_lines_for_polygon(poly_with_offset, bounding_box, params, line_spacing);
     slice_region_by_vertical_lines(this, segs, poly_with_offset);
-    for (const SegmentedIntersectionLine &vline : segs)
+    for (const SegmentedIntersectionLine &vline : segs) {
         if (vline.pos >= x_min) {
             if (vline.pos > x_max)
                 break;
             for (auto it = vline.intersections.begin(); it != vline.intersections.end();) {
-                auto it_low  = it ++;
+                auto it_low = it++;
                 assert(it_low->type == SegmentIntersection::OUTER_LOW);
                 if (it_low->type != SegmentIntersection::OUTER_LOW)
                     continue;
@@ -3142,10 +3148,11 @@ void FillRectilinear::make_fill_lines(const ExPolygonWithOffset &poly_with_offse
                                                     Point(vline.pos, it_high->pos()).rotated(cos_a, sin_a));
                         }
                     }
-                    ++ it;
+                    ++it;
                 }
             }
         }
+    }
 }
 
 bool FillRectilinear::fill_surface_by_multilines(const Surface *surface, FillParams params, const std::initializer_list<SweepParams> &sweep_params, Polylines &polylines_out) const

@@ -864,8 +864,8 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
     // Collect top surfaces and internal surfaces.
     // Collect fill_boundaries: If we're slicing with no infill, we can't extend external surfaces over non-existent infill.
     // This loop destroys the surfaces (aliasing this->fill_surfaces.surfaces) by moving into top/internal/fill_boundaries!
-
     {
+        coord_t min_half_width = this->flow(frSolidInfill).scaled_width() / 2;
         // to search your fill island
         std::vector<BoundingBox> fill_ex_bboxes = get_extents_vector(this->fill_expolygons());
         // Voids are sparse infills if infill rate is zero.
@@ -879,7 +879,9 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                     // Collect the top surfaces, inflate them and trim them by the bottom surfaces.
                     // This gives the priority to bottom surfaces.
                     // grow
-                    ExPolygons grown_expoly = offset_ex(surface.expolygon, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                    ExPolygons grown_expoly = offset2_ex({surface.expolygon}, double(-min_half_width),
+                                                         double(margin + min_half_width),
+                                                         EXTERNAL_SURFACES_OFFSET_PARAMETERS);
                     // intersect with our island to avoid growing inside another island
                     grown_expoly = intersection_ex(grown_expoly,
                                                    {this->fill_expolygons()[get_island_idx(surface.expolygon.contour,
@@ -888,7 +890,9 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                     surfaces_append(top, std::move(grown_expoly), surface);
                 } else if (surface.has_pos_bottom() && (!surface.has_mod_bridge() || lower_layer == nullptr)) {
                     // Grow.
-                    ExPolygons grown_expoly = offset_ex(surface.expolygon, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                    ExPolygons grown_expoly = offset2_ex({surface.expolygon}, double(-min_half_width),
+                                                         double(margin + min_half_width),
+                                                         EXTERNAL_SURFACES_OFFSET_PARAMETERS);
                     // intersect with our island to avoid growing inside another island
                     grown_expoly = intersection_ex(grown_expoly,
                                                    {this->fill_expolygons()[get_island_idx(surface.expolygon.contour,
@@ -963,6 +967,7 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
  
         {
+            coord_t min_half_width = this->flow(frSolidInfill).scaled_width() / 2;
             // Bridge expolygons, grown, to be tested for intersection with other bridge regions.
             std::vector<BoundingBox> fill_boundaries_bboxes = get_extents_vector(fill_boundaries);
             bridges_grown.reserve(bridges.size());
@@ -983,38 +988,53 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                     BOOST_LOG_TRIVIAL(trace) << "Bridge did not fall into the source region!";
                 } else {
                     // also, remove all bridge area that are thinner than a single line.
-                    ExPolygons expoly_collapsed = offset2_ex(ExPolygons{ bridges[i].expolygon },
-                        (-this->flow(frInfill).scaled_width() / 2), 
-                        (this->flow(frInfill).scaled_width() / 2) + SCALED_EPSILON, 
-                        EXTERNAL_SURFACES_OFFSET_PARAMETERS);
-                    //check if there is something cut
-                    ExPolygons cut = diff_ex(ExPolygons{ bridges[i].expolygon }, expoly_collapsed, ApplySafetyOffset::Yes);
-                    double area_cut = 0; for (ExPolygon& c : cut) area_cut += c.area();
-                    if (area_cut > (this->flow(frInfill).scaled_width() * this->flow(frInfill).scaled_width())) {
-                        //if area not negligible, we will consider it.
-                        // compute the bridge area, if any.
-                        ExPolygons ex_polys = offset_ex(expoly_collapsed, float(margin_bridged), EXTERNAL_SURFACES_OFFSET_PARAMETERS);
-                        polys = to_polygons(ex_polys);
-                        //add the cut section as solid infill
-                        Surface srf_bottom = bridges[i];
-                        srf_bottom.surface_type = stPosBottom | stDensSolid;
-                        // clip it to the infill area and remove the bridge part.
-                        surfaces_append(
-                            bottom, 
-                            diff_ex(
-                                intersection_ex(
-                                    ExPolygons{ fill_boundaries[idx_island] }, 
-                                    offset_ex(cut, double(margin), EXTERNAL_SURFACES_OFFSET_PARAMETERS)
-                                ),
-                                ex_polys),
-                            srf_bottom);
+                    ExPolygons expoly_collapsed = offset2_ex(ExPolygons{bridges[i].expolygon}, (-min_half_width),
+                                                             (min_half_width) + SCALED_EPSILON,
+                                                             EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                    // is there something left?
+                    if (!expoly_collapsed.empty()) {
+                        // check if there is something cut
+                        ExPolygons cut = diff_ex(ExPolygons{bridges[i].expolygon}, expoly_collapsed,
+                                                 ApplySafetyOffset::Yes);
+                        //double area_cut = 0;
+                        //for (ExPolygon &c : cut) {
+                        //    area_cut += c.area();
+                        //}
+                        // can remove thin panhandle , very useful in some cases.
+                        if (expoly_collapsed.size() != 1 && 
+                            !cut.empty()
+                            //area_cut > min_half_width * min_half_width
+                            ) {
+                            // if area not negligible, we will consider it.
+                            // compute the bridge area, if any.
+                            ExPolygons ex_polys = offset_ex(expoly_collapsed, float(margin_bridged),
+                                                            EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                            polys = to_polygons(ex_polys);
+                            // add the cut section as solid infill
+                            Surface srf_bottom = bridges[i];
+                            srf_bottom.surface_type = stPosBottom | stDensSolid;
+                            // clip it to the infill area and remove the bridge part.
+                            surfaces_append(bottom,
+                                            diff_ex(intersection_ex(ExPolygons{fill_boundaries[idx_island]},
+                                                                    offset_ex(cut, double(margin),
+                                                                              EXTERNAL_SURFACES_OFFSET_PARAMETERS)),
+                                                    ex_polys),
+                                            srf_bottom);
+                        } else {
+                            // negligible, don't offset2
+                            polys = offset(to_polygons(bridges[i].expolygon), float(margin_bridged),
+                                           EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                        }
+                        // Found an island, to which this bridge region belongs. Trim the expanded bridging region
+                        // with its source region, so it does not overflow into a neighbor region.
+                        polys = intersection(polys, fill_boundaries[idx_island]);
                     } else {
-                        //negligible, don't offset2
-                        polys = offset(to_polygons(bridges[i].expolygon), float(margin_bridged), EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                        // add the cut section as solid infill
+                        Surface &srf_bottom = bridges[i];
+                        srf_bottom.surface_type = stPosBottom | stDensSolid;
+                        // will be removed just below, we can move it
+                        bottom.push_back(std::move(srf_bottom));
                     }
-                    // Found an island, to which this bridge region belongs. Trim the expanded bridging region
-                    // with its source region, so it does not overflow into a neighbor region.
-                    polys = intersection(polys, fill_boundaries[idx_island]);
                 }
                 //keep bridges & bridge_bboxes & bridges_grown the SAME SIZE
                 if (!polys.empty()) {
@@ -1173,9 +1193,10 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                     s2.clear();
                 }
             }
-            if (s1.has_pos_top())
+            if (s1.has_pos_top()) {
                 // Trim the top surfaces by the bottom surfaces. This gives the priority to the bottom surfaces.
                 polys = diff(polys, bottom_polygons);
+            }
             surfaces_append(
                 new_surfaces,
                 // Don't use a safety offset as fill_boundaries were already united using the safety offset.
