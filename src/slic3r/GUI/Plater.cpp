@@ -692,7 +692,7 @@ struct Sidebar::priv
     Plater *plater;
     
     wxScrolledWindow *scrolled;
-    wxPanel *         presets_panel; // Used for MSW better layouts
+    wxPanel*         presets_panel; // Used for MSW better layouts
     
     ModeSizer*                         mode_sizer{nullptr};
     wxFlexGridSizer*                   sizer_presets;
@@ -711,13 +711,15 @@ struct Sidebar::priv
     ObjectLayers*      object_layers{nullptr};
     ObjectInfo*        object_info;
     SlicedInfo*        sliced_info;
-    
+    wxBoxSizer*        m_btns_sizer{ nullptr };
+
     wxButton*      btn_export_gcode;
     wxButton*      btn_reslice;
     ScalableButton* btn_send_gcode;
     // ScalableButton *btn_eject_device;
     ScalableButton* btn_export_gcode_removable; // exports to removable drives (appears only if removable drive is connected)
-    
+    bool m_autoslicing_mode{ false };
+  
     bool                    is_collapsed{false};
     Search::OptionsSearcher searcher;
     
@@ -1031,20 +1033,20 @@ Sidebar::Sidebar(Plater *parent)
     
     enable_buttons(false);
     
-    auto *btns_sizer = new wxBoxSizer(wxHORIZONTAL);
+    p->m_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
     
-    auto *complect_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
+    auto* complect_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
     complect_btns_sizer->Add(p->btn_export_gcode, 1, wxEXPAND);
     complect_btns_sizer->Add(p->btn_send_gcode, 0, wxLEFT, margin_5);
     complect_btns_sizer->Add(p->btn_export_gcode_removable, 0, wxLEFT, margin_5);
     //    complect_btns_sizer->Add(p->btn_eject_device);
     
-    btns_sizer->Add(p->btn_reslice, 1, wxEXPAND | wxTOP | wxBOTTOM, margin_5);
-    btns_sizer->Add(complect_btns_sizer, 1, wxEXPAND | wxTOP | wxBOTTOM, margin_5);
+    p->m_btns_sizer->Add(p->btn_reslice, 1, wxEXPAND | wxTOP | wxBOTTOM, margin_5);
+    p->m_btns_sizer->Add(complect_btns_sizer, 1, wxEXPAND | wxTOP | wxBOTTOM, margin_5);
     
     auto *sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(p->scrolled, 1, wxEXPAND);
-    sizer->Add(btns_sizer, 0, wxEXPAND | wxLEFT, margin_5);
+    sizer->Add(p->m_btns_sizer, 0, wxEXPAND | wxLEFT, margin_5);
     SetSizer(sizer);
     
     // Events
@@ -1766,6 +1768,10 @@ void Sidebar::update_sliced_info_sizer()
 
 void Sidebar::show_sliced_info_sizer(const bool show)
 {
+    if (p->m_autoslicing_mode) {
+        return;
+    }
+
     wxWindowUpdateLocker freeze_guard(this);
     
     p->sliced_info->Show(show);
@@ -1774,6 +1780,18 @@ void Sidebar::show_sliced_info_sizer(const bool show)
     
     Layout();
     p->scrolled->Refresh();
+}
+
+void Sidebar::show_btns_sizer(const bool show) {
+    if (p->m_autoslicing_mode) {
+        return;
+    }
+
+    wxWindowUpdateLocker freeze_guard(this);
+    p->m_btns_sizer->Show(show);
+
+    Layout();
+    scrolled_panel()->Refresh();
 }
 
 void Sidebar::enable_buttons(bool enable)
@@ -1793,6 +1811,20 @@ bool Sidebar::show_export_removable(bool show) const { return p->btn_export_gcod
 // bool Sidebar::get_eject_shown()                const { return p->btn_eject_device->IsShown(); }
 
 bool Sidebar::is_multifilament() { return p->combos_filament.size() > 1; }
+
+void Sidebar::switch_to_autoslicing_mode() {
+    this->show_sliced_info_sizer(false);
+    this->show_btns_sizer(false);
+    p->m_autoslicing_mode = true;
+}
+
+void Sidebar::switch_from_autoslicing_mode() {
+    if (!p->m_autoslicing_mode) {
+        return;
+    }
+    p->m_autoslicing_mode = false;
+    this->show_sliced_info_sizer(true);
+}
 
 void Sidebar::check_and_update_searcher(bool respect_mode /*= false*/)
 {
@@ -3847,11 +3879,11 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         
         notification_manager->set_slicing_progress_hidden();
     }
-    
-    if ((invalidated != Print::APPLY_STATUS_UNCHANGED || force_validation) && !background_process.empty()) {
-        // The delayed error message is no more valid.
-        delayed_error_message.clear();
-        // The state of the Print changed, and it is non-zero. Let's validate it and give the user feedback on errors.
+
+    if ((invalidated != Print::APPLY_STATUS_UNCHANGED || force_validation) && ! background_process.empty()) {
+		// The delayed error message is no more valid.
+		delayed_error_message.clear();
+		// The state of the Print changed, and it is non-zero. Let's validate it and give the user feedback on errors.
         std::vector<std::string> warnings;
         std::pair<PrintBase::PrintValidationError, std::string> err = this->background_process.validate(&warnings);
         this->get_current_canvas3D()->show_print_warning(false);
@@ -4553,11 +4585,13 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
 #endif // __WXMAC__
 
     ScopeGuard guard([]() { s_reload_preview_after_switching_beds = false; });
+
     if (current_panel == panel) {
         if (!s_reload_preview_after_switching_beds)
             return;
-        else
+        else {
             update_background_process();
+        }
     }
 
     wxTitledPanel* old_panel = current_panel;
@@ -4594,7 +4628,10 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
 
     if (current_panel == view3D) {
 
-        s_multiple_beds.stop_autoslice(true);
+        if(s_multiple_beds.stop_autoslice(true)) {
+            sidebar->switch_from_autoslicing_mode();
+            update_background_process();
+        }
 
         if (old_panel == preview)
             preview->get_canvas3d()->unbind_event_handlers();

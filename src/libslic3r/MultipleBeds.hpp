@@ -79,7 +79,7 @@ public:
 	void   ensure_wipe_towers_on_beds(Model& model, const std::vector<std::unique_ptr<Print>>& prints);
 
 	void   start_autoslice(std::function<void(int,bool)>);
-	void   stop_autoslice(bool restore_original);
+	bool   stop_autoslice(bool restore_original);
 	bool   is_autoslicing() const { return m_autoslicing; }
 	void   autoslice_next_bed();
 

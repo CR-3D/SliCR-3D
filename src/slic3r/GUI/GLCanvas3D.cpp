@@ -145,8 +145,10 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
         }
         wxGetApp().plater()->schedule_background_process();
         wxGetApp().plater()->object_list_changed(); // Updates Slice Now / Export buttons.
-        if (s_multiple_beds.is_autoslicing() && triggered_by_user)
+        if (s_multiple_beds.is_autoslicing() && triggered_by_user) {
             s_multiple_beds.stop_autoslice(false);
+            wxGetApp().sidebar().switch_from_autoslicing_mode();
+        }
     });
 }
 

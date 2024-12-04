@@ -125,16 +125,11 @@ public:
     wxButton*               get_preheat_button();
     wxButton*               get_refresh_button();
     void                    update_objects_list_extruder_column(size_t extruders_count);
-    void                    show_info_sizer();
-    void                    show_sliced_info_sizer(const bool show);
+
     void                    update_sliced_info_sizer();
     void                    enable_buttons(bool enable);
     void                    set_btn_label(const ActionButtonType btn_type, const wxString& label) const;
-    bool                    show_reslice(bool show) const;
-	bool                    show_export(bool show) const;
-	bool                    show_send(bool show) const;
-    bool                    show_eject(bool show)const;
-	bool                    show_export_removable(bool show) const;
+
 	bool                    get_eject_shown() const;
     bool                    is_multifilament();
     void                    update_mode();
@@ -142,9 +137,19 @@ public:
     void                    collapse(bool collapse);
     void                    check_and_update_searcher(bool respect_mode = false);
     void                    update_ui_from_settings();
-    
-    void                    show_mode_sizer(bool show);
 
+    void                    show_mode_sizer(bool show);
+    void                    show_btns_sizer(const bool show);
+    void                    show_info_sizer();
+    void                    show_sliced_info_sizer(const bool show);
+    bool                    show_reslice(bool show) const;
+	bool                    show_export(bool show) const;
+	bool                    show_send(bool show) const;
+    bool                    show_eject(bool show)const;
+	bool                    show_export_removable(bool show) const;
+
+    void                    switch_to_autoslicing_mode();
+    void                    switch_from_autoslicing_mode();
 
     std::vector<PlaterPresetComboBox*>&   combos_filament();
     Search::OptionsSearcher&        get_searcher();

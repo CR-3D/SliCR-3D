@@ -500,20 +500,20 @@ Sidebar::Sidebar(Plater *parent)
 
     enable_buttons(false);
 
-    auto *btns_sizer = new wxBoxSizer(wxVERTICAL);
+    m_btns_sizer = new wxBoxSizer(wxVERTICAL);
 
-    auto* complect_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
+    auto *complect_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
     complect_btns_sizer->Add(m_btn_export_gcode, 1, wxEXPAND);
     complect_btns_sizer->Add(m_btn_connect_gcode, 1, wxEXPAND | wxLEFT, margin_5);
     complect_btns_sizer->Add(m_btn_send_gcode, 0, wxLEFT, margin_5);
 	complect_btns_sizer->Add(m_btn_export_gcode_removable, 0, wxLEFT, margin_5);
 
-    btns_sizer->Add(m_btn_reslice, 0, wxEXPAND | wxTOP, margin_5);
-    btns_sizer->Add(complect_btns_sizer, 0, wxEXPAND | wxTOP, margin_5);
+    m_btns_sizer->Add(m_btn_reslice, 0, wxEXPAND | wxTOP, margin_5);
+    m_btns_sizer->Add(complect_btns_sizer, 0, wxEXPAND | wxTOP, margin_5);
 
     auto *sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(m_scrolled_panel, 1, wxEXPAND);
-    sizer->Add(btns_sizer, 0, wxEXPAND | wxLEFT | wxBOTTOM
+    sizer->Add(m_btns_sizer, 0, wxEXPAND | wxLEFT | wxBOTTOM
 #ifndef _WIN32
         | wxRIGHT
 #endif // __linux__
@@ -856,11 +856,17 @@ void Sidebar::show_info_sizer()
     const int obj_idx = selection.get_object_idx();
     const int inst_idx = selection.get_instance_idx();
 
-    if (m_mode < comExpert || objects.empty() || obj_idx < 0 || int(objects.size()) <= obj_idx ||
-        inst_idx < 0 || int(objects[obj_idx]->instances.size()) <= inst_idx ||
-        objects[obj_idx]->volumes.empty() ||                                            // hack to avoid crash when deleting the last object on the bed
-        (selection.is_single_full_object() && objects[obj_idx]->instances.size()> 1) ||
-        !(selection.is_single_full_instance() || selection.is_single_volume())) {
+    if (
+        m_mode < comExpert
+        || objects.empty()
+        || obj_idx < 0
+        || int(objects.size()) <= obj_idx
+        || inst_idx < 0
+        || int(objects[obj_idx]->instances.size()) <= inst_idx
+        || objects[obj_idx]->volumes.empty() // hack to avoid crash when deleting the last object on the bed
+        || (selection.is_single_full_object() && objects[obj_idx]->instances.size()> 1)
+        || !(selection.is_single_full_instance() || selection.is_single_volume())
+    ) {
         m_object_info->Show(false);
         return;
     }
@@ -1065,11 +1071,28 @@ void Sidebar::update_sliced_info_sizer()
 
 void Sidebar::show_sliced_info_sizer(const bool show)
 {
+    if (m_autoslicing_mode) {
+        return;
+    }
+
     wxWindowUpdateLocker freeze_guard(this);
 
     m_sliced_info->Show(show);
     if (show)
         update_sliced_info_sizer();
+
+    Layout();
+    m_scrolled_panel->Refresh();
+}
+
+void Sidebar::show_btns_sizer(const bool show)
+{
+    if (m_autoslicing_mode) {
+        return;
+    }
+
+    wxWindowUpdateLocker freeze_guard(this);
+    m_btns_sizer->Show(show);
 
     Layout();
     m_scrolled_panel->Refresh();
@@ -1084,11 +1107,50 @@ void Sidebar::enable_buttons(bool enable)
     m_btn_connect_gcode->Enable(enable);
 }
 
-bool Sidebar::show_reslice(bool show)          const { return m_btn_reslice->Show(show); }
-bool Sidebar::show_export(bool show)           const { return m_btn_export_gcode->Show(show); }
-bool Sidebar::show_send(bool show)             const { return m_btn_send_gcode->Show(show); }
-bool Sidebar::show_export_removable(bool show) const { return m_btn_export_gcode_removable->Show(show); }
-bool Sidebar::show_connect(bool show)          const { return m_btn_connect_gcode->Show(show); }
+bool Sidebar::show_reslice(bool show)          const {
+    if (this->m_autoslicing_mode) {
+        return false;
+    }
+    return m_btn_reslice->Show(show);
+}
+bool Sidebar::show_export(bool show)           const {
+    if (this->m_autoslicing_mode) {
+        return false;
+    }
+    return m_btn_export_gcode->Show(show);
+}
+bool Sidebar::show_send(bool show)             const {
+    if (this->m_autoslicing_mode) {
+        return false;
+    }
+    return m_btn_send_gcode->Show(show);
+}
+bool Sidebar::show_export_removable(bool show) const {
+    if (this->m_autoslicing_mode) {
+        return false;
+    }
+    return m_btn_export_gcode_removable->Show(show);
+}
+bool Sidebar::show_connect(bool show)          const {
+    if (this->m_autoslicing_mode) {
+        return false;
+    }
+    return m_btn_connect_gcode->Show(show);
+}
+
+void Sidebar::switch_to_autoslicing_mode() {
+    this->show_sliced_info_sizer(false);
+    this->show_btns_sizer(false);
+    this->m_autoslicing_mode = true;
+}
+
+void Sidebar::switch_from_autoslicing_mode() {
+    if (!this->m_autoslicing_mode) {
+        return;
+    }
+    this->m_autoslicing_mode = false;
+    this->show_sliced_info_sizer(true);
+}
 
 
 void Sidebar::update_mode()

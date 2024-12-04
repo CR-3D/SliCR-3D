@@ -419,14 +419,15 @@ void MultipleBeds::start_autoslice(std::function<void(int, bool)> select_bed_fn)
 
 
 
-void MultipleBeds::stop_autoslice(bool restore_original)
+bool MultipleBeds::stop_autoslice(bool restore_original)
 {
     if (! is_autoslicing())
-        return;
+        return false;
     m_autoslicing = false;
 
     if (restore_original)
         m_select_bed_fn(m_autoslicing_original_bed, false);
+    return true;
 }
 
 
