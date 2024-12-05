@@ -809,6 +809,7 @@ size_t get_island_idx(const Polygon &contour,
         for (size_t i = 0; i < candidates.size(); ++i) {
             if (!bboxes[candidates[i]].contains(contour.points)) {
                 candidates.erase(candidates.begin() + i);
+                --i;
             }
         }
     }
@@ -818,6 +819,7 @@ size_t get_island_idx(const Polygon &contour,
         for (size_t i = 0; i < candidates.size(); ++i) {
             if (!fill_boundaries[candidates[i]].contains(contour.front())) {
                 candidates.erase(candidates.begin() + i);
+                --i;
             }
         }
     }
@@ -878,27 +880,37 @@ void LayerRegion::process_external_surfaces_old(const Layer *lower_layer, const 
                 if (surface.has_pos_top()) {
                     // Collect the top surfaces, inflate them and trim them by the bottom surfaces.
                     // This gives the priority to bottom surfaces.
-                    // grow
-                    ExPolygons grown_expoly = offset2_ex({surface.expolygon}, double(-min_half_width),
-                                                         double(margin + min_half_width),
+                    // collapse & grow
+                    ExPolygons shrunk_expoly = offset_ex({surface.expolygon},
+                                                         double(-min_half_width),
                                                          EXTERNAL_SURFACES_OFFSET_PARAMETERS);
-                    // intersect with our island to avoid growing inside another island
-                    grown_expoly = intersection_ex(grown_expoly,
-                                                   {this->fill_expolygons()[get_island_idx(surface.expolygon.contour,
-                                                                                           fill_ex_bboxes,
-                                                                                           this->fill_expolygons())]});
-                    surfaces_append(top, std::move(grown_expoly), surface);
+                    if (!shrunk_expoly.empty()) {
+                        ExPolygons grown_expoly = offset_ex(shrunk_expoly, double(margin + min_half_width),
+                                                            EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                        // intersect with our island to avoid growing inside another island
+                        // note: this is done on one of the shrunk_expoly instead of the surface.expolygon, as this may fail because of epsilons.
+                        size_t island_idx = get_island_idx(shrunk_expoly.front().contour, fill_ex_bboxes, this->fill_expolygons());
+                        if (island_idx < this->fill_expolygons().size()) { // sanity check.
+                            grown_expoly = intersection_ex(grown_expoly, {this->fill_expolygons()[island_idx]});
+                        }
+                        surfaces_append(top, std::move(grown_expoly), surface);
+                    }
                 } else if (surface.has_pos_bottom() && (!surface.has_mod_bridge() || lower_layer == nullptr)) {
-                    // Grow.
-                    ExPolygons grown_expoly = offset2_ex({surface.expolygon}, double(-min_half_width),
-                                                         double(margin + min_half_width),
+                    // collapse & grow
+                    ExPolygons shrunk_expoly = offset_ex({surface.expolygon},
+                                                         double(-min_half_width),
                                                          EXTERNAL_SURFACES_OFFSET_PARAMETERS);
-                    // intersect with our island to avoid growing inside another island
-                    grown_expoly = intersection_ex(grown_expoly,
-                                                   {this->fill_expolygons()[get_island_idx(surface.expolygon.contour,
-                                                                                           fill_ex_bboxes,
-                                                                                           this->fill_expolygons())]});
-                    surfaces_append(bottom, std::move(grown_expoly), surface);
+                    if (!shrunk_expoly.empty()) {
+                        ExPolygons grown_expoly = offset_ex(shrunk_expoly, double(margin + min_half_width),
+                                                            EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                        // intersect with our island to avoid growing inside another island
+                        // note: this is done on one of the shrunk_expoly instead of the surface.expolygon, as this may fail because of epsilons.
+                        size_t island_idx = get_island_idx(shrunk_expoly.front().contour, fill_ex_bboxes, this->fill_expolygons());
+                        if (island_idx < this->fill_expolygons().size()) { // sanity check.
+                            grown_expoly = intersection_ex(grown_expoly, {this->fill_expolygons()[island_idx]});
+                        }
+                        surfaces_append(bottom, std::move(grown_expoly), surface);
+                    }
                 } else if (surface.has_pos_bottom() && surface.has_mod_bridge()) {
                     bridges.emplace_back(std::move(surface));
                 } else if (has_infill || !(surface.has_pos_internal())) { //i'm totally confused here.

@@ -755,11 +755,13 @@ struct LoopAssertVisitor : public ExtrusionVisitorRecursiveConst {
     virtual void use(const ExtrusionPath &path) override {
         if (!m_check_length)
             return;
+        release_assert(!path.empty());
         release_assert(path.length() > SCALED_EPSILON);
         for (size_t idx = 1; idx < path.size(); ++idx)
             release_assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
     }
     virtual void use(const ExtrusionLoop& loop) override {
+        release_assert(!loop.empty());
         for (size_t idx_path = 1; idx_path < loop.paths.size(); ++idx_path) {
             release_assert(loop.paths[idx_path-1].polyline.back() == loop.paths[idx_path].polyline.front());
         }

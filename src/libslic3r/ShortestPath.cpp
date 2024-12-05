@@ -1148,7 +1148,13 @@ void reorder_extrusion_paths(std::vector<ExtrusionPath> &extrusion_paths, const 
 
 void chain_and_reorder_extrusion_paths(std::vector<ExtrusionPath> &extrusion_paths, const Point *start_near)
 {
+    if (extrusion_paths.empty()) {
+        return;
+    }
     reorder_extrusion_paths(extrusion_paths, chain_extrusion_paths(extrusion_paths, start_near));
+    if (extrusion_paths.size() == 1) {
+        return;
+    }
     // The chain_extrusion_paths algorithm can't handle a point shared by four segments instead of two.
     // check that it isn't confused
     bool chain_ok = true;
@@ -1158,18 +1164,39 @@ void chain_and_reorder_extrusion_paths(std::vector<ExtrusionPath> &extrusion_pat
     if (!chain_ok) {
         // sometimes, just re-do the thing can solve it
         reorder_extrusion_paths(extrusion_paths, chain_extrusion_paths(extrusion_paths, start_near));
-        chain_ok = true;
-        for (size_t idx = 1; chain_ok && idx < extrusion_paths.size(); ++idx) {
-            chain_ok = extrusion_paths[idx - 1].last_point().coincides_with_epsilon(
-                extrusion_paths[idx].first_point());
+        int chain_break = 0;
+        size_t last_break_pos = 0;
+        bool can_reverse = extrusion_paths.front().can_reverse();
+        for (size_t idx = 1; idx < extrusion_paths.size(); ++idx) {
+            if (!extrusion_paths[idx - 1].last_point().coincides_with_epsilon(extrusion_paths[idx].first_point())) {
+                chain_break++;
+                last_break_pos = idx;
+            }
+            can_reverse = can_reverse && extrusion_paths[idx].can_reverse();
         }
-        if (!chain_ok) {
-            // problem, brute-force it.
-            std::vector<ExtrusionPath> out;
-            std::vector<bool>          used;
-            used.resize(extrusion_paths.size(), false);
-            bool result = brute_force_reorder(extrusion_paths, used, out, extrusion_paths.front().first_point());
-            extrusion_paths = out;
+        if (chain_break > 0) {
+            //special case: it's not a loop but a multipath
+            if (chain_break == 1 && extrusion_paths.front().first_point().coincides_with_epsilon(extrusion_paths.back().last_point())) {
+                assert(last_break_pos > 0 && last_break_pos < extrusion_paths.size());
+                std::rotate(extrusion_paths.begin(), extrusion_paths.begin() + last_break_pos, extrusion_paths.end());
+                // can reverse & last point is nearer than front?
+                if (can_reverse && start_near->distance_to_square(extrusion_paths.front().first_point()) > start_near->distance_to_square(extrusion_paths.back().last_point())) {
+                    std::reverse(extrusion_paths.begin(), extrusion_paths.end());
+                    for (ExtrusionPath &path : extrusion_paths) {
+                        path.reverse();
+                    }
+                }
+            } else {
+                // problem, brute-force it.
+                std::vector<ExtrusionPath> out;
+                std::vector<bool> used;
+                used.resize(extrusion_paths.size(), false);
+                bool result = brute_force_reorder(extrusion_paths, used, out, extrusion_paths.front().first_point());
+                if (result) {
+                    extrusion_paths = out;
+                }
+                // else: fail, return the current result
+            }
         }
     }
 }

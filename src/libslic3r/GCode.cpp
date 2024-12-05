@@ -7126,7 +7126,9 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
     //TODO: here can be some point added 2 times inside the travel, please correct that instead of fixing it like that.
     for (size_t i = 1; i < travel.size(); i++) {
-        if (travel.points[i - 1].distance_to_square(travel.points[i]) < SCALED_EPSILON * SCALED_EPSILON * 2) {
+        if (travel.points[i - 1].distance_to_square(travel.points[i]) < SCALED_EPSILON * SCALED_EPSILON * 2
+            // also don't go below 2 points 
+            && travel.size() > 2) {
             travel.points.erase(travel.points.begin() + i);
             --i;
         }

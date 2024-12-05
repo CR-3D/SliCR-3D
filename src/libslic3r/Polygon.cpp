@@ -58,6 +58,7 @@ Polygon::split_at_index(size_t index) const
     return polyline;
 }
 
+
 double Polygon::area(const Points &points)
 {
     // Better than ClipperLib::Area(this->points); ?

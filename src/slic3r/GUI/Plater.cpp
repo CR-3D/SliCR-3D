@@ -3933,10 +3933,14 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     // Set Bed Shape based on Extruders Used
     // TODO: Fix set_bed_shape if an extruder has changed overall
    std::set<uint16_t> extruders = q->active_fff_print().extruders();
+   size_t nozzle_size = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values().size();
+
     if (extruders != m_previous_extruders) {
-        m_extruders_used = extruders;
-        q->set_bed_shape();
-        m_previous_extruders = extruders;
+       if (nozzle_size == 2) {
+           m_extruders_used = extruders;
+           q->set_bed_shape();
+           m_previous_extruders = extruders;
+       }
     }
     
     // update tab if needed

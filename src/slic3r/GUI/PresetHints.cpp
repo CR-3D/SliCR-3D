@@ -357,9 +357,9 @@ std::string PresetHints::maximum_volumetric_flow_description(const PresetBundle 
         // First test the maximum volumetric extrusion speed for non-bridging extrusions.
         bool first_layer = idx_type == 0;
         bool bridging    = idx_type == 2;
-        const ConfigOptionFloatOrPercent* first_layer_extrusion_width_ptr = (first_layer && first_layer_extrusion_width.value > 0) ?
+        const ConfigOptionFloatOrPercent* first_layer_extrusion_width_ptr = (first_layer && first_layer_extrusion_width.is_enabled()) ?
             &first_layer_extrusion_width : nullptr;
-        const ConfigOptionFloatOrPercent* first_layer_extrusion_spacing_ptr = (first_layer && first_layer_extrusion_spacing.value > 0) ?
+        const ConfigOptionFloatOrPercent* first_layer_extrusion_spacing_ptr = (first_layer && first_layer_extrusion_width.is_enabled()) ?
             &first_layer_extrusion_spacing : nullptr;
         const float                       lh  = float(first_layer ? first_layer_height : layer_height);
         const float                       bfr = bridging ? bridge_flow_ratio : 0.f;

@@ -469,7 +469,11 @@ PolylineWithEnds extract_perimeter_polylines(const Layer *layer, const SeamPosit
         }
         virtual void default_use(const ExtrusionEntity& entity) {};
         virtual void use(const ExtrusionPath &path) override {
-            if (perimeter_type == PerimeterGeneratorType::Arachne && path.role() != ExtrusionRole::ThinWall) {
+            if (
+                // path: first case: Arachne, second case: ThinWall/gapfill, third case: extra overhangs
+                (perimeter_type == PerimeterGeneratorType::Arachne && path.role() != ExtrusionRole::ThinWall && !path.role().is_overhang()) ||
+                (also_thin_walls && path.role().has(ERM_Thin)) ||
+                (also_overhangs && path.role().is_overhang())) {
                 //path.polygons_covered_by_width(*polygons, SCALED_EPSILON);
                 assert(m_corresponding_regions_out.size() == polylines->size());
                 polylines->emplace_back(path.polyline.to_polyline().points, true, true, PolylineWithEnd::PolyDir::BOTH); // TODO: more point for arcs

@@ -11,9 +11,10 @@
 cmake_minimum_required(VERSION 3.13)
 project(Slic3r)
 
-if (EXISTS "version.date.inc")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/version.date.inc")
 	include("version.date.inc")
 else()
+	message(STATUS "Warning: cannot find file 'version.date.inc', using template 'version.inc' instead.")
 	include("version.inc")
 endif()
 include(GNUInstallDirs)

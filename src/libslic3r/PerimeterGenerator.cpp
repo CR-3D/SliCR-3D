@@ -1017,7 +1017,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
     // reapply the nearest point search for starting point
     // We allow polyline reversal because Clipper may have randomly reversed polylines during clipping.
     if(!paths.empty())
-        chain_and_reorder_extrusion_paths(paths, &overhang_params.first_point); //&paths.front().first_point());
+        chain_and_reorder_extrusion_paths(paths, &overhang_params.first_point);
 
     // merge path that are smaller than epsilon
     for (auto &path : paths) assert(path.length() > SCALED_EPSILON || path.size() == 2);
@@ -1036,43 +1036,23 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
             assert(paths[idx_path-1].last_point() == paths[idx_path].first_point());
         }
     }
-    
-    //check if everything is okay (it can fail)
-    bool not_sorted_enough = false;
-    for (int i = 1; i < paths.size(); i++) {
-        if (!paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point())) {
-            not_sorted_enough = true;
-            break;
-        }
-    }
-    if (not_sorted_enough) {
-        Point other_point = paths[1].first_point();
-        chain_and_reorder_extrusion_paths(paths, &other_point);
-        auto path = paths.back();
-        paths.erase(paths.end()-1);
-        paths.insert(paths.begin(), path);
-        bool not_sorted_enough = false;
-        for (int i = 1; i < paths.size(); i++) {
-            if (paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point())) {
-                not_sorted_enough = true;
-                break;
-            }
-        }
-        if (not_sorted_enough) {
-            // do it manually by brute-force
-            // TODO
-            chain_and_reorder_extrusion_paths(paths, &overhang_params.last_point);
-        }
-    }
 
     // ensure end & start are the same exact point.
     for (int i = 1; i < paths.size(); i++) {
         // diff/inter can generate points with ~3-5 unit of diff.
         if (paths[i - 1].last_point() != paths[i].first_point()) {
-            assert(paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point()));
+            assert(paths[i - 1].last_point().distance_to_square(paths[i].first_point()) < (SCALED_EPSILON * SCALED_EPSILON * 4));
             Point middle = (paths[i - 1].last_point() + paths[i].first_point()) / 2;
             paths[i - 1].polyline.set_back(middle);
             paths[i].polyline.set_front(middle);
+        }
+    }
+    if (overhang_params.is_loop) {
+        if (paths.back().last_point() != paths.front().first_point()) {
+            assert(paths.back().last_point().distance_to_square(paths.front().first_point()) < (SCALED_EPSILON * SCALED_EPSILON * 4));
+            Point middle = (paths.back().last_point() + paths.front().first_point()) / 2;
+            paths.back().polyline.set_back(middle);
+            paths.front().polyline.set_front(middle);
         }
     }
 

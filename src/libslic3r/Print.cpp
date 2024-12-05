@@ -1575,6 +1575,10 @@ void Print::_make_skirt_brim() {
             brim_per_object = brim_per_object || obj->config().brim_per_object.value;
             bool added = false;
             for (std::vector<PrintObject*> &obj_group : obj_groups) {
+                bool same_first_layer_extrusion_width = obj_group.front()->config().first_layer_extrusion_width.is_enabled() == obj->config().first_layer_extrusion_width.is_enabled();
+                if (same_first_layer_extrusion_width && obj_group.front()->config().first_layer_extrusion_width.is_enabled()){
+                    same_first_layer_extrusion_width = obj_group.front()->config().first_layer_extrusion_width.value == obj->config().first_layer_extrusion_width.value;
+                }
                 if (obj_group.front()->config().brim_ears.value == obj->config().brim_ears.value
                     && obj_group.front()->config().brim_ears_max_angle.value == obj->config().brim_ears_max_angle.value
                     && obj_group.front()->config().brim_ears_pattern.value == obj->config().brim_ears_pattern.value
@@ -1583,7 +1587,7 @@ void Print::_make_skirt_brim() {
                     && obj_group.front()->config().brim_separation.value == obj->config().brim_separation.value
                     && obj_group.front()->config().brim_width.value == obj->config().brim_width.value
                     && obj_group.front()->config().brim_width_interior.value == obj->config().brim_width_interior.value
-                    && obj_group.front()->config().first_layer_extrusion_width.value == obj->config().first_layer_extrusion_width.value) {
+                    && same_first_layer_extrusion_width) {
                     added = true;
                     obj_group.push_back(obj);
                 }

@@ -112,6 +112,11 @@ double Flow::extrusion_width(const std::string& opt_key, const ConfigOptionFloat
 //used to get brim & skirt extrusion config
 const ConfigOptionFloatOrPercent* Flow::extrusion_width_option(std::string opt_key, const ConfigOptionResolver& config)
 {
+    if (boost::ends_with(opt_key, "_extrusion_spacing")) {
+        assert(false);
+        opt_key = opt_key.substr(0,opt_key.size() - 7);
+        opt_key += "width";
+    }
     if (!boost::ends_with(opt_key, "_extrusion_width")) {
         opt_key += "_extrusion_width";
     }
@@ -120,14 +125,23 @@ const ConfigOptionFloatOrPercent* Flow::extrusion_width_option(std::string opt_k
 
     //brim is first_layer_extrusion_width then perimeter_extrusion_width
     if (!opt && boost::starts_with(opt_key, "brim")) {
-        const ConfigOptionFloatOrPercent* optTest = config.option<ConfigOptionFloatOrPercent>("first_layer_extrusion_width");
-        opt = optTest;
+        opt = config.option<ConfigOptionFloatOrPercent>("first_layer_extrusion_width");
         if (opt == nullptr)
             throw_on_missing_variable(opt_key, "first_layer_extrusion_width");
-        if (opt->value == 0) {
+        if (!opt->is_enabled()) {
             opt = config.option<ConfigOptionFloatOrPercent>("perimeter_extrusion_width");
             if (opt == nullptr)
                 throw_on_missing_variable(opt_key, "perimeter_extrusion_width");
+        }
+    }
+    if (opt && boost::starts_with(opt_key, "first_layer_")) {
+        const ConfigOptionFloatOrPercent* opt_test = config.option<ConfigOptionFloatOrPercent>("first_layer_extrusion_width");
+        if (opt_test == nullptr)
+            throw_on_missing_variable(opt_key, "first_layer_extrusion_width");
+        if (!opt_test->is_enabled()) {
+            // I don't know. you shouldn't have called that in the first place...
+            assert(false);
+            opt = config.option<ConfigOptionFloatOrPercent>("perimeter_extrusion_width");
         }
     }
 
@@ -147,7 +161,8 @@ const ConfigOptionFloatOrPercent* Flow::extrusion_width_option(std::string opt_k
         if (opt_skirt_height == nullptr)
             throw_on_missing_variable(opt_key, "skirt_height");
         // The "first_layer_extrusion_width" was set to zero, try a substitute.
-        if (opt_first_layer_extrusion_width && opt_draft_shield && opt_skirt_height && opt_first_layer_extrusion_width->value > 0 && opt_skirt_height->value == 1 && opt_draft_shield->value != DraftShield::dsDisabled)
+        if (opt_first_layer_extrusion_width && opt_first_layer_extrusion_width->is_enabled() && opt_first_layer_extrusion_width->value > 0 &&
+            opt_draft_shield && opt_skirt_height && opt_skirt_height->value == 1 && opt_draft_shield->value != DraftShield::dsDisabled)
             opt = opt_first_layer_extrusion_width;
 
         if (opt->value == 0) {
@@ -334,8 +349,11 @@ Flow Flow::new_from_config(FlowRole role, const DynamicConfig& print_config, flo
     }
 
     if (config_width.value == 0) {
+        assert(config_spacing.value == 0);
         config_width = print_config.opt<ConfigOptionFloatOrPercent>("extrusion_width");
         config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("extrusion_spacing");
+    } else {
+        assert(config_spacing.value > 0);
     }
 
     // Get the configured nozzle_diameter for the extruder associated to the flow role requested.
@@ -626,8 +644,12 @@ Flow support_material_1st_layer_flow(const PrintObject *object, float layer_heig
 {
 
     const PrintConfig &print_config = object->print()->config();
-    const auto& width = object->config().first_layer_extrusion_width.is_enabled() ? object->config().first_layer_extrusion_width : object->config().support_material_extrusion_width;
-    const auto& spacing = object->config().first_layer_extrusion_width.is_enabled() ? object->config().first_layer_extrusion_spacing : object->config().support_material_extrusion_width;
+    const auto &width = object->config().first_layer_extrusion_width.is_enabled() ?
+        object->config().first_layer_extrusion_width :
+        object->config().support_material_extrusion_width;
+    const auto &spacing = object->config().first_layer_extrusion_width.is_enabled() ?
+        object->config().first_layer_extrusion_spacing :
+        object->config().support_material_extrusion_width;
     float slice_height = layer_height;
     if (layer_height <= 0.f && !object->print()->config().nozzle_diameter.empty()){
         slice_height = (float)object->get_first_layer_height();

@@ -451,7 +451,7 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                             }
                         }
                     }
-                    poly = my_boundary.holes[best_id_hole].split_at_index(best_idx);
+                    // CRASH poly = my_boundary.holes[best_id_hole].split_at_index(best_idx);
                     travel_ok =true;
                 }
                 if (travel_ok) {
