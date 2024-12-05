@@ -3934,10 +3934,8 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     // TODO: Fix set_bed_shape if an extruder has changed overall
    std::set<uint16_t> extruders = q->active_fff_print().extruders();
     if (extruders != m_previous_extruders) {
-        // Extruders have changed, execute the required logic
         m_extruders_used = extruders;
-        //q->set_bed_shape();
-        // Update the previous_extruders to the current extruders
+        q->set_bed_shape();
         m_previous_extruders = extruders;
     }
     
@@ -5600,7 +5598,13 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
         }
     }
 
-    bool new_shape = bed.set_shape(shape, exclude_areas, max_print_height, custom_texture, custom_model, force_as_custom);
+
+    bool new_shape = bed.set_shape(shape,
+                                   exclude_areas,
+                                   max_print_height,
+                                   custom_texture,
+                                   custom_model,
+                                   force_as_custom);
 
     std::vector<Pointfs> prev_exclude_areas = bed.get_exclude_areas();
 
@@ -5612,8 +5616,8 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
     }
 
     if (new_shape) {
-        if (view3D) view3D->bed_shape_changed();
-        if (preview) preview->bed_shape_changed();
+        //if (view3D) view3D->bed_shape_changed();
+        //if (preview) preview->bed_shape_changed();
     }
 }
 

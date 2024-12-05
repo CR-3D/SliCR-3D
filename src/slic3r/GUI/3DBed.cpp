@@ -95,6 +95,8 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
     Pointfs new_exclude_area;
     std::vector<Pointfs> new_exclude_areas;
     
+    //std::vector<Pointfs>& active_exclude_area = exclude_areas[s_multiple_beds.get_active_bed()];
+
     for (const auto& point_group : exclude_areas) {
         for (const auto& p : point_group) {
             new_exclude_area.push_back(Vec2d(p.x(), p.y()));
@@ -226,7 +228,7 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
         Transform3d mat = view_matrix;
         mat.translate(s_multiple_beds.get_bed_translation(i));
         render_internal(canvas, mat, projection_matrix, bottom, scale_factor, show_texture, false, is_thumbnail || i == bed_to_highlight);
-    }
+  }
 }
 
 void Bed3D::render_for_picking(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, float scale_factor)
@@ -248,8 +250,7 @@ void Bed3D::render_internal(GLCanvas3D& canvas, const Transform3d& view_matrix, 
         m_triangles.set_color(DISABLED_MODEL_COLOR);
     }
 
-    switch (m_type)
-    {
+    switch (m_type) {
     case Type::System: { render_system(canvas, view_matrix, projection_matrix, bottom, show_texture, active); break; }
     default:
     case Type::Custom: { render_custom(canvas, view_matrix, projection_matrix, bottom, show_texture, picking, active); break; }
@@ -724,7 +725,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         shader_flat->set_uniform("view_model_matrix", view_matrix);
         shader_flat->set_uniform("projection_matrix", projection_matrix);
 
-        if (!bottom) {
+        if (!bottom && is_active) {
             for (int i = 0; i < m_exclude_areas.size(); i++) {
                 render_exclude_area(i);
             }

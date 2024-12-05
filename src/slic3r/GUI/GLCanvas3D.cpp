@@ -147,9 +147,6 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
     });
 }
 
-
-
-
 #ifdef __WXGTK3__
 // wxGTK3 seems to simulate OSX behavior in regard to HiDPI scaling support.
 RetinaHelper::RetinaHelper(wxWindow* window) : m_window(window), m_self(nullptr) {}
