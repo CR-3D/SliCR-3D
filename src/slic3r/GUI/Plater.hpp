@@ -37,6 +37,7 @@
 #include "wxExtensions.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
 #include "slic3r/GUI/Camera.hpp"
+#include "slic3r/Utils/PrintHost.hpp"
 
 class wxButton;
 class ScalableButton;
@@ -355,6 +356,8 @@ public:
     void suppress_background_process(const bool stop_background_process) ;
     void send_gcode();
 	void eject_drive();
+
+    std::string get_upload_filename();
 
     void take_snapshot(const std::string &snapshot_name);
     void take_snapshot(const wxString &snapshot_name);

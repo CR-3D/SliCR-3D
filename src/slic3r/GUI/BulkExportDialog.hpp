@@ -16,79 +16,74 @@ class wxTextCtrl;
 class wxStaticBitmap;
 
 namespace Slic3r {
-    
 class Print;
 struct GCodeProcessorResult;
 
 namespace GUI {
 
-struct PrintToExport {
-    std::reference_wrapper<Slic3r::Print> print;
-    std::reference_wrapper<Slic3r::GCodeProcessorResult> processor_result;
-    boost::filesystem::path output_path;
-};
-
 class BulkExportDialog : public DPIDialog
 {
 public:
+    enum class ItemStatus { Valid, NoValid, Warning };
+
     struct Item
     {
-        enum class ValidationType
-        {
-            Valid,
-            NoValid,
-            Warning
-        };
+        using Validator = std::function<
+            std::pair<BulkExportDialog::ItemStatus, wxString>(
+                boost::filesystem::path,
+                std::string
+            )
+        >;
+        Item(
+            wxWindow *parent,
+            wxBoxSizer *sizer,
+            const boost::filesystem::path &path,
+            Validator validator
+        );
+        Item(const Item &) = delete;
+        Item& operator=(const Item &) = delete;
+        Item(Item &&) = delete;
+        Item& operator=(Item &&) = delete;
 
-        // Item as a separate control(f.e. as a part of ConfigWizard to check name of the new custom priter)
-        Item(wxWindow* parent, wxBoxSizer* sizer, PrintToExport& path);
+        // Item cannot have copy or move constructors, because a wx event binds
+        // directly to its address.
 
-        void            update_valid_bmp();
-        bool            is_valid()      const { return m_valid_type != ValidationType::NoValid; }
+        void update_valid_bmp();
+        bool is_valid() const { return m_status != ItemStatus::NoValid; }
+
+        boost::filesystem::path path;
 
     private:
-        std::string		    m_path;
-        PrintToExport*      m_print_to_export   { nullptr };
+        ItemStatus m_status{ItemStatus::NoValid};
+        wxWindow *m_parent{nullptr};
+        wxStaticBitmap *m_valid_bmp{nullptr};
+        wxTextCtrl *m_text_ctrl{nullptr};
+        wxStaticText *m_valid_label{nullptr};
+        Validator m_validator;
+        boost::filesystem::path m_directory{};
 
-        ValidationType      m_valid_type    {ValidationType::NoValid};
-        wxWindow*           m_parent        {nullptr};
-        wxStaticBitmap*     m_valid_bmp     {nullptr};
-        wxTextCtrl*         m_text_ctrl     {nullptr};
-        wxStaticText*       m_valid_label   {nullptr};
-
-
-        void        init_input_name_ctrl(wxBoxSizer *input_name_sizer, std::string path);
-        void        update();
+        void init_input_name_ctrl(wxBoxSizer *input_name_sizer, const std::string &path);
+        void update();
     };
 
 private:
-    std::vector<Item*>   m_items;
-
-    std::vector<PrintToExport>* m_exports   {nullptr};
-
-    wxBoxSizer*         m_sizer             {nullptr};
-    wxStaticText*       m_label             {nullptr};
-
-    std::string         m_ph_printer_name;
-    std::string         m_old_preset_name;
-    wxString            m_info_line_extention{wxEmptyString};
+    // This must be a unique ptr, because Item does not have copy nor move constructors.
+    std::vector<std::unique_ptr<Item>> m_items;
+    wxBoxSizer *m_sizer{nullptr};
 
 public:
-
-    BulkExportDialog(wxWindow* parent, std::vector<PrintToExport>& exports);
-    ~BulkExportDialog() override;
+    BulkExportDialog(const std::vector<boost::filesystem::path> &paths);
     bool Layout() override;
-
-    void AddItem(PrintToExport& pte);
+    std::vector<boost::filesystem::path> get_paths() const;
 
 protected:
-    void on_dpi_changed(const wxRect& suggested_rect) override;
+    void on_dpi_changed(const wxRect &) override;
     void on_sys_color_changed() override {}
 
 private:
+    void AddItem(const boost::filesystem::path &path);
     bool enable_ok_btn() const;
 };
 
-}
-
+} // namespace GUI
 }

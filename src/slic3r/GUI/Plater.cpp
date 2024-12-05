@@ -8236,6 +8236,12 @@ void Plater::export_gcode_to_path(
     appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
 }
 
+struct PrintToExport {
+    std::reference_wrapper<Slic3r::Print> print;
+    std::reference_wrapper<Slic3r::GCodeProcessorResult> processor_result;
+    boost::filesystem::path output_path;
+};
+
 void Plater::export_all_gcodes(bool prefer_removable) {
     const auto optional_default_output_file{this->get_default_output_file()};
     if (!optional_default_output_file) {
@@ -8250,6 +8256,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
     const fs_path &output_dir{*optional_output_dir};
 
     std::vector<PrintToExport> prints_to_export;
+    std::vector<fs::path> paths;
 
     for (std::size_t print_index{0};  print_index < this->get_fff_prints().size(); ++print_index) {
         const std::unique_ptr<Print> &print{this->get_fff_prints()[print_index]};
@@ -8265,14 +8272,27 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         };
         const fs::path output_file{output_dir / filename};
         prints_to_export.push_back({*print, this->p->gcode_results[print_index], output_file});
+        paths.push_back(output_file);
     }
 
-    BulkExportDialog dialog(nullptr, prints_to_export);
+    BulkExportDialog dialog{paths};
     if (dialog.ShowModal() != wxID_OK) {
         return;
     }
+    paths = dialog.get_paths();
+    for (std::size_t path_index{0}; path_index < paths.size(); ++path_index) {
+        prints_to_export[path_index].output_path = paths[path_index];
+    }
 
     bool path_on_removable_media{false};
+
+    Print *original_print{&active_fff_print()};
+    GCodeProcessorResult *original_result{this->p->background_process.get_gcode_result()};
+    ScopeGuard guard{[&](){
+        this->p->background_process.set_fff_print(original_print);
+        this->p->background_process.set_gcode_result(original_result);
+    }};
+
     for (const PrintToExport &print_to_export : prints_to_export) {
         this->p->background_process.set_fff_print(&print_to_export.print.get());
         this->p->background_process.set_gcode_result(print_to_export.processor_result.get());

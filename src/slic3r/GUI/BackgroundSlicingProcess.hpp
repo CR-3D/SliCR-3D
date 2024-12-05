@@ -92,6 +92,8 @@ public:
 	void set_thumbnail_cb(ThumbnailsGeneratorCallback cb) { m_thumbnail_cb = cb; }
 	void set_gcode_result(GCodeProcessorResult &result) { m_gcode_result = &result; }
 
+	GCodeProcessorResult *get_gcode_result() { return m_gcode_result; }
+
 	// The following wxCommandEvent will be sent to the UI thread / Plater window, when the slicing is finished
 	// and the background processing will transition into G-code export.
 	// The wxCommandEvent is sent to the UI thread asynchronously without waiting for the event to be processed.
