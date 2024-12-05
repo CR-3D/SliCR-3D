@@ -212,6 +212,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/EditGCodeDialog.cpp
     GUI/SavePresetDialog.hpp
     GUI/SavePresetDialog.cpp
+    GUI/BulkExportDialog.hpp
+    GUI/BulkExportDialog.cpp
     GUI/PhysicalPrinterDialog.hpp
     GUI/PhysicalPrinterDialog.cpp
     GUI/GUI_Factories.cpp

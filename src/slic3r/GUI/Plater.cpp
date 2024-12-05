@@ -140,6 +140,7 @@
 #include "Gizmos/GLGizmoSVG.hpp" // Drop SVG file
 #include "Gizmos/GLGizmoCut.hpp"
 #include "FileArchiveDialog.hpp"
+#include "BulkExportDialog.hpp"
 
 #ifdef __APPLE__
 #include "Gizmos/GLGizmosManager.hpp"
@@ -8235,11 +8236,6 @@ void Plater::export_gcode_to_path(
     appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
 }
 
-struct PrintToExport{ std::reference_wrapper<Print> print;
-    std::reference_wrapper<GCodeProcessorResult> processor_result;
-    fs::path output_path;
-};
-
 void Plater::export_all_gcodes(bool prefer_removable) {
     const auto optional_default_output_file{this->get_default_output_file()};
     if (!optional_default_output_file) {
@@ -8271,11 +8267,10 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         prints_to_export.push_back({*print, this->p->gcode_results[print_index], output_file});
     }
 
-    //BulkExportDialog dialog{prints_to_export};
-    //if (dialog.ShowModal() != wxID_OK) {
-    //    return;
-    //}
-    //prints_to_export = dialog.get_prints_to_export();
+    BulkExportDialog dialog(nullptr, prints_to_export);
+    if (dialog.ShowModal() != wxID_OK) {
+        return;
+    }
 
     bool path_on_removable_media{false};
     for (const PrintToExport &print_to_export : prints_to_export) {
