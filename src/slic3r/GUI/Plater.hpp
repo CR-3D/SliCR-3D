@@ -147,6 +147,12 @@ public:
 	bool                    show_send(bool show) const;
     bool                    show_eject(bool show)const;
 	bool                    show_export_removable(bool show) const;
+    void                    show_bulk_btns_sizer(const bool show);
+
+    void                    enable_bulk_buttons(bool enable);
+    bool                    show_export_all(bool show) const;
+    bool                    show_export_removable_all(bool show) const;
+    bool                    show_send_all(bool show) const;
 
     void                    switch_to_autoslicing_mode();
     void                    switch_from_autoslicing_mode();
@@ -327,6 +333,7 @@ public:
     void export_platter();
     void export_stl_obj(std::string path, bool extended = false, bool selection_only = false);
     void export_amf();
+    void export_all_gcodes(bool prefer_removable);
     bool export_3mf(const boost::filesystem::path& output_path = boost::filesystem::path());
     void reload_from_disk();
     void replace_with_stl();
@@ -385,6 +392,7 @@ public:
     void update_menus();
     void show_action_buttons(const bool is_ready_to_slice) const;
     void show_action_buttons() const;
+    void show_autoslicing_action_buttons() const;
 
     wxString get_project_filename(const wxString& extension = wxEmptyString) const;
     void set_project_filename(const wxString& filename);
@@ -559,6 +567,12 @@ public:
     static void show_illegal_characters_warning(wxWindow* parent);
 
 private:
+    std::optional<fs_path> get_default_output_file();
+    std::optional<wxString> check_output_path_has_error(const boost::filesystem::path& path) const;
+    std::optional<fs_path> get_output_path(const std::string &start_dir, const fs_path &default_output_file);
+    std::optional<fs_path> get_multiple_output_dir(const std::string &start_dir);
+
+    void export_gcode_to_path(const fs_path &output_path, const std::function<void(bool)> &export_callback);
     void reslice_until_step_inner(int step, const ModelObject &object, bool postpone_error_messages);
 
     struct priv;

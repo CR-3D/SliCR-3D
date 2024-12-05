@@ -7292,8 +7292,11 @@ void GLCanvas3D::_render_bed_selector()
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
 
         if (imgui.image_button(ImGui::SliceAllBtnIcon, "Slice All")) {
-            if (!s_multiple_beds.is_autoslicing())
+            if (!s_multiple_beds.is_autoslicing()) {
                 s_multiple_beds.start_autoslice([this](int i, bool user) { this->select_bed(i, user); });
+                wxGetApp().sidebar().switch_to_autoslicing_mode();
+                wxGetApp().plater()->show_autoslicing_action_buttons();
+            }
         }
 
         ImGui::SameLine();

@@ -218,6 +218,7 @@ public:
 	void set_sla(bool b) { set_fff(!b); }
 	// Exporting finished, show this information with path, button to open containing folder and if ejectable - eject button
 	void push_exporting_finished_notification(const std::string& path, const std::string& dir_path, bool on_removable);
+    void push_bulk_exporting_finished_notification(const std::string& dir_path, bool on_removable);
 	// notifications with progress bar
 	// print host upload
 	void push_upload_job_notification(int id, float filesize, const std::string& filename, const std::string& host, float percentage = 0);
@@ -785,10 +786,15 @@ private:
 	class ExportFinishedNotification : public PopNotification
 	{
 	public:
-		ExportFinishedNotification(const NotificationData& n, NotificationIDProvider& id_provider, wxEvtHandler* evt_handler, bool to_removable,const std::string& export_path,const std::string& export_dir_path)
-			: PopNotification(n, id_provider, evt_handler)
+		ExportFinishedNotification(
+            const NotificationData& n,
+            NotificationIDProvider& id_provider,
+            wxEvtHandler* evt_handler,
+            bool to_removable,
+            const std::string& export_dir_path
+        ):
+            PopNotification(n, id_provider, evt_handler)
 			, m_to_removable(to_removable)
-			, m_export_path(export_path)
 			, m_export_dir_path(export_dir_path)
 		    {
 				m_multiline = true;

@@ -513,11 +513,30 @@ Sidebar::Sidebar(Plater *parent)
 
     auto *sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(m_scrolled_panel, 1, wxEXPAND);
-    sizer->Add(m_btns_sizer, 0, wxEXPAND | wxLEFT | wxBOTTOM
+
+    const int buttons_sizer_flags{
+        wxEXPAND
+        | wxLEFT
+        | wxBOTTOM
 #ifndef _WIN32
         | wxRIGHT
 #endif // __linux__
-        , margin_5);
+    };
+    sizer->Add(m_btns_sizer, 0, buttons_sizer_flags, margin_5);
+
+    m_autoslicing_btns_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+	init_scalable_btn(&m_btn_export_all_gcode_removable, "export_to_sd", _L("Export all to SD card / Flash drive") + " " + GUI::shortkey_ctrl_prefix() + "U");
+    init_btn(&m_btn_export_all_gcode, _L("Export all G-codes") + dots, scaled_height);
+    init_btn(&m_btn_connect_gcode_all, _L("Send all to Connect"), scaled_height);
+
+    m_autoslicing_btns_sizer->Add(m_btn_export_all_gcode, 1, wxEXPAND);
+    m_autoslicing_btns_sizer->Add(m_btn_connect_gcode_all, 1, wxEXPAND | wxLEFT, margin_5);
+	m_autoslicing_btns_sizer->Add(m_btn_export_all_gcode_removable, 0, wxLEFT, margin_5);
+
+    m_autoslicing_btns_sizer->Show(false);
+
+    sizer->Add(m_autoslicing_btns_sizer, 0, buttons_sizer_flags | wxTOP, margin_5);
     SetSizer(sizer);
 
     // Events
@@ -551,6 +570,14 @@ Sidebar::Sidebar(Plater *parent)
     m_btn_connect_gcode->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { m_plater->connect_gcode(); });
 
     this->Bind(wxEVT_COMBOBOX, &Sidebar::on_select_preset, this);
+
+    m_btn_export_all_gcode->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        this->m_plater->export_all_gcodes(false);
+    });
+
+    m_btn_export_all_gcode_removable->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        this->m_plater->export_all_gcodes(true);
+    });
 
 }
 
@@ -1098,6 +1125,15 @@ void Sidebar::show_btns_sizer(const bool show)
     m_scrolled_panel->Refresh();
 }
 
+void Sidebar::show_bulk_btns_sizer(const bool show)
+{
+    wxWindowUpdateLocker freeze_guard(this);
+    m_autoslicing_btns_sizer->Show(show);
+
+    Layout();
+    m_scrolled_panel->Refresh();
+}
+
 void Sidebar::enable_buttons(bool enable)
 {
     m_btn_reslice->Enable(enable);
@@ -1107,19 +1143,26 @@ void Sidebar::enable_buttons(bool enable)
     m_btn_connect_gcode->Enable(enable);
 }
 
-bool Sidebar::show_reslice(bool show)          const {
+void Sidebar::enable_bulk_buttons(bool enable)
+{
+    m_btn_export_all_gcode->Enable(enable);
+    m_btn_export_all_gcode_removable->Enable(enable);
+    m_btn_connect_gcode_all->Enable(enable);
+}
+
+bool Sidebar::show_reslice(bool show) const {
     if (this->m_autoslicing_mode) {
         return false;
     }
     return m_btn_reslice->Show(show);
 }
-bool Sidebar::show_export(bool show)           const {
+bool Sidebar::show_export(bool show) const {
     if (this->m_autoslicing_mode) {
         return false;
     }
     return m_btn_export_gcode->Show(show);
 }
-bool Sidebar::show_send(bool show)             const {
+bool Sidebar::show_send(bool show) const {
     if (this->m_autoslicing_mode) {
         return false;
     }
@@ -1131,12 +1174,22 @@ bool Sidebar::show_export_removable(bool show) const {
     }
     return m_btn_export_gcode_removable->Show(show);
 }
-bool Sidebar::show_connect(bool show)          const {
+bool Sidebar::show_connect(bool show) const {
     if (this->m_autoslicing_mode) {
         return false;
     }
     return m_btn_connect_gcode->Show(show);
 }
+
+bool Sidebar::show_export_all(bool show) const {
+    return m_btn_export_all_gcode->Show(show);
+};
+bool Sidebar::show_export_removable_all(bool show) const {
+    return m_btn_export_all_gcode_removable->Show(show);
+};
+bool Sidebar::show_connect_all(bool show) const {
+    return m_btn_connect_gcode_all->Show(show);
+};
 
 void Sidebar::switch_to_autoslicing_mode() {
     this->show_sliced_info_sizer(false);
@@ -1150,6 +1203,7 @@ void Sidebar::switch_from_autoslicing_mode() {
     }
     this->m_autoslicing_mode = false;
     this->show_sliced_info_sizer(true);
+    this->show_bulk_btns_sizer(false);
 }
 
 

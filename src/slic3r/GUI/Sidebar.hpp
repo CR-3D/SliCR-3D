@@ -76,12 +76,18 @@ class Sidebar : public wxPanel
     ObjectInfo*     m_object_info               { nullptr };
     SlicedInfo*     m_sliced_info               { nullptr };
     wxBoxSizer*     m_btns_sizer                { nullptr };
+    wxBoxSizer*     m_autoslicing_btns_sizer    { nullptr };
+
 
     wxButton*       m_btn_export_gcode          { nullptr };
     wxButton*       m_btn_reslice               { nullptr };
     wxButton*       m_btn_connect_gcode         { nullptr };
     ScalableButton* m_btn_send_gcode            { nullptr };
     ScalableButton* m_btn_export_gcode_removable{ nullptr }; //exports to removable drives (appears only if removable drive is connected)
+                                                             //
+    wxButton* m_btn_export_all_gcode                { nullptr };
+    wxButton* m_btn_connect_gcode_all               { nullptr };
+	ScalableButton* m_btn_export_all_gcode_removable{ nullptr };
 
     std::unique_ptr<FreqChangedParams>  m_frequently_changed_parameters;
     std::unique_ptr<ObjectManipulation> m_object_manipulation;
@@ -120,6 +126,7 @@ public:
     void show_info_sizer();
     void show_sliced_info_sizer(const bool show);
     void show_btns_sizer(const bool show);
+    void show_bulk_btns_sizer(const bool show);
 
     void update_sliced_info_sizer();
 
@@ -130,6 +137,11 @@ public:
     bool show_send(bool show) const;
     bool show_export_removable(bool show) const;
     bool show_connect(bool show) const;
+
+    void enable_bulk_buttons(bool enable);
+    bool show_export_all(bool show) const;
+    bool show_export_removable_all(bool show) const;
+    bool show_connect_all(bool show) const;
 
     void switch_to_autoslicing_mode();
     void switch_from_autoslicing_mode();

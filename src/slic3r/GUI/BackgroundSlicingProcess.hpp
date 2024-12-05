@@ -175,7 +175,8 @@ public:
     // This "finished" flag does not account for the final export of the output file (.gcode or zipped PNGs),
     // and it does not account for the OctoPrint scheduling.
     bool    finished() const { return m_print->finished(); }
-    
+	void finalize_gcode(const std::string &path, const bool path_on_removable_media);
+
 private:
 	void 	thread_proc();
 	// Calls thread_proc(), catches all C++ exceptions and shows them using wxApp::OnUnhandledException().
@@ -266,7 +267,6 @@ private:
     bool                invalidate_all_steps();
     // If the background processing stop was requested, throw CanceledException.
     void                throw_if_canceled() const { if (m_print->canceled()) throw CanceledException(); }
-	void				finalize_gcode();
     void                prepare_upload();
     // To be executed at the background thread.
 	ThumbnailsList		render_thumbnails(const ThumbnailsParams &params);

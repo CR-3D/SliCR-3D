@@ -177,7 +177,7 @@ void BackgroundSlicingProcess::process_fff() {
     if (this->set_step_started(bspsGCodeFinalize)) {
         if (!m_export_path.empty()) {
             wxQueueEvent(GUI::wxGetApp().mainframe->m_plater, new wxCommandEvent(m_event_export_began_id));
-            finalize_gcode();
+			finalize_gcode(m_export_path, m_export_path_on_removable_media);
         } else if (!m_upload_job.empty()) {
             wxQueueEvent(GUI::wxGetApp().mainframe->m_plater, new wxCommandEvent(m_event_export_began_id));
             prepare_upload();
@@ -682,11 +682,12 @@ bool BackgroundSlicingProcess::invalidate_all_steps() {
 // Optionally run a post-processing script on a copy of m_temp_output_path.
 // Copy the final G-code to target location (possibly a SD card, if it is a removable media, then verify that the file
 // was written without an error).
-void BackgroundSlicingProcess::finalize_gcode() {
+void BackgroundSlicingProcess::finalize_gcode(const std::string &path, const bool path_on_removable_media) {
+
     m_print->set_status(95, _u8L("Running post-processing scripts"));
 
     // Perform the final post-processing of the export path by applying the print statistics over the file name.
-    std::string export_path = m_fff_print->print_statistics().finalize_output_path(m_export_path);
+	std::string export_path = m_fff_print->print_statistics().finalize_output_path(path);
     std::string output_path = m_temp_output_path;
     // Both output_path and export_path ar in-out parameters.
     // If post processed, output_path will differ from m_temp_output_path as run_post_process_scripts() will make a
@@ -711,7 +712,7 @@ void BackgroundSlicingProcess::finalize_gcode() {
     std::string error_message;
     int copy_ret_val = CopyFileResult::SUCCESS;
     try {
-        copy_ret_val = copy_file(output_path, export_path, error_message, m_export_path_on_removable_media);
+        copy_ret_val = copy_file(output_path, export_path, error_message, path_on_removable_media);
         remove_post_processed_temp_file();
     } catch (...) {
         remove_post_processed_temp_file();
