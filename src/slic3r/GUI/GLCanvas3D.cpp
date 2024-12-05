@@ -7207,7 +7207,7 @@ bool bed_selector_thumbnail(
 ) {
     ImGuiWindow* window = GImGui->CurrentWindow;
     const ImVec2 current_position = GImGui->CurrentWindow->DC.CursorPos;
-    const ImVec2 state_pos = current_position + ImVec2(border, side - 20.f - border);
+    const ImVec2 state_pos = current_position + ImVec2(3.f * border, side - 20.f) * wxGetApp().imgui()->get_style_scaling();
 
     const bool clicked{ImGui::ImageButton(
         (void*)(int64_t)texture_id,
@@ -7231,6 +7231,21 @@ bool bed_selector_thumbnail(
     return clicked;
 }
 
+bool slice_all_beds_button(bool is_active, const ImVec2 size, const ImVec2 padding) 
+{
+    ImGui::PushStyleColor(ImGuiCol_Button, ImGuiPureWrap::COL_GREY_DARK);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGuiPureWrap::COL_ORANGE_DARK);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGuiPureWrap::COL_ORANGE_DARK);
+    ImGui::PushStyleColor(ImGuiCol_Border, is_active ? ImGuiPureWrap::COL_BUTTON_ACTIVE : ImGuiPureWrap::COL_GREY_DARK);
+
+    std::string slice_all_btn_name = boost::nowide::narrow(std::wstring{ ImGui::SliceAllBtnIcon });
+    bool clicked = ImGui::Button(slice_all_btn_name.c_str(), size + padding);
+
+    ImGui::PopStyleColor(4);
+
+    return clicked;
+}
+
 void GLCanvas3D::_render_bed_selector()
 {
     static float btn_side = 80.f;
@@ -7242,8 +7257,8 @@ void GLCanvas3D::_render_bed_selector()
 
     static std::array<std::optional<PrintStatus>, MAX_NUMBER_OF_BEDS> previous_print_status;
     if (s_multiple_beds.get_number_of_beds() != 1 && wxGetApp().plater()->is_preview_shown()) {
-        auto render_bed_button = [btn_size, this](int i)
-        {
+        ImVec2 btn_padding = ImVec2(btn_border, btn_border);
+        auto render_bed_button = [btn_size, btn_padding, this, &extra_frame](int i) {
             //ImGui::Text("%d", i);
             //ImGui::SameLine();
 
@@ -7290,8 +7305,9 @@ void GLCanvas3D::_render_bed_selector()
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2());
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2());
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, btn_border);
 
-        if (imgui.image_button(ImGui::SliceAllBtnIcon, "Slice All")) {
+        if (slice_all_beds_button(s_multiple_beds.is_autoslicing(), btn_size, btn_padding)) {
             if (!s_multiple_beds.is_autoslicing()) {
                 s_multiple_beds.start_autoslice([this](int i, bool user) { this->select_bed(i, user); });
                 wxGetApp().sidebar().switch_to_autoslicing_mode();
