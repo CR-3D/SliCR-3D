@@ -141,8 +141,12 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
         if (wxGetApp().plater()->is_preview_shown()) {
             s_reload_preview_after_switching_beds = true;
             wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
-            wxGetApp().plater()->get_camera().translate_world(s_multiple_beds.get_bed_translation(i) - s_multiple_beds.get_bed_translation(old_bed));
+            wxGetApp().plater()->get_camera().translate_world(
+                s_multiple_beds.get_bed_translation(i)
+                - s_multiple_beds.get_bed_translation(old_bed)
+            );
         }
+        
         wxGetApp().plater()->schedule_background_process();
         wxGetApp().plater()->object_list_changed(); // Updates Slice Now / Export buttons.
         if (s_multiple_beds.is_autoslicing() && triggered_by_user) {

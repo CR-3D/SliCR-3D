@@ -8240,6 +8240,7 @@ struct PrintToExport {
     std::reference_wrapper<Slic3r::Print> print;
     std::reference_wrapper<Slic3r::GCodeProcessorResult> processor_result;
     boost::filesystem::path output_path;
+    std::size_t bed{};
 };
 
 void Plater::export_all_gcodes(bool prefer_removable) {
@@ -8271,7 +8272,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
             + default_output_file.extension().string()
         };
         const fs::path output_file{output_dir / filename};
-        prints_to_export.push_back({*print, this->p->gcode_results[print_index], output_file});
+        prints_to_export.push_back({*print, this->p->gcode_results[print_index], output_file, print_index});
         paths.push_back(output_file);
     }
 
@@ -8288,14 +8289,17 @@ void Plater::export_all_gcodes(bool prefer_removable) {
 
     Print *original_print{&active_fff_print()};
     GCodeProcessorResult *original_result{this->p->background_process.get_gcode_result()};
+    const int original_bed{s_multiple_beds.get_active_bed()};
     ScopeGuard guard{[&](){
         this->p->background_process.set_fff_print(original_print);
         this->p->background_process.set_gcode_result(original_result);
+        s_multiple_beds.set_active_bed(original_bed);
     }};
 
     for (const PrintToExport &print_to_export : prints_to_export) {
         this->p->background_process.set_fff_print(&print_to_export.print.get());
         this->p->background_process.set_gcode_result(print_to_export.processor_result.get());
+        this->p->background_process.set_temp_output_path(print_to_export.bed);
         export_gcode_to_path(
             print_to_export.output_path,
             [&](const bool on_removable){
