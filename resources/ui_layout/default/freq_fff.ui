@@ -17,7 +17,7 @@ group:freq_settings_event:no_title:no_search:
         setting:label_left:label_width$7:label$Perimeters_:perimeters
     end_line
     line:Solid Layers
-         setting:label_width$7:label$Solid Layers Top_:top_solid_layers
+         setting:label_width$7:label$Solid Layers Top_ :top_solid_layers
          setting:label_width$7:label$Bottom_ :bottom_solid_layers
     end_line
     line:
