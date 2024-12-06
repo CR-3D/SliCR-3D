@@ -26,7 +26,7 @@ msgid "\"G92 E0\" was found in before_layer_gcode, which is incompatible with ab
 msgstr "In before_layer_gcode wurde \"G92 E0\" gefunden, was mit der absoluten Extruder-Adressierung nicht kompatibel ist."
 
 msgid "Introduction"
-msgstr "Einführung"
+msgstr "fasdfs"
 
 #: src/libslic3r/Print.cpp:681
 msgid "\"G92 E0\" was found in layer_gcode, which is incompatible with absolute extruder addressing."
@@ -11777,6 +11777,10 @@ msgstr "Werkzeugtyp"
 #: src/slic3r/GUI/Tab.cpp:2049
 msgid "Toolchange parameters with single extruder MM printers"
 msgstr "Werkzeugwechsel-Parameter für MM-Drucker mit einem Extruder"
+
+#: Freq_fff
+msgid "Solid Layers Top"
+msgstr "Solid Layers Oben"
 
 #: src/slic3r/GUI/OptionsGroup.cpp:352
 msgctxt "Layers"

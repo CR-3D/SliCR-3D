@@ -765,6 +765,10 @@ msgstr "Drainageloch hinzufügen"
 msgid "Add extruder change - Left click"
 msgstr "Extruderwechsel hinzufügen - Linksklick"
 
+#: Freq_fff
+msgid "Solid Layers Top"
+msgstr "Solid Layers Oben"
+
 #: src/slic3r/GUI/ExtruderSequenceDialog.cpp:239
 msgid "Add extruder to sequence"
 msgstr "Extruder zur Sequenz hinzufügen"
@@ -4016,7 +4020,7 @@ msgid "Fill gaps"
 msgstr "Lücken füllen"
 
 #: src/libslic3r/PrintConfig.cpp:1143
-msgid "Fill pattern"
+msgid "Fill Pattern"
 msgstr "Füllmuster"
 
 #: src/libslic3r/PrintConfig.cpp:740
@@ -9875,7 +9879,7 @@ msgstr "Erste Schicht Beschleunigung"
 msgid "Thin Walls"
 msgstr "Dünne Wände"
 
-msgid "Top infill"
+msgid "Top Infill"
 msgstr "Obere Füllung"
 
 msgid "Cutting corners"

@@ -2347,6 +2347,10 @@ msgstr "Exportiert das/die Modell(e) als STL Datei."
 msgid "Export to SD card / Flash drive"
 msgstr "Export auf SD-Karte/Flash-Laufwerk"
 
+msgid "Solid Layers Top"
+msgstr "Solid Layers Oben"
+
+
 msgid "Export toolpaths as OBJ"
 msgstr "Werkzeugweg als OBJ exportieren"
 
