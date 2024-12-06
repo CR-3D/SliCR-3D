@@ -213,13 +213,16 @@ void restore_object_instances(Model& model, const ObjectInstances &object_instan
 void with_single_bed_model(Model &model, const int bed_index, const std::function<void()> &callable) {
     const InstanceOffsets original_offssets{MultipleBedsUtils::get_instance_offsets(model)};
     const ObjectInstances original_objects{get_object_instances(model)};
+    const int original_bed{s_multiple_beds.get_active_bed()};
     Slic3r::ScopeGuard guard([&]() {
         restore_object_instances(model, original_objects);
         restore_instance_offsets(model, original_offssets);
+        s_multiple_beds.set_active_bed(original_bed);
     });
 
     s_multiple_beds.move_from_bed_to_first_bed(model, bed_index);
     s_multiple_beds.remove_instances_outside_outside_bed(model, bed_index);
+    s_multiple_beds.set_active_bed(bed_index);
     callable();
 }
 

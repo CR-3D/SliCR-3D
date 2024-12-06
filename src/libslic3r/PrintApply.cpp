@@ -1050,8 +1050,9 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
     }
 
     // Check the position and rotation of the wipe tower.
-    if (model.wipe_tower() != m_model.wipe_tower())
+    if (model.wipe_tower() != m_model.wipe_tower()) {
         update_apply_status(this->invalidate_step(psSkirtBrim));
+    }
     m_model.wipe_tower() = model.wipe_tower();
 
     ModelObjectStatusDB model_object_status_db;
