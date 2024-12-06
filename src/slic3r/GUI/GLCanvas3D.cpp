@@ -2536,6 +2536,7 @@ void GLCanvas3D::render()
             render_autoslicing_wait();
             if (fff_print()->finished() || fff_print()->empty()) {
                 s_multiple_beds.autoslice_next_bed();
+                wxYield();
             } else {
                 wxGetApp().plater()->schedule_background_process();
             }
