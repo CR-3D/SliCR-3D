@@ -238,6 +238,13 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
         }
     }
 
+    // Custom Wipe Tower manipulation
+    if (config->opt_bool("wipe_tower")) {
+        DynamicPrintConfig new_conf = *config;
+        new_conf.set_key_value("perimeters", new ConfigOptionInt(4));
+        apply(config, &new_conf);
+    }
+
     if (config->opt_float("brim_width") > 0 && config->opt_float("brim_separation") >= config->opt_float("brim_width")) {
         wxString msg_text = _(L("It's not possible to use a bigger value for the brim offset than the brim width, as it won't extrude anything."
             " Brim offset have to be lower than the brim width."));
