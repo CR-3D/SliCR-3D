@@ -2333,12 +2333,13 @@ void begin_statistics(const char *window_name) {
         ImGuiWindowFlags_NoCollapse
         | ImGuiWindowFlags_NoMove
         | ImGuiWindowFlags_AlwaysAutoResize
-        | ImGuiWindowFlags_NoScrollbar
-        | ImGuiWindowFlags_NoScrollWithMouse;
+        | ImGuiWindowFlags_HorizontalScrollbar;
 
     const ImVec2 center{ImGui::GetMainViewport()->GetCenter()};
-    const ImVec2 position{center + ImVec2{0, -150.0f}};
-    ImGui::SetNextWindowPos(position, ImGuiCond_Appearing, ImVec2{0.5f, 0.5f});
+    const float y_postion{std::max(center.y - 150.0f, 150.0f)};
+    const ImVec2 position{center.x, y_postion};
+    ImGui::SetNextWindowPos(position, ImGuiCond_Always, ImVec2{0.5f, 0.5f});
+
     ImGui::Begin(window_name, nullptr, windows_flags);
 }
 
@@ -7246,6 +7247,10 @@ bool slice_all_beds_button(bool is_active, const ImVec2 size, const ImVec2 paddi
     std::string slice_all_btn_name = boost::nowide::narrow(std::wstring{ ImGui::SliceAllBtnIcon });
     bool clicked = ImGui::Button(slice_all_btn_name.c_str(), size + padding);
 
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s", _u8L("Slice all").c_str());
+    }
+    
     ImGui::PopStyleColor(4);
 
     return clicked;
