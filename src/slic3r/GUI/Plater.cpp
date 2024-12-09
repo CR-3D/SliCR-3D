@@ -8318,7 +8318,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
     const int original_bed{s_multiple_beds.get_active_bed()};
     ScopeGuard guard{[&](){
         this->p->background_process.set_fff_print(original_print);
-        this->p->background_process.set_gcode_result(original_result);
+        this->p->background_process.set_gcode_result(*original_result);
         s_multiple_beds.set_active_bed(original_bed);
     }};
 
