@@ -8113,19 +8113,29 @@ Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, const float* z, bool use_
     else {
         Camera& camera = wxGetApp().plater()->get_camera();
         const Camera::EType type = camera.get_type();
-        if (use_ortho)
-            camera.set_type(Camera::EType::Ortho);
-        //const std::array<int, 4> & viewport = camera.get_viewport().data();
-        const Vec4i32 viewport(camera.get_viewport().data());
+        const Vec4i viewport(camera.get_viewport().data());
+        Transform3d projection_matrix;
+        if (use_ortho && type != Camera::EType::Ortho) {
+            const double inv_zoom = camera.get_inv_zoom();
+            const double left   = -0.5 * inv_zoom * double(viewport[2]);
+            const double bottom = -0.5 * inv_zoom * double(viewport[3]);
+            const double right  = 0.5 * inv_zoom * double(viewport[2]);
+            const double top    = 0.5 * inv_zoom * double(viewport[3]);
+            const double near_z = camera.get_near_z();
+            const double far_z  = camera.get_far_z();
+            const double inv_dx = 1.0 / (right - left);
+            const double inv_dy = 1.0 / (top - bottom);
+            const double inv_dz = 1.0 / (far_z - near_z);
+            projection_matrix.matrix() << 2.0 * near_z * inv_dx, 0.0, (left + right) * inv_dx, 0.0,
+                0.0, 2.0 * near_z * inv_dy, (bottom + top) * inv_dy, 0.0,
+                0.0, 0.0, -(near_z + far_z) * inv_dz, -2.0 * near_z * far_z * inv_dz,
+                0.0, 0.0, -1.0, 0.0;
+        }
+        else
+            projection_matrix = camera.get_projection_matrix();
+
         Vec3d out;
-        igl::unproject(Vec3d(mouse_pos.x(),
-                             viewport[3] - mouse_pos.y(), *z),
-                             camera.get_view_matrix().matrix(),
-                             camera.get_projection_matrix().matrix(),
-                             viewport,
-                             out);
-        if (use_ortho)
-            camera.set_type(type);
+        igl::unproject(Vec3d(mouse_pos.x(), viewport[3] - mouse_pos.y(), *z), camera.get_view_matrix().matrix(), projection_matrix.matrix(), viewport, out);
         return out;
     }
 }
