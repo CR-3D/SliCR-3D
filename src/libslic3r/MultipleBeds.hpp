@@ -55,6 +55,7 @@ public:
 	void   set_active_bed(int i);
 
     void   remove_instances_outside_outside_bed(Model& model, const int bed) const;
+    void   set_instances_outside_outside_bed_unprintable(Model& model, const int bed_index) const;
 
     // Sets !printable to all instances outside the active bed.
     void   move_from_bed_to_first_bed(Model& model, const int bed) const;
@@ -117,14 +118,8 @@ ObjectInstances get_object_instances(const Model& model);
 void restore_instance_offsets(Model& model, const InstanceOffsets &offsets);
 void restore_object_instances(Model& model, const ObjectInstances &object_instances);
 
-
-/**
-For each print apply call do:
-- move all instances according to their active bed
-- apply
-- move all instances back to their respective beds
-*/
-void with_single_bed_model(Model &model, const int bed_index, const std::function<void()> &callable);
+void with_single_bed_model_fff(Model &model, const int bed_index, const std::function<void()> &callable);
+void with_single_bed_model_sla(Model &model, const int bed_index, const std::function<void()> &callable);
 }
 
 } // namespace Slic3r

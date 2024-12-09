@@ -2404,7 +2404,8 @@ struct Plater::priv
                                       const ThumbnailsParams &thumbnail_params,
                                       Camera::EType           camera_type);
     ThumbnailsList generate_thumbnails(const ThumbnailsParams &params, Camera::EType camera_type);
-    
+    void regenerate_thumbnails();
+ 
     void bring_instance_forward() const;
     
     // returns the path to project file with the given extension (none if extension == wxEmptyString)
@@ -3799,23 +3800,62 @@ void Plater::priv::process_validation_warning(const std::vector<std::string>& wa
     }
 }
 
-std::array<Print::ApplyStatus, MAX_NUMBER_OF_BEDS> apply_to_inactive_beds(
+std::vector<Print::ApplyStatus> apply_to_inactive_beds(
     Model &model,
     std::vector<std::unique_ptr<Print>> &prints,
     const DynamicPrintConfig &config
 ) {
-    std::array<Print::ApplyStatus, MAX_NUMBER_OF_BEDS> result;
+    std::vector<Print::ApplyStatus> result(MAX_NUMBER_OF_BEDS);
     for (std::size_t bed_index{0}; bed_index < prints.size(); ++bed_index) {
         const std::unique_ptr<Print> &print{prints[bed_index]};
         if (!print || bed_index == s_multiple_beds.get_active_bed()) {
             continue;
         }
-        using MultipleBedsUtils::with_single_bed_model;
-        with_single_bed_model(model, bed_index, [&](){
+        using MultipleBedsUtils::with_single_bed_model_fff;
+        with_single_bed_model_fff(model, bed_index, [&](){
             result[bed_index] = print->apply(model, config);
         });
     }
     return result;
+}
+
+void Plater::priv::regenerate_thumbnails() {
+    const int num{s_multiple_beds.get_number_of_beds()};
+    if (num <= 1 || num > MAX_NUMBER_OF_BEDS) {
+        return;
+    }
+
+    ThumbnailData data;
+    ThumbnailsParams params;
+    params.parts_only = true;
+    params.printable_only = true;
+    params.show_bed = true;
+    params.transparent_background = true;
+    int w = 100, h = 100;
+
+    int curr_bound_texture = 0;
+    glsafe(glGetIntegerv(GL_TEXTURE_BINDING_2D, &curr_bound_texture));
+    int curr_unpack_alignment = 0;
+    glsafe(glGetIntegerv(GL_UNPACK_ALIGNMENT, &curr_unpack_alignment));
+    glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+    glsafe(glDeleteTextures(s_bed_selector_thumbnail_texture_ids.size(), s_bed_selector_thumbnail_texture_ids.data()));
+    s_bed_selector_thumbnail_changed.fill(false);
+
+    s_bed_selector_thumbnail_texture_ids.resize(num);
+    glsafe(glGenTextures(num, s_bed_selector_thumbnail_texture_ids.data()));
+    for (int i = 0; i < num; ++i) {
+        s_multiple_beds.set_thumbnail_bed_idx(i);
+        generate_thumbnail(data, w, h, params, GUI::Camera::EType::Ortho);
+        s_multiple_beds.set_thumbnail_bed_idx(-1);
+        glsafe(glBindTexture(GL_TEXTURE_2D, s_bed_selector_thumbnail_texture_ids[i]));
+        glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+        glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+        glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0));
+        glsafe(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, data.pixels.data()));
+        s_bed_selector_thumbnail_changed[i] = true;
+    }
+    glsafe(glBindTexture(GL_TEXTURE_2D, curr_bound_texture));
+    glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, curr_unpack_alignment));
 }
 
 // Update background processing thread from the current config and Model.
@@ -3861,20 +3901,32 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
 
     Print::ApplyStatus invalidated{Print::ApplyStatus::APPLY_STATUS_INVALIDATED};
     bool was_running = background_process.running();
-    using MultipleBedsUtils::with_single_bed_model;
-
+    using MultipleBedsUtils::with_single_bed_model_fff;
+    using MultipleBedsUtils::with_single_bed_model_sla;
 //wxGetApp().preset_bundle->physical_printers.get_selected_printer_config()
-    std::array<Print::ApplyStatus, MAX_NUMBER_OF_BEDS> apply_statuses{
-        apply_to_inactive_beds(q->model(), q->p->fff_prints, full_config)
+
+    std::vector<Print::ApplyStatus> apply_statuses{
+        printer_technology == ptFFF ?
+        apply_to_inactive_beds(q->model(), q->p->fff_prints, full_config) :
+        std::vector<Print::ApplyStatus>(1)
     };
-    with_single_bed_model(q->model(), s_multiple_beds.get_active_bed(), [&](){
-        // Apply new config to the possibly running background task.
-        invalidated = background_process.apply(q->model(), 
-                                               full_config, 
-                                               wxGetApp().preset_bundle->physical_printers.get_selected_printer_config());
-                                               
-        apply_statuses[s_multiple_beds.get_active_bed()] = invalidated;
-    });
+
+    // Apply new config to the possibly running background task.
+    if (printer_technology == ptFFF) {
+        with_single_bed_model_fff(q->model(), s_multiple_beds.get_active_bed(), [&](){
+            invalidated = background_process.apply(q->model(), full_config, wxGetApp().preset_bundle->physical_printers.get_selected_printer_config()
+);
+            apply_statuses[s_multiple_beds.get_active_bed()] = invalidated;
+        });
+    } else if (printer_technology == ptSLA) {
+        with_single_bed_model_sla(q->model(), s_multiple_beds.get_active_bed(), [&](){
+            invalidated = background_process.apply(q->model(), full_config, wxGetApp().preset_bundle->physical_printers.get_selected_printer_config()
+);
+            apply_statuses[0] = invalidated;
+        });
+    } else {
+        throw std::runtime_error{"Ivalid printer technology!"};
+    }
 
     const bool any_status_changed{std::any_of(
         apply_statuses.begin(),
@@ -3889,38 +3941,8 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     }
 
     // If current bed was invalidated, update thumbnails for all beds:
-    if (int num = s_multiple_beds.get_number_of_beds(); num > 1 && any_status_changed) {
-        ThumbnailData data;
-        ThumbnailsParams params;
-        params.parts_only = true;
-        params.printable_only = true;
-        params.show_bed = true;
-        params.transparent_background = true;
-        int w = 100, h = 100;
-
-        int curr_bound_texture = 0;
-        glsafe(glGetIntegerv(GL_TEXTURE_BINDING_2D, &curr_bound_texture));
-        int curr_unpack_alignment = 0;
-        glsafe(glGetIntegerv(GL_UNPACK_ALIGNMENT, &curr_unpack_alignment));
-        glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
-        glsafe(glDeleteTextures(s_bed_selector_thumbnail_texture_ids.size(), s_bed_selector_thumbnail_texture_ids.data()));
-        s_bed_selector_thumbnail_changed.fill(false);
-
-        s_bed_selector_thumbnail_texture_ids.resize(num);
-        glsafe(glGenTextures(num, s_bed_selector_thumbnail_texture_ids.data()));
-        for (int i = 0; i < num; ++i) {
-            s_multiple_beds.set_thumbnail_bed_idx(i);
-            generate_thumbnail(data, w, h, params, GUI::Camera::EType::Ortho);
-            s_multiple_beds.set_thumbnail_bed_idx(-1);
-            glsafe(glBindTexture(GL_TEXTURE_2D, s_bed_selector_thumbnail_texture_ids[i]));
-            glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-            glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-            glsafe(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0));
-            glsafe(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, static_cast<GLsizei>(w), static_cast<GLsizei>(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, data.pixels.data()));
-            s_bed_selector_thumbnail_changed[i] = true;
-        }
-        glsafe(glBindTexture(GL_TEXTURE_2D, curr_bound_texture));
-        glsafe(glPixelStorei(GL_UNPACK_ALIGNMENT, curr_unpack_alignment));
+    if (any_status_changed) {
+        regenerate_thumbnails();
     }
 
     // Just redraw the 3D canvas without reloading the scene to consume the update of the layer height profile.
@@ -6721,6 +6743,10 @@ std::vector<size_t> Plater::load_files(const std::vector<fs::path> &input_files,
 void Plater::object_list_changed()
 {
     p->object_list_changed();
+}
+
+void Plater::regenerate_thumbnails() {
+    p->regenerate_thumbnails();
 }
 // To be called when providing a list of files to the GUI slic3r on command line.
 std::vector<size_t> Plater::load_files(const std::vector<std::string> &input_files,

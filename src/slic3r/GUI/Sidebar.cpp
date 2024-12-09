@@ -32,6 +32,7 @@
 #include <wx/statbox.h>
 #include <wx/statbmp.h>
 #include <wx/wupdlock.h> // IWYU pragma: keep
+#include "libslic3r/MultipleBeds.hpp"
 #include "wx/generic/stattextg.h"
 #ifdef _WIN32
 #include <wx/richtooltip.h>
@@ -755,6 +756,10 @@ void Sidebar::on_select_preset(wxCommandEvent& evt)
          * and for SLA presets they should be deleted
          */
         m_object_list->update_object_list_by_printer_technology();
+        s_multiple_beds.stop_autoslice(false);
+        this->switch_from_autoslicing_mode();
+        this->m_plater->regenerate_thumbnails();
+        this->m_plater->update();
     }
 
 #ifdef __WXMSW__

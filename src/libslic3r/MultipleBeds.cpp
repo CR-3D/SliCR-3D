@@ -210,7 +210,7 @@ void restore_object_instances(Model& model, const ObjectInstances &object_instan
     model.objects = objects;
 }
 
-void with_single_bed_model(Model &model, const int bed_index, const std::function<void()> &callable) {
+void with_single_bed_model_fff(Model &model, const int bed_index, const std::function<void()> &callable) {
     const InstanceOffsets original_offssets{MultipleBedsUtils::get_instance_offsets(model)};
     const ObjectInstances original_objects{get_object_instances(model)};
     const int original_bed{s_multiple_beds.get_active_bed()};
@@ -222,6 +222,44 @@ void with_single_bed_model(Model &model, const int bed_index, const std::functio
 
     s_multiple_beds.move_from_bed_to_first_bed(model, bed_index);
     s_multiple_beds.remove_instances_outside_outside_bed(model, bed_index);
+    s_multiple_beds.set_active_bed(bed_index);
+    callable();
+}
+
+using InstancesPrintability = std::vector<bool>;
+
+InstancesPrintability get_instances_printability(const Model &model) {
+    InstancesPrintability result;
+    for (ModelObject* mo : model.objects) {
+        for (ModelInstance* mi : mo->instances) {
+            result.emplace_back(mi->printable);
+        }
+    }
+    return result;
+}
+
+void restore_instances_printability(Model& model, const InstancesPrintability &printability)
+{
+    size_t i = 0;
+    for (ModelObject* mo : model.objects) {
+        for (ModelInstance* mi : mo->instances) {
+            mi->printable = printability[i++];
+        }
+    }
+}
+
+void with_single_bed_model_sla(Model &model, const int bed_index, const std::function<void()> &callable) {
+    const InstanceOffsets original_offssets{get_instance_offsets(model)};
+    const InstancesPrintability original_printability{get_instances_printability(model)};
+    const int original_bed{s_multiple_beds.get_active_bed()};
+    Slic3r::ScopeGuard guard([&]() {
+        restore_instance_offsets(model, original_offssets);
+        restore_instances_printability(model, original_printability);
+        s_multiple_beds.set_active_bed(original_bed);
+    });
+
+    s_multiple_beds.move_from_bed_to_first_bed(model, bed_index);
+    s_multiple_beds.set_instances_outside_outside_bed_unprintable(model, bed_index);
     s_multiple_beds.set_active_bed(bed_index);
     callable();
 }
@@ -252,6 +290,16 @@ void MultipleBeds::remove_instances_outside_outside_bed(Model& model, const int 
             return object->instances.empty();
         }
     ), model.objects.end());
+}
+
+void MultipleBeds::set_instances_outside_outside_bed_unprintable(Model& model, const int bed_index) const {
+    for (ModelObject* mo : model.objects) {
+        for (ModelInstance* mi : mo->instances) {
+            if (!this->is_instance_on_bed(mi->id(), bed_index)) {
+                mi->printable = false;
+            }
+        }
+    }
 }
 
 void MultipleBeds::move_from_bed_to_first_bed(Model& model, const int bed_index) const
