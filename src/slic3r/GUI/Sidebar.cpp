@@ -760,6 +760,7 @@ void Sidebar::on_select_preset(wxCommandEvent& evt)
         this->switch_from_autoslicing_mode();
         this->m_plater->regenerate_thumbnails();
         this->m_plater->update();
+        s_print_statuses.fill(PrintStatus::idle);
     }
 
 #ifdef __WXMSW__

@@ -13,6 +13,19 @@ MultipleBeds s_multiple_beds;
 bool s_reload_preview_after_switching_beds = false;
 bool s_beds_just_switched = false;
 
+bool is_sliceable(const PrintStatus status) {
+    if (status == PrintStatus::empty) {
+        return false;
+    }
+    if (status == PrintStatus::invalid) {
+        return false;
+    }
+    if (status == PrintStatus::outside) {
+        return false;
+    }
+    return true;
+}
+
 namespace BedsGrid {
 Index grid_coords_abs2index(GridCoords coords) {
     coords = {std::abs(coords.x()), std::abs(coords.y())};

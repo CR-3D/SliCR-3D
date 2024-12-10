@@ -33,6 +33,20 @@ inline std::vector<unsigned> s_bed_selector_thumbnail_texture_ids;
 inline std::array<bool, MAX_NUMBER_OF_BEDS> s_bed_selector_thumbnail_changed;
 inline bool bed_selector_updated{false};
 
+enum class PrintStatus {
+    idle,
+    running,
+    finished,
+    outside,
+    invalid,
+    empty,
+    toolpath_outside
+};
+
+bool is_sliceable(const PrintStatus status);
+
+inline std::array<PrintStatus, MAX_NUMBER_OF_BEDS> s_print_statuses;
+
 class MultipleBeds {
 public:
 	MultipleBeds() = default;
