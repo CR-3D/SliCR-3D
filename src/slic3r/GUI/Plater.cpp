@@ -5023,6 +5023,13 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
                 notification_manager->set_slicing_progress_percentage(formatter.str(), evt.status.percent / 100.f, 0 == (evt.status.flags & PrintBase::SlicingStatus::FlagBits::SECONDARY_STATE));
             }
         }
+        if (evt.status.percent < 0 && evt.status.text.empty()) {
+            // empty text and negative percent means there is a bed switch
+            // we hide the notification and it will init itself again via the incoming progress (if there is any)
+            notification_manager->set_slicing_progress_hidden();
+        } else {
+            notification_manager->set_slicing_progress_percentage(evt.status.text, (float)evt.status.percent / 100.0f);
+        }
     }
     
     // Check template filaments and add warning
