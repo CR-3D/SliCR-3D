@@ -136,6 +136,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 	m_custom_toolbar_size		= atoi(get_app_config()->get("custom_toolbar_size").c_str());
 	m_use_custom_toolbar_size	= get_app_config()->get_bool("use_custom_toolbar_size");
 
+	// Set enum value
 	// set Field for notify_release to its value
 	if (m_optkey_to_optgroup.find("notify_release") != m_optkey_to_optgroup.end())
 		if(auto field = m_optkey_to_optgroup["notify_release"]->get_field("notify_release"); field != nullptr) {
@@ -150,11 +151,19 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 		}
 	// set Field for splashscreen to its value
 	std::string splashscreen_key = wxGetApp().is_editor() ? "splash_screen_editor" : "splash_screen_gcodeviewer";
-	if (m_optkey_to_optgroup.find(splashscreen_key) != m_optkey_to_optgroup.end())
-		if(auto field = m_optkey_to_optgroup[splashscreen_key]->get_field(splashscreen_key); field != nullptr) {
-			boost::any val = wxGetApp().app_config->get(splashscreen_key);
-			field->set_any_value(val, false);
-		}
+    if (m_optkey_to_optgroup.find(splashscreen_key) != m_optkey_to_optgroup.end()) {
+        if (auto field = m_optkey_to_optgroup[splashscreen_key]->get_field(splashscreen_key); field != nullptr) {
+            boost::any val = wxGetApp().app_config->get(splashscreen_key);
+            field->set_any_value(val, false);
+        }
+    }
+	// set Field for splashscreen to its value
+    if (m_optkey_to_optgroup.find("ui_layout") != m_optkey_to_optgroup.end()) {
+        if (auto field = m_optkey_to_optgroup["ui_layout"]->get_field("ui_layout"); field != nullptr) {
+            boost::any val = wxGetApp().app_config->get("ui_layout");
+            field->set_any_value(val, false);
+        }
+    }
 	
 
 	if (wxGetApp().is_editor()) {
@@ -929,7 +938,7 @@ void PreferencesDialog::build()
 		m_tabid_2_optgroups.back().back()->label_width = 0;
 		ConfigOptionDef def_combobox;
 		def_combobox.label = "_";
-		def_combobox.type = coStrings;
+		def_combobox.type = coString;
 		def_combobox.tooltip = L("Choose the gui package to use. It controls colors, settings layout, quick settings, tags (simple/expert).");
 		def_combobox.full_width = false; //true doesn't set the space for the search arrow (and add a line before for it but it fails).
 		def_combobox.width = 64;

@@ -1106,6 +1106,29 @@ void GUI_App::init_app_config()
             }
         }
     }
+    //if (std::string current_layout_name = app_config->get("ui_layout"); current_layout_name != "Standard") {
+    //    AppConfig::LayoutEntry my_layout = app_config->get_ui_layout();
+    //    // check if version is up to date
+    //    std::optional<Semver> current_ver = Semver::parse(app_config->get("version"));
+    //    assert(current_ver);
+    //    current_ver->set_patch(0); // disregard patch
+    //    if (my_layout.version < *current_ver) {
+    //        current_ver = Semver::parse(app_config->get("version"));
+    //        //ask if the user don't want to switch to an up-to-date layout.
+    //        wxString title = format_wxstr(_L("You are opening %1% version %2%."), SLIC3R_APP_NAME, SLIC3R_VERSION);
+    //        wxString message = format_wxstr(_L(
+    //                "The active gui layout used '%1%' was created for version %2%,"
+    //                "\nwhile the current software is now at version %3%."
+    //                "\nDo you prefer to continue using this outdated layout?"
+    //                "\nIf not, the layout will be rolled back to the '%4%' layout"
+    //            ), my_layout.name, my_layout.version.to_string(), current_ver->to_string(), "Default");
+    //        InfoDialog msg(nullptr, title, message, true, wxYES_NO);
+    //        if (msg.ShowModal() == wxID_NO) {
+    //            app_config->set("ui_layout", "Standard");
+    //        }
+    //    }
+    //}
+    
     //add callback to font size from app_config
     DPIAware_::get_font_size = [this]()->int { return atoi(app_config->get("font_size").c_str()); };
 }
@@ -1316,6 +1339,31 @@ bool GUI_App::on_init_inner()
             m_last_app_conf_lower_version = true;
     }
     
+    if (std::string current_layout_name = app_config->get("ui_layout"); current_layout_name != "Standard") {
+        AppConfig::LayoutEntry my_layout = app_config->get_ui_layout();
+        // check if version is up to date
+        std::optional<Semver> current_ver = Semver::parse(app_config->get("version"));
+        assert(current_ver);
+        current_ver->set_patch(0); // disregard patch
+        if (my_layout.version < *current_ver) {
+            current_ver = Semver::parse(app_config->get("version"));
+            //ask if the user don't want to switch to an up-to-date layout.
+            wxString title = format_wxstr(_L("You are opening %1% version %2%."), SLIC3R_APP_NAME, SLIC3R_VERSION);
+            wxString message = format_wxstr(_L(
+                    "The active gui layout used '%1%' was created for version %2%,"
+                    "\nwhile the current software is now at version %3%."
+                    "\nDo you prefer to continue using this outdated layout?"
+                    "\nIf not, the layout will be rolled back to the '%4%' layout"
+                ), my_layout.name, my_layout.version.to_string(), current_ver->to_string(), "Default");
+            InfoDialog msg(nullptr, title, message, true, wxYES_NO);
+            if (msg.ShowModal() == wxID_NO) {
+                app_config->set("ui_layout", "Standard");
+                // reload (colors, tags)
+                app_config->save();
+                app_config->load();
+            }
+        }
+    }
 
 #ifdef _MSW_DARK_MODE
     // app_config can be updated in check_older_app_config(), so check if dark_color_mode and sys_menu_enabled was changed
