@@ -192,7 +192,7 @@ ExtrusionEntityCollection ExtrusionEntityCollection::flatten(bool preserve_order
 
 void ExtrusionEntityCollection::flatten(bool preserve_ordering, ExtrusionEntityCollection& out) const
 {
-    if (!this->can_sort()  && preserve_ordering && this->entities().size() > 1) {
+    if (!this->can_sort() && preserve_ordering && this->entities().size() > 1) {
         out.append(this->flatten(preserve_ordering));
     } else {
         FlatenEntities flattener(preserve_ordering);

@@ -236,6 +236,7 @@ static ExPolygons fill_surfaces_extract_expolygons(Surfaces &surfaces, std::init
 // Extract bridging surfaces from "surfaces", expand them into "shells" using expansion_params,
 // detect bridges.
 // Trim "shells" by the expanded bridges.
+// only used by the new process_external_surfaces
 Surfaces expand_bridges_detect_orientations(
     Surfaces                                    &surfaces,
     ExPolygons                                  &shells,
