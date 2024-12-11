@@ -67,6 +67,9 @@ namespace UndoRedo {
 
 namespace GUI {
 
+wxDECLARE_EVENT(EVT_SCHEDULE_BACKGROUND_PROCESS, SimpleEvent);
+wxDECLARE_EVENT(EVT_REGENERATE_BED_THUMBNAILS, SimpleEvent);
+
 class MainFrame;
 class ConfigOptionsGroup;
 class ObjectManipulation;
@@ -231,7 +234,6 @@ public:
     void reload_print();
     void object_list_changed();
     void generate_thumbnail(ThumbnailData& data, unsigned int w, unsigned int h, const ThumbnailsParams& thumbnail_params, Camera::EType camera_type);
-    void regenerate_thumbnails();
 
     
     //std::vector<size_t> load_files(const std::vector<boost::filesystem::path>& input_files, bool load_model = true, bool load_config = true, bool update_dirs = true, bool imperial_units = false);

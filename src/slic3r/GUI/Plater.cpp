@@ -179,6 +179,7 @@ wxDEFINE_EVENT(EVT_SLICING_COMPLETED,               wxCommandEvent);
 // BackgroundSlicingProcess finished either with success or error.
 wxDEFINE_EVENT(EVT_PROCESS_COMPLETED,               SlicingProcessCompletedEvent);
 wxDEFINE_EVENT(EVT_EXPORT_BEGAN,                    wxCommandEvent);
+wxDEFINE_EVENT(EVT_REGENERATE_BED_THUMBNAILS, SimpleEvent);
 
 
 bool Plater::has_illegal_filename_characters(const wxString &wxs_name)
@@ -2404,7 +2405,7 @@ struct Plater::priv
                                       const ThumbnailsParams &thumbnail_params,
                                       Camera::EType           camera_type);
     ThumbnailsList generate_thumbnails(const ThumbnailsParams &params, Camera::EType camera_type);
-    void regenerate_thumbnails();
+    void regenerate_thumbnails(SimpleEvent&);
  
     void bring_instance_forward() const;
     
@@ -2650,6 +2651,7 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
         q->Bind(EVT_EXPORT_BEGAN, &priv::on_export_began, this);
         q->Bind(EVT_GLVIEWTOOLBAR_3D, [q](SimpleEvent &) { q->select_view_3D("3D"); });
         q->Bind(EVT_GLVIEWTOOLBAR_PREVIEW, [q](SimpleEvent &) { q->select_view_3D("Preview"); });
+        q->Bind(EVT_REGENERATE_BED_THUMBNAILS, &priv::regenerate_thumbnails, this);
     }
     
     // Drop target:
@@ -3864,7 +3866,7 @@ std::vector<Print::ApplyStatus> apply_to_inactive_beds(
     return result;
 }
 
-void Plater::priv::regenerate_thumbnails() {
+void Plater::priv::regenerate_thumbnails(SimpleEvent&) {
     const int num{s_multiple_beds.get_number_of_beds()};
     if (num <= 1 || num > MAX_NUMBER_OF_BEDS) {
         return;
@@ -4019,7 +4021,7 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
 
     // If current bed was invalidated, update thumbnails for all beds:
     if (any_status_changed) {
-        regenerate_thumbnails();
+        wxQueueEvent(this->q, new SimpleEvent(EVT_REGENERATE_BED_THUMBNAILS));
     }
 
     // Just redraw the 3D canvas without reloading the scene to consume the update of the layer height profile.
@@ -4947,7 +4949,7 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
          */
         wxGetApp().obj_list()->update_object_list_by_printer_technology();
         s_multiple_beds.stop_autoslice(false);
-        this->regenerate_thumbnails();
+        wxQueueEvent(this->q, new SimpleEvent(EVT_REGENERATE_BED_THUMBNAILS));
         this->update();
         s_print_statuses.fill(PrintStatus::idle);
 
@@ -6834,9 +6836,6 @@ void Plater::object_list_changed()
     p->object_list_changed();
 }
 
-void Plater::regenerate_thumbnails() {
-    p->regenerate_thumbnails();
-}
 // To be called when providing a list of files to the GUI slic3r on command line.
 std::vector<size_t> Plater::load_files(const std::vector<std::string> &input_files,
                                        bool                            load_model,

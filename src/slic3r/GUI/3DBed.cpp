@@ -656,6 +656,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
     else if (m_texture.unsent_compressed_data_available()) {
         // sends to gpu the already available compressed levels of the main texture
         m_texture.send_compressed_data_to_gpu();
+        wxQueueEvent(wxGetApp().plater(), new SimpleEvent(EVT_REGENERATE_BED_THUMBNAILS));
 
         // the temporary texture is not needed anymore, reset it
         if (m_temp_texture.get_id() != 0)
