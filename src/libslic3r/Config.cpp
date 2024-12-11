@@ -715,12 +715,14 @@ void ConfigDef::finalize()
             assert(def.enum_def->is_valid_closed_enum());
             assert(! def.is_gui_type_enum_open());
             def.enum_def->finalize_closed_enum();
-        } else if (def.is_gui_type_enum_open()) {
+        } else if (def.type != coEnum && def.is_gui_type_enum_open()) {
             assert(def.enum_def);
             assert(def.enum_def->is_valid_open_enum());
             assert(def.gui_type != ConfigOptionDef::GUIType::i_enum_open || def.type == coInt || def.type == coInts);
             assert(def.gui_type != ConfigOptionDef::GUIType::f_enum_open || def.type == coFloat || def.type == coPercent || def.type == coFloatOrPercent);
             assert(def.gui_type != ConfigOptionDef::GUIType::select_open || def.type == coString || def.type == coStrings);
+        } else if (def.type == coString && def.gui_type == ConfigOptionDef::GUIType::select_close) {
+            assert(def.enum_def);
         } else {
             assert(! def.enum_def);
         }
@@ -1019,7 +1021,7 @@ void ConfigOptionDef::set_enum_as_closed_for_scripted_enum(const std::vector<std
 void ConfigOptionDef::set_enum_values(GUIType gui_type, const std::initializer_list<std::pair<std::string_view, std::string_view>> il)
 {
     this->enum_def_new();
-    assert(gui_type == GUIType::i_enum_open || gui_type == GUIType::f_enum_open);
+    assert(gui_type == GUIType::i_enum_open || gui_type == GUIType::f_enum_open || gui_type == GUIType::select_close);
     this->gui_type = gui_type;
     enum_def->set_values(il);
 }

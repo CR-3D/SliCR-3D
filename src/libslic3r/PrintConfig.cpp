@@ -572,9 +572,9 @@ void PrintConfigDef::init_common_params()
     def = this->add("printhost_port", coString);
     def->label = L("Printer");
     def->tooltip = L("Name of the printer");
-    def->gui_type = ConfigOptionDef::GUIType::select_close;
     def->mode = comAdvancedE | comPrusa;
     def->cli = ConfigOptionDef::nocli;
+    def->set_enum_values(ConfigOptionDef::GUIType::select_open, {"no printers"});
     def->set_default_value(new ConfigOptionString(""));
     
     // only if there isn't a native SSL support
@@ -2494,7 +2494,6 @@ void PrintConfigDef::init_fff_params()
     def->set_default_value(new ConfigOptionFloats(0.));
 
     def = this->add("fill_density", coPercent);
-    def->gui_flags = "show_value";
     def->label = L("Fill density");
     def->category = OptionCategory::infill;
     def->tooltip = L("Density of internal infill, expressed in the range 0% - 100%."

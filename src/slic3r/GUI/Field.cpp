@@ -1669,7 +1669,7 @@ void Choice::BUILD() {
 
 void Choice::propagate_value()
 {
-    if (m_opt.type == coStrings) {
+    if (m_opt.type == coStrings || m_opt.type == coString) {
         on_change_field();
         return;
     }
@@ -1779,7 +1779,7 @@ void Choice::set_internal_any_value(const boost::any &value, bool change_event)
            m_opt.gui_type == ConfigOptionDef::GUIType::select_open ||
            m_opt.gui_type == ConfigOptionDef::GUIType::f_enum_open ||
            m_opt.gui_type == ConfigOptionDef::GUIType::i_enum_open ||
-           (m_opt.gui_type == ConfigOptionDef::GUIType::select_close && m_opt.opt_key == "printhost_port") //FIXME
+           (m_opt.gui_type == ConfigOptionDef::GUIType::select_close && m_opt.type == coString)
     );
 
     choice_ctrl* field = dynamic_cast<choice_ctrl*>(window);
@@ -1794,7 +1794,11 @@ void Choice::set_internal_any_value(const boost::any &value, bool change_event)
         wxString text_value = any_to_wxstring(value, m_opt, m_opt_idx);
         int sel_idx = -1;
         if (m_opt.enum_def) {
-            if (auto idx = m_opt.enum_def->label_to_index(into_u8(text_value)); idx.has_value())
+            std::optional<int> idx;
+            // select_close: try values first.
+            if (idx = m_opt.enum_def->value_to_index(into_u8(text_value)); idx.has_value() && m_opt.gui_type == ConfigOptionDef::GUIType::select_close)
+                sel_idx = *idx;
+            else if (idx = m_opt.enum_def->label_to_index(into_u8(text_value)); idx.has_value())
                 sel_idx = *idx;
             else if (idx = m_opt.enum_def->value_to_index(into_u8(text_value)); idx.has_value())
                 sel_idx = *idx;
@@ -1892,14 +1896,17 @@ boost::any& Choice::get_value()
 	if (m_opt.type == coEnum)
         // Closed enum: The combo box item index returned by the field must be convertible to an enum value.
         m_value = m_opt.enum_def->index_to_enum(field->GetSelection());
-    else if (m_opt.gui_type == ConfigOptionDef::GUIType::f_enum_open || m_opt.gui_type == ConfigOptionDef::GUIType::i_enum_open) {
-        // Open enum: The combo box item index returned by the field 
+    else if (m_opt.gui_type == ConfigOptionDef::GUIType::f_enum_open ||
+             m_opt.gui_type == ConfigOptionDef::GUIType::i_enum_open) {
+        // Open enum: The combo box item index returned by the field
         const int ret_enum = field->GetSelection();
-        if (m_opt.enum_def->has_values() && (m_opt.type == coString || m_opt.type == coStrings) && ret_enum >=0 && ret_enum < int(m_opt.enum_def->values().size())) {
+        if (m_opt.enum_def->has_values() && (m_opt.type == coString || m_opt.type == coStrings) && ret_enum >= 0 &&
+            ret_enum < int(m_opt.enum_def->values().size())) {
             m_value = m_opt.enum_def->value(ret_enum);
         } else if (ret_enum < 0 || !m_opt.enum_def->has_values() || m_opt.type == coStrings ||
-            (into_u8(ret_str) != m_opt.enum_def->value(ret_enum) && ret_str != _(m_opt.enum_def->label(ret_enum)))) {
-			// modifies ret_string!
+                   (into_u8(ret_str) != m_opt.enum_def->value(ret_enum) &&
+                    ret_str != _(m_opt.enum_def->label(ret_enum)))) {
+            // modifies ret_string!
             get_value_by_opt_type(ret_str);
         } else if (m_opt.type == coFloatOrPercent) {
             m_value = FloatOrPercent{string_to_double_decimal_point(m_opt.enum_def->value(ret_enum)),
@@ -1909,10 +1916,26 @@ boost::any& Choice::get_value()
         } else {
             m_value = string_to_double_decimal_point(m_opt.enum_def->value(ret_enum));
         }
-    }
-	else
-		// modifies ret_string!
+    } else if (m_opt.gui_type == ConfigOptionDef::GUIType::select_close && m_opt.type == coString) {
+        assert(m_opt.enum_def->has_values());
+        int enum_int = field->GetSelection();
+        if (m_opt.enum_def->has_values() && (m_opt.type == coString || m_opt.type == coStrings) && enum_int >= 0 &&
+            enum_int < int(m_opt.enum_def->values().size())) {
+            m_value = m_opt.enum_def->value(enum_int);
+        } else {
+            std::optional<int> maybe_enum_int = m_opt.enum_def->label_to_index(into_u8(ret_str));
+            if (maybe_enum_int && m_opt.enum_def->has_values() && (m_opt.type == coString || m_opt.type == coStrings) &&
+                (*maybe_enum_int) >= 0 && (*maybe_enum_int) < int(m_opt.enum_def->values().size())) {
+                m_value = m_opt.enum_def->value((*maybe_enum_int));
+            } else {
+                assert(false);
+                m_value = field->GetValue();
+            }
+        }
+    } else {
+        // modifies ret_string!
         get_value_by_opt_type(ret_str);
+    }
 
 	return m_value;
 }

@@ -315,7 +315,8 @@ void PhysicalPrinterDialog::update_printers()
             auto value_idx = std::find(slugs.begin(), slugs.end(), m_config->opt<ConfigOptionString>("printhost_port")->value);
             if ((val.empty() || (any_string_type.type() == val.type() && boost::any_cast<std::string>(val) == "")) && !slugs.empty() && value_idx == slugs.end()) {
                 m_config->option("printhost_port")->set_any(slugs[0]); // change_opt_value(*m_config, "printhost_port", slugs[0]);
-                choice->set_text_value(slugs[0], false);
+                //choice->set_text_value(slugs[0], false);
+                choice->set_any_value(m_config->option("printhost_port")->get_any(), false);
             } else if (value_idx != slugs.end()) {
                 choice->set_any_value(m_config->option("printhost_port")->get_any(), false);
             }
@@ -679,6 +680,9 @@ void PhysicalPrinterDialog::update(bool printer_change)
         m_printhost_port_browse_btn->Enable(supports_multiple_printers);
 
         m_optgroup->show_field("printhost_port", supports_multiple_printers);
+        if (supports_multiple_printers) {
+            update_printers();
+        }
     }
 
 
