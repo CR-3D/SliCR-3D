@@ -3878,6 +3878,8 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         SlicingStatusEvent evt(EVT_SLICING_UPDATE, 0, status);
         on_slicing_update(evt);
         s_beds_just_switched = false;
+        // we hide slicing notification here to prevent empty notification and it will init itself again via the incoming progress (if there is any)
+        notification_manager->set_slicing_progress_hidden();
         notification_manager->close_notification_of_type(NotificationType::ExportOngoing);
         q->sidebar().show_sliced_info_sizer(background_process.finished());
     }
@@ -5023,13 +5025,7 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
                 notification_manager->set_slicing_progress_percentage(formatter.str(), evt.status.percent / 100.f, 0 == (evt.status.flags & PrintBase::SlicingStatus::FlagBits::SECONDARY_STATE));
             }
         }
-        if (evt.status.percent < 0 && evt.status.text.empty()) {
-            // empty text and negative percent means there is a bed switch
-            // we hide the notification and it will init itself again via the incoming progress (if there is any)
-            notification_manager->set_slicing_progress_hidden();
-        } else {
-            notification_manager->set_slicing_progress_percentage(evt.status.text, (float)evt.status.percent / 100.0f);
-        }
+        notification_manager->set_slicing_progress_percentage(evt.status.text, (float)evt.status.percent / 100.0f);
     }
     
     // Check template filaments and add warning
