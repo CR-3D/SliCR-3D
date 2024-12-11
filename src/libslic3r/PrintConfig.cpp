@@ -3182,6 +3182,19 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionInt(1));
 
+    def = this->add("idle_temperature", coInts);
+    def->label = L("Idle temperature");
+    def->tooltip = L("Nozzle temperature when the tool is currently not used in multi-tool setups."
+                     "\nThis is only used when 'Ooze prevention' is active in Print Settings.");
+    def->sidetext = L("°C");
+    def->category = OptionCategory::filament;
+    def->min = 0;
+    def->max = max_temp;
+    def->can_be_disabled = true;
+    def->mode = comSimpleAE | comPrusa;
+    def->is_vector_extruder = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInts{30}));
+
     auto def_infill_anchor_min = def = this->add("infill_anchor", coFloatOrPercent);
     def->label = L("Length of the infill anchor");
     def->category = OptionCategory::infill;
@@ -7935,17 +7948,6 @@ void PrintConfigDef::init_sla_params()
     def->min = 0;
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionFloat(0.3));
-
-    def = this->add("idle_temperature", coInts);
-    def->label = L("Idle temperature");
-    def->tooltip = L("Nozzle temperature when the tool is currently not used in multi-tool setups."
-                     "\nThis is only used when 'Ooze prevention' is active in Print Settings.");
-    def->sidetext = L("°C");
-    def->min = 0;
-    def->max = max_temp;
-    def->can_be_disabled = true;
-    def->mode = comSimpleAE | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts{30}));
 
     def = this->add("bottle_volume", coFloat);
     def->label = L("Bottle volume");
