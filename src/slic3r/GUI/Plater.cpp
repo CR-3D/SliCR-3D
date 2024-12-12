@@ -3554,48 +3554,29 @@ void Plater::priv::selection_changed()
     view3D->render();
 }
 
-std::size_t count_instances(SpanOfConstPtrs<PrintObject> objects) {
-    return std::accumulate(
-        objects.begin(),
-        objects.end(),
-        std::size_t{},
-        [](const std::size_t result, const PrintObject *object){
-            return result + object->instances().size();
-        }
-    );
-}
-
-std::size_t count_instances(const std::map<ObjectID, int> &bed_instances, const int bed_index) {
-    return std::accumulate(
-        bed_instances.begin(),
-        bed_instances.end(),
-        std::size_t{},
-        [&](const std::size_t result, const auto &key_value){
-            const auto &[object_id, _bed_index]{key_value};
-            if (_bed_index != bed_index) {
-                return result;
-            }
-            return result + 1;
-        }
-    );
-}
-
 void Plater::priv::object_list_changed()
 {
     const bool export_in_progress = this->background_process.is_export_scheduled(); // || ! send_gcode_file.empty());
                                                                                     //
     if (printer_technology == ptFFF) {
         for (std::size_t bed_index{}; bed_index < s_multiple_beds.get_number_of_beds(); ++bed_index) {
-            const std::size_t print_instances_count{
-                count_instances(wxGetApp().plater()->get_fff_prints()[bed_index]->objects())
-            };
-            const std::size_t bed_instances_count{
-                count_instances(s_multiple_beds.get_inst_map(), bed_index)
-            };
-            if (print_instances_count != bed_instances_count) {
-                s_print_statuses[bed_index] = PrintStatus::outside;
-            } else if (print_instances_count == 0) {
+            if (
+                wxGetApp().plater()->get_fff_prints()[bed_index]->empty()) {
                 s_print_statuses[bed_index] = PrintStatus::empty;
+            }
+            for (const ModelObject *object : wxGetApp().model().objects) {
+                for (const ModelInstance *instance : object->instances) {
+                    const auto it{s_multiple_beds.get_inst_map().find(instance->id())};
+                    if (
+                        it != s_multiple_beds.get_inst_map().end()
+                        && it->second == bed_index
+                        && instance->printable
+                        && instance->print_volume_state == ModelInstancePVS_Partly_Outside
+                    ) {
+                        s_print_statuses[bed_index] = PrintStatus::outside;
+                        break;
+                    }
+                }
             }
         }
     } else {
