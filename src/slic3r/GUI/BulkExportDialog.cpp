@@ -37,6 +37,7 @@ void BulkExportDialog::Item::init_input_name_ctrl(wxBoxSizer* row_sizer, const s
     m_text_ctrl = new wxTextCtrl(m_parent, wxID_ANY, from_u8(path), wxDefaultPosition, wxSize(45 * wxGetApp().em_unit(), -1), style);
     wxGetApp().UpdateDarkUI(m_text_ctrl);
     m_text_ctrl->Bind(wxEVT_TEXT, [this](wxCommandEvent&) { update(); });
+    m_text_ctrl->Bind(wxEVT_UPDATE_UI, [this](wxUpdateUIEvent& event) { event.Enable(selected); });
 
     row_sizer->Add(m_text_ctrl, 1, wxEXPAND, BORDER_W);
 }
@@ -75,6 +76,7 @@ BulkExportDialog::Item::Item(
 
     sizer->Add(row_sizer,0, wxEXPAND | wxTOP, BORDER_W);
 
+    m_valid_bmp->Bind(wxEVT_UPDATE_UI, [this](wxUpdateUIEvent& event) { event.Show(selected); });
     update();
 }
 
@@ -245,11 +247,18 @@ void BulkExportDialog::AddItem(const fs::path& path, int bed_index)
 bool BulkExportDialog::enable_ok_btn() const
 {
     for (const auto &item : m_items)
-        if (!item->is_valid()) {
+        if (item->selected && !item->is_valid()) {
             return false;
         }
 
-    return true;
+    bool all_unselected{ true };
+    for (const auto& item : m_items)
+        if (item->selected) {
+            all_unselected = false;
+            break;
+        }
+
+    return !all_unselected;
 }
 
 bool BulkExportDialog::Layout()
