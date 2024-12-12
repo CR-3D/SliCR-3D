@@ -17,6 +17,7 @@ class wxString;
 class wxStaticText;
 class wxTextCtrl;
 class wxStaticBitmap;
+class wxFlexGridSizer;
 
 namespace Slic3r {
 class Print;
@@ -39,7 +40,7 @@ public:
         >;
         Item(
             wxWindow *parent,
-            wxBoxSizer *sizer,
+            wxFlexGridSizer *sizer,
             const boost::filesystem::path &path,
             const int bed_index,
             Validator validator
@@ -53,7 +54,8 @@ public:
         // directly to its address.
 
         void update_valid_bmp();
-        bool is_valid() const { return m_status != ItemStatus::NoValid; }
+        bool is_valid()   const { return m_status != ItemStatus::NoValid; }
+        bool is_warning() const { return m_status == ItemStatus::Warning; }
 
         boost::filesystem::path path;
         int bed_index{};
@@ -68,21 +70,21 @@ public:
         Validator m_validator;
         boost::filesystem::path m_directory{};
 
-        void init_input_name_ctrl(wxBoxSizer *row_sizer, const std::string &path);
-        void init_selection_ctrl(wxBoxSizer *row_sizer, int bed_index);
+        void init_input_name_ctrl(wxFlexGridSizer*row_sizer, const std::string &path);
+        void init_selection_ctrl(wxFlexGridSizer*row_sizer, int bed_index);
         void update();
     };
 
 private:
     // This must be a unique ptr, because Item does not have copy nor move constructors.
     std::vector<std::unique_ptr<Item>> m_items;
-    wxBoxSizer *m_sizer{nullptr};
+    wxFlexGridSizer*m_sizer{nullptr};
 
 public:
 
     BulkExportDialog(const std::vector<std::pair<int, boost::filesystem::path>> &paths);
-    bool Layout() override;
     std::vector<std::pair<int, std::optional<boost::filesystem::path>>> get_paths() const;
+    bool has_warnings() const;
 
 protected:
     void on_dpi_changed(const wxRect &) override;
@@ -90,6 +92,7 @@ protected:
 
 private:
     void AddItem(const boost::filesystem::path &path, int bed_index);
+    void accept();
     bool enable_ok_btn() const;
 };
 
