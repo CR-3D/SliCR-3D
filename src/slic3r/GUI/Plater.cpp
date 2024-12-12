@@ -6043,13 +6043,15 @@ void Plater::priv::show_autoslicing_action_buttons() const {
         sidebar->Layout();
     }
 
-    const bool all_finished{std::all_of(
-        this->fff_prints.begin(),
-        this->fff_prints.end(),
-        [](const std::unique_ptr<Print> &print){
-            return print->finished() || print->empty();
+    bool all_finished{true};
+    for (std::size_t bed_index{}; bed_index < s_multiple_beds.get_number_of_beds(); ++bed_index) {
+        const std::unique_ptr<Print> &print{this->fff_prints[bed_index]};
+        if (!print->finished() && is_sliceable(s_print_statuses[bed_index])) {
+            all_finished = false;
+            break;
         }
-    )};
+    }
+
     sidebar->enable_bulk_buttons(all_finished);
 }
 
