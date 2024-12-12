@@ -2152,16 +2152,17 @@ void GLCanvas3D::update_volumes_colors_by_extruder()
 }
 
 // Multiple Beds Statistics
-using PerBedStatistics = std::vector<std::pair<std::size_t, std::reference_wrapper<const PrintStatistics>>>;
+using PerBedStatistics = std::vector<std::pair<std::size_t, std::optional<std::reference_wrapper<const PrintStatistics>>>>;
 
 PerBedStatistics get_statistics(){
     PerBedStatistics result;
     for (int bed_index=0; bed_index<s_multiple_beds.get_number_of_beds(); ++bed_index) {
         const Print* print = wxGetApp().plater()->get_fff_prints()[bed_index].get();
         if (print->empty() || !print->finished()) {
-            continue;
+            result.emplace_back(bed_index, std::nullopt);
+        } else {
+            result.emplace_back(bed_index, std::optional{std::ref(print->print_statistics())});
         }
-        result.emplace_back(bed_index, std::ref(print->print_statistics()));
     }
     return result;
 }
@@ -2177,10 +2178,14 @@ struct StatisticsSum {
 StatisticsSum get_statistics_sum() {
     StatisticsSum result;
     for (const auto &[_, statistics] : get_statistics()) {
-        result.cost += statistics.get().total_cost;
-        result.filement_weight += statistics.get().total_weight;
-        result.filament_length += statistics.get().total_used_filament;
+        if (!statistics) {
+            continue;
+        }
+        result.cost += statistics->get().total_cost;
+        result.filement_weight += statistics->get().total_weight;
+        result.filament_length += statistics->get().total_used_filament;
     }
+
     return result;
 }
 
@@ -2208,17 +2213,33 @@ float project_overview_table(float scale) {
         );
         ImGui::TableHeadersRow();
 
-        for (const auto &[bed_index, statistics] : get_statistics()) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", (_u8L("Plate") + wxString::Format(" %d", bed_index + 1)).ToStdString().c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", wxString::Format("%.2f", statistics.get().total_cost).ToStdString().c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", wxString::Format("%.2f", statistics.get().total_weight).ToStdString().c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", wxString::Format("%.2f", statistics.get().total_used_filament / 1000).ToStdString().c_str());
-
+        for (const auto &[bed_index, optional_statistics] : get_statistics()) {
+            if (optional_statistics) {
+                const std::reference_wrapper<const PrintStatistics> statistics{*optional_statistics};
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", (_u8L("Bed") + wxString::Format(" %d", bed_index + 1)).ToStdString().c_str());
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", wxString::Format("%.2f", statistics.get().total_cost).ToStdString().c_str());
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", wxString::Format("%.2f", statistics.get().total_weight).ToStdString().c_str());
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", wxString::Format("%.2f", statistics.get().total_used_filament / 1000).ToStdString().c_str());
+            } else {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", (_u8L("Bed") + wxString::Format(" %d", bed_index + 1)).ToStdString().c_str());
+                ImGui::TableNextColumn();
+                ImGui::Text("-");
+                ImGui::TableNextColumn();
+                ImGui::Text("-");
+                ImGui::TableNextColumn();
+                ImGui::Text("-");
+                ImGui::TableNextColumn();
+                ImGui::Text("-");
+                ImGui::TableNextColumn();
+                ImGui::Text("-");
+            }
         }
 
         ImGui::PushStyleColor(ImGuiCol_Text, COL_TURQUOISE_LIGHT);
