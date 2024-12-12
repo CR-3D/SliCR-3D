@@ -1161,6 +1161,8 @@ private:
     void _set_warning_notification(EWarning warning, bool state);
 
     std::pair<bool, const GLVolume*> _is_any_volume_outside() const;
+    std::pair<bool, const GLVolume*> _is_any_volume_excluded() const;
+    
     bool _is_sequential_print_enabled() const;
 
     // updates the selection from the content of m_hover_volume_idxs

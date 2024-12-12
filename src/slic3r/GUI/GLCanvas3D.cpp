@@ -44,6 +44,7 @@
 #include "I18N.hpp"
 #include "NotificationManager.hpp"
 #include "format.hpp"
+#include "libslic3r/libslic3r.h"
 
 #include "slic3r/GUI/Gizmos/GLGizmoPainterBase.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
@@ -1736,7 +1737,8 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
     bool contained_min_one = false;
 
     const Slic3r::BuildVolume& build_volume = m_bed.build_volume();
-
+    const std::vector<Pointfs>& exclude_areas = m_bed.get_exclude_areas();
+    
     const std::vector<unsigned int> volumes_idxs = volumes_to_process_idxs();
     for (unsigned int vol_idx : volumes_idxs) {
         const std::unique_ptr<GLVolume> & volume = volumes.volumes[vol_idx];
@@ -1766,6 +1768,47 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
                 }
                 assert(state != BuildVolume::ObjectState::Below);
             }
+            
+           Polygons  exclude_polys;
+           Polygon   exclude_poly;
+           Polygons  contours;
+
+           for (size_t i = 0; i < exclude_areas.size(); i++) {
+               auto& pt = exclude_areas[i];
+               for (const auto& point : pt) {
+                exclude_poly.points.emplace_back(scale_(point.x()), scale_(point.y()));
+               }
+               
+               exclude_polys.push_back(exclude_poly);
+               exclude_poly.points.clear();
+           }
+           
+           for (Polygon& poly : exclude_polys) {
+              poly.make_counter_clockwise();
+           }
+           
+           for (const ModelObject* model_object : m_model->objects) {
+               for (const ModelInstance* instance : model_object->instances) {
+                  for (const ModelVolume* v : instance->get_object()->volumes) {
+                     Polygons vol_outline;
+                     auto transl = Transform3d::Identity();
+                     vol_outline = project_mesh(v->mesh().its, transl * instance->get_matrix() * v->get_matrix(), [] {});
+                     append(contours, vol_outline);
+                     
+                     if (!contours.empty()) {
+                        for (Polygon& contour : contours) {
+                            contour.make_counter_clockwise();
+                        }
+                        
+                        volume->is_excluded = !intersection(exclude_polys, contours).empty();
+                        if (volume->is_excluded) {
+                           std::cout << "Volume is in exclude area";
+                        }
+                     }
+                  }
+              }
+           }
+           
             volume->is_outside = state != BuildVolume::ObjectState::Inside;
             if (volume->printable) {
                 if (overall_state == ModelInstancePVS_Inside && volume->is_outside)
@@ -8506,6 +8549,17 @@ std::pair<bool, const GLVolume*> GLCanvas3D::_is_any_volume_outside() const
 
     return std::make_pair(false, nullptr);
 }
+
+std::pair<bool, const GLVolume*> GLCanvas3D::_is_any_volume_excluded() const
+{
+    for (const std::unique_ptr<GLVolume> &volume : m_volumes.volumes) {
+       if (volume != nullptr && volume->is_excluded)
+            return std::make_pair(true, volume.get());
+    }
+
+    return std::make_pair(false, nullptr);
+}
+
 
 bool GLCanvas3D::_is_sequential_print_enabled() const
 {

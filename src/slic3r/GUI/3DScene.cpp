@@ -243,6 +243,7 @@ GLVolume::GLVolume(float r, float g, float b, float a)
     , zoom_to_volumes(true)
     , shader_outside_printer_detection_enabled(false)
     , is_outside(false)
+    , is_excluded(false)
     , hover(HS_None)
     , is_modifier(false)
     , is_extrusion_path(false)
@@ -258,9 +259,10 @@ GLVolume::GLVolume(float r, float g, float b, float a)
 void GLVolume::set_render_color(bool force_transparent)
 {
     bool outside = is_outside || (!is_modifier && is_below_printbed());
+    bool excluded = is_excluded;
 
     if (force_native_color || force_neutral_color) {
-        if (outside && shader_outside_printer_detection_enabled)
+        if (outside && shader_outside_printer_detection_enabled || excluded)
             set_render_color(OUTSIDE_COLOR);
         else {
             if (force_native_color)
@@ -283,11 +285,16 @@ void GLVolume::set_render_color(bool force_transparent)
         }
         else if (disabled)
             set_render_color(DISABLED_COLOR);
-        else if (outside && shader_outside_printer_detection_enabled)
+        else if (outside && shader_outside_printer_detection_enabled || excluded)
             set_render_color(OUTSIDE_COLOR);
         else
             set_render_color(color);
     }
+    
+   if (excluded) {
+      set_render_color(OUTSIDE_COLOR);
+   }
+    
 
     if (!printable)
         render_color = saturate(render_color, 0.25f);

@@ -189,6 +189,8 @@ public:
 	    bool                shader_outside_printer_detection_enabled : 1;
 	    // Wheter or not this volume is outside print volume.
 	    bool                is_outside : 1;
+        // Whether or not this volume is in exclude area.
+        bool                is_excluded : 1;
 	    // Wheter or not this volume has been generated from a modifier
 	    bool                is_modifier : 1;
 	    // Wheter or not this volume has been generated from an extrusion path
