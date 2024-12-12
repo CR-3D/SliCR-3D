@@ -27,7 +27,7 @@ namespace GUI {
 
 constexpr auto BORDER_W = 10;
 
-void BulkExportDialog::Item::init_input_name_ctrl(wxBoxSizer* input_path_sizer, const std::string &path)
+void BulkExportDialog::Item::init_input_name_ctrl(wxBoxSizer* row_sizer, const std::string &path)
 {
 #ifdef _WIN32
     const long style = wxBORDER_SIMPLE;
@@ -38,29 +38,41 @@ void BulkExportDialog::Item::init_input_name_ctrl(wxBoxSizer* input_path_sizer, 
     wxGetApp().UpdateDarkUI(m_text_ctrl);
     m_text_ctrl->Bind(wxEVT_TEXT, [this](wxCommandEvent&) { update(); });
 
-    input_path_sizer->Add(m_text_ctrl, 1, wxEXPAND, BORDER_W);
+    row_sizer->Add(m_text_ctrl, 1, wxEXPAND, BORDER_W);
 }
+
+void BulkExportDialog::Item::init_selection_ctrl(wxBoxSizer* row_sizer, int id)
+{
+    m_checkbox = new ::CheckBox(m_parent, std::to_string(id));
+    m_checkbox->SetFont(wxGetApp().bold_font());
+    wxGetApp().UpdateDarkUI(m_checkbox);
+    m_checkbox->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent& event) {
+        this->selected = event.IsChecked();
+    });
+
+    row_sizer->Add(m_checkbox, 0, wxRIGHT, BORDER_W);
+    m_checkbox->SetValue(this->selected);
+}
+
 BulkExportDialog::Item::Item(
     wxWindow *parent,
     wxBoxSizer *sizer,
-    const boost::filesystem::path &path,
-    Validator validator
+    const fs::path &path,
+    Validator validator,
+    int id
 ):
     path(path),
     m_parent(parent),
     m_valid_bmp(new wxStaticBitmap(m_parent, wxID_ANY, *get_bmp_bundle("tick_mark"))),
-    m_valid_label(new wxStaticText(m_parent, wxID_ANY, "")),
     m_validator(std::move(validator)),
     m_directory(path.parent_path())
 {
-    m_valid_label->SetFont(wxGetApp().bold_font());
+    wxBoxSizer* row_sizer = new wxBoxSizer(wxHORIZONTAL);
+    init_selection_ctrl(row_sizer, id);
+    init_input_name_ctrl(row_sizer, path.filename().string());
+    row_sizer->Add(m_valid_bmp, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, BORDER_W);
 
-    wxBoxSizer* input_path_sizer = new wxBoxSizer(wxHORIZONTAL);
-    input_path_sizer->Add(m_valid_bmp, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, BORDER_W);
-    init_input_name_ctrl(input_path_sizer, path.filename().string());
-
-    sizer->Add(input_path_sizer,0, wxEXPAND | wxTOP, BORDER_W);
-    sizer->Add(m_valid_label,   0, wxEXPAND | wxLEFT,   3*BORDER_W);
+    sizer->Add(row_sizer,0, wxEXPAND | wxTOP, BORDER_W);
 
     update();
 }
@@ -157,8 +169,8 @@ void BulkExportDialog::Item::update()
     // for duplicates;
     const auto [status, info_line]{m_validator(path, filename)};
 
-    m_valid_label->SetLabel(info_line);
-    m_valid_label->Show(!info_line.IsEmpty());
+    m_valid_bmp->SetToolTip(info_line);
+
     m_status = status;
 
     update_valid_bmp();
@@ -185,7 +197,7 @@ BulkExportDialog::BulkExportDialog(const std::vector<fs::path> &paths):
     DPIDialog(
         nullptr,
         wxID_ANY,
-        paths.size() == 1 ? _L("Save bed") : _L("Save beds"),
+        paths.size() == 1 ? _L("Export bed") : _L("Export beds"),
         wxDefaultPosition,
         wxSize(45 * wxGetApp().em_unit(), 5 * wxGetApp().em_unit()),
         wxDEFAULT_DIALOG_STYLE | wxICON_WARNING
@@ -201,8 +213,9 @@ BulkExportDialog::BulkExportDialog(const std::vector<fs::path> &paths):
 
     m_sizer = new wxBoxSizer(wxVERTICAL);
 
+    int id{ 0 };
     for (const fs::path& path : paths) {
-        AddItem(path);
+        AddItem(path, ++id);
     }
 
     // Add dialog's buttons
@@ -224,9 +237,9 @@ BulkExportDialog::BulkExportDialog(const std::vector<fs::path> &paths):
 #endif
 }
 
-void BulkExportDialog::AddItem(const fs::path& path)
+void BulkExportDialog::AddItem(const fs::path& path, int id)
 {
-    m_items.push_back(std::make_unique<Item>(this, m_sizer, path, PathValidator{m_items}));
+    m_items.push_back(std::make_unique<Item>(this, m_sizer, path, PathValidator{m_items}, id));
 }
 
 bool BulkExportDialog::enable_ok_btn() const
@@ -246,13 +259,16 @@ bool BulkExportDialog::Layout()
     return ret;
 }
 
-std::vector<boost::filesystem::path> BulkExportDialog::get_paths() const {
-    std::vector<boost::filesystem::path> result;
+std::vector<std::optional<fs::path>> BulkExportDialog::get_paths() const {
+    std::vector<std::optional<fs::path>> result;
     std::transform(
         m_items.begin(),
         m_items.end(),
         std::back_inserter(result),
-        [](const auto &item){
+        [](const auto &item) -> std::optional<fs::path> {
+            if (!item->selected) {
+                return std::nullopt;
+            }
             return item->path;
         }
     );

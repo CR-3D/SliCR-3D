@@ -147,10 +147,10 @@ public:
     void                    show_info_sizer();
     void                    show_sliced_info_sizer(const bool show);
     bool                    show_reslice(bool show) const;
-	bool                    show_export(bool show) const;
-	bool                    show_send(bool show) const;
+	   bool                    show_export(bool show) const;
+	   bool                    show_send(bool show) const;
     bool                    show_eject(bool show)const;
-	bool                    show_export_removable(bool show) const;
+	   bool                    show_export_removable(bool show) const;
     void                    show_bulk_btns_sizer(const bool show);
 
     void                    enable_bulk_buttons(bool enable);
@@ -160,7 +160,7 @@ public:
 
     void                    switch_to_autoslicing_mode();
     void                    switch_from_autoslicing_mode();
-
+    
     std::vector<PlaterPresetComboBox*>&   combos_filament();
     Search::OptionsSearcher&        get_searcher();
     std::string&                    get_search_line();
@@ -358,7 +358,14 @@ public:
     bool is_background_process_update_scheduled() const;
     void suppress_background_process(const bool stop_background_process) ;
     void send_gcode();
-	void eject_drive();
+    void eject_drive();
+   
+    void with_mocked_fff_background_process(
+               Print &print,
+               GCodeProcessorResult &result,
+               const int bed_index,
+               const std::function<void()> &callable
+    );
 
     std::string get_upload_filename();
 

@@ -8359,6 +8359,31 @@ struct PrintToExport {
     std::size_t bed{};
 };
 
+void Plater::with_mocked_fff_background_process(
+    Print &print,
+    GCodeProcessorResult &result,
+    const int bed_index,
+    const std::function<void()> &callable) {
+    
+    Print *original_print{&active_fff_print()};
+    GCodeProcessorResult *original_result{this->p->background_process.get_gcode_result()};
+    const int original_bed{s_multiple_beds.get_active_bed()};
+    PrinterTechnology original_technology{this->printer_technology()};
+    ScopeGuard guard{[&](){
+        this->p->background_process.set_fff_print(original_print);
+        this->p->background_process.set_gcode_result(*original_result);
+        this->p->background_process.select_technology(original_technology);
+        s_multiple_beds.set_active_bed(original_bed);
+    }};
+
+    this->p->background_process.set_fff_print(&print);
+    this->p->background_process.set_gcode_result(result);
+    this->p->background_process.select_technology(this->p->printer_technology);
+    s_multiple_beds.set_active_bed(bed_index);
+
+    callable();
+}
+
 void Plater::export_all_gcodes(bool prefer_removable) {
     const auto optional_default_output_file{this->get_default_output_file()};
     if (!optional_default_output_file) {
@@ -8396,7 +8421,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
     if (dialog.ShowModal() != wxID_OK) {
         return;
     }
-    paths = dialog.get_paths();
+    std::vector<std::optional<fs::path>> output_paths{dialog.get_paths()};
     for (std::size_t path_index{0}; path_index < paths.size(); ++path_index) {
         prints_to_export[path_index].output_path = paths[path_index];
     }
@@ -8412,18 +8437,29 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         s_multiple_beds.set_active_bed(original_bed);
     }};
 
-    for (const PrintToExport &print_to_export : prints_to_export) {
-        this->p->background_process.set_fff_print(&print_to_export.print.get());
-        this->p->background_process.set_gcode_result(print_to_export.processor_result.get());
-        this->p->background_process.set_temp_output_path(print_to_export.bed);
-        export_gcode_to_path(
-            print_to_export.output_path,
-            [&](const bool on_removable){
-                this->p->background_process.finalize_gcode(
-                    print_to_export.output_path.string(),
-                    path_on_removable_media
+    for (std::size_t path_index{0}; path_index < paths.size(); ++path_index) {
+        PrintToExport print_to_export{prints_to_export[path_index]};
+        if (!output_paths[path_index]) {
+            continue;
+        }
+        
+        print_to_export.output_path = *output_paths[path_index];
+        with_mocked_fff_background_process(
+            print_to_export.print,
+            print_to_export.processor_result,
+            print_to_export.bed,
+            [&](){
+                this->p->background_process.set_temp_output_path(print_to_export.bed);
+                export_gcode_to_path(
+                    print_to_export.output_path,
+                    [&](const bool on_removable){
+                        this->p->background_process.finalize_gcode(
+                            print_to_export.output_path.string(),
+                            path_on_removable_media
+                        );
+                        path_on_removable_media = on_removable || path_on_removable_media;
+                    }
                 );
-                path_on_removable_media = on_removable || path_on_removable_media;
             }
         );
     }

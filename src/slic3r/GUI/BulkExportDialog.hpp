@@ -9,6 +9,9 @@
 #include <boost/filesystem/path.hpp>
 #include "wxExtensions.hpp"
 #include "GUI_Utils.hpp"
+#include <optional>
+
+#include "Widgets/CheckBox.hpp"
 
 class wxString;
 class wxStaticText;
@@ -38,7 +41,8 @@ public:
             wxWindow *parent,
             wxBoxSizer *sizer,
             const boost::filesystem::path &path,
-            Validator validator
+            Validator validator,
+            int id
         );
         Item(const Item &) = delete;
         Item& operator=(const Item &) = delete;
@@ -52,17 +56,19 @@ public:
         bool is_valid() const { return m_status != ItemStatus::NoValid; }
 
         boost::filesystem::path path;
+        bool selected{true};
 
     private:
         ItemStatus m_status{ItemStatus::NoValid};
         wxWindow *m_parent{nullptr};
         wxStaticBitmap *m_valid_bmp{nullptr};
         wxTextCtrl *m_text_ctrl{nullptr};
-        wxStaticText *m_valid_label{nullptr};
+        ::CheckBox *m_checkbox{nullptr};
         Validator m_validator;
         boost::filesystem::path m_directory{};
 
-        void init_input_name_ctrl(wxBoxSizer *input_name_sizer, const std::string &path);
+        void init_input_name_ctrl(wxBoxSizer *row_sizer, const std::string &path);
+        void init_selection_ctrl(wxBoxSizer *row_sizer, int id);
         void update();
     };
 
@@ -74,14 +80,14 @@ private:
 public:
     BulkExportDialog(const std::vector<boost::filesystem::path> &paths);
     bool Layout() override;
-    std::vector<boost::filesystem::path> get_paths() const;
+    std::vector<std::optional<boost::filesystem::path>> get_paths() const;
 
 protected:
     void on_dpi_changed(const wxRect &) override;
     void on_sys_color_changed() override {}
 
 private:
-    void AddItem(const boost::filesystem::path &path);
+    void AddItem(const boost::filesystem::path &path, int id);
     bool enable_ok_btn() const;
 };
 
