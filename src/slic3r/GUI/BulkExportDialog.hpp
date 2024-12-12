@@ -41,8 +41,8 @@ public:
             wxWindow *parent,
             wxBoxSizer *sizer,
             const boost::filesystem::path &path,
-            Validator validator,
-            int id
+            const int bed_index,
+            Validator validator
         );
         Item(const Item &) = delete;
         Item& operator=(const Item &) = delete;
@@ -56,6 +56,7 @@ public:
         bool is_valid() const { return m_status != ItemStatus::NoValid; }
 
         boost::filesystem::path path;
+        int bed_index{};
         bool selected{true};
 
     private:
@@ -68,7 +69,7 @@ public:
         boost::filesystem::path m_directory{};
 
         void init_input_name_ctrl(wxBoxSizer *row_sizer, const std::string &path);
-        void init_selection_ctrl(wxBoxSizer *row_sizer, int id);
+        void init_selection_ctrl(wxBoxSizer *row_sizer, int bed_index);
         void update();
     };
 
@@ -78,16 +79,17 @@ private:
     wxBoxSizer *m_sizer{nullptr};
 
 public:
-    BulkExportDialog(const std::vector<boost::filesystem::path> &paths);
+
+    BulkExportDialog(const std::vector<std::pair<int, boost::filesystem::path>> &paths);
     bool Layout() override;
-    std::vector<std::optional<boost::filesystem::path>> get_paths() const;
+    std::vector<std::pair<int, std::optional<boost::filesystem::path>>> get_paths() const;
 
 protected:
     void on_dpi_changed(const wxRect &) override;
     void on_sys_color_changed() override {}
 
 private:
-    void AddItem(const boost::filesystem::path &path, int id);
+    void AddItem(const boost::filesystem::path &path, int bed_index);
     bool enable_ok_btn() const;
 };
 
