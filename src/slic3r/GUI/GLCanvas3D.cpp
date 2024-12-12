@@ -7348,17 +7348,28 @@ void GLCanvas3D::_render_bed_selector() {
                 ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             }
 
-            bool clicked = false;
-            if (!is_sliceable(print_status)) {
-                ImGui::Button(get_status_text(print_status).c_str(), btn_size + btn_padding);
+            if (
+                !is_sliceable(print_status)
+            ) {
+                clicked = button_with_icon(
+                    ImGui::WarningMarkerDisabled,
+                    get_status_text(print_status),
+                    !inactive,
+                    btn_size + btn_padding
+                );
+            } else if (print_status == PrintStatus::toolpath_outside) {
+                clicked = button_with_icon(
+                    ImGui::WarningMarker,
+                    get_status_text(print_status),
+                    !inactive,
+                    btn_size + btn_padding
+                );
             } else if (
                 i >= int(s_bed_selector_thumbnail_texture_ids.size())
             ) {
                 clicked = ImGui::Button(
                     std::to_string(i + 1).c_str(), btn_size + btn_padding
                 );
-
-
             } else {
                 clicked = bed_selector_thumbnail(
                     btn_size,

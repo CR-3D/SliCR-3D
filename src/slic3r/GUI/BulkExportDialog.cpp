@@ -50,7 +50,7 @@ void BulkExportDialog::Item::init_selection_ctrl(wxBoxSizer* row_sizer, int id)
         this->selected = event.IsChecked();
     });
 
-    row_sizer->Add(m_checkbox, 0, wxRIGHT, BORDER_W);
+    row_sizer->Add(m_checkbox, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, BORDER_W);
     m_checkbox->SetValue(this->selected);
 }
 

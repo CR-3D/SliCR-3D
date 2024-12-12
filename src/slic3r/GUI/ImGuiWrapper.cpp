@@ -100,6 +100,7 @@ static const std::map<const wchar_t, std::string> font_icons_large = {
     {ImGui::EjectButton             , "notification_eject_sd"           },
     {ImGui::EjectHoverButton        , "notification_eject_sd_hover"     },
     {ImGui::WarningMarker           , "notification_warning"            },
+    {ImGui::WarningMarkerDisabled   , "notification_warning_grey"       },
     {ImGui::ErrorMarker             , "notification_error"              },
     {ImGui::CancelButton            , "notification_cancel"             },
     {ImGui::CancelHoverButton       , "notification_cancel_hover"       },
