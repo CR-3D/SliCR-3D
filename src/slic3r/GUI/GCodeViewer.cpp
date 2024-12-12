@@ -1448,6 +1448,14 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
     if (wxGetApp().is_gcode_viewer())
         m_custom_gcode_per_print_z = gcode_result.custom_gcode_per_print_z;
 
+
+    if (wxGetApp().is_editor()) {
+        m_contained_in_bed = wxGetApp().plater()->build_volume().all_paths_inside(gcode_result, m_paths_bounding_box);
+        if (!m_contained_in_bed) {
+            s_print_statuses[s_multiple_beds.get_active_bed()] = PrintStatus::toolpath_outside;
+        }
+    }
+    
     m_max_print_height = gcode_result.max_print_height;
     m_z_offset = gcode_result.z_offset;
 
