@@ -950,6 +950,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 infill_first))
     ((ConfigOptionFloatOrPercent,       internal_bridge_acceleration))
     ((ConfigOptionBool,                 internal_bridge_expansion))
+    ((ConfigOptionFloatOrPercent,       internal_bridge_min_width))
     ((ConfigOptionFloatOrPercent,       internal_bridge_speed))
     // Ironing options
     ((ConfigOptionBool,                 ironing))

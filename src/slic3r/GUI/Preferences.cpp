@@ -136,6 +136,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 	m_custom_toolbar_size		= atoi(get_app_config()->get("custom_toolbar_size").c_str());
 	m_use_custom_toolbar_size	= get_app_config()->get_bool("use_custom_toolbar_size");
 
+	// Set enum value
 	// set Field for notify_release to its value
 	if (m_optkey_to_optgroup.find("notify_release") != m_optkey_to_optgroup.end())
 		if(auto field = m_optkey_to_optgroup["notify_release"]->get_field("notify_release"); field != nullptr) {
@@ -148,6 +149,21 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 			}
 			field->set_any_value(val, false);
 		}
+	// set Field for splashscreen to its value
+	std::string splashscreen_key = wxGetApp().is_editor() ? "splash_screen_editor" : "splash_screen_gcodeviewer";
+    if (m_optkey_to_optgroup.find(splashscreen_key) != m_optkey_to_optgroup.end()) {
+        if (auto field = m_optkey_to_optgroup[splashscreen_key]->get_field(splashscreen_key); field != nullptr) {
+            boost::any val = wxGetApp().app_config->get(splashscreen_key);
+            field->set_any_value(val, false);
+        }
+    }
+	// set Field for splashscreen to its value
+    if (m_optkey_to_optgroup.find("ui_layout") != m_optkey_to_optgroup.end()) {
+        if (auto field = m_optkey_to_optgroup["ui_layout"]->get_field("ui_layout"); field != nullptr) {
+            boost::any val = wxGetApp().app_config->get("ui_layout");
+            field->set_any_value(val, false);
+        }
+    }
 	
 
 	if (wxGetApp().is_editor()) {
@@ -920,7 +936,7 @@ void PreferencesDialog::build()
 		m_tabid_2_optgroups.back().back()->label_width = 0;
 		ConfigOptionDef def_combobox;
 		def_combobox.label = "_";
-		def_combobox.type = coStrings;
+		def_combobox.type = coString;
 		def_combobox.tooltip = L("Choose the gui package to use. It controls colors, settings layout, quick settings, tags (simple/expert).");
 		def_combobox.full_width = false; //true doesn't set the space for the search arrow (and add a line before for it but it fails).
 		def_combobox.width = 64;
@@ -954,8 +970,9 @@ void PreferencesDialog::build()
     {
 
         ConfigOptionDef def_combobox;
+		def_combobox.opt_key = is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer";
         def_combobox.label = L("Splash screen image");
-        def_combobox.type = coStrings;
+        def_combobox.type = coString;
         def_combobox.tooltip = L("Choose the image to use as splashscreen");
 		std::vector<std::pair<std::string,std::string>> enum_key_values = {
 			{"default", L("Default")}, 
@@ -969,7 +986,6 @@ void PreferencesDialog::build()
             }
         }
         def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_key_values);
-        def_combobox.gui_flags = "show_value";
 		assert(def_combobox.enum_def->is_valid_open_enum());
         std::string current_file_name = app_config->get(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
         if (std::find(def_combobox.enum_def->values().begin(), def_combobox.enum_def->values().end(), current_file_name) == def_combobox.enum_def->values().end()) {
@@ -977,7 +993,7 @@ void PreferencesDialog::build()
             current_file_name = def_combobox.enum_def->values()[0];
 			app_config->set(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", current_file_name);
         }
-        def_combobox.set_default_value(new ConfigOptionStrings{ current_file_name });
+        def_combobox.set_default_value(new ConfigOptionString{ current_file_name });
         Option option = Option(def_combobox, is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
         m_tabid_2_optgroups.back().back()->append_single_option_line(option);
 		m_optkey_to_optgroup[is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer"] = m_tabid_2_optgroups.back().back();

@@ -286,6 +286,7 @@ inline Polylines to_polylines(Polygons &&polys)
     polylines.assign(polys.size(), Polyline());
     size_t idx = 0;
     for (auto it = polys.begin(); it != polys.end(); ++ it) {
+        assert(!it->empty());
         Polyline &pl = polylines[idx ++];
         pl.points = std::move(it->points);
         pl.points.push_back(pl.points.front());

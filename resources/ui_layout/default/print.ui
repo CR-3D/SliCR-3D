@@ -388,7 +388,10 @@ group:Advanced
 		setting:label$From region:solid_infill_below_area
 		setting:label$From the whole layer:solid_infill_below_layer_area
 	end_line
-	setting:solid_infill_below_width
+	line:Solid infill width threshold
+		setting:solid_infill_below_width
+		setting:internal_bridge_min_width
+	end_line
 	line:Anchor solid infill by X mm
 		setting:label_width$8:width$5:external_infill_margin
 	end_line

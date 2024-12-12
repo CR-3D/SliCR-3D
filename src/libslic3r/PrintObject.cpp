@@ -369,7 +369,7 @@ void PrintObject::prepare_infill()
     }
     this->detect_surfaces_type();
     m_print->throw_if_canceled();
-    
+
 #ifdef _DEBUG
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         for (const Layer *layer : m_layers) {
@@ -488,7 +488,7 @@ void PrintObject::prepare_infill()
     }
     this->discover_vertical_shells();
     m_print->throw_if_canceled();
-    
+
 #ifdef _DEBUG
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         for (const Layer *layer : m_layers) {
@@ -511,7 +511,7 @@ void PrintObject::prepare_infill()
         }
     }
 #endif
-    
+
     if (ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Partial || ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Enabled) {
         // this will detect bridges and reverse bridges
         // and rearrange top/bottom/internal surfaces
@@ -1437,6 +1437,7 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "infill_dense_algo"
             || opt_key == "infill_only_where_needed"
             || opt_key == "internal_bridge_expansion"
+            || opt_key == "internal_bridge_min_width"
             || opt_key == "ironing"
             || opt_key == "ironing_type"
             || opt_key == "over_bridge_flow_ratio"
@@ -3225,7 +3226,9 @@ void PrintObject::bridge_over_infill()
             PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
             const Layer *layer = po->get_layer(lidx);
             if (layer->lower_layer != nullptr) {
-                double spacing = layer->regions().front()->flow(frSolidInfill).scaled_spacing();
+                coord_t spacing = coord_t(layer->regions().front()->flow(frSolidInfill).scaled_spacing());
+                bool has_same_internal_bridge_min_width = true;
+                coord_t common_internal_bridge_min_width = scale_t(layer->regions().front()->region().config().internal_bridge_min_width.get_abs_value(unscaled(spacing)));
                 // unsupported area will serve as a filter for polygons worth bridging.
                 Polygons   unsupported_area;
                 Polygons   lower_layer_solids;
@@ -3242,44 +3245,90 @@ void PrintObject::bridge_over_infill()
                             lower_layer_solids.insert(lower_layer_solids.end(), p.begin(), p.end());
                         }
                     }
+                    // check if internal_bridge_min_width is the same in all regions, it simplifies things
+                    coord_t region_internal_bridge_min_width = scale_t(
+                        region->region().config().internal_bridge_min_width.get_abs_value(
+                            region->flow(frSolidInfill).spacing()));
+                    if (region_internal_bridge_min_width != common_internal_bridge_min_width) {
+                        has_same_internal_bridge_min_width = false;
+                    }
                 }
-                unsupported_area = closing(unsupported_area, float(SCALED_EPSILON));
-                // By expanding the lower layer solids, we avoid making bridges from the tiny internal overhangs that are (very likely) supported by previous layer solids
-                // NOTE that we cannot filter out polygons worth bridging by their area, because sometimes there is a very small internal island that will grow into large hole
-                lower_layer_solids = shrink(lower_layer_solids, 1 * spacing); // first remove thin regions that will not support anything
-                lower_layer_solids = expand(lower_layer_solids, (1 + 3) * spacing); // then expand back (opening), and further for parts supported by internal solids
-                // By shrinking the unsupported area, we avoid making bridges from narrow ensuring region along perimeters.
-                unsupported_area   = shrink(unsupported_area, 3 * spacing);
-                unsupported_area   = diff(unsupported_area, lower_layer_solids);
+                if (has_same_internal_bridge_min_width) {
+                    unsupported_area = closing(unsupported_area, float(SCALED_EPSILON));
+                    // By expanding the lower layer solids, we avoid making bridges from the tiny internal overhangs that are (very likely) supported by previous layer solids
+                    // NOTE that we cannot filter out polygons worth bridging by their area, because sometimes there is a very small internal island that will grow into large hole
+                    lower_layer_solids = shrink(lower_layer_solids, spacing); // first remove thin regions that will not support anything
+                    lower_layer_solids = expand(lower_layer_solids, spacing + common_internal_bridge_min_width); // then expand back (opening), and further for parts supported by internal solids
+                    // By shrinking the unsupported area, we avoid making bridges from narrow ensuring region along perimeters.
+                    unsupported_area   = shrink(unsupported_area, common_internal_bridge_min_width);
+                    unsupported_area   = diff(unsupported_area, lower_layer_solids);
+                } else {
+                    // get the regions ordered per internal_bridge_min_width value
+                    std::map<coord_t, Polygons> min_width_to_fills;
+                    for (const LayerRegion *region : layer->regions()) {
+                        coord_t region_internal_bridge_min_width = scale_t(region->region().config().internal_bridge_min_width.get_abs_value(unscaled(spacing)));
+                        append(min_width_to_fills[region_internal_bridge_min_width], to_polygons(region->fill_expolygons()));
+                    }
+                    for (auto &entry : min_width_to_fills) {
+                        entry.second = union_safety_offset(entry.second);
+                    }
+
+                    unsupported_area = closing(unsupported_area, float(SCALED_EPSILON));
+                    // By expanding the lower layer solids, we avoid making bridges from the tiny internal overhangs
+                    // that are (very likely) supported by previous layer solids NOTE that we cannot filter out
+                    // polygons worth bridging by their area, because sometimes there is a very small internal island
+                    // that will grow into large hole
+                    Polygons shrinked_lower_layer_solids = shrink(lower_layer_solids, spacing); // first remove thin regions that will not support anything
+                   // then expand back (opening), and further for parts supported by internal solids
+                    lower_layer_solids.clear();
+                    // we iterate from big to low internal_bridge_min_width, as the high one can accept all expansions.
+                    Polygons allowed_clip;
+                    for (auto it = min_width_to_fills.rbegin(); it != min_width_to_fills.rend(); ++it) {
+                        append(allowed_clip, it->second);
+                        allowed_clip = union_safety_offset(allowed_clip);
+                        append(lower_layer_solids,
+                               intersection(expand(shrinked_lower_layer_solids, spacing + it->first), allowed_clip));
+                    }
+                    lower_layer_solids = union_safety_offset(lower_layer_solids);
+                    // By shrinking the unsupported area, we avoid making bridges from narrow ensuring region along perimeters.
+                    // this time, as it's shrinking, the iteration directino doesn't matter.
+                    Polygons shrinked_unsupported_area; 
+                    for (auto it = min_width_to_fills.rbegin(); it != min_width_to_fills.rend(); ++it) {
+                        append(shrinked_unsupported_area, intersection(shrink(unsupported_area, it->first), it->second));
+                    }
+                    shrinked_unsupported_area = union_safety_offset(shrinked_unsupported_area);
+                    unsupported_area = diff(shrinked_unsupported_area, lower_layer_solids);
+                }
 
                 for (const LayerRegion *region : layer->regions()) {
+                    coord_t region_internal_bridge_min_width = scale_t(region->region().config().internal_bridge_min_width.get_abs_value(unscaled(spacing)));
                     SurfacesPtr region_internal_solids = region->fill_surfaces().filter_by_type(stPosInternal | stDensSolid);
-                    for (const Surface *s : region_internal_solids) {
-                        Polygons unsupported         = intersection(to_polygons(s->expolygon), unsupported_area);
+                    for (const Surface *srf : region_internal_solids) {
+                        Polygons unsupported         = intersection(to_polygons(srf->expolygon), unsupported_area);
                         // The following flag marks those surfaces, which overlap with unuspported area, but at least part of them is supported. 
                         // These regions can be filtered by area, because they for sure are touching solids on lower layers, and it does not make sense to bridge their tiny overhangs 
-                        bool     partially_supported = area(unsupported) < area(to_polygons(s->expolygon)) - EPSILON;
+                        bool     partially_supported = area(unsupported) < area(to_polygons(srf->expolygon)) - EPSILON;
                         if (!unsupported.empty() && (!partially_supported || area(unsupported) > 3 * 3 * spacing * spacing)) {
-                            Polygons worth_bridging = intersection(to_polygons(s->expolygon), expand(unsupported, 4 * spacing));
+                            Polygons worth_bridging = intersection(to_polygons(srf->expolygon), expand(unsupported, region_internal_bridge_min_width + spacing));
                             // after we extracted the part worth briding, we go over the leftovers and merge the tiny ones back, to not brake the surface too much
-                            for (const Polygon& p : diff(to_polygons(s->expolygon), expand(worth_bridging, spacing))) {
+                            for (const Polygon& p : diff(to_polygons(srf->expolygon), expand(worth_bridging, spacing))) {
                                 double area = p.area();
                                 if (area < spacing * scale_(12.0) && area > spacing * spacing) {
                                     worth_bridging.push_back(p);
                                 }
                             }
-                            worth_bridging = intersection(closing(worth_bridging, float(SCALED_EPSILON)), s->expolygon);
-                            candidate_surfaces.push_back(CandidateSurface(s, lidx, worth_bridging, region, 0));
+                            worth_bridging = intersection(closing(worth_bridging, float(SCALED_EPSILON)), srf->expolygon);
+                            candidate_surfaces.push_back(CandidateSurface(srf, lidx, worth_bridging, region, 0));
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
-                            debug_draw(std::to_string(lidx) + "_candidate_surface_" + std::to_string(area(s->expolygon)),
-                                       to_lines(region->layer()->lslices()), to_lines(s->expolygon), to_lines(worth_bridging),
+                            debug_draw(std::to_string(lidx) + "_candidate_surface_" + std::to_string(area(srf->expolygon)),
+                                       to_lines(region->layer()->lslices()), to_lines(srf->expolygon), to_lines(worth_bridging),
                                        to_lines(unsupported_area));
 #endif
 #ifdef DEBUG_BRIDGE_OVER_INFILL
                             debug_draw(std::to_string(lidx) + "_candidate_processing_" + std::to_string(area(unsupported)),
-                                       to_lines(unsupported), to_lines(intersection(to_polygons(s->expolygon), expand(unsupported, 5 * spacing))), 
-                                       to_lines(diff(to_polygons(s->expolygon), expand(worth_bridging, spacing))),
+                                       to_lines(unsupported), to_lines(intersection(to_polygons(srf->expolygon), expand(unsupported, 5 * spacing))), 
+                                       to_lines(diff(to_polygons(srf->expolygon), expand(worth_bridging, spacing))),
                                        to_lines(unsupported_area));
 #endif
                         }
@@ -3799,12 +3848,24 @@ void PrintObject::bridge_over_infill()
 
                 // Gather deep infill areas, where thick bridges fit
                 const LayerRegion *first_lregion = surfaces_by_layer[lidx].front().region;
-                Flow               bridge_flow = first_lregion->bridging_flow(frSolidInfill, first_lregion->region().config().bridge_type);
+                Flow               bridge_flow = first_lregion->bridging_flow(frSolidInfill, first_lregion->region().config().bridge_type); // FIXME: per region
                 const coord_t      spacing     = bridge_flow.scaled_spacing();
                 const float        bridge_height = std::max(float(layer->height), bridge_flow.height());
                 //const coord_t      bridge_width = bridge_flow.scaled_width();
                 const coord_t      target_flow_height = bridge_flow.height() * target_flow_height_factor;
                 Polygons           deep_infill_area   = gather_areas_w_depth(po, lidx, target_flow_height);
+
+                bool has_same_internal_bridge_min_width = true;
+                coord_t common_internal_bridge_min_width = scale_t(layer->regions().front()->region().config().internal_bridge_min_width.get_abs_value(unscaled(spacing)));
+                for (const LayerRegion *region : layer->regions()) {
+                    // check if internal_bridge_min_width is the same in all regions, it simplifies things
+                    coord_t region_internal_bridge_min_width = scale_t(
+                        region->region().config().internal_bridge_min_width.get_abs_value(
+                            region->flow(frSolidInfill).spacing()));
+                    if (region_internal_bridge_min_width != common_internal_bridge_min_width) {
+                        has_same_internal_bridge_min_width = false;
+                    }
+                }
 
                 {
                     // Now also remove area that has been already filled on lower layers by bridging expansion - For this
@@ -3834,6 +3895,7 @@ void PrintObject::bridge_over_infill()
                 Polygons lightning_area;
                 Polygons expansion_area;
                 Polygons total_fill_area;
+                Polygons internal_unsupported_area;
                 for (const LayerRegion *region : layer->regions()) {
                     Polygons internal_polys = to_polygons(region->fill_surfaces().filter_by_types({(stPosInternal | stDensSparse), (stPosInternal | stDensSparse | stModBridge), (stPosInternal | stDensSolid)}));
                     expansion_area.insert(expansion_area.end(), internal_polys.begin(), internal_polys.end());
@@ -3844,13 +3906,25 @@ void PrintObject::bridge_over_infill()
                             {(stPosInternal | stDensSparse), (stPosInternal | stDensSparse | stModBridge)}));
                         lightning_area.insert(lightning_area.end(), l.begin(), l.end());
                     }
+                    if (!has_same_internal_bridge_min_width) {
+                        // do shrink per region, as the value is different.
+                        coord_t internal_bridge_min_width = scale_t(
+                            first_lregion->region().config().internal_bridge_min_width.get_abs_value(region->flow(frSolidInfill).spacing()));
+                        append(internal_unsupported_area,
+                               intersection(to_polygons(region->fill_expolygons()),
+                                            shrink(deep_infill_area, spacing * 1.5 + internal_bridge_min_width)));
+                    }
                 }
                 total_fill_area   = closing(total_fill_area, float(SCALED_EPSILON));
                 expansion_area    = closing(expansion_area, float(SCALED_EPSILON));
                 Polygons expansion_area_1 = expansion_area;
                 expansion_area    = intersection(expansion_area, deep_infill_area);
                 Polylines anchors = intersection_pl(infill_lines[lidx - 1], shrink(expansion_area, spacing));
-                Polygons internal_unsupported_area = shrink(deep_infill_area, spacing * 4.5);
+                if (has_same_internal_bridge_min_width) {
+                    internal_unsupported_area = shrink(deep_infill_area, spacing * 1.5 + common_internal_bridge_min_width);
+                } else {
+                    internal_unsupported_area = union_safety_offset(internal_unsupported_area);
+                }
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
                 debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" + std::to_string(job_idx) + "_" + "_total_area",

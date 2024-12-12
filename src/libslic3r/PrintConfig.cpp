@@ -539,9 +539,9 @@ void PrintConfigDef::init_common_params() {
     def = this->add("printhost_port", coString);
     def->label = L("Printer");
     def->tooltip = L("Name of the printer");
-    def->gui_type = ConfigOptionDef::GUIType::select_close;
     def->mode = comAdvancedE | comPrusa;
     def->cli = ConfigOptionDef::nocli;
+    def->set_enum_values(ConfigOptionDef::GUIType::select_open, {"no printers"});
     def->set_default_value(new ConfigOptionString(""));
 
     // only if there isn't a native SSL support
@@ -2684,7 +2684,6 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionFloats(0.));
 
     def = this->add("fill_density", coPercent);
-    def->gui_flags = "show_value";
     def->label = L("Fill density");
     def->category = OptionCategory::infill;
     def->tooltip = L("Density of internal infill, expressed in the range 0% - 100%."
@@ -3416,6 +3415,19 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionInt(1));
 
+    def = this->add("idle_temperature", coInts);
+    def->label = L("Idle temperature");
+    def->tooltip = L("Nozzle temperature when the tool is currently not used in multi-tool setups."
+                     "\nThis is only used when 'Ooze prevention' is active in Print Settings.");
+    def->sidetext = L("°C");
+    def->category = OptionCategory::filament;
+    def->min = 0;
+    def->max = max_temp;
+    def->can_be_disabled = true;
+    def->mode = comSimpleAE | comPrusa;
+    def->is_vector_extruder = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInts{30}));
+
     auto def_infill_anchor_min = def = this->add("infill_anchor", coFloatOrPercent);
     def->label = L("Length of the infill anchor");
     def->category = OptionCategory::infill;
@@ -3756,6 +3768,16 @@ void PrintConfigDef::init_fff_params() {
     def->can_be_disabled = true;
     def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
     def->aliases = {"bridge_internal_fan_speed"};
+
+    def = this->add("internal_bridge_min_width", coFloatOrPercent);
+    def->label = L("Internal bridge infill threshold width");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("Minimum width for the solid infill to convert into an internal bridge infill."
+                    "\nCan be a % of the current solid infill spacing.");
+    def->sidetext = L("mm or %");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent(300, true));
 
     def = this->add("internal_bridge_speed", coFloatOrPercent);
     def->label = L("Internal bridges");
@@ -5803,9 +5825,9 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Solid infill threshold width");
     def->category = OptionCategory::infill;
     def->tooltip = L("Force solid infill for parts of regions having a smaller width than the specified threshold."
-                     "\nCan be a % of the current solid infill spacing."
-                     "\nSet 0 to disable");
-    def->sidetext = L("mm/%");
+                    "\nCan be a % of the current solid infill spacing."
+                    "\nSet 0 to disable.");
+    def->sidetext = L("mm or %");
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
@@ -8336,17 +8358,6 @@ void PrintConfigDef::init_sla_params() {
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionFloat(0.3));
 
-    def = this->add("idle_temperature", coInts);
-    def->label = L("Idle temperature");
-    def->tooltip = L("Nozzle temperature when the tool is currently not used in multi-tool setups."
-                     "\nThis is only used when 'Ooze prevention' is active in Print Settings.");
-    def->sidetext = L("°C");
-    def->min = 0;
-    def->max = max_temp;
-    def->can_be_disabled = true;
-    def->mode = comSimpleAE | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts{30}));
-
     def = this->add("bottle_volume", coFloat);
     def->label = L("Bottle volume");
     def->tooltip = L("Bottle volume");
@@ -9890,6 +9901,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "internal_bridge_acceleration",
 "internal_bridge_expansion",
 "internal_bridge_fan_speed",
+"internal_bridge_min_width",
 "internal_bridge_speed",
 "ironing_acceleration",
 "ironing_angle",

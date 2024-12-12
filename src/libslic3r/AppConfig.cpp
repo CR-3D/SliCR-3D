@@ -607,7 +607,7 @@ void AppConfig::init_ui_layout() {
 
     //set ui_layout to a default if not set
     if (current_name.empty() || !find_current) {
-        auto default_layout = datadir_map.find("Standard");
+         auto default_layout = datadir_map.find("Standard");
         if (default_layout == datadir_map.end()) {
             default_layout = datadir_map.find("Default");
         }

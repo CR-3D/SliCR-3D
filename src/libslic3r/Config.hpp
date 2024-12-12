@@ -722,7 +722,6 @@ public:
         assert (m_enabled.size() == size());
         // reset evrything, use the default.
         if (idx < 0) {
-            assert(!enabled);
             for(size_t i=0; i<this->m_enabled.size(); ++i)
                 this->m_enabled[i] = enabled;
             ConfigOption::set_enabled(enabled);

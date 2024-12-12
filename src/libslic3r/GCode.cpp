@@ -5556,7 +5556,7 @@ void GCodeGenerator::extrude_perimeters(const ExtrudeArgs &print_args, const Lay
     const Print       &print  = *print_args.print_instance.print_object.print();
     m_region = &print.get_print_region(layerm.region().print_region_id());
     bool first = true;
-    std::vector<const ExtrusionEntity*> to_extrude;
+    ExtrusionEntityCollection to_extrude(true, true);
 //
 //#ifdef _DEBUG
 //    struct OverhangAssertVisitor : public ExtrusionVisitorRecursiveConst {
@@ -5571,7 +5571,7 @@ void GCodeGenerator::extrude_perimeters(const ExtrudeArgs &print_args, const Lay
 //#endif
     for (uint32_t perimeter_id : island.perimeters) {
         // Extrusions inside islands are expected to be ordered already.
-        // Don't reorder them.
+        // Don't reorder them. (supermerill: it's reordered afterwards by the chain_extrusion_references)
         assert(dynamic_cast<const ExtrusionEntityCollection*>(layerm.perimeters().entities()[perimeter_id]));
         const ExtrusionEntityCollection *eec = static_cast<const ExtrusionEntityCollection*>(layerm.perimeters().entities()[perimeter_id]);
         if (shall_print_this_extrusion_collection(print_args, eec, *m_region)) {
@@ -5582,10 +5582,11 @@ void GCodeGenerator::extrude_perimeters(const ExtrudeArgs &print_args, const Lay
                 // Apply region-specific settings
                 set_region_for_extrude(print, nullptr, &layerm, gcode);
             }
-            to_extrude.push_back(eec);
+            // flatten it to allow better reordering
+            eec->flatten(true, to_extrude);
         }
     }
-
+    // reorder
     ExtrusionEntityReferences chained = chain_extrusion_references(to_extrude, last_pos_defined() ? &last_pos() : nullptr);
     for (const ExtrusionEntityReference &next_entity : chained) {
 //#ifdef _DEBUG

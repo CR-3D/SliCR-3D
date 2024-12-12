@@ -127,7 +127,7 @@ public:
 	//void set_maj(int maj) { if(ver.counter_size > 0) ver.counters[0] = maj; }
 	//void set_min(int min) { if (ver.counter_size > 1) ver.counters[1] = min; }
 	//void set_counter(int count) { if (ver.counter_size > 2) ver.counters[2] = count; }
-	//void set_patch(int patch) { if (ver.counter_size > 3) ver.counters[3] = patch; }
+	void set_patch(int patch) { if (ver.counter_size > 3) ver.counters[3] = patch; }
     void set_metadata(std::optional<std::string> meta)
     {
         if (ver.metadata)

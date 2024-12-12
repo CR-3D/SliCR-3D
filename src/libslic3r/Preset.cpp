@@ -534,6 +534,7 @@ static std::vector<std::string> s_Preset_print_options {
         "infill_every_layers",
 //      "infill_only_where_needed",
         "solid_infill_every_layers",
+        "internal_bridge_min_width",
         // ironing
         "ironing",
         "ironing_type",
