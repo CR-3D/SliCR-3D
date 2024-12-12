@@ -249,6 +249,7 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
         m_digits_texture->load_from_file(resources_dir() + "/icons/numbers.png", true, GLTexture::ECompressionType::None, false);
         m_digits_texture->send_compressed_data_to_gpu();
     }
+    
     if (!is_thumbnail && s_multiple_beds.get_number_of_beds() > 1) {
         GLShaderProgram* shader = wxGetApp().get_shader("flat_texture");
         shader->start_using();
