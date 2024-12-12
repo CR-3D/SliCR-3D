@@ -21,3 +21,4 @@ min_slic3r_version = 2.6.0
 0.0.20 Disabled travel_deceleration_use_target
 0.0.21 adding bed_exclude_area to idex printers
 0.0.22 updated wipe_tower settings
+0.0.23 fixed wipe_tower error -> x to y
