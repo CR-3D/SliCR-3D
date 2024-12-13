@@ -58,20 +58,29 @@ void BulkExportDialog::Item::init_selection_ctrl(wxFlexGridSizer* row_sizer, int
 BulkExportDialog::Item::Item(
     wxWindow *parent,
     wxFlexGridSizer*sizer,
-    const fs::path &path,
+    const std::optional<const boost::filesystem::path>& path_opt,
     const int bed_index,
     Validator validator
 ):
-    path(path),
     bed_index(bed_index),
     m_parent(parent),
     m_valid_bmp(new wxStaticBitmap(m_parent, wxID_ANY, *get_bmp_bundle("tick_mark"))),
-    m_validator(std::move(validator)),
-    m_directory(path.parent_path())
+    m_validator(std::move(validator))
 {
+    if (path_opt) {
+        path = *path_opt;
+        m_directory = path.parent_path();
+    }
+
     init_selection_ctrl(sizer, bed_index);
     init_input_name_ctrl(sizer, path.filename().string());
     sizer->Add(m_valid_bmp, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, BORDER_W);
+
+    if (!path_opt) {
+        m_checkbox->Enable(false);
+        m_checkbox->SetValue(false);
+        selected = false;
+    }
 
     m_valid_bmp->Bind(wxEVT_UPDATE_UI, [this](wxUpdateUIEvent& event) { event.Show(selected); });
     update();
@@ -191,7 +200,7 @@ void BulkExportDialog::Item::update_valid_bmp()
     m_valid_bmp->SetBitmap(*get_bmp_bundle(get_bmp_name(m_status)));
 }
 
-BulkExportDialog::BulkExportDialog(const std::vector<std::pair<int, fs::path>> &paths):
+BulkExportDialog::BulkExportDialog(const std::vector<std::pair<int, std::optional<fs::path>>> &paths):
     DPIDialog(
         nullptr,
         wxID_ANY,
@@ -235,7 +244,7 @@ BulkExportDialog::BulkExportDialog(const std::vector<std::pair<int, fs::path>> &
 #endif
 }
 
-void BulkExportDialog::AddItem(const fs::path& path, int bed_index)
+void BulkExportDialog::AddItem(const std::optional<const boost::filesystem::path>& path, int bed_index)
 {
     m_items.push_back(std::make_unique<Item>(this, m_sizer, path, bed_index, PathValidator{m_items}));
 }

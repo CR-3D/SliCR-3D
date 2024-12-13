@@ -41,7 +41,7 @@ public:
         Item(
             wxWindow *parent,
             wxFlexGridSizer *sizer,
-            const boost::filesystem::path &path,
+            const std::optional<const boost::filesystem::path>& path,
             const int bed_index,
             Validator validator
         );
@@ -82,7 +82,7 @@ private:
 
 public:
 
-    BulkExportDialog(const std::vector<std::pair<int, boost::filesystem::path>> &paths);
+    BulkExportDialog(const std::vector<std::pair<int, std::optional<boost::filesystem::path>>> &paths);
     std::vector<std::pair<int, std::optional<boost::filesystem::path>>> get_paths() const;
     bool has_warnings() const;
 
@@ -91,7 +91,7 @@ protected:
     void on_sys_color_changed() override {}
 
 private:
-    void AddItem(const boost::filesystem::path &path, int bed_index);
+    void AddItem(const std::optional<const boost::filesystem::path>& path, int bed_index);
     void accept();
     bool enable_ok_btn() const;
 };
