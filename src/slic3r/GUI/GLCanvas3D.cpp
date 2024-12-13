@@ -1801,9 +1801,6 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
                         }
                         
                         volume->is_excluded = !intersection(exclude_polys, contours).empty();
-                        if (volume->is_excluded) {
-                           std::cout << "Volume is in exclude area";
-                        }
                      }
                   }
               }

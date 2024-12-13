@@ -550,7 +550,7 @@ void FreqChangedParams::init()
     m_preheat_button->Disable();
     m_preheat_button->SetBitmap(preheat_off_bmp);
     //m_preheat_button->SetBackgroundColour(wxColour(60, 60, 60));
-    m_preheat_button->SetForegroundColour(wxColour(255, 255, 255));
+    m_preheat_button->SetForegroundColour(wxColour(0, 0, 0));
     
     static bool isOn = false;
     
@@ -618,7 +618,7 @@ void FreqChangedParams::init()
     m_refresh_button->Disable();
     m_refresh_button->SetBitmap(refresh_bmp.get_bitmap());
     //m_refresh_button->SetBackgroundColour(wxColour(60, 60, 60));
-    m_refresh_button->SetForegroundColour(wxColour(255, 255, 255));
+    m_refresh_button->SetForegroundColour(wxColour(0, 0, 0));
 
     m_refresh_button->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
         DynamicPrintConfig* selected_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();

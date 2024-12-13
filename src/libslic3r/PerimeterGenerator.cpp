@@ -2484,7 +2484,7 @@ ExtrusionPaths sort_extra_perimeters(const ExtrusionPaths& extra_perims, int ind
 }
 
 #define EXTRA_PERIMETER_OFFSET_PARAMETERS ClipperLib::jtSquare, 0.
-#define EXTRA_PERIM_DEBUG_FILES
+//#define EXTRA_PERIM_DEBUG_FILES
 // Function will generate extra perimeters clipped over nonbridgeable areas of the provided surface and returns both the new perimeters and
 // Polygons filled by those clipped perimeters
 std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_perimeters_over_overhangs(const ExPolygon &island,
