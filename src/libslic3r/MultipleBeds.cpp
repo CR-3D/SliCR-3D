@@ -12,6 +12,7 @@ namespace Slic3r {
 MultipleBeds s_multiple_beds;
 bool s_reload_preview_after_switching_beds = false;
 bool s_beds_just_switched = false;
+bool s_beds_switched_since_last_gcode_load = false;
 
 bool is_sliceable(const PrintStatus status) {
     if (status == PrintStatus::empty) {

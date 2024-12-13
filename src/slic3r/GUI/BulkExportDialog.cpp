@@ -14,7 +14,7 @@
 #include <wx/textctrl.h>
 
 #include "libslic3r/PresetBundle.hpp"
-
+#include "I18N.hpp"
 #include "GUI.hpp"
 #include "GUI_App.hpp"
 #include "format.hpp"

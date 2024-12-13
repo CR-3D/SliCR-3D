@@ -140,7 +140,9 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
     wxGetApp().CallAfter([i, old_bed, triggered_by_user]() {
         wxYield();
         s_multiple_beds.set_active_bed(i);
+        s_beds_switched_since_last_gcode_load = true;
         s_beds_just_switched = true;
+        
         if (wxGetApp().plater()->is_preview_shown()) {
             s_reload_preview_after_switching_beds = true;
             wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
@@ -7368,10 +7370,10 @@ void GLCanvas3D::_render_bed_selector() {
             if (!is_sliceable(print_status)) {
                 ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
             }
+            
+            bool clicked = false;
 
-            if (
-                !is_sliceable(print_status)
-            ) {
+            if (!is_sliceable(print_status)) {
                 clicked = button_with_icon(
                     ImGui::WarningMarkerDisabled,
                     get_status_text(print_status),

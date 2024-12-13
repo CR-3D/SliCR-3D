@@ -1433,8 +1433,9 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     // avoid processing if called with the same gcode_result
     // unless you changed the path merge mode
-    if (m_last_result_id == gcode_result.id && wxGetApp().is_editor() && !s_reload_preview_after_switching_beds)
+    if (m_last_result_id == gcode_result.id && ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
         return;
+    }
 
     m_last_result_id = gcode_result.id;
     m_last_view_type = m_view_type;
@@ -1458,6 +1459,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
     
     m_max_print_height = gcode_result.max_print_height;
     m_z_offset = gcode_result.z_offset;
+    s_beds_switched_since_last_gcode_load = false;
 
     load_toolpaths(gcode_result);
     load_wipetower_shell(print);
