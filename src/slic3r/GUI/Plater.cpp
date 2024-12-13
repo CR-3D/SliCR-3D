@@ -7982,11 +7982,6 @@ std::optional<fs::path> Plater::get_multiple_output_dir(const std::string &start
     }
 
     const fs::path output_path{into_path(dlg.GetPath())};
-    if (auto error{check_output_path_has_error(output_path)}) {
-        //const t_link_clicked on_link_clicked = [](const std::string& key) -> void { wxGetApp().jump_to_option(key); };
-        //ErrorDialog(this, *error, on_link_clicked).ShowModal();
-        return std::nullopt;
-    }
     return output_path;
 }
 
