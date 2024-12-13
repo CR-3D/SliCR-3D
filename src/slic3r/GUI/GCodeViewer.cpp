@@ -1438,6 +1438,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
     }
 
     m_last_result_id = gcode_result.id;
+    s_beds_switched_since_last_gcode_load = false;
     m_last_view_type = m_view_type;
     m_last_mode = m_current_mode;
 
