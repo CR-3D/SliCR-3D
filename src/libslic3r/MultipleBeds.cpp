@@ -333,6 +333,11 @@ void MultipleBeds::move_from_bed_to_first_bed(Model& model, const int bed_index)
 
 bool MultipleBeds::is_glvolume_on_thumbnail_bed(const Model& model, int obj_idx, int instance_idx) const
 {
+    if (m_bed_for_thumbnails_generation == -2) {
+        // Called from shape gallery, just render everything.
+        return true;
+    }
+
     if (obj_idx < 0 || instance_idx < 0 || obj_idx >= int(model.objects.size()) || instance_idx >= int(model.objects[obj_idx]->instances.size()))
         return false;
 
