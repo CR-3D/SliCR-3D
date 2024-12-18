@@ -27,6 +27,7 @@
 #include "Surface.hpp"
 #include "SurfaceCollection.hpp"
 #include "SVG.hpp"
+#include "Thread.hpp"
 
 #include "Arachne/WallToolPaths.hpp"
 #include "Arachne/utils/ExtrusionLine.hpp"
@@ -199,8 +200,8 @@ static void fuzzy_paths(ExtrusionPaths& paths, coordf_t fuzzy_skin_thickness, co
 {
     const coordf_t min_dist_between_points = fuzzy_skin_point_dist * 3. / 4.; // hardcoded: the point distance may vary between 3/4 and 5/4 the supplied value
     const coordf_t range_random_point_dist = fuzzy_skin_point_dist / 2.;
-    coordf_t dist_next_point = //min_dist_between_points / 4 + (coordf_t(rand()) * range_random_point_dist / double(RAND_MAX)); // the distance to be traversed on the line before making the first new point
-        coordf_t(rand()) * (min_dist_between_points / 2) / double(RAND_MAX); // the distance to be traversed on the line before making the first new point
+    coordf_t dist_next_point = //min_dist_between_points / 4 + (coordf_t(safe_rand()) * range_random_point_dist / double(RAND_MAX)); // the distance to be traversed on the line before making the first new point
+        coordf_t(safe_rand()) * (min_dist_between_points / 2) / double(RAND_MAX); // the distance to be traversed on the line before making the first new point
 
     // check if the paths length is enough for at least 3 points, or return.
     {
@@ -249,9 +250,9 @@ static void fuzzy_paths(ExtrusionPaths& paths, coordf_t fuzzy_skin_thickness, co
             if (dist_next_point < p0p1_size) {
                 coordf_t p0pa_dist;
                 for (p0pa_dist = dist_next_point; p0pa_dist < p0p1_size;
-                    p0pa_dist += min_dist_between_points + coordf_t(rand()) * range_random_point_dist / double(RAND_MAX))
+                    p0pa_dist += min_dist_between_points + coordf_t(safe_rand()) * range_random_point_dist / double(RAND_MAX))
                 {
-                    coordf_t r = coordf_t(rand()) * (fuzzy_skin_thickness * 2.) / double(RAND_MAX) - fuzzy_skin_thickness;
+                    coordf_t r = coordf_t(safe_rand()) * (fuzzy_skin_thickness * 2.) / double(RAND_MAX) - fuzzy_skin_thickness;
                     out.emplace_back(p0 + (p0p1 * (p0pa_dist / p0p1_size) + perp(p0p1).cast<double>().normalized() * r).cast<coord_t>());
                     assert(out.size() > 1 && !out.back().coincides_with_epsilon(out[out.size()-2]));
                 }
@@ -329,7 +330,7 @@ static void fuzzy_polygon(Polygon& poly, coordf_t fuzzy_skin_thickness, coordf_t
 {
     const double min_dist_between_points = fuzzy_skin_point_dist * 3. / 4.; // hardcoded: the point distance may vary between 3/4 and 5/4 the supplied value
     const double range_random_point_dist = fuzzy_skin_point_dist / 2.;
-    double dist_left_over = double(rand()) * (min_dist_between_points / 2) / double(RAND_MAX); // the distance to be traversed on the line before making the first new point
+    double dist_left_over = double(safe_rand()) * (min_dist_between_points / 2) / double(RAND_MAX); // the distance to be traversed on the line before making the first new point
     Point* p0 = &poly.points.back();
     Points out;
     out.reserve(poly.points.size());
@@ -340,9 +341,9 @@ static void fuzzy_polygon(Polygon& poly, coordf_t fuzzy_skin_thickness, coordf_t
         // so that p0p1_size - dist_last_point evaulates to dist_left_over - p0p1_size
         double dist_last_point = dist_left_over + p0p1_size * 2.;
         for (double p0pa_dist = dist_left_over; p0pa_dist < p0p1_size;
-            p0pa_dist += min_dist_between_points + double(rand()) * range_random_point_dist / double(RAND_MAX))
+            p0pa_dist += min_dist_between_points + double(safe_rand()) * range_random_point_dist / double(RAND_MAX))
         {
-            double r = double(rand()) * (fuzzy_skin_thickness * 2.) / double(RAND_MAX) - fuzzy_skin_thickness;
+            double r = double(safe_rand()) * (fuzzy_skin_thickness * 2.) / double(RAND_MAX) - fuzzy_skin_thickness;
             out.emplace_back(*p0 + (p0p1 * (p0pa_dist / p0p1_size) + perp(p0p1).cast<double>().normalized() * r).cast<coord_t>());
             dist_last_point = p0pa_dist;
         }
@@ -370,7 +371,7 @@ static void fuzzy_extrusion_line(Arachne::ExtrusionLine &ext_lines, double fuzzy
 {
     const double min_dist_between_points = fuzzy_skin_point_dist * 3. / 4.; // hardcoded: the point distance may vary between 3/4 and 5/4 the supplied value
     const double range_random_point_dist = fuzzy_skin_point_dist / 2.;
-    double       dist_left_over          = double(rand()) * (min_dist_between_points / 2) / double(RAND_MAX); // the distance to be traversed on the line before making the first new point
+    double       dist_left_over          = double(safe_rand()) * (min_dist_between_points / 2) / double(RAND_MAX); // the distance to be traversed on the line before making the first new point
 
     auto                                   *p0 = &ext_lines.front();
     std::vector<Arachne::ExtrusionJunction> out;
@@ -386,8 +387,8 @@ static void fuzzy_extrusion_line(Arachne::ExtrusionLine &ext_lines, double fuzzy
         double p0p1_size = p0p1.norm();
         // so that p0p1_size - dist_last_point evaulates to dist_left_over - p0p1_size
         double dist_last_point = dist_left_over + p0p1_size * 2.;
-        for (double p0pa_dist = dist_left_over; p0pa_dist < p0p1_size; p0pa_dist += min_dist_between_points + double(rand()) * range_random_point_dist / double(RAND_MAX)) {
-            double r = double(rand()) * (fuzzy_skin_thickness * 2.) / double(RAND_MAX) - fuzzy_skin_thickness;
+        for (double p0pa_dist = dist_left_over; p0pa_dist < p0p1_size; p0pa_dist += min_dist_between_points + double(safe_rand()) * range_random_point_dist / double(RAND_MAX)) {
+            double r = double(safe_rand()) * (fuzzy_skin_thickness * 2.) / double(RAND_MAX) - fuzzy_skin_thickness;
             out.emplace_back(p0->p + (p0p1 * (p0pa_dist / p0p1_size) + perp(p0p1).cast<double>().normalized() * r).cast<coord_t>(), p1.w, p1.perimeter_index);
             dist_last_point = p0pa_dist;
         }
@@ -4844,6 +4845,9 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     peri_entities = this->_traverse_loops_classic(params, contours.front(), thin_walls_thickpolys);
                 }
             }
+        } else {
+            // no loop perimeter : ignore perimeter_loop and thin_walls_merge
+            peri_entities = this->_traverse_loops_classic(params, {}, thin_walls_thickpolys);
         }
 #if _DEBUG
         LoopAssertVisitor visitor;

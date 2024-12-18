@@ -3,19 +3,21 @@
 
 #include "../wxExtensions.hpp"
 
-//struct Slic3r::GraphData;
-//struct Slic3r::GraphSettings;
+namespace Slic3r {
+    struct GraphData;
+    struct GraphSettings;
+} // namespace Slic3r
 
 class GraphBitmapButton : public wxBitmapButton
 {
 public:
-	GraphBitmapButton(wxWindow* parent = NULL, const wxSize &size=wxDefaultSize/*, const wxString& name = wxEmptyString*/);
+    GraphBitmapButton(wxWindow* parent = NULL, const wxSize &size=wxDefaultSize/*, const wxString& name = wxEmptyString*/);
 
 public:
     void Update() override;
     bool Enable(bool enable = true) override;
 
-	void Rescale();
+    void Rescale();
 
     void update_bitmap(const Slic3r::GraphSettings &graph_settings, const Slic3r::GraphData &data_storage);
 
@@ -41,7 +43,7 @@ protected:
                      const Slic3r::GraphData &data_storage);
 
 private:
-	void update();
+    void update();
 
     wxBitmap  m_image;
     wxBitmap  m_image_disabled;

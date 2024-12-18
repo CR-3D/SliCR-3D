@@ -309,7 +309,7 @@ void AppConfig::set_defaults()
            set("notify_release", "all"); // or "none" or "release"
 
         if (get("auto_switch_preview").empty())
-            set("auto_switch_preview", "2");
+            set("auto_switch_preview", "platter");
 
 
         if (get("show_3d_navigator").empty())

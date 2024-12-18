@@ -227,16 +227,17 @@ public:
     ThickPolyline() : endpoints(std::make_pair(false, false)) {}
     ThickLines thicklines() const;
 
-    const Point& front()        const { return this->points.front(); }
-    const Point& back()         const { return this->points.back(); }
-    size_t       size()         const { return this->points.size(); }
-    bool         is_valid()     const { return this->points.size() >= 2; }
-    bool         empty()        const { return this->points.empty(); }
-    double       length()       const { return Slic3r::length(this->points); }
+    const Point& front()        const { assert(points.size() == points_width.size()); return this->points.front(); }
+    const Point& back()         const { assert(points.size() == points_width.size()); return this->points.back(); }
+    size_t       size()         const { assert(points.size() == points_width.size()); return this->points.size(); }
+    bool         is_valid()     const { assert(points.size() == points_width.size()); return this->points.size() >= 2; }
+    bool         empty()        const { assert(points.size() == points_width.size()); return this->points.empty(); }
+    double       length()       const { assert(points.size() == points_width.size()); return Slic3r::length(this->points); }
 
     void         clear() { this->points.clear(); this->points_width.clear(); }
 
     void reverse() {
+        assert(points.size() == points_width.size()); 
         std::reverse(this->points.begin(), this->points.end());
         std::reverse(this->points_width.begin(), this->points_width.end());
         std::swap(this->endpoints.first, this->endpoints.second);

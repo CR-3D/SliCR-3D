@@ -21,23 +21,23 @@ BitmapToggleButton::BitmapToggleButton(wxWindow* parent, const wxString& label, 
     }
 
 #ifdef __WXMSW__
-	if (parent) {
-		SetBackgroundColour(parent->GetBackgroundColour());
-		SetForegroundColour(parent->GetForegroundColour());
-	}
+    if (parent) {
+        SetBackgroundColour(parent->GetBackgroundColour());
+        SetForegroundColour(parent->GetForegroundColour());
+    }
 #elif __WXGTK3__
     SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
 #endif
 
     Bind(wxEVT_TOGGLEBUTTON, [this](auto& e) {
-	    update();
+        update();
 
-	    wxCommandEvent evt(wxEVT_CHECKBOX);
-	    evt.SetInt(int(GetValue()));
-	    wxPostEvent(this, evt);
+        wxCommandEvent evt(wxEVT_CHECKBOX);
+        evt.SetInt(int(GetValue()));
+        wxPostEvent(this, evt);
 
-	    e.Skip();
-	});
+        e.Skip();
+    });
 }
 
 void BitmapToggleButton::update_size()

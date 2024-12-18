@@ -1201,22 +1201,22 @@ ExPolygons PrintObject::_shrink_contour_holes(double contour_delta, double not_c
             //check if convex to reduce it
             // check whether first point forms a convex angle
             //note: we allow a deviation of 5.7° (0.01rad = 0.57°)
-            bool ok = true;
+            bool is_convex = true;
             //ok = (hole.points.front().ccw_angle(hole.points.back(), *(hole.points.begin() + 1)) <= PI + 0.1);
 #if _DEBUG
             assert(is_approx(ccw_angle_old_test(hole.points.front(), hole.points.back(), *(hole.points.begin() + 1)), 
                 abs_angle(angle_ccw( hole.points.back() - hole.points.front(),*(hole.points.begin() + 1) - hole.points.front())), 0.000000001));
 #endif
-            ok = (abs_angle(angle_ccw( hole.points.back() - hole.points.front(),*(hole.points.begin() + 1) - hole.points.front())) <= PI + 0.1);
+            is_convex = (abs_angle(angle_ccw( hole.points.back() - hole.points.front(),*(hole.points.begin() + 1) - hole.points.front())) <= PI + 0.1);
             // check whether points 1..(n-1) form convex angles
-            if (ok)
+            if (is_convex)
                 for (Points::const_iterator p = hole.points.begin() + 1; p != hole.points.end() - 1; ++p) {
                     //ok = (p->ccw_angle(*(p - 1), *(p + 1)) <= PI + 0.1);
 #if _DEBUG
                     assert(is_approx(ccw_angle_old_test(*p, *(p - 1), *(p + 1)), abs_angle(angle_ccw((*(p - 1)) - *p, (*(p + 1)) - *p)), 0.000000001));
 #endif
-                    ok = (abs_angle(angle_ccw((*(p - 1)) - *p, (*(p + 1)) - *p)) <= PI + 0.1);
-                    if (!ok) break;
+                    is_convex = (abs_angle(angle_ccw((*(p - 1)) - *p, (*(p + 1)) - *p)) <= PI + 0.1);
+                    if (!is_convex) break;
                 }
 
             // check whether last point forms a convex angle
@@ -1225,10 +1225,10 @@ ExPolygons PrintObject::_shrink_contour_holes(double contour_delta, double not_c
             assert(is_approx(ccw_angle_old_test(hole.points.back(), *(hole.points.end() - 2), hole.points.front()),
                 abs_angle(angle_ccw(*(hole.points.end() - 2) - hole.points.back(), hole.points.front() - hole.points.back())), 0.000000001));
 #endif
-            ok &= (abs_angle(angle_ccw(*(hole.points.end() - 2) - hole.points.back(), \
+            is_convex &= (abs_angle(angle_ccw(*(hole.points.end() - 2) - hole.points.back(), \
                             hole.points.front() - hole.points.back())) <= PI + 0.1);
 
-            if (ok && not_convex_delta != convex_delta) {
+            if (is_convex && not_convex_delta != convex_delta) {
                 if (convex_delta != 0) {
                     //apply hole threshold cutoff
                     double convex_delta_adapted = convex_delta;

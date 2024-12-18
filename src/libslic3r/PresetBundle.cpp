@@ -1462,16 +1462,16 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             try {
                 auto parse_config_section = [&section, &alias_name, &renamed_from, &substitution_context, &path, &flags](DynamicPrintConfig &config) {
                     substitution_context.clear();
-                    std::vector<std::pair<t_config_option_key, std::string>> opts_deleted;
+                    std::map<t_config_option_key, std::string> opts_deleted;
                     for (auto &kvp : section.second) {
-                    	if (kvp.first == "alias")
-                    		alias_name = kvp.second.data();
-                    	else if (kvp.first == "renamed_from") {
-                    		if (! unescape_strings_cstyle(kvp.second.data(), renamed_from)) {
-    			                BOOST_LOG_TRIVIAL(error) << "Error in a Vendor Config Bundle \"" << path << "\": The preset \"" << 
-    			                    section.first << "\" contains invalid \"renamed_from\" key, which is being ignored.";
-                       		}
-                    	}
+                        if (kvp.first == "alias")
+                            alias_name = kvp.second.data();
+                        else if (kvp.first == "renamed_from") {
+                            if (! unescape_strings_cstyle(kvp.second.data(), renamed_from)) {
+                                BOOST_LOG_TRIVIAL(error) << "Error in a Vendor Config Bundle \"" << path << "\": The preset \"" << 
+                                    section.first << "\" contains invalid \"renamed_from\" key, which is being ignored.";
+                            }
+                        }
                         // Throws on parsing error. For system presets, no substituion is being done, but an exception is thrown.
                         t_config_option_key opt_key = kvp.first;
                         std::string value =  kvp.second.data();
@@ -1480,7 +1480,7 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                         if (!opt_key.empty()) {
                             config.set_deserialize(opt_key, value, substitution_context);
                         } else {
-                            opts_deleted.emplace_back(kvp.first, value);
+                            opts_deleted[kvp.first] = value;
                         }
                     }
                     if (flags.has(LoadConfigBundleAttribute::ConvertFromPrusa))
@@ -1549,16 +1549,16 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                 const Preset *existing = presets->find_preset(preset_name, false);
                 if (existing != nullptr) {
                     if (existing->is_system) {
-    					assert(existing->vendor != nullptr);
+                        assert(existing->vendor != nullptr);
                         BOOST_LOG_TRIVIAL(error) << "Error in a user provided Config Bundle \"" << path << "\": The " << presets->name() << " preset \"" << 
-    						existing->name << "\" is a system preset of vendor " << existing->vendor->name << " and it will be ignored.";
+                            existing->name << "\" is a system preset of vendor " << existing->vendor->name << " and it will be ignored.";
                         continue;
                     } else {
                         assert(existing->vendor == nullptr);
                         BOOST_LOG_TRIVIAL(trace) << "A " << presets->name() << " preset \"" << existing->name << "\" was overwritten with a preset from user Config Bundle \"" << path << "\"";
                     }
                 } else {
-					BOOST_LOG_TRIVIAL(trace) << "A new " << presets->name() << " preset \"" << preset_name << "\" was imported from user Config Bundle \"" << path << "\"";
+                    BOOST_LOG_TRIVIAL(trace) << "A new " << presets->name() << " preset \"" << preset_name << "\" was imported from user Config Bundle \"" << path << "\"";
                 }
             }
             // Decide a full path to this .ini file.
@@ -1609,13 +1609,13 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
 
             substitution_context.clear();
             try {
-                std::vector<std::pair<t_config_option_key, std::string>> opts_deleted;
+                std::map<t_config_option_key, std::string> opts_deleted;
                 for (auto& kvp : section.second) {
                     std::string opt_key = kvp.first;
                     std::string value = kvp.second.data();
                     PrintConfigDef::handle_legacy(opt_key, value, true);
                     if (opt_key.empty()) {
-                        opts_deleted.emplace_back(kvp.first, value);
+                        opts_deleted[kvp.first] = value;
                     } else {
                         config.set_deserialize(opt_key, value, substitution_context);
                     }

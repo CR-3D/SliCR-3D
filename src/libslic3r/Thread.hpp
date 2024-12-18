@@ -83,14 +83,7 @@ using tbb::parallel_for;
 
 class ThreadData {
 public:
-    std::mt19937&   random_generator() {
-        if (! m_random_generator_initialized) {
-            std::random_device rd;
-            m_random_generator.seed(rd());
-            m_random_generator_initialized = true;
-        }
-        return m_random_generator;
-    }
+    std::mt19937&   random_generator();
 
     void            tbb_worker_thread_set_c_locales();
 
@@ -101,6 +94,9 @@ private:
 };
 
 ThreadData& thread_data();
+
+// Thread-safe function that returns a random number between 0 and max (inclusive, like rand() with RAND_MAX).
+int safe_rand(int max = RAND_MAX);
 
 // For unknown reasons and in sporadic cases when GCode export is processing, some participating thread
 // in tbb::parallel_pipeline has not set locales to "C", probably because this thread is newly spawned.

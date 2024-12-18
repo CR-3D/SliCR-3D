@@ -1689,7 +1689,7 @@ void SeamPlacer::align_seam_points(const PrintObject *po, const SeamPlacerImpl::
 
 #ifdef DEBUG_FILES
             auto randf = []() {
-                return float(rand()) / float(RAND_MAX);
+                return float(safe_rand()) / float(RAND_MAX);
             };
             Vec3f color { randf(), randf(), randf() };
             for (size_t i = 0; i < seam_string.size(); ++i) {

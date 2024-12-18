@@ -91,8 +91,8 @@ void GLVolume::SinkingContours::render()
     m_model.render();
 }
 
-void GLVolume::SinkingContours::update()
-{
+void GLVolume::SinkingContours::update() {
+
     const int object_idx = m_parent.object_idx();
     const Model& model = GUI::wxGetApp().plater()->model();
 
@@ -169,8 +169,7 @@ void GLVolume::NonManifoldEdges::render()
     m_model.render();
 }
 
-void GLVolume::NonManifoldEdges::update()
-{
+void GLVolume::NonManifoldEdges::update() {
     if (!m_update_needed)
         return;
 
@@ -270,8 +269,7 @@ void GLVolume::set_render_color(bool force_transparent)
             else
                 set_render_color(NEUTRAL_COLOR);
         }
-    }
-    else {
+    } else {
         if (hover == HS_Deselect)
             set_render_color(HOVER_DESELECT_COLOR);
         else if (hover == HS_Select || selected) {
@@ -295,7 +293,6 @@ void GLVolume::set_render_color(bool force_transparent)
       set_render_color(OUTSIDE_COLOR);
    }
     
-
     if (!printable)
         render_color = saturate(render_color, 0.25f);
 
@@ -303,8 +300,8 @@ void GLVolume::set_render_color(bool force_transparent)
         render_color.a(color.a());
 }
 
-ColorRGBA color_from_model_volume(const ModelVolume& model_volume)
-{
+ColorRGBA color_from_model_volume(const ModelVolume& model_volume) {
+
     ColorRGBA color;
     if (model_volume.is_negative_volume())
         color = GLVolume::NEGATIVE_VOLUME_COLOR;
@@ -324,8 +321,8 @@ ColorRGBA color_from_model_volume(const ModelVolume& model_volume)
     return color;
 }
 
-Transform3d GLVolume::world_matrix() const
-{
+Transform3d GLVolume::world_matrix() const {
+
     Transform3d m = m_instance_transformation.get_matrix() * m_volume_transformation.get_matrix();
     m.translation()(2) += m_sla_shift_z;
     return m;
@@ -338,8 +335,7 @@ bool GLVolume::is_left_handed() const
     return m1.x() * m1.y() * m1.z() * m2.x() * m2.y() * m2.z() < 0.;
 }
 
-const BoundingBoxf3& GLVolume::transformed_bounding_box() const
-{
+const BoundingBoxf3& GLVolume::transformed_bounding_box() const {
     if (!m_transformed_bounding_box.has_value()) {
         const BoundingBoxf3& box = bounding_box();
         assert(box.defined || box.min.x() >= box.max.x() || box.min.y() >= box.max.y() || box.min.z() >= box.max.z());
@@ -810,7 +806,7 @@ void GLVolumeCollection::render(GLVolumeCollection::ERenderType type, bool disab
         shader->set_uniform("print_volume.xy_data", m_print_volume.data);
         shader->set_uniform("print_volume.z_data", m_print_volume.zs);
         shader->set_uniform("volume_world_matrix", world_matrix);
-       shader->set_uniform("slope.actived", m_slope.active && !volume.first->is_modifier && !volume.first->is_wipe_tower());
+        shader->set_uniform("slope.actived", m_slope.active && !volume.first->is_modifier && !volume.first->is_wipe_tower());
         shader->set_uniform("slope.volume_world_normal_matrix", static_cast<Matrix3f>(world_matrix.matrix().block(0, 0, 3, 3).inverse().transpose().cast<float>()));
         shader->set_uniform("slope.normal_z", m_slope.normal_z);
 

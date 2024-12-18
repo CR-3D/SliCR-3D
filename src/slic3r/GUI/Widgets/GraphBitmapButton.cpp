@@ -11,17 +11,17 @@
 const int px_cnt = 16;
 
 GraphBitmapButton::GraphBitmapButton(wxWindow* parent, const wxSize &size/*, const wxString& name*/)
-	: wxBitmapButton()
+    : wxBitmapButton()
     , m_image(size)
     , m_image_disabled(size)
     , m_image_focused(size)
 {
     wxBitmapButton::Create(parent, wxID_ANY, m_image, wxDefaultPosition, size, wxBORDER_NONE/*wxBORDER_SIMPLE/*, wxDefaultValidator, name*/);
 #ifdef __WXMSW__
-	if (parent) {
-		SetBackgroundColour(parent->GetBackgroundColour());
-		SetForegroundColour(parent->GetForegroundColour());
-	}
+    if (parent) {
+        SetBackgroundColour(parent->GetBackgroundColour());
+        SetForegroundColour(parent->GetForegroundColour());
+    }
 
 #elif __WXGTK3__
     SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
@@ -33,7 +33,7 @@ GraphBitmapButton::GraphBitmapButton(wxWindow* parent, const wxSize &size/*, con
     Bind(wxEVT_LEAVE_WINDOW, &GraphBitmapButton::update_state, this);
 #endif
 
-	update();
+    update();
 }
 
 void GraphBitmapButton::update_size()
@@ -51,17 +51,11 @@ void GraphBitmapButton::Update()
 
 void GraphBitmapButton::Rescale()
 {
-	update();
+    update();
 }
 
 void GraphBitmapButton::update()
 {
-//	SetBitmap(m_image);
-//    SetBitmapCurrent(m_image_focused);
-//    SetBitmapDisabled(m_image_disabled);
-//#ifdef __WXMSW__
-//    SetBitmapFocus(m_image_focused);
-//#endif
 #ifdef __WXOSX__
     wxCommandEvent e(wxEVT_UPDATE_UI);
     update_state(e);
@@ -123,13 +117,13 @@ void GraphBitmapButton::update_state(wxEvent & evt)
             m_focus = false;
         }
         wxMouseEvent e;
-        if (m_hover)	
+        if (m_hover)
             OnEnterWindow(e);
         else
             OnLeaveWindow(e);
     }
 }
-	
+    
 #endif
 
 void GraphBitmapButton::draw_bitmap(wxDC &mem_dc,

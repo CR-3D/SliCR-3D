@@ -56,8 +56,7 @@ void Chart::draw() {
         dc.DrawText(m_no_point_legend, wxPoint(m_rect.GetLeft() + m_rect.GetWidth() / 2 - 2*legend_side,
                                                      m_rect.GetBottom() - m_rect.GetHeight() / 2));
     }
-    
-    
+
     if (!m_line_to_draw.empty()) {
         for (unsigned int i=0;i<m_line_to_draw.size()-2;++i) {
             int color = 510*((m_rect.GetBottom()-(m_line_to_draw)[i])/double(m_rect.GetHeight()));
@@ -80,7 +79,7 @@ void Chart::draw() {
             }
         }
     }
-    
+
     // draw draggable buttons
     dc.SetBrush(*wxBLUE_BRUSH);
 #ifdef _WIN32
@@ -122,7 +121,7 @@ void Chart::draw() {
         }
         last_mark = x;
     }
-    
+
     // draw y-axis:
     last_mark=10000;
     for (float math_y = int(m_moveable_area.m_y * 10) / 10.f; math_y < (m_moveable_area.m_y + m_moveable_area.m_height); math_y += m_y_legend_incr) {
@@ -139,7 +138,7 @@ void Chart::draw() {
         }
         last_mark = y;
     }
-    
+
     // axis labels:
     int text_width = 0;
     int text_height = 0;

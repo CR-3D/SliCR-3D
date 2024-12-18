@@ -4,6 +4,7 @@
 #include "TreeNode.hpp"
 
 #include "../../Geometry.hpp"
+#include "../../Thread.hpp"
 
 namespace Slic3r::FillLightning {
 
@@ -350,7 +351,7 @@ void Node::convertToPolylines(size_t long_line_idx, Polylines &output) const
         output[long_line_idx].points.push_back(m_p);
         return;
     }
-    size_t first_child_idx = rand() % m_children.size();
+    size_t first_child_idx = safe_rand(m_children.size());
     m_children[first_child_idx]->convertToPolylines(long_line_idx, output);
     output[long_line_idx].points.push_back(m_p);
 

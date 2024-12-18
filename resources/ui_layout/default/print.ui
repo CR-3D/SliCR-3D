@@ -916,7 +916,7 @@ group:Advanced
 	end_line
 
 page:Output options:output+page_white
-group:Plater
+group:Platter
 	setting:duplicate_distance
 group:Sequential printing
 	setting:tags$Advanced$Expert$Prusa:complete_objects

@@ -28,6 +28,7 @@
 #include "../Geometry.hpp"
 #include "../ShortestPath.hpp"
 #include "../Surface.hpp"
+#include "../Thread.hpp"
 
 #include "FillRectilinear.hpp"
 
@@ -3396,7 +3397,7 @@ FillRectilinearSawtooth::fill_surface_extrusion(const Surface *surface, const Fi
                                                         false));
             ExtrusionPath3D *current_extrusion = &(extrusions->paths.back());
             const Points &pts = poly.points;
-            coord_t next_zhop = tooth_spacing_min + (coord_t)abs((rand() / (float)RAND_MAX) * (tooth_spacing_max - tooth_spacing_min));
+            coord_t next_zhop = tooth_spacing_min + (coord_t)abs((safe_rand() / (float)RAND_MAX) * (tooth_spacing_max - tooth_spacing_min));
             size_t idx = 1;
 
             current_extrusion->push_back(pts[0], 0);
@@ -3482,7 +3483,7 @@ FillRectilinearSawtooth::fill_surface_extrusion(const Surface *surface, const Fi
                     line_length = (coord_t)last.distance_to(pts[idx]);
 
                     //re-init
-                    next_zhop = tooth_spacing_min + (coord_t)abs((rand() / (float)RAND_MAX) * (tooth_spacing_max - tooth_spacing_min));
+                    next_zhop = tooth_spacing_min + (coord_t)abs((safe_rand() / (float)RAND_MAX) * (tooth_spacing_max - tooth_spacing_min));
                 }
             }
             while (idx < poly.size()) {

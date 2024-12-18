@@ -73,13 +73,12 @@ public:
     float get_volume() const { return m_total_volume; }
     float get_max_x() const { return m_moveable_area.m_x + m_moveable_area.m_width; }
     float get_min_x() const { return m_moveable_area.m_x; }
-    
     std::vector<float> get_value_samples(float sampling) const; //returns sampled values
     std::vector<std::pair<float,float>> get_buttons() const; // returns buttons position
     void                                set_buttons(std::vector<std::pair<float, float>>);
-    
+
     void draw();
-    
+
     void mouse_clicked(wxMouseEvent& event);
     void mouse_right_button_clicked(wxMouseEvent& event);
     void mouse_moved(wxMouseEvent& event);
@@ -88,10 +87,8 @@ public:
     void mouse_released(wxMouseEvent &);
     void paint_event(wxPaintEvent&) { draw(); }
     DECLARE_EVENT_TABLE()
-    
 
 
-        
 private:
     static const bool fixed_x = false;
     static const int side = 10; // side of draggable button
@@ -107,7 +104,6 @@ private:
     int m_y_precision = 0;
     wxString m_no_point_legend;
     bool m_manual_points_manipulation = false;
-    
     wxBrush yellow_brush = wxBrush(wxColour(240,240,0), wxBRUSHSTYLE_SOLID);
     wxBrush orange_brush = wxBrush(wxColour(255,150,0), wxBRUSHSTYLE_SOLID);
 
@@ -116,7 +112,7 @@ private:
     public:
         bool operator<(const ButtonToDrag& a) const { return m_pos.m_x < a.m_pos.m_x; }
         ButtonToDrag(wxPoint2DDouble pos, const Chart &chart) : m_pos{pos}, m_pos_following{pos}, m_chart(&chart) {};
-        wxPoint2DDouble get_pos() const { return m_pos; }            
+        wxPoint2DDouble get_pos() const { return m_pos; }
         void move(double x, double y) {
             m_pos_following.m_x += x;
             m_pos_following.m_y += y;
@@ -138,18 +134,16 @@ private:
         }
     private:
         wxPoint2DDouble m_pos_following;    // position in math coordinates
-        wxPoint2DDouble m_pos;              // position in math coordinates       
+        wxPoint2DDouble m_pos;              // position in math coordinates
         const Chart *m_chart;
     };
-    
-    
-    
+
     wxPoint math_to_screen(const wxPoint2DDouble& math) const {
         wxPoint screen;
         screen.x = (math.m_x-m_visible_area.m_x) * (m_rect.GetWidth()  / m_visible_area.m_width  );
         screen.y = (math.m_y-m_visible_area.m_y) * (m_rect.GetHeight() / m_visible_area.m_height );
         screen.y *= -1;
-        screen += m_rect.GetLeftBottom();            
+        screen += m_rect.GetLeftBottom();
         return screen;
     }
     wxPoint2DDouble screen_to_math(const wxPoint& screen) const {
@@ -160,14 +154,12 @@ private:
         math.m_y *= m_visible_area.m_height / m_rect.GetHeight();
         return (math+m_visible_area.GetLeftTop());
     }
-        
+
     int which_button_is_clicked(const wxPoint& point) const;
-        
-        
+
     void recalculate_line();
     void recalculate_volume();
-     
-    
+
     wxRect m_rect;                  // rectangle on screen the chart is mapped into (screen coordinates)
     wxPoint m_previous_mouse;
     bool m_is_hover_point = false;
@@ -182,7 +174,6 @@ private:
     size_t button_idx_hover = size_t(-1);
     float m_total_volume = 0.f;
     std::optional<std::function<void(std::optional<wxPoint2DDouble>)>> m_func_selected_point_moved;
-    
 };
 
 

@@ -2399,20 +2399,79 @@ MedialAxis::build(ThickPolylines& polylines_out)
     //    std::cout << "\n";
     //}
 
-#if _DEBUG
         //ensure valid
         for (size_t i = 0; i < pp.size(); ++i) {
             assert(pp[i].size() > 1);
             //pp[i].douglas_peucker(this->m_resolution);
-            auto it_end = Slic3r::douglas_peucker(pp[i].points.begin(), pp[i].points.end(), pp[i].points.begin(), double(this->m_resolution));
-            assert(it_end <= pp[i].points.end());
-            pp[i].points.resize(std::distance(pp[i].points.begin(), it_end));
+            // TODO do simplification when same width
+            coord_t current_width = pp[i].points_width[0];
+            size_t ipt_start_same_width = 0;
+            for (size_t ipt = 1; ipt < pp[i].size(); ++ipt) {
+                //first, check if it's more than EPSILON away
+                if (pp[i].points[ipt - 1].distance_to_square(pp[i].points[ipt]) <
+                    SCALED_EPSILON * SCALED_EPSILON * 4) {
+                    // del
+                    if (pp[i].size() > 2) {
+                        pp[i].points.erase(pp[i].points.begin() + ipt);
+                        pp[i].points_width.erase(pp[i].points_width.begin() + ipt);
+                        ipt--;
+                    }
+                } else {
+                    if (current_width != pp[i].points_width[ipt]) {
+                        if (ipt - ipt_start_same_width > 2) {
+                            // simplify the current section
+                            Points to_resize(pp[i].points.begin() + ipt_start_same_width,
+                                             pp[i].points.begin() + ipt);
+                            auto it_end = Slic3r::douglas_peucker(to_resize.begin(), to_resize.end(),
+                                                                  to_resize.begin(), double(this->m_resolution));
+                            size_t resized_size = it_end - to_resize.begin();
+                            // is there points deleted?
+                            if (resized_size < to_resize.size()) {
+                                // searhc them and move them
+                                size_t orig_i = ipt_start_same_width;
+                                for (size_t resized_i = 0; resized_i < resized_size; ) {
+                                    if (pp[i].points[orig_i] == to_resize[resized_i]) {
+                                        // found it, move hte point & width
+                                        pp[i].points[ipt_start_same_width + resized_i] = to_resize[resized_i];
+                                        pp[i].points_width[ipt_start_same_width + resized_i] = pp[i].points_width[orig_i];
+                                        // go to next point to move
+                                        resized_i++;
+                                    } else {
+                                        // didn't find it, check next point.
+                                        orig_i++;
+                                    }
+                                    assert(orig_i < pp[i].size() && orig_i < ipt_start_same_width + to_resize.size());
+                                    if (orig_i > pp[i].size()) {
+                                        BOOST_LOG_TRIVIAL(error) << "Error while simplify a variable thickness line.\n";
+                                        break;
+                                    }
+                                }
+                                // all points are now moved, erase the surplus
+                                pp[i].points.erase(pp[i].points.begin() + resized_size, pp[i].points.begin() + to_resize.size());
+                                pp[i].points_width.erase(pp[i].points_width.begin() + resized_size, pp[i].points_width.begin() + to_resize.size());
+                                ipt -=  to_resize.size() - resized_size;
+                                assert(pp[i].points[ipt - 1] == to_resize.back());
+                            } else {
+                                // nothing is simplified
+                            }
+                        }
+                        // relance
+                        if (ipt < pp[i].size()) {
+                            current_width = pp[i].points_width[ipt];
+                            ipt_start_same_width = ipt;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
             assert(pp[i].size() > 1);
             if (pp[i].size() == 2 && pp[i].front().coincides_with_epsilon(pp[i].back())) {
                 pp.erase(pp.begin() + i);
                 --i;
             }
         }
+#if _DEBUG
     for (auto &poly : pp) {
         for (size_t idx_pt = 1; idx_pt < poly.size(); ++idx_pt) {
             assert(!poly.points[idx_pt - 1].coincides_with_epsilon(poly.points[idx_pt]));

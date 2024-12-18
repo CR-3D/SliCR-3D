@@ -163,7 +163,7 @@ GraphPanel::GraphPanel(wxWindow *parent, GraphData data, const GraphSettings &se
     //}
     //stream.clear();
     //stream.get();
-    
+
     // min & max
     Pointfs data_points = data.data();
     if (!data_points.empty()) {
@@ -228,7 +228,6 @@ GraphPanel::GraphPanel(wxWindow *parent, GraphData data, const GraphSettings &se
         _(settings.description)));
     sizer_chart->Add(m_chart, 0, wxALL, 5);
 
-
     if (!settings.label_min_x.empty()) {
         m_widget_min_x = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString, wxDefaultPosition,
                                               wxSize(ITEM_WIDTH(), -1), style | wxTE_PROCESS_ENTER, settings.min_x,
@@ -242,7 +241,6 @@ GraphPanel::GraphPanel(wxWindow *parent, GraphData data, const GraphSettings &se
         m_widget_max_x->SetToolTip(format_wxstr(_L("Maximum: %1%"), Slic3r::to_string_nozero(settings.max_x, 4)));
     }
     // note: wxTE_PROCESS_ENTER allow the wxSpinCtrl to receive wxEVT_TEXT_ENTER events
- 
     if (!settings.label_min_y.empty()) {
         m_widget_min_y = new wxSpinCtrlDouble(this, wxID_ANY, wxEmptyString, wxDefaultPosition,
                                               wxSize(ITEM_WIDTH(), -1), style | wxTE_PROCESS_ENTER, settings.min_y,
@@ -255,7 +253,6 @@ GraphPanel::GraphPanel(wxWindow *parent, GraphData data, const GraphSettings &se
                                               settings.max_y, m_last_max_y, settings.step_y);
         m_widget_max_y->SetToolTip(format_wxstr(_L("Maximum: %1%"), Slic3r::to_string_nozero(settings.max_y, 4)));
     }
-    
     m_chart->set_xy_range(m_last_min_x, m_last_min_y, m_last_max_x, m_last_max_y);
 
 #ifdef _WIN32
@@ -298,8 +295,7 @@ GraphPanel::GraphPanel(wxWindow *parent, GraphData data, const GraphSettings &se
         }
         sizer_chart->Add(size_line);
     }
-    
-    
+
     wxBoxSizer *size_line = new wxBoxSizer(wxHORIZONTAL);
     wxButton *bt_reset = new wxButton(this, wxID_ANY, _L("Reset"));
     bt_reset->SetToolTip(_L("Reset all points to defaults."));

@@ -2927,7 +2927,7 @@ protected:
     // Called after a config is loaded as a whole.
     // Perform composite conversions, for example merging multiple keys into one key.
     // For conversion of single options, the handle_legacy() method above is called.
-    virtual void                    handle_legacy_composite(std::vector<std::pair<t_config_option_key, std::string>> &opt_deleted) {}
+    virtual void                    handle_legacy_composite(std::map<t_config_option_key, std::string> &opt_deleted) {}
 
 public:
     using ConfigOptionResolver::option;

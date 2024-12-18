@@ -4167,17 +4167,15 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     // auto_switch_preview == 0 means "no force tab change"
     if (wxGetApp().is_editor() && invalidated != Print::ApplyStatus::APPLY_STATUS_UNCHANGED && get_app_config()->get("auto_switch_preview") != "0")
     {
-        // auto_switch_preview == 3 means "force tab change only if for gcode"
-        if (get_app_config()->get("auto_switch_preview") == "3") {
+        // auto_switch_preview == "gcode" means "force tab change only if for gcode"
+        if (get_app_config()->get("auto_switch_preview") == "gcode") {
             if (this->preview->can_display_gcode())
                 main_frame->select_tab(MainFrame::TabPosition::tpPlaterGCode, true);
-            
-            // auto_switch_preview == 1 means "force tab change"
-        } else if (wxGetApp().app_config->get("auto_switch_preview") == "1") {
+            // auto_switch_preview == "always" means "force tab change"
+        } else if (get_app_config()->get("auto_switch_preview") == "always") {
             main_frame->select_tab(MainFrame::TabPosition::tpPlater, true);
-            
-            // auto_switch_preview == 2 means "force tab change only if already on a platter one"
-        } else if (wxGetApp().app_config->get("auto_switch_preview") == "2" || main_frame->selected_tab() < MainFrame::TabPosition::tpPlaterGCode) {
+            // auto_switch_preview == "platter" means "force tab change only if already on a platter one"
+        } else if (get_app_config()->get("auto_switch_preview") == "platter" || main_frame->selected_tab() < MainFrame::TabPosition::tpPlaterGCode) {
             if (this->preview->can_display_gcode())
                 main_frame->select_tab(MainFrame::TabPosition::tpPlaterGCode, true);
             else if (this->preview->can_display_volume() &&
@@ -5214,12 +5212,11 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
 
 void Plater::priv::on_slicing_completed(wxCommandEvent &evt)
 {
-    if ((wxGetApp().app_config->get("auto_switch_preview") == "1" ||
-         (wxGetApp().app_config->get("auto_switch_preview") == "2" &&
-          main_frame->selected_tab() < MainFrame::TabPosition::tpPlaterGCode)) &&
-        !this->preview->can_display_gcode())
+    if( ( get_app_config()->get("auto_switch_preview") == "gcode" || (get_app_config()->get("auto_switch_preview") == "platter"
+          && main_frame->selected_tab() < MainFrame::TabPosition::tpPlaterGCode))
+        && !this->preview->can_display_gcode())
         main_frame->select_tab(MainFrame::TabPosition::tpPlaterGCode, true);
-    
+
     if (view3D->is_dragging()) // updating scene now would interfere with the gizmo dragging
         delayed_scene_refresh = true;
     else {
@@ -5313,16 +5310,15 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
     //    this->statusbar()->reset_cancel_callback();
     //    this->statusbar()->stop_busy();
     notification_manager->set_slicing_progress_export_possible();
-    // auto_switch_preview == 0 means "no force tab change"
-    // auto_switch_preview == 1 means "force tab change"
-    // auto_switch_preview == 2 means "force tab change only if already on a plater one"
-    // auto_switch_preview == 3 means "force tab change only if for gcode"
-    if (wxGetApp().app_config->get("auto_switch_preview") == "1" ||
-        (wxGetApp().app_config->get("auto_switch_preview") == "2" &&
-         main_frame->selected_tab() < MainFrame::TabPosition::tpPlaterGCode) ||
-        wxGetApp().app_config->get("auto_switch_preview") == "3")
-        main_frame->select_tab(MainFrame::TabPosition::tpPlaterGCode, true);
-    
+    // auto_switch_preview == "never" means "no force tab change"
+    // auto_switch_preview == "always" means "force tab change"
+    // auto_switch_preview == "platter" means "force tab change only if already on a plater one"
+    // auto_switch_preview == "gcode" means "force tab change only if for gcode"
+    if (get_app_config()->get("auto_switch_preview") == "always" 
+        || (get_app_config()->get("auto_switch_preview") == "platter" && main_frame->selected_tab() < MainFrame::TabPosition::tpPlaterGCode) 
+        || get_app_config()->get("auto_switch_preview") == "gcode")
+        main_frame->select_tab(MainFrame::TabPosition::tpPlaterGCode);
+
     // Reset the "export G-code path" name, so that the automatic background processing will be enabled again.
     this->background_process.reset_export();
     // This bool stops showing export finished notification even when process_completed_with_error is false

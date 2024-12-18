@@ -3962,7 +3962,7 @@ void PrintObject::bridge_over_infill()
                     } else {
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
-                        int r = rand();
+                        int r = safe_rand();
                         debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" +
                                        std::to_string(job_idx) + "_" + "_anchors_" + std::to_string(r),
                                    to_lines(area_to_be_bridge), to_lines(boundary_plines), to_lines(anchors),

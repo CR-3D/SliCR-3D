@@ -2213,15 +2213,14 @@ void ColourPicker::msw_rescale()
 void ColourPicker::sys_color_changed()
 {
 #ifdef _WIN32
-	if (wxWindow* win = this->getWindow())
-		if (wxColourPickerCtrl* picker = dynamic_cast<wxColourPickerCtrl*>(win))
-			wxGetApp().UpdateDarkUI(picker->GetPickerCtrl(), true);
+    if (wxWindow* win = this->getWindow())
+        if (wxColourPickerCtrl* picker = dynamic_cast<wxColourPickerCtrl*>(win))
+            wxGetApp().UpdateDarkUI(picker->GetPickerCtrl(), true);
 #endif
 }
 
 
-void GraphButton::BUILD()
- {
+void GraphButton::BUILD() {
     wxSize size(def_width() * m_em_unit, wxDefaultCoord);
     if (m_opt.height >= 0) size.SetHeight(m_opt.height*m_em_unit);
     if (m_opt.width >= 0) size.SetWidth(m_opt.width*m_em_unit);
