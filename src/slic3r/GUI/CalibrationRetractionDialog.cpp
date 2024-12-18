@@ -299,11 +299,6 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     }
 
     plat->reslice();
-
-    if (autocenter) {
-        //re-enable auto-center after this calibration.
-        gui_app->app_config->set("autocenter", "1");
-    }
 }
 
 } // namespace GUI
