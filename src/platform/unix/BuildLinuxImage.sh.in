@@ -22,7 +22,7 @@ export ROOT=`pwd`
 export NCORES=`nproc`
 
 VERSION_NUMBER=""
-while getopts ":iagvh" opt; do
+while getopts ":iagvhg:" opt; do
   case ${opt} in
     i )
         export BUILD_IMAGE="1"
@@ -31,7 +31,7 @@ while getopts ":iagvh" opt; do
         export BUILD_APP="1"
         ;;
     g )
-        export FORCE_GTK2="1"
+        GTK_VERSION=$OPTARG
         ;;
     v )
         export VERSION_NUMBER="-@SLIC3R_VERSION_FULL@"
@@ -91,11 +91,13 @@ then
     echo -e "\n[9/9] Creating .tgz and Appimage for distribution ...\n"
 
     pushd package > /dev/null
-    if [[ -z "$FORCE_GTK2" ]]
+    if [[ "$GTK_VERSION" == 2 ]]
     then
+       tar -czvf ../@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK2.tgz .  &>/dev/null
+    elif [[ "$GTK_VERSION" == 3 ]]
        tar -czvf ../@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK3.tgz .  &>/dev/null
     else
-       tar -czvf ../@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK2.tgz .  &>/dev/null
+        echo -e "\nError, only GTK2 and GTK3 verison are supported. Asked GTK version: '$GTK_VERSION'\n"
     fi
 
     echo "> ls package/.."
@@ -109,11 +111,13 @@ then
     chmod +x ../src/build_appimage.sh
     ../src/build_appimage.sh
     popd  > /dev/null
-    if [[ -z "$FORCE_GTK2" ]]
+    if [[ "$GTK_VERSION" == 2 ]]
     then
-		mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK3.AppImage"
-    else
         mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK2.AppImage"
+    elif [[ "$GTK_VERSION" == 3 ]]
+        mv package/"@SLIC3R_APP_KEY@_ubu64.AppImage" "@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK3.AppImage"
+    else
+        echo -e "\nError, only GTK2 and GTK3 verison are supported. Asked GTK version: 
     fi
     echo -e "\n... done\n"
 fi

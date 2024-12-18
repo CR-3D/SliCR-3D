@@ -2049,9 +2049,12 @@ void MainFrame::init_menubar_as_editor()
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Bed/Extruder Leveling")),
                                  _(L("Create a test print to help you to level your printer bed.")),
                                  [this](wxCommandEvent &) { wxGetApp().bed_leveling_dialog(); });
+        append_menu_item(m_calibration_menu, wxID_ANY, _(L("Extruder Flow calibration")), _(L("Create a test print to help you to set your extruder extrusion multiplier curve for a range of speed (precision scale needed).")),
+            [this](wxCommandEvent&) { wxGetApp().flow_speed_dialog(); });
 
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Bridge Flow Calibration")), _(L("Create a test print to help you to set your bridge flow ratio.")),
             [this](wxCommandEvent&) { wxGetApp().bridge_tuning_dialog(); });
+            
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Ironing Pattern Calibration")), _(L("Create a test print to help you to set your over-bridge flow ratio and ironing pattern.")),
             [this](wxCommandEvent&) { wxGetApp().over_bridge_dialog(); });
 

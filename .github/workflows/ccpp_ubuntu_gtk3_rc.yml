@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rc
+      - debug_ubuntu
 
 jobs:
   build:
@@ -36,9 +37,9 @@ jobs:
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -d
+      run: ./BuildLinux.sh -dr -g 3
     - name: slicer, tar & appimage
-      run: ./BuildLinux.sh -si
+      run: ./BuildLinux.sh -si -g 3
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

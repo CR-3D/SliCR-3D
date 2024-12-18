@@ -17,12 +17,12 @@ export ROOT=`pwd`
 export NCORES=`nproc`
 
 function usage() {
-    echo "Usage: ./BuildLinux.sh [-h][-u][-w][-g][-b][-r][-d][-s][-l][-t][-i][-v]"
+    echo "Usage: ./BuildLinux.sh [-h][-u][-w][-r][-d][-s][-l][-t][-i][-v][-b debug|release][-g 2|3]"
     echo "   -h: this message"
     echo "   -u: only update dependency packets (optional and need sudo)"
     echo "   -w: wipe build directories before building"
-    echo "   -g: force gtk2 build"
-    echo "   -b: build in debug mode"
+    echo "   -g: force gtk2 build, need to then write the verison: '2' or '3' (BuildLinux.sh -g 2)"
+    echo "   -b: build with debug symbols. Build in full debug mode if then followed by 'debug' (need to be lowercase)"
     echo "   -r: clean dependencies"
     echo "   -d: build deps"
     echo "   -s: build Slic3r"
@@ -32,7 +32,6 @@ function usage() {
     echo "   -v: change the version 'UNKNOWN' to the date of the day"
     echo -e "\n   For a first use, you want to 'sudo ./BuildLinux.sh -u'"
     echo -e "   and then './BuildLinux.sh -dsi'\n"
-    exit 0
 }
 
 function check_operating_system() {
@@ -79,11 +78,14 @@ function check_operating_system() {
 }
 
 function check_available_memory_and_disk() {
+    echo "Checking available memory and disk ..."
     FREE_MEM_GB=$(free -g -t | grep 'Mem:' | rev | cut -d" " -f1 | rev)
     MIN_MEM_GB=3
+    echo "Available memory (GB): ${FREE_MEM_GB}"
 
     FREE_DISK_KB=$(df -k . | tail -1 | awk '{print $4}')
     MIN_DISK_KB=$((10 * 1024 * 1024))
+    echo "Available disk (KB): ${FREE_DISK_KB}"
 
     if [ ${FREE_MEM_GB} -le ${MIN_MEM_GB} ]; then
         echo -e "\nERROR: SuperSlicer Builder requires at least ${MIN_MEM_GB}G of 'available' mem (systen has only ${FREE_MEM_GB}G available)"
@@ -99,6 +101,7 @@ function check_available_memory_and_disk() {
 }
 
 function check_distribution() {
+    echo "Checking distribution ..."
     DISTRIBUTION=$(awk -F= '/^ID=/ {print $2}' /etc/os-release)
     # treat ubuntu as debian
     if [ "${DISTRIBUTION}" == "ubuntu" ]
@@ -121,8 +124,10 @@ check_available_memory_and_disk
 
 #---------------------------------------------------------------------------------------
 #check command line arguments
+GTK_VERSION="3"
+BUILD_MODE="release"
 unset name
-while getopts ":bdghilrstuvw" opt; do
+while getopts ":bdhilrstuvwg:" opt; do
     case ${opt} in
         u )
             UPDATE_LIB="1"
@@ -144,9 +149,10 @@ while getopts ":bdghilrstuvw" opt; do
             ;;
         b )
             BUILD_DEBUG="1"
+            BUILD_MODE=$OPTARG
             ;;
         g )
-            FORCE_GTK2="-g"
+            GTK_VERSION=$OPTARG
             ;;
         r )
             BUILD_CLEANDEPEND="1"
@@ -158,10 +164,10 @@ while getopts ":bdghilrstuvw" opt; do
             BUILD_WIPE="1"
             ;;
         h ) usage
-#            exit 0
+            exit 0
             ;;
         * ) usage
-#            exit 0
+            exit -1
             ;;
     esac
 done
@@ -170,7 +176,7 @@ done
 if [ ${OPTIND} -eq 1 ]
 then
     usage
-    exit 0
+    exit -1
 fi
 
 #---------------------------------------------------------------------------------------
@@ -179,15 +185,19 @@ fi
 
 source ./src/platform/unix/linux.d/${DISTRIBUTION}
 
-if [[ -n "$FORCE_GTK2" ]]
-then
+if [[ "$GTK_VERSION" == 2 ]]; then
     FOUND_GTK2=$(dpkg -l libgtk* | grep gtk2)
     FOUND_GTK2_DEV=$(dpkg -l libgtk* | grep gtk2.0-dev)
     echo -e "\nFOUND_GTK2:\n$FOUND_GTK2\n"
-else
+    echo -e "\FOUND_GTK2_DEV:\n$FOUND_GTK2_DEV\n"
+elif [[ "$GTK_VERSION" == 3 ]]; then
     FOUND_GTK3=$(dpkg -l libgtk* | grep gtk-3)
     FOUND_GTK3_DEV=$(dpkg -l libgtk* | grep gtk-3-dev)
     echo -e "\nFOUND_GTK3:\n$FOUND_GTK3)\n"
+    echo -e "\nFOUND_GTK2_DEV:\n$FOUND_GTK3_DEV)\n"
+else
+    echo -e "\nError, only GTK2 and GTK3 verison are supported. Asked GTK version: '$GTK_VERSION'\n"
+    exit -1
 fi
 
 if [[ -n "$BUILD_DEPS" ]]
@@ -211,17 +221,20 @@ then
     else
         BUILD_ARGS="-DDEP_WX_GTK3=OFF"
     fi
-    if [[ -n "$BUILD_DEBUG" ]]
-    then
+    if [[ -n "$BUILD_DEBUG" ]]; then
+        if [[ $BUILD_MODE == "release" ]]; then
+            BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+        else
+            BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
+        fi
         # have to build deps with debug & release or the cmake won't find evrything it needs
-    if [ ! -d "deps/build/release" ]
-    then
-        mkdir deps/build/release
-    fi
+        if [ ! -d "deps/build/release" ]
+        then
+            mkdir deps/build/release
+        fi
         pushd deps/build/release > /dev/null
         cmake ../.. -DDESTDIR="../destdir" $BUILD_ARGS
         popd > /dev/null
-        BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
     fi
 
     pushd deps/build > /dev/null
@@ -246,6 +259,8 @@ then
     ls -al .
     echo "> ls ROOT/deps/build/destdir/usr/local/lib"
     ls -al $ROOT/deps/build/destdir/usr/local/lib
+    echo "> ls ROOT/deps/build"
+    ls -al $ROOT/deps/build
     popd > /dev/null
     popd > /dev/null
     echo -e "\n ... done\n"
@@ -255,10 +270,18 @@ if [[ -n "$BUILD_CLEANDEPEND" ]]
 then
     echo -e "[4/9] Cleaning dependencies...\n"
     pushd deps/build > /dev/null
+    df -h
     rm -fr dep_*
+    rm -fr builds
+    rm -fr download
+    rm -fr release
+    df -h
     popd > /dev/null
     echo -e " ... done\n"
 fi
+
+echo -n "Check space taken ..."
+du -h
 
 if [[ -n "$BUILD_SLIC3R" ]]
 then
@@ -288,25 +311,27 @@ then
 	else
 		sed "s/+UNKNOWN//" version.inc > version.date.inc
     fi
-	
+
     # mkdir build
-    if [ ! -d "build" ]
-    then
-    mkdir build
+    if [ ! -d "build" ]; then
+        mkdir build
     fi
 
     BUILD_ARGS=""
-    if [[ -n "$FOUND_GTK3_DEV" ]]
-    then
+    if [[ -n "$FOUND_GTK3_DEV" ]]; then
         BUILD_ARGS="-DSLIC3R_GTK=3"
     fi
-    if [[ -n "$BUILD_DEBUG" ]]
-    then
-        BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
+    if [[ -n "$BUILD_DEBUG" ]]; then
+        if [[ $BUILD_MODE == "release" ]]; then
+            # add debug symbols (relwithdebinfo)
+            BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+            echo -n "Build in release mode but with debug symbols ..."
+        else
+            BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
+        fi
     fi
 
-   if [[ -n "$BUILD_TESTS" ]]
-   then
+   if [[ -n "$BUILD_TESTS" ]]; then
        BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TESTS=1"
    else
        BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TESTS=0"
@@ -318,7 +343,15 @@ then
     echo " ... done"
     # make SuperSlicer
     echo -e "\n[6/9] Building SuperSlicer ...\n"
+    df -h
+    make -j$NCORES libslic3r
+    df -h
+    du -h
+    make -j$NCORES libslic3r_gui
+    df -h
+    du -h
     make -j$NCORES Slic3r
+    df -h
     make -j$NCORES OCCTWrapper
     echo -e "\n ... done"
 
@@ -337,7 +370,7 @@ then
     chmod 755 $ROOT/build/src/BuildLinuxImage.sh
 
     pushd build  > /dev/null
-    $ROOT/build/src/BuildLinuxImage.sh -a $FORCE_GTK2
+    $ROOT/build/src/BuildLinuxImage.sh -a -g $GTK_VERSION
     popd  > /dev/null
     echo "> ls ROOT"
     ls -al $ROOT
@@ -354,7 +387,7 @@ then
     # Give proper permissions to script
     chmod 755 $ROOT/build/src/BuildLinuxImage.sh
     pushd build  > /dev/null
-    $ROOT/build/src/BuildLinuxImage.sh -i $FORCE_GTK2
+    $ROOT/build/src/BuildLinuxImage.sh -i -g $GTK_VERSION
     popd  > /dev/null
     echo "> ls ROOT"
     ls -al $ROOT

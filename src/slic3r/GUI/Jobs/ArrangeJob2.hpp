@@ -27,7 +27,11 @@ namespace GUI {
 
 class Plater;
 
-enum class ArrangeSelectionMode { SelectionOnly, Full, CurrentBedFull, CurrentBedSelectionOnly };
+enum class ArrangeSelectionMode { 
+    SelectionOnly, 
+    Full, 
+    CurrentBedFull, 
+    CurrentBedSelectionOnly };
 
 arr2::SceneBuilder build_scene(
     Plater &plater, ArrangeSelectionMode mode = ArrangeSelectionMode::Full);

@@ -26,6 +26,7 @@
 #include "GUI.hpp"
 #include "wxExtensions.hpp"
 #include "Widgets/CheckBox.hpp"
+#include "Widgets/GraphBitmapButton.hpp"
 #include "Widgets/SwitchButton.hpp"
 #include "Widgets/SpinInput.hpp"
 #include "Widgets/TextInput.hpp"
@@ -598,7 +599,7 @@ public:
     GraphButton(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
     ~GraphButton() {}
 
-    wxWindow*       window{ nullptr };
+    GraphBitmapButton*    window{ nullptr };
     void            BUILD()  override;
 
     void            set_internal_any_value(const boost::any &value, bool change_event = false) override;

@@ -68,9 +68,9 @@ struct CoolingLine
         TYPE_EXTRUDE_END        = 1 << 9,
         TYPE_G0                 = 1 << 10,
         TYPE_G1                 = 1 << 11,
-        // if adjustable, that means that the lines after that can't have their speed modified. end after a TYPE_EXTRUDE_END
+        // if adjustable, that means that the lines after that can have their speed modified. end after a TYPE_EXTRUDE_END
         TYPE_ADJUSTABLE         = 1 << 12,
-        // TYPE_ADJUSTABLE_MAYBE = do not adjust this section if possible
+        // TYPE_ADJUSTABLE_MAYBE = do not adjust this section speed if possible (should be combined with TYPE_ADJUSTABLE)
         TYPE_ADJUSTABLE_MAYBE   = 1 << 13,
         // The line sets a feedrate.
         TYPE_HAS_F              = 1 << 14,
@@ -108,12 +108,12 @@ struct CoolingLine
 
     bool adjustable(bool slowdown_external_perimeters) const {
         return (this->type & TYPE_ADJUSTABLE) && 
-               (slowdown_external_perimeters || (!(this->type & TYPE_ADJUSTABLE_MAYBE))) &&
+               (slowdown_external_perimeters || ((this->type & TYPE_ADJUSTABLE_MAYBE) == 0)) &&
                this->time < this->time_max;
     }
 
     bool adjustable() const {
-        return (this->type & TYPE_ADJUSTABLE) && this->time < this->time_max;
+        return ((this->type & TYPE_ADJUSTABLE) == TYPE_ADJUSTABLE) && this->time < this->time_max;
     }
 
     uint32_t  type;

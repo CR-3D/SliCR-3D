@@ -1,5 +1,7 @@
 #include "BitmapToggleButton.hpp"
 
+#include "libslic3r/Config.hpp"
+
 #include <wx/settings.h>
 
 BitmapToggleButton::BitmapToggleButton(wxWindow* parent, const wxString& label, wxWindowID id)

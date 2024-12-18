@@ -3957,8 +3957,10 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
             // swap points
             Point c = a; a = b; b = c;
         }
+#ifdef _DEBUG
         assert(ccw_angle_old_test(paths.front().first_point(), a, b) ==
                abs_angle(angle_ccw( a - paths.front().first_point(),b - paths.front().first_point())));
+#endif
         double angle = abs_angle(angle_ccw(a-paths.front().first_point(),b-paths.front().first_point())) * 2 / 3;
 
         // turn left if contour, turn right if hole
@@ -4083,7 +4085,9 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
             // swap points
             Point c = a; a = b; b = c;
         }
+#ifdef _DEBUG
         assert(ccw_angle_old_test(paths.front().first_point(), a, b) == abs_angle(angle_ccw( a - paths.front().first_point(),b - paths.front().first_point())));
+#endif
         double angle = abs_angle(angle_ccw( a - paths.front().first_point(),b - paths.front().first_point())) / 3;
 
         // turn left if contour, turn right if hole
@@ -4445,16 +4449,13 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         if(min_angle >= 359.9) min_angle += 1;
         min_angle *= PI / 180.;
         if (end_point.distance_to_square(start_point) < SCALED_EPSILON * SCALED_EPSILON) {
-            assert(ccw_angle_old_test(start_point, prev_point, next_point) == abs_angle(angle_ccw( prev_point -start_point,next_point- start_point)));
             check_angle = abs_angle(angle_ccw( prev_point -start_point,next_point- start_point));
         } else {
-            assert(is_approx(ccw_angle_old_test(end_point, prev_point, start_point), abs_angle(angle_ccw(prev_point- end_point, start_point -end_point)), EPSILON));
             check_angle = abs_angle(angle_ccw(prev_point- end_point, start_point -end_point));
             if ((is_hole_loop ? -check_angle : check_angle) > min_angle) {
                 BOOST_LOG_TRIVIAL(debug) << "notch abord: too big angle\n";
                 return;
             }
-            assert(is_approx(ccw_angle_old_test(start_point, end_point, next_point), abs_angle(angle_ccw( end_point - start_point,next_point - start_point)), EPSILON));
             check_angle = abs_angle(angle_ccw( end_point - start_point,next_point - start_point));
         }
         assert(end_point != start_point);
@@ -5847,7 +5848,7 @@ void GCodeGenerator::_extrude_line(std::string& gcode_str, const Line& line, con
     // small_area_infill_flow_compensation
     // this is only done in _extrude_line and not in _extrude_line_cut_corner because _extrude_line_cut_corner doesn't apply to solid infill, but only for external perimeters.
     if (!this->on_first_layer() && (role == ExtrusionRole::SolidInfill || role == ExtrusionRole::TopSolidInfill) &&
-        m_config.small_area_infill_flow_compensation.value &&
+        m_config.small_area_infill_flow_compensation_model.is_enabled() &&
         m_config.small_area_infill_flow_compensation_model.value.data_size() > 1) {
         GraphData graph = m_config.small_area_infill_flow_compensation_model.value;
         assert(graph.begin_idx >= 0 && graph.begin_idx + 1 < graph.end_idx && graph.end_idx <= graph.graph_points.size());
@@ -5874,8 +5875,6 @@ void GCodeGenerator::_extrude_line(std::string& gcode_str, const Line& line, con
 void GCodeGenerator::_extrude_line_cut_corner(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment, Point& last_pos, const double path_width) {
     {
         if (line.a == line.b) return; //todo: investigate if it happens (it happens in perimeters)
-        //check the angle
-        assert(ccw_angle_old_test(line.a, last_pos, line.b) == abs_angle(angle_ccw( last_pos - line.a,line.b - line.a)));
         double angle = line.a == last_pos ? PI : abs_angle(angle_ccw( last_pos - line.a,line.b - line.a));
         //convert the angle from the angle of the line to the angle of the "joint" (Circular segment)
         if (angle > PI) angle = angle - PI;
@@ -6500,7 +6499,7 @@ std::pair<double, double> GCodeGenerator::_compute_acceleration(const ExtrusionP
 }
 
 void GCodeGenerator::cooldown_marker_init() {
-    if (!_cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)].empty()) {
+    if (_cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)].empty()) {
         std::string allow_speed_change = ";_EXTRUDE_SET_SPEED";
         //only change speed on external perimeter (and similar) speed if really necessary.
         std::string maybe_allow_speed_change = ";_EXTRUDE_SET_SPEED_MAYBE";

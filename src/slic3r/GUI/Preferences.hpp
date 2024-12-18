@@ -27,12 +27,6 @@ class wxRadioButton;
 
 namespace Slic3r {
 
-	enum  NotifyReleaseMode {
-		NotifyReleaseAll,
-		NotifyReleaseOnly,
-		NotifyReleaseNone
-	};
-
 namespace GUI {
 
 class ConfigOptionsGroup;
@@ -59,7 +53,7 @@ class PreferencesDialog : public DPIDialog
 	// to retreive the group to get the field, or request a refresh
 	std::map<std::string, std::shared_ptr<ConfigOptionsGroup>> m_optkey_to_optgroup;
 
-    ConfigOptionDef def_combobox_auto_switch_preview; //is this useful here?
+    //ConfigOptionDef def_combobox_auto_switch_preview; //is this useful here?
 	wxSizer*                            m_icon_size_sizer {nullptr};
 	wxSlider*							m_icon_size_slider {nullptr};
 	wxRadioButton*						m_rb_old_settings_layout_mode {nullptr};

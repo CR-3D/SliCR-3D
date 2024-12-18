@@ -24,7 +24,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <chrono>
-#include <nanosvgrast.h>
+//#include <nanosvgrast.h>
 #include <numeric>
 #include <optional>
 #include <vector>

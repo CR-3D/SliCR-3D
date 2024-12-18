@@ -43,33 +43,51 @@
 
 namespace Slic3r {
 
-	static t_config_enum_names enum_names_from_keys_map(const t_config_enum_values& enum_keys_map)
-	{
-		t_config_enum_names names;
-		int cnt = 0;
-		for (const auto& kvp : enum_keys_map)
-			cnt = std::max(cnt, kvp.second);
-		cnt += 1;
-		names.assign(cnt, "");
-		for (const auto& kvp : enum_keys_map)
-			names[kvp.second] = kvp.first;
-		return names;
-	}
+    static t_config_enum_names enum_names_from_keys_map(const t_config_enum_values& enum_keys_map)
+    {
+        t_config_enum_names names;
+        int cnt = 0;
+        for (const auto& kvp : enum_keys_map)
+            cnt = std::max(cnt, kvp.second);
+        cnt += 1;
+        names.assign(cnt, "");
+        for (const auto& kvp : enum_keys_map)
+            names[kvp.second] = kvp.first;
+        return names;
+    }
 
 #define CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NAME) \
     static t_config_enum_names s_keys_names_##NAME = enum_names_from_keys_map(s_keys_map_##NAME); \
     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values() { return s_keys_map_##NAME; } \
     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names() { return s_keys_names_##NAME; }
 
+    enum  NotifyReleaseMode {
+        NotifyReleaseAll,
+        NotifyReleaseOnly,
+        NotifyReleaseNone
+    };
+    static const t_config_enum_values s_keys_map_NotifyReleaseMode = {
+        {"all",     NotifyReleaseAll},
+        {"release", NotifyReleaseOnly},
+        {"none",    NotifyReleaseNone},
+    };
+    CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NotifyReleaseMode)
+        
 
+    enum  AutoSwitchPreview {
+        NoSwitch,
+        Switch,
+        PlatterSwitch,
+        GcodeReadySwitch,
+    };
+    static const t_config_enum_values s_keys_map_AutoSwitchPreview = {
+        {"never",   NoSwitch},
+        {"always",  Switch},
+        {"platter", PlatterSwitch},
+        {"gcode",   GcodeReadySwitch},
+    };
+    CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(AutoSwitchPreview)
 
-	static const t_config_enum_values s_keys_map_NotifyReleaseMode = {
-		{"all",         NotifyReleaseAll},
-		{"release",     NotifyReleaseOnly},
-		{"none",        NotifyReleaseNone},
-	};
-
-	CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NotifyReleaseMode)
 
 namespace GUI {
 
@@ -80,7 +98,7 @@ PreferencesDialog::PreferencesDialog(wxWindow* parent) :
 #ifdef __WXOSX__
     isOSX = true;
 #endif
-	build();
+    build();
 
     wxSize sz = GetSize();
     bool is_scrollbar_shown = false;
@@ -100,15 +118,15 @@ PreferencesDialog::PreferencesDialog(wxWindow* parent) :
 #endif
     SetSize(sz);
 
-	m_highlighter.set_timer_owner(this, 0);
+    m_highlighter.set_timer_owner(this, 0);
 }
 
 static void update_color(wxColourPickerCtrl* color_pckr, const wxColour& color) 
 {
-	if (color_pckr->GetColour() != color) {
-		color_pckr->SetColour(color);
-		wxPostEvent(color_pckr, wxCommandEvent(wxEVT_COLOURPICKER_CHANGED));
-	}
+    if (color_pckr->GetColour() != color) {
+        color_pckr->SetColour(color);
+        wxPostEvent(color_pckr, wxCommandEvent(wxEVT_COLOURPICKER_CHANGED));
+    }
 }
 
 void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::string()*/, const std::string& group_name/*= std::string()*/)
@@ -129,42 +147,49 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
             assert(false);
             return;
         }
-		init_highlighter(highlight_opt_key);
+        init_highlighter(highlight_opt_key);
     }
 
-	// cache input values for custom toolbar size
-	m_custom_toolbar_size		= atoi(get_app_config()->get("custom_toolbar_size").c_str());
-	m_use_custom_toolbar_size	= get_app_config()->get_bool("use_custom_toolbar_size");
+    // cache input values for custom toolbar size
+    m_custom_toolbar_size       = atoi(get_app_config()->get("custom_toolbar_size").c_str());
+    m_use_custom_toolbar_size   = get_app_config()->get_bool("use_custom_toolbar_size");
 
-	// Set enum value
-	// set Field for notify_release to its value
-	if (m_optkey_to_optgroup.find("notify_release") != m_optkey_to_optgroup.end())
-		if(auto field = m_optkey_to_optgroup["notify_release"]->get_field("notify_release"); field != nullptr) {
-			assert(s_keys_map_NotifyReleaseMode.find(wxGetApp().app_config->get("notify_release")) != s_keys_map_NotifyReleaseMode.end());
-			boost::any val;
-			if(s_keys_map_NotifyReleaseMode.find(wxGetApp().app_config->get("notify_release")) != s_keys_map_NotifyReleaseMode.end()) {
-				val = ConfigOptionEnum<NotifyReleaseMode>(NotifyReleaseMode(s_keys_map_NotifyReleaseMode.at(wxGetApp().app_config->get("notify_release")))).get_any();
-			} else {
-				val = ConfigOptionEnum<NotifyReleaseMode>(NotifyReleaseMode::NotifyReleaseNone).get_any();
-			}
-			field->set_any_value(val, false);
-		}
-	// set Field for splashscreen to its value
-	std::string splashscreen_key = wxGetApp().is_editor() ? "splash_screen_editor" : "splash_screen_gcodeviewer";
+    // Set enum value
+    // set Field for notify_release to its value
+    std::vector<std::pair<std::string, t_config_enum_values>> enums = {
+        {"notify_release", s_keys_map_NotifyReleaseMode},
+        {"auto_switch_preview", s_keys_map_AutoSwitchPreview},
+    };
+    for (auto key2map : enums) {
+        if (m_optkey_to_optgroup.find(key2map.first) != m_optkey_to_optgroup.end()) {
+            if (auto field = m_optkey_to_optgroup[key2map.first]->get_field(key2map.first); field != nullptr) {
+                std::string current_value = wxGetApp().app_config->get(key2map.first);
+                assert(key2map.second.find(current_value) != key2map.second.end());
+                boost::any val;
+                if (key2map.second.find(current_value) != key2map.second.end()) {
+                    val = int32_t(key2map.second.at(current_value));
+                } else {
+                    val = int32_t(key2map.second.begin()->second);
+                }
+                field->set_any_value(val, false);
+            }
+        }
+    }
+    // set Field for splashscreen to its value
+    std::string splashscreen_key = wxGetApp().is_editor() ? "splash_screen_editor" : "splash_screen_gcodeviewer";
     if (m_optkey_to_optgroup.find(splashscreen_key) != m_optkey_to_optgroup.end()) {
         if (auto field = m_optkey_to_optgroup[splashscreen_key]->get_field(splashscreen_key); field != nullptr) {
             boost::any val = wxGetApp().app_config->get(splashscreen_key);
             field->set_any_value(val, false);
         }
     }
-	// set Field for splashscreen to its value
+    // set Field for splashscreen to its value
     if (m_optkey_to_optgroup.find("ui_layout") != m_optkey_to_optgroup.end()) {
         if (auto field = m_optkey_to_optgroup["ui_layout"]->get_field("ui_layout"); field != nullptr) {
             boost::any val = wxGetApp().app_config->get("ui_layout");
             field->set_any_value(val, false);
         }
     }
-	
 
 	if (wxGetApp().is_editor()) {
 		auto app_config = get_app_config();
@@ -258,11 +283,10 @@ std::shared_ptr<ConfigOptionsGroup> PreferencesDialog::create_options_group(cons
 			} else if (field->m_opt.type == coString || field->m_opt.type == coStrings) {
 				m_values[opt_key] = boost::any_cast<std::string>(value);
 			} else if (field->m_opt.type == coEnum) {
-				int val_int = boost::any_cast<int>(value);
-				auto vector = field->m_opt.enum_def->enums();
-				assert(vector.size() > val_int && val_int >= 0);
-				if(int(vector.size()) > val_int && val_int >= 0){
-					m_values[opt_key] = vector[val_int];
+				int value_idx = boost::any_cast<int32_t>(value);
+				assert( int(field->m_opt.enum_def->values().size()) > value_idx && value_idx >= 0);
+                if (int(field->m_opt.enum_def->values().size()) > value_idx && value_idx >= 0) {
+					m_values[opt_key] = field->m_opt.enum_def->value(value_idx);
 				}
 			}
 		} else {
@@ -270,16 +294,6 @@ std::shared_ptr<ConfigOptionsGroup> PreferencesDialog::create_options_group(cons
 			m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
 		}
 
-// GUI STUFF //TODO: tidy ip
-		if (opt_key == "notify_release") {
-			int val_int = boost::any_cast<int>(value);
-			for (const auto& item : s_keys_map_NotifyReleaseMode) {
-				if (item.second == val_int) {
-					m_values[opt_key] = item.first;
-					return;
-				}
-			}
-		}
 		if (opt_key == "use_custom_toolbar_size") {
 			m_icon_size_sizer->ShowItems(boost::any_cast<bool>(value));
 			refresh_og(m_optkey_to_optgroup["use_custom_toolbar_size"]);
@@ -478,30 +492,39 @@ void PreferencesDialog::build()
 				"Examples of such issues are floating object parts, unsupported extrusions and low bed adhesion."),
 			app_config->get_bool("alert_when_supports_needed"));
 
-		//FIXME change it to enum, like the NotifyReleaseMode
-		m_optkey_to_optgroup["autocenter"] = m_tabid_2_optgroups.back().back();
-		def_combobox_auto_switch_preview.label = L("Switch to Preview when sliced");
-		def_combobox_auto_switch_preview.type = coStrings;
-		def_combobox_auto_switch_preview.tooltip = L("When an object is sliced, it will switch your view from the curent view to the "
-			"preview (and then gcode-preview) automatically, depending on the option choosen.");
-		def_combobox_auto_switch_preview.gui_type = ConfigOptionDef::GUIType::f_enum_open;
-		def_combobox_auto_switch_preview.gui_flags = "show_value";
-        def_combobox_auto_switch_preview.set_enum_labels(ConfigOptionDef::GUIType::f_enum_open, 
-        { _u8L("Don't switch"), _u8L("Switch when possible"), _u8L("Only if on platter"), _u8L("Only when GCode is ready") });
-		if (app_config->get("auto_switch_preview") == "0")
-			def_combobox_auto_switch_preview.set_default_value(new ConfigOptionStrings{ def_combobox_auto_switch_preview.enum_def->label(0) });
-		else if (app_config->get("auto_switch_preview") == "1")
-			def_combobox_auto_switch_preview.set_default_value(new ConfigOptionStrings{ def_combobox_auto_switch_preview.enum_def->label(1) });
-		else if (app_config->get("auto_switch_preview") == "2")
-			def_combobox_auto_switch_preview.set_default_value(new ConfigOptionStrings{ def_combobox_auto_switch_preview.enum_def->label(2) });
-		else if (app_config->get("auto_switch_preview") == "3")
-			def_combobox_auto_switch_preview.set_default_value(new ConfigOptionStrings{ def_combobox_auto_switch_preview.enum_def->label(3) });
-		else
-			def_combobox_auto_switch_preview.set_default_value(new ConfigOptionStrings{ def_combobox_auto_switch_preview.enum_def->label(2) });
-		Option option = Option(def_combobox_auto_switch_preview, "auto_switch_preview");
-		m_tabid_2_optgroups.back().back()->append_single_option_line(option);
-		m_optkey_to_optgroup["auto_switch_preview"] = m_tabid_2_optgroups.back().back();
-		wxGetApp().sidebar().get_searcher().add_key("auto_switch_preview", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox_auto_switch_preview);
+	    //convert from old 0-3 values
+        {
+            std::string auto_switch_preview_value = app_config->get("auto_switch_preview");
+            bool need_set = true;
+            if (app_config->get("auto_switch_preview") == "0") {
+                auto_switch_preview_value = "never";
+            } else if (app_config->get("auto_switch_preview") == "1") {
+                auto_switch_preview_value = "always";
+            } else if (app_config->get("auto_switch_preview") == "2") {
+                auto_switch_preview_value = "platter";
+            } else if (app_config->get("auto_switch_preview") == "3") {
+                auto_switch_preview_value = "gcode";
+            } else {
+                need_set = false;
+            }
+            if (need_set) {
+                app_config->set("auto_switch_preview", auto_switch_preview_value);
+            }
+            append_enum_option<AutoSwitchPreview>(
+                m_tabid_2_optgroups.back().back(), "auto_switch_preview", L("Switch to Preview when sliced"),
+                L("When an object is sliced, it will switch your view from the curent view to the "
+                  "preview (and then gcode-preview) automatically, depending on the option choosen."),
+                new ConfigOptionEnum<AutoSwitchPreview>(
+                    static_cast<AutoSwitchPreview>(s_keys_map_AutoSwitchPreview.at(auto_switch_preview_value))),
+                {
+                    {"never", L("Don't switch")},
+                    {"always", L("Switch when possible")},
+                    {"platter", L("Only if on platter")},
+                    {"gcode", L("Only when GCode is ready")},
+                });
+        }
+        //m_optkey_to_optgroup["auto_switch_preview"] = m_tabid_2_optgroups.back().back();
+        //wxGetApp().sidebar().get_searcher().add_key("auto_switch_preview", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox_auto_switch_preview);
 
 		// Please keep in sync with ConfigWizard
 		append_bool_option(m_tabid_2_optgroups.back().back(), "export_sources_full_pathnames",
@@ -914,135 +937,125 @@ void PreferencesDialog::build()
 
 	activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
 
-	if (is_editor) {
-		// set Field for notify_release to its value to activate the object
-		if (auto field = m_tabid_2_optgroups.back().back()->get_field("notify_release"); field != nullptr) {
-			boost::any val;
-			if(s_keys_map_NotifyReleaseMode.find(wxGetApp().app_config->get("notify_release")) != s_keys_map_NotifyReleaseMode.end()) {
-				val = ConfigOptionEnum<NotifyReleaseMode>(NotifyReleaseMode(s_keys_map_NotifyReleaseMode.at(wxGetApp().app_config->get("notify_release")))).get_any();
-			} else {
-				val = ConfigOptionEnum<NotifyReleaseMode>(NotifyReleaseMode::NotifyReleaseNone).get_any();
-			}
-			field->set_any_value(val, false);
-		} else assert(false);
+    if (is_editor) {
 
-	//create layout options
-    assert(m_tabid_2_optgroups.size() - 1 == 2);
-	create_settings_mode_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
-	//create ui_layout check
-	{
-		m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Settings layout and colors"), tabs, 2));
-		m_tabid_2_optgroups.back().back()->title_width = 0;
-		m_tabid_2_optgroups.back().back()->label_width = 0;
-		ConfigOptionDef def_combobox;
-		def_combobox.label = "_";
-		def_combobox.type = coString;
-		def_combobox.tooltip = L("Choose the gui package to use. It controls colors, settings layout, quick settings, tags (simple/expert).");
-		def_combobox.full_width = false; //true doesn't set the space for the search arrow (and add a line before for it but it fails).
-		def_combobox.width = 64;
-		//get all available configs
-		std::vector<std::string> enum_values;
-		for (const AppConfig::LayoutEntry& layout : get_app_config()->get_ui_layouts()) {
-			enum_values.push_back(layout.name+": "+layout.description);
-		}
-		def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_values);
-		def_combobox.gui_flags = "show_value";
-
-		AppConfig::LayoutEntry selected = get_app_config()->get_ui_layout();
-		def_combobox.set_default_value(new ConfigOptionStrings{ selected.name+": "+ selected.description });
-		Option option = Option(def_combobox, "ui_layout");
-		m_tabid_2_optgroups.back().back()->append_single_option_line(option);
-		m_values_need_restart.push_back("ui_layout");
-		m_optkey_to_optgroup["ui_layout"] = m_tabid_2_optgroups.back().back();
-		wxGetApp().sidebar().get_searcher().add_key("ui_layout", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
-		activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
-	}
-
-    m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Splash screen"), tabs, 2));
-
-    // Show/Hide splash screen
-	append_bool_option(m_tabid_2_optgroups.back().back(), "show_splash_screen",
-		L("Show splash screen"),
-		L("Show splash screen"),
-		app_config->get_bool("show_splash_screen"));
-
-    // splashscreen image
-    {
-
-        ConfigOptionDef def_combobox;
-		def_combobox.opt_key = is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer";
-        def_combobox.label = L("Splash screen image");
-        def_combobox.type = coString;
-        def_combobox.tooltip = L("Choose the image to use as splashscreen");
-		std::vector<std::pair<std::string,std::string>> enum_key_values = {
-			{"default", L("Default")}, 
-			{"icon", L("Icon")}, 
-			{"random", L("Random")}
-			};
-        //get all images in the spashscreen dir
-        for (const boost::filesystem::directory_entry& dir_entry : boost::filesystem::directory_iterator(boost::filesystem::path(Slic3r::resources_dir()) / "splashscreen")) {
-            if (dir_entry.path().has_extension() && std::set<std::string>{ ".jpg", ".JPG", ".jpeg" }.count(dir_entry.path().extension().string()) > 0) {
-                enum_key_values.push_back({dir_entry.path().filename().string(), dir_entry.path().stem().string()});
+        //create layout options
+        assert(m_tabid_2_optgroups.size() - 1 == 2);
+        create_settings_mode_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
+        //create ui_layout check
+        {
+            m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Settings layout and colors"), tabs, 2));
+            m_tabid_2_optgroups.back().back()->title_width = 0;
+            m_tabid_2_optgroups.back().back()->label_width = 0;
+            ConfigOptionDef def_combobox;
+            def_combobox.label = "_";
+            def_combobox.type = coString;
+            def_combobox.tooltip = L("Choose the gui package to use. It controls colors, settings layout, quick settings, tags (simple/expert).");
+            def_combobox.full_width = false; //true doesn't set the space for the search arrow (and add a line before for it but it fails).
+            def_combobox.width = 64;
+            //get all available configs
+            std::vector<std::string> enum_values;
+            for (const AppConfig::LayoutEntry& layout : get_app_config()->get_ui_layouts()) {
+                enum_values.push_back(layout.name+": "+layout.description);
             }
+            def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_values);
+            def_combobox.gui_flags = "show_value";
+
+            AppConfig::LayoutEntry selected = get_app_config()->get_ui_layout();
+            def_combobox.set_default_value(new ConfigOptionStrings{ selected.name+": "+ selected.description });
+            Option option = Option(def_combobox, "ui_layout");
+            m_tabid_2_optgroups.back().back()->append_single_option_line(option);
+            m_values_need_restart.push_back("ui_layout");
+            m_optkey_to_optgroup["ui_layout"] = m_tabid_2_optgroups.back().back();
+            wxGetApp().sidebar().get_searcher().add_key("ui_layout", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
+            activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
         }
-        def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_key_values);
-		assert(def_combobox.enum_def->is_valid_open_enum());
-        std::string current_file_name = app_config->get(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
-        if (std::find(def_combobox.enum_def->values().begin(), def_combobox.enum_def->values().end(), current_file_name) == def_combobox.enum_def->values().end()) {
-			assert(false);
-            current_file_name = def_combobox.enum_def->values()[0];
-			app_config->set(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", current_file_name);
+
+        m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Splash screen"), tabs, 2));
+
+        // Show/Hide splash screen
+        append_bool_option(m_tabid_2_optgroups.back().back(), "show_splash_screen",
+            L("Show splash screen"),
+            L("Show splash screen"),
+            app_config->get_bool("show_splash_screen"));
+
+        // splashscreen image
+        {
+
+            ConfigOptionDef def_combobox;
+            def_combobox.opt_key = is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer";
+            def_combobox.label = L("Splash screen image");
+            def_combobox.type = coString;
+            def_combobox.tooltip = L("Choose the image to use as splashscreen");
+            std::vector<std::pair<std::string,std::string>> enum_key_values = {
+                {"default", L("Default")}, 
+                {"icon", L("Icon")}, 
+                {"random", L("Random")}
+                };
+            //get all images in the spashscreen dir
+            for (const boost::filesystem::directory_entry& dir_entry : boost::filesystem::directory_iterator(boost::filesystem::path(Slic3r::resources_dir()) / "splashscreen")) {
+                if (dir_entry.path().has_extension() && std::set<std::string>{ ".jpg", ".JPG", ".jpeg" }.count(dir_entry.path().extension().string()) > 0) {
+                    enum_key_values.push_back({dir_entry.path().filename().string(), dir_entry.path().stem().string()});
+                }
+            }
+            def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_key_values);
+            assert(def_combobox.enum_def->is_valid_open_enum());
+            std::string current_file_name = app_config->get(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
+            if (std::find(def_combobox.enum_def->values().begin(), def_combobox.enum_def->values().end(), current_file_name) == def_combobox.enum_def->values().end()) {
+                assert(false);
+                current_file_name = def_combobox.enum_def->values()[0];
+                app_config->set(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", current_file_name);
+            }
+            def_combobox.set_default_value(new ConfigOptionString{ current_file_name });
+            Option option = Option(def_combobox, is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
+            m_tabid_2_optgroups.back().back()->append_single_option_line(option);
+            m_optkey_to_optgroup[is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer"] = m_tabid_2_optgroups.back().back();
+            wxGetApp().sidebar().get_searcher().add_key(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
         }
-        def_combobox.set_default_value(new ConfigOptionString{ current_file_name });
-        Option option = Option(def_combobox, is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
-        m_tabid_2_optgroups.back().back()->append_single_option_line(option);
-		m_optkey_to_optgroup[is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer"] = m_tabid_2_optgroups.back().back();
-		wxGetApp().sidebar().get_searcher().add_key(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
-    }
-	
-	append_bool_option(m_tabid_2_optgroups.back().back(), "restore_win_position",
-		L("Restore window position on start"),
-		L("If enabled, Slic3r will be open at the position it was closed"),
-		app_config->get_bool("restore_win_position"));
+    
+        append_bool_option(m_tabid_2_optgroups.back().back(), "restore_win_position",
+            L("Restore window position on start"),
+            L("If enabled, Slic3r will be open at the position it was closed"),
+            app_config->get_bool("restore_win_position"));
 
 #ifdef WIN32
-    // Clear Undo / Redo stack on new project
-	append_bool_option(m_tabid_2_optgroups.back().back(), "check_blacklisted_library",
-		L("Check for problematic dynamic libraries"),
-		L("Some software like (for example) ASUS Sonic Studio injects a DLL (library) that is known to create some instabilities."
-        " This option let Slic3r check at startup if they are loaded."),
-		app_config->get_bool("check_blacklisted_library"));
+        // Clear Undo / Redo stack on new project
+        append_bool_option(m_tabid_2_optgroups.back().back(), "check_blacklisted_library",
+            L("Check for problematic dynamic libraries"),
+            L("Some software like (for example) ASUS Sonic Studio injects a DLL (library) that is known to create some instabilities."
+            " This option let Slic3r check at startup if they are loaded."),
+            app_config->get_bool("check_blacklisted_library"));
 #endif
 
-    activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
+        activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
 
 #if ENABLE_ENVIRONMENT_MAP
-		// Add "Render" tab
-		create_options_tab(L("Render"));
-		m_tabid_2_optgroups.back().emplace_back(create_options_group("", tabs, 1));
-		m_tabid_2_optgroups.back().back()->set_config_category_and_type(L("Render"), int(Preset::TYPE_PREFERENCES));
-		m_tabid_2_optgroups.back().back()->m_on_change = [this](t_config_option_key opt_key, bool enabled, boost::any value) {
+        // Add "Render" tab
+        create_options_tab(L("Render"));
+        m_tabid_2_optgroups.back().emplace_back(create_options_group("", tabs, 1));
+        m_tabid_2_optgroups.back().back()->set_config_category_and_type(L("Render"), int(Preset::TYPE_PREFERENCES));
+        m_tabid_2_optgroups.back().back()->m_on_change = [this](t_config_option_key opt_key, bool enabled, boost::any value) {
             assert(enabled);
-			if (auto it = m_values.find(opt_key); it != m_values.end()) {
-				m_values.erase(it); // we shouldn't change value, if some of those parameters were selected, and then deselected
-				return;
-			}
-			m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
-		};
+            if (auto it = m_values.find(opt_key); it != m_values.end()) {
+                m_values.erase(it); // we shouldn't change value, if some of those parameters were selected, and then deselected
+                return;
+            }
+            m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
+        };
 
-		append_bool_option(m_tabid_2_optgroups.back().back(), "use_environment_map",
-			L("Use environment map"),
-			L("If enabled, renders object using the environment map."),
-			app_config->get_bool("use_environment_map"));
+        append_bool_option(m_tabid_2_optgroups.back().back(), "use_environment_map",
+            L("Use environment map"),
+            L("If enabled, renders object using the environment map."),
+            app_config->get_bool("use_environment_map"));
 
-		activate_options_tab(m_tabid_2_optgroups.back().back());
+        activate_options_tab(m_tabid_2_optgroups.back().back());
 #endif // ENABLE_ENVIRONMENT_MAP
-	}
+    }
 
-	// Add "Colors" tab
-	create_options_tab(_L("Colors"));
+    // Add "Colors" tab
+    create_options_tab(_L("Colors"));
 #ifdef _WIN32
-	// Add "Dark Mode" group
+    // Add "Dark Mode" group
     {
         // Add "Dark Mode" group
         m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Dark mode (experimental)"), tabs, 3));
@@ -1222,25 +1235,19 @@ void PreferencesDialog::accept(wxEvent&)
 	if (m_values.find("always_dark_color_mode") != m_values.end())
 		wxGetApp().force_sys_colors_update();
 #endif
-	auto it_auto_switch_preview = m_values.find("auto_switch_preview");
-	if (it_auto_switch_preview != m_values.end()) {
-		assert(def_combobox_auto_switch_preview.enum_def);
-		std::vector<std::string> values = def_combobox_auto_switch_preview.enum_def->values();
-		for(size_t i=0; i< values.size(); i++)
-		if (values[i] == it_auto_switch_preview->second)
-			it_auto_switch_preview->second = std::to_string(i);
-	}
 
 	auto it_background_processing = m_values.find("background_processing");
-	if (it_background_processing != m_values.end() && it_background_processing->second == "1") {
-		bool warning = app_config->get("auto_switch_preview") != "0";
+    if (it_background_processing != m_values.end() && it_background_processing->second == "1" &&
+        app_config->get("background_processing") != it_background_processing->second) {
+		bool warning = app_config->get("auto_switch_preview") != "never";
+		auto it_auto_switch_preview = m_values.find("auto_switch_preview");
 		if (it_auto_switch_preview != m_values.end())
-			warning = it_auto_switch_preview->second == "1";
+			warning = it_auto_switch_preview->second != "never";
 		if(warning) {
 			wxMessageDialog dialog(nullptr, "Using background processing with automatic tab switching may be combersome"
 				", are-you sure to keep the automatic tab switching?", _L("Are you sure?"), wxOK | wxCANCEL | wxICON_QUESTION);
 			if (dialog.ShowModal() == wxID_CANCEL)
-				m_values["auto_switch_preview"] = "0";
+				m_values["auto_switch_preview"] = "never";
 		}
 	}
 
@@ -1302,10 +1309,10 @@ void PreferencesDialog::revert(wxEvent&)
 			m_optkey_to_optgroup[key]->set_value(key, app_config->get(key) == "none", true, false);
 			continue;
 		}
-		if (key == "notify_release") {
-			m_optkey_to_optgroup[key]->set_value(key, s_keys_map_NotifyReleaseMode.at(app_config->get(key)), true, false);
-			continue;
-		}
+		//if (key == "notify_release") {
+		//	m_optkey_to_optgroup[key]->set_value(key, s_keys_map_NotifyReleaseMode.at(app_config->get(key)), true, false);
+		//	continue;
+		//}
 		if (key == "old_settings_layout_mode") {
 			m_rb_old_settings_layout_mode->SetValue(app_config->get_bool(key));
 			m_settings_layout_changed = false;
@@ -1340,8 +1347,19 @@ void PreferencesDialog::revert(wxEvent&)
 			field->set_any_value(ConfigOptionString(val).get_any(), false);
 			continue;
 		}
+        if (field->m_opt.type == coStrings) {
+			assert(false);
+			continue;
+		}
         if (field->m_opt.type == coInt) {
 			field->set_any_value(ConfigOptionInt(app_config->get_int(key)).get_any(), false);
+			continue;
+		}
+        if (field->m_opt.type == coEnum) {
+			assert(field->m_opt.enum_def);
+			std::optional<int> idx = field->m_opt.enum_def->value_to_index(app_config->get(key));
+			assert(idx.has_value());
+			field->set_any_value(int32_t(*idx), false);
 			continue;
 		}
 		assert(false);

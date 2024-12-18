@@ -496,8 +496,12 @@ get_coeff_from_angle_countour(Point& point, const ExPolygon& contour, coord_t mi
         }
     }
     //compute angle
+#if _DEBUG
     assert(is_approx(abs_angle(angle_ccw(point_before - point_nearest, point_after - point_nearest)), ccw_angle_old_test(point_nearest, point_before, point_after), 0.000000001));
-    angle = angle_ccw(point_before - point_nearest, point_after - point_nearest);//point_nearest.ccw_angle(point_before, point_after);if (angle >= PI) angle = 2 * PI - angle;
+#endif
+    angle = angle_ccw(point_before - point_nearest, \
+                   point_after - point_nearest); // point_nearest.ccw_angle(point_before, point_after);if (angle >=
+                                                 // PI) angle = 2 * PI - angle;
     assert(angle < PI);
     //compute the diff from 90°
     angle = abs(angle - PI / 2);
@@ -730,8 +734,14 @@ MedialAxis::fusion_corners(ThickPolylines& pp)
         if (crosspoint.size() != 2) continue;
 
         // check if i am at the external side of a curve
+#if _DEBUG
         assert(is_approx(abs_angle(angle_ccw(polyline.points[1] - polyline.points[0], pp[crosspoint[0]].points[1] - polyline.points[0])), ccw_angle_old_test(polyline.points[0], polyline.points[1], pp[crosspoint[0]].points[1]), 0.000000001));
-        double angle1 = angle_ccw(polyline.points[1] - polyline.points[0], pp[crosspoint[0]].points[1] - polyline.points[0]);//polyline.points[0].ccw_angle(polyline.points[1], pp[crosspoint[0]].points[1]); if (angle1 >= PI) angle1 = 2 * PI - angle1;
+#endif
+        double angle1 = \
+    angle_ccw(polyline.points[1] - polyline.points[0], \
+              pp[crosspoint[0]].points[1] - \
+                  polyline.points[0]); // polyline.points[0].ccw_angle(polyline.points[1],
+                                       // pp[crosspoint[0]].points[1]); if (angle1 >= PI) angle1 = 2 * PI - angle1;
         assert(angle1 <= PI);
         double angle2 = angle_ccw(polyline.points[1] - polyline.points[0], pp[crosspoint[1]].points[1] - polyline.points[0]); // polyline.points[0].ccw_angle(polyline.points[1], pp[crosspoint[1]].points[1]); if (angle2 >= PI) angle2 = 2 * PI - angle2;
         assert(angle2 <= PI);

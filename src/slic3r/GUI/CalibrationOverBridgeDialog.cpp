@@ -13,6 +13,7 @@
 #include <wx/display.h>
 #include <wx/file.h>
 #include "wxExtensions.hpp"
+#include "Jobs/ArrangeJob2.hpp"
 
 #if ENABLE_SCROLLABLE
 static wxSize get_screen_size(wxWindow* window)
@@ -57,6 +58,9 @@ void CalibrationOverBridgeDialog::create_geometry2(wxCommandEvent& event_args) {
     create_geometry(false);
 }
 void CalibrationOverBridgeDialog::create_geometry(bool over_bridge) {
+    // wait for slicing end if needed
+    wxGetApp().Yield();
+
     Plater* plat = this->main_frame->plater();
     Model& model = plat->model();
     gui_app->app_config->set("autocenter", "1");
@@ -170,12 +174,9 @@ void CalibrationOverBridgeDialog::create_geometry(bool over_bridge) {
         //update print config (done at reslice but we need it here)
         if (plat->printer_technology() == ptFFF)
             plat->active_fff_print().apply(plat->model(), *plat->config());
-        plat->arrange();
-        // std::shared_ptr<ProgressIndicatorStub> fake_statusbar = std::make_shared<ProgressIndicatorStub>();
-        // ArrangeJob arranger(std::dynamic_pointer_cast<ProgressIndicator>(fake_statusbar), plat);
-        // arranger.prepare_all();
-        // arranger.process();
-        // arranger.finalize();
+        Worker &ui_job_worker = plat->get_ui_job_worker();
+        plat->arrange(ui_job_worker, ArrangeSelectionMode::CurrentBedFull);
+        ui_job_worker.wait_for_current_job(20000);
     }
 
     plat->reslice();

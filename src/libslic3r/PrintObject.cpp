@@ -1599,7 +1599,6 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "seam_notch_outer"
                 || opt_key == "seam_travel_cost"
                 || opt_key == "seam_visibility"
-                || opt_key == "small_area_infill_flow_compensation"
                 || opt_key == "small_area_infill_flow_compensation_model"
                 || opt_key == "small_perimeter_speed"
                 || opt_key == "small_perimeter_min_length"

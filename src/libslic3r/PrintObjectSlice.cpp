@@ -679,7 +679,9 @@ void only_convex_or_gt90deg(Polygon &poly) {
                 // then get the distance to move in the big side
                 Point previous_point = ccw? (idx == 0 ? poly.back() : poly[idx - 1]) : (idx == poly.size() - 1 ? poly.front() : poly[idx + 1]);
                 Point next_point = ccw? (idx == poly.size() - 1 ? poly.front() : poly[idx + 1]) : (idx == 0 ? poly.back() : poly[idx - 1]);
+#if _DEBUG
                 assert(is_approx(ccw_angle_old_test(poly[idx], previous_point, next_point), abs_angle(angle_ccw(previous_point - poly[idx], next_point - poly[idx])), 0.00000001));
+#endif
                 double angle = abs_angle(angle_ccw(previous_point - poly[idx], next_point - poly[idx]));
                 if (angle < PI / 2 + 0.001 && angle > PI / 2) {
                     angle = PI / 2;
@@ -1201,23 +1203,30 @@ ExPolygons PrintObject::_shrink_contour_holes(double contour_delta, double not_c
             //note: we allow a deviation of 5.7° (0.01rad = 0.57°)
             bool ok = true;
             //ok = (hole.points.front().ccw_angle(hole.points.back(), *(hole.points.begin() + 1)) <= PI + 0.1);
+#if _DEBUG
             assert(is_approx(ccw_angle_old_test(hole.points.front(), hole.points.back(), *(hole.points.begin() + 1)), 
                 abs_angle(angle_ccw( hole.points.back() - hole.points.front(),*(hole.points.begin() + 1) - hole.points.front())), 0.000000001));
+#endif
             ok = (abs_angle(angle_ccw( hole.points.back() - hole.points.front(),*(hole.points.begin() + 1) - hole.points.front())) <= PI + 0.1);
             // check whether points 1..(n-1) form convex angles
             if (ok)
                 for (Points::const_iterator p = hole.points.begin() + 1; p != hole.points.end() - 1; ++p) {
                     //ok = (p->ccw_angle(*(p - 1), *(p + 1)) <= PI + 0.1);
+#if _DEBUG
                     assert(is_approx(ccw_angle_old_test(*p, *(p - 1), *(p + 1)), abs_angle(angle_ccw((*(p - 1)) - *p, (*(p + 1)) - *p)), 0.000000001));
+#endif
                     ok = (abs_angle(angle_ccw((*(p - 1)) - *p, (*(p + 1)) - *p)) <= PI + 0.1);
                     if (!ok) break;
                 }
 
             // check whether last point forms a convex angle
             //ok &= (hole.points.back().ccw_angle(*(hole.points.end() - 2), hole.points.front()) <= PI + 0.1);
+#if _DEBUG
             assert(is_approx(ccw_angle_old_test(hole.points.back(), *(hole.points.end() - 2), hole.points.front()),
                 abs_angle(angle_ccw(*(hole.points.end() - 2) - hole.points.back(), hole.points.front() - hole.points.back())), 0.000000001));
-            ok &= (abs_angle(angle_ccw(*(hole.points.end() - 2) - hole.points.back(), hole.points.front() - hole.points.back())) <= PI + 0.1);
+#endif
+            ok &= (abs_angle(angle_ccw(*(hole.points.end() - 2) - hole.points.back(), \
+                            hole.points.front() - hole.points.back())) <= PI + 0.1);
 
             if (ok && not_convex_delta != convex_delta) {
                 if (convex_delta != 0) {
@@ -1287,16 +1296,20 @@ Polygon _smooth_curve(Polygon& p, double max_angle, double min_angle_convex, dou
         pout.points.push_back(p[idx]);
         //get angles
         //double angle1 = p[idx].ccw_angle(p.points[idx - 1], p.points[idx + 1]);
+#if _DEBUG
         assert(is_approx(ccw_angle_old_test(p[idx], p.points[idx - 1], p.points[idx + 1]), abs_angle(angle_ccw( p.points[idx - 1] - p[idx],p.points[idx + 1] - p[idx])),EPSILON));
-        double angle1 = abs_angle(angle_ccw( p.points[idx - 1] - p[idx],p.points[idx + 1] - p[idx]));
+#endif
+        double angle1 = abs_angle(angle_ccw(p.points[idx - 1] - p[idx], p.points[idx + 1] - p[idx]));
         bool angle1_concave = true;
         if (angle1 > PI) {
             angle1 = 2 * PI - angle1;
             angle1_concave = false;
         }
         //double angle2 = p[idx + 1].ccw_angle(p.points[idx], p.points[idx + 2]);
+#if _DEBUG
         assert(is_approx(ccw_angle_old_test(p[idx + 1], p.points[idx], p.points[idx + 2]), abs_angle(angle_ccw( p.points[idx] - p[idx + 1],p.points[idx + 2] - p[idx + 1])),EPSILON));
-        double angle2 = abs_angle(angle_ccw( p.points[idx] - p[idx + 1],p.points[idx + 2] - p[idx + 1]));
+#endif
+        double angle2 = abs_angle(angle_ccw(p.points[idx] - p[idx + 1], p.points[idx + 2] - p[idx + 1]));
         bool angle2_concave = true;
         if (angle2 > PI) {
             angle2 = 2 * PI - angle2;

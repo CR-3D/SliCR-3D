@@ -189,7 +189,7 @@ struct SurfaceFillParams : FillParams
             RETURN_COMPARE_NON_EQUAL(config->gap_fill_speed);
             RETURN_COMPARE_NON_EQUAL(config->print_extrusion_multiplier);
             RETURN_COMPARE_NON_EQUAL(config->region_gcode.value)
-            RETURN_COMPARE_NON_EQUAL(config->small_area_infill_flow_compensation.value)
+            RETURN_COMPARE_NON_EQUAL(config->small_area_infill_flow_compensation_model.is_enabled())
             RETURN_COMPARE_NON_EQUAL(config->small_area_infill_flow_compensation_model.value);
             if (this->pattern == ipConcentric || rhs.pattern == ipConcentric) {
                 // arachne if concentric
@@ -230,7 +230,7 @@ struct SurfaceFillParams : FillParams
             || config->gap_fill_speed != rhs.config->gap_fill_speed
             || config->print_extrusion_multiplier != rhs.config->print_extrusion_multiplier
             || config->region_gcode != rhs.config->region_gcode
-            || config->small_area_infill_flow_compensation != rhs.config->small_area_infill_flow_compensation
+            || config->small_area_infill_flow_compensation_model.is_enabled() != rhs.config->small_area_infill_flow_compensation_model.is_enabled()
             || config->small_area_infill_flow_compensation_model != rhs.config->small_area_infill_flow_compensation_model
             ))
             return false;

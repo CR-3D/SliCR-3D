@@ -368,7 +368,7 @@ double GraphData::interpolate(double x_value) const{
     } else if (this->graph_points.size() == 1 || this->graph_points[begin_idx].x() >= x_value) {
         y_value = this->graph_points.front().y();
     } else if (this->graph_points[end_idx - 1].x() <= x_value) {
-        y_value = this->graph_points.back().y();
+        y_value = this->graph_points[end_idx - 1].y();
     } else {
         // find first and second datapoint
         for (size_t idx = this->begin_idx; idx < this->end_idx; ++idx) {

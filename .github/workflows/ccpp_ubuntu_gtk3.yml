@@ -9,10 +9,8 @@ on:
       - debug_ubuntu
 
 jobs:
-  build:
-
+  build_dep:
     runs-on: ubuntu-20.04
-
     steps:
     - uses: actions/checkout@v3
     - name: Setup cmake
@@ -32,12 +30,51 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ubu_gtk3_2.7
+#        key: ubu_gtk3_relwithdeb_2.7
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -d
+      run: ./BuildLinux.sh -dr -g 3
+#      run: ./BuildLinux.sh -dr -b release -g 3
+      
+  build:
+    runs-on: ubuntu-20.04
+    needs: build_dep
+    steps:
+    - uses: actions/checkout@v3
+    - name: check disk space
+      run: df -h
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v1.13
+      with:
+        cmake-version: '3.16.x'
+    - name: update clock
+      run: sudo hwclock -s
+    - name: update apt
+      run: sudo apt update
+    - name: install gtk3
+      run: sudo apt install libgtk-3-dev
+    - name: install libs
+      run: sudo ./BuildLinux.sh -u
+    - name: check disk space
+      run: df -h
+    - name: clean as much as possible
+      run: |
+        sudo apt clean
+        sudo rm -rf /var/lib/apt/lists/*
+    - name: check disk space
+      run: df -h
+    - name: dep cache
+      id: cache-action
+      uses: actions/cache@v3
+      with:
+        key: ubu_gtk3_relwithdeb_2.7
+        path: deps/build/destdir
+    - name: check disk space
+      run: df -h
     - name: slicer, tar & appimage
-      run: ./BuildLinux.sh -siv
+      run: ./BuildLinux.sh -siv -g 3
+#      run: ./BuildLinux.sh -siv -b release -g 3
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

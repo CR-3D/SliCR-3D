@@ -13,6 +13,7 @@
 #include <wx/display.h>
 #include <wx/file.h>
 #include "wxExtensions.hpp"
+#include "Jobs/ArrangeJob2.hpp"
 
 #if ENABLE_SCROLLABLE
 static wxSize get_screen_size(wxWindow* window)
@@ -128,6 +129,8 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
 
     if (!plat->new_project(L("Retraction calibration")))
         return;
+    // wait for slicing end if needed
+    wxGetApp().Yield();
 
     long nb_retract = 1;
     if (!nb_steps->GetValue().ToLong(&nb_retract)) {
@@ -285,6 +288,22 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     
     //plat->reslice();
 
+    // arrange if needed, after new settings, to take them into account
+    if (has_to_arrange) {
+        //update print config (done at reslice but we need it here)
+        if (plat->printer_technology() == ptFFF)
+            plat->active_fff_print().apply(plat->model(), *plat->config());
+        Worker &ui_job_worker = plat->get_ui_job_worker();
+        plat->arrange(ui_job_worker, ArrangeSelectionMode::CurrentBedFull);
+        ui_job_worker.wait_for_current_job(20000);
+    }
+
+    plat->reslice();
+
+    if (autocenter) {
+        //re-enable auto-center after this calibration.
+        gui_app->app_config->set("autocenter", "1");
+    }
 }
 
 } // namespace GUI

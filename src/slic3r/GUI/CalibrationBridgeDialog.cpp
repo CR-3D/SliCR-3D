@@ -13,6 +13,7 @@
 #include <wx/display.h>
 #include <wx/file.h>
 #include "wxExtensions.hpp"
+#include "Jobs/ArrangeJob2.hpp"
 
 #if ENABLE_SCROLLABLE
 static wxSize get_screen_size(wxWindow* window)
@@ -67,6 +68,8 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     Model& model = plat->model();
     if (!plat->new_project(L("Bridge calibration")))
         return;
+    // wait for slicing end if needed
+    wxGetApp().Yield();
 
     long step = 10;
     if (!steps->GetValue().ToLong(&step)) {
@@ -197,22 +200,10 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     if (has_to_arrange) {
         //update print config (done at reslice but we need it here)
         if (plat->printer_technology() == ptFFF)
-           plat->active_fff_print().apply(plat->model(), *plat->config());
-        plat->arrange();
-        //std::shared_ptr<ProgressIndicatorStub> fake_statusbar = std::make_shared<ProgressIndicatorStub>();
-        //arr2::Scene arrscene{build_scene(*plat, ArrangeSelectionMode::Full)};
-        //ArrangeJob2::Callbacks cbs;
-        //ArrangeJob2 arranger(std::move(arrscene), cbs);
-        //auto m_task = arr2::ArrangeTask<arr2::ArrangeItem>::create(arrscene);
-        //int count = m_task->item_count_to_process();
-        //if (count > 0) {
-        //    m_result = m_task->process_native(taskctl);
-        //    arranger.process();
-        //    ArrangeJob arranger(std::dynamic_pointer_cast<ProgressIndicator>(fake_statusbar), plat);
-        //    arranger.prepare_all();
-        //    arranger.process();
-        //    arranger.finalize();
-        //}
+            plat->active_fff_print().apply(plat->model(), *plat->config());
+        Worker &ui_job_worker = plat->get_ui_job_worker();
+        plat->arrange(ui_job_worker, ArrangeSelectionMode::CurrentBedFull);
+        ui_job_worker.wait_for_current_job(20000);
     }
 
     plat->reslice();

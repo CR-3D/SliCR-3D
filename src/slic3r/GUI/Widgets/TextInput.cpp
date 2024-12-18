@@ -210,7 +210,10 @@ void TextInput::SetMinSize(const wxSize& size)
 #ifdef __WXMAC__
         if (GetPeer()) // peer is not ready in Create on mac
 #endif
-        size2.y = GetSize().y;
+#ifdef __WXMSW__
+        if (GetHandle()) // is the window created yet?
+#endif
+            size2.y = GetSize().y;
     }
     wxWindow::SetMinSize(size2);
 }

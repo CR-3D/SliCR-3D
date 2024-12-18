@@ -11,6 +11,7 @@
 #include <wx/display.h>
 #include <wx/file.h>
 #include "wxExtensions.hpp"
+#include "Jobs/ArrangeJob2.hpp"
 
 #if ENABLE_SCROLLABLE
 static wxSize get_screen_size(wxWindow* window)
@@ -66,6 +67,8 @@ void CalibrationCubeDialog::create_geometry(std::string calibration_path) {
 
     if (!plat->new_project(L("Calibration cube")))
         return;
+    // wait for slicing end if needed
+    wxGetApp().Yield();
 
     //GLCanvas3D::set_warning_freeze(true);
     std::vector<size_t> objs_idx = plat->load_files(std::vector<std::string>{

@@ -882,11 +882,11 @@ Path fit_path(const Points &src_in, double tolerance, double fit_circle_percent_
         }
         prev = &seg;
     }
-#endif
     for (size_t i = 1; i < out.size(); i++) {
         if(out[i].radius)
             assert(is_approx(segment_length<coordf_t>(out[i-1], out[i]), out[i].length, EPSILON));
     }
+#endif
     return out;
 }
 

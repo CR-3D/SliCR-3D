@@ -49,6 +49,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/CalibrationCubeDialog.hpp
     GUI/CalibrationFlowDialog.cpp
     GUI/CalibrationFlowDialog.hpp
+    GUI/CalibrationFlowSpeedDialog.cpp
+    GUI/CalibrationFlowSpeedDialog.hpp
     GUI/CalibrationCr3dDialog.cpp
     GUI/CalibrationCr3dDialog.hpp
     GUI/CR3DWebView.cpp
@@ -363,6 +365,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Widgets/ComboBox.hpp
     GUI/Widgets/DropDown.cpp
     GUI/Widgets/DropDown.hpp
+    GUI/Widgets/GraphBitmapButton.cpp
+    GUI/Widgets/GraphBitmapButton.hpp
     GUI/Widgets/StateColor.cpp
     GUI/Widgets/StateColor.hpp
     GUI/Widgets/StateHandler.cpp

@@ -25,6 +25,8 @@ private:
     wxSpinCtrlDouble *m_widget_max_x = nullptr;
     wxSpinCtrlDouble *m_widget_min_y = nullptr;
     wxSpinCtrlDouble *m_widget_max_y = nullptr;
+    wxSpinCtrlDouble *m_widget_x     = nullptr;
+    wxSpinCtrlDouble *m_widget_y     = nullptr;
     double            m_last_min_x   = 0.f;
     double            m_last_max_x   = 1.f;
     double            m_last_min_y   = 0.f;
