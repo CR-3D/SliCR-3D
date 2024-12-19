@@ -648,10 +648,11 @@ void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, co
     else if (bottom)
         render_contour(view_matrix, projection_matrix);
 
-    if (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1) {
-        render_default(bottom, false, show_texture, view_matrix, projection_matrix);
-        return;
-    }
+    // m_models_overlap shouldn't be always true
+    //if (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1) {
+    //    render_default(bottom, false, show_texture, view_matrix, projection_matrix);
+    //    return;
+    //}
 }
 
 void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active)
@@ -847,7 +848,9 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
 void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking, bool is_active)
 {
     if ((m_texture_filename.empty() && m_model_filename.empty())
-     || (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1)) {
+    // m_models_overlap shouldn't be always true
+    // || (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1)
+        ) {
         render_default(bottom, picking, show_texture, view_matrix, projection_matrix);
         return;
     }

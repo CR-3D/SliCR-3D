@@ -757,7 +757,8 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
 
-    if (!m_config.bed_exclude_area.empty()) {
+    // as for GLCAnvas3D, use a cache.
+    if (!m_config.bed_exclude_area.empty() && false) {
         std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
         std::vector<std::vector<Vec2d>> exclude_areas;
 

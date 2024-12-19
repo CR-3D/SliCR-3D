@@ -1800,24 +1800,28 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
               poly.make_counter_clockwise();
            }
            
-           for (const ModelObject* model_object : m_model->objects) {
-               for (const ModelInstance* instance : model_object->instances) {
-                  for (const ModelVolume* v : instance->get_object()->volumes) {
-                     Polygons vol_outline;
-                     auto transl = Transform3d::Identity();
-                     vol_outline = project_mesh(v->mesh().its, transl * instance->get_matrix() * v->get_matrix(), [] {});
-                     append(contours, vol_outline);
-                     
-                     if (!contours.empty()) {
-                        for (Polygon& contour : contours) {
-                            contour.make_counter_clockwise();
-                        }
-                        
-                        volume->is_excluded = !intersection(exclude_polys, contours).empty();
-                     }
-                  }
-              }
-           }
+           // this is called 60 times per seconds. only do very very quick checks & changes.
+           // 'project_mesh' needs to be done in a separate thread, and the result in a cache (a synched variable)
+           // vol_outline needs to be stored in its simplified form.
+           // un-translate (x&y) the vol_outline, so you can still use the cached vol_outline if only the translation changed.
+           //for (const ModelObject* model_object : m_model->objects) {
+           //    for (const ModelInstance* instance : model_object->instances) {
+           //       for (const ModelVolume* v : instance->get_object()->volumes) {
+           //          Polygons vol_outline;
+           //          auto transl = Transform3d::Identity();
+           //          vol_outline = project_mesh(v->mesh().its, transl * instance->get_matrix() * v->get_matrix(), [] {});
+           //          append(contours, vol_outline);
+           //          
+           //          if (!contours.empty()) {
+           //             for (Polygon& contour : contours) {
+           //                 contour.make_counter_clockwise();
+           //             }
+           //             
+           //             volume->is_excluded = !intersection(exclude_polys, contours).empty();
+           //          }
+           //       }
+           //   }
+           //}
            
             volume->is_outside = state != BuildVolume::ObjectState::Inside;
             if (volume->printable) {
