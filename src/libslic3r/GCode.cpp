@@ -591,10 +591,18 @@ namespace DoExport {
         const GCodeProcessorResult& result = processor.get_result();
         print_statistics.estimated_print_time.clear();
         print_statistics.estimated_print_time_str.clear();
+        print_statistics.estimated_normal_print_time.clear();
+
+
         print_statistics.estimated_print_time[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Normal)] =
             result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time;
+
         print_statistics.estimated_print_time_str[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Normal)] =
             get_time_dhms(result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time);
+
+        print_statistics.normal_print_time_seconds = result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time;
+        print_statistics.estimated_normal_print_time = get_time_dhms(print_statistics.normal_print_time_seconds);
+
         if(processor.is_stealth_time_estimator_enabled()){
             print_statistics.estimated_print_time[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Stealth)] =
                 result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Stealth)].time;

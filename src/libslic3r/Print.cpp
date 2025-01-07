@@ -2420,6 +2420,10 @@ DynamicConfig PrintStatistics::config() const
             this->estimated_print_time_str.at(static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Stealth)));
         config.set_key_value("silent_print_time", new ConfigOptionString(silent_print_time));
     }
+    
+    std::string normal_print_time = short_time(this->estimated_normal_print_time);
+    //std::string silent_print_time = short_time(this->estimated_silent_print_time);
+
     config.set_key_value("used_filament",             new ConfigOptionFloat(this->total_used_filament / 1000.));
     config.set_key_value("extruded_volume",           new ConfigOptionFloat(this->total_extruded_volume));
     config.set_key_value("total_cost",                new ConfigOptionFloat(this->total_cost));
