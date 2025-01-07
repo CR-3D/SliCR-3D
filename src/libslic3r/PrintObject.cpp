@@ -1646,6 +1646,12 @@ bool PrintObject::invalidate_state_by_config_options(
             invalidated = true;
         }
     }
+    // now that prepare infill do the infill for bridge (and adaptative frist step)
+    bool has_infill = false;
+    for (PrintObjectStep step : steps)
+        has_infill |= step == posInfill;
+    if (has_infill)
+        steps.emplace_back(posPrepareInfill);
 
     sort_remove_duplicates(steps);
     for (PrintObjectStep step : steps)

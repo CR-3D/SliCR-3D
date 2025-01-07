@@ -296,7 +296,7 @@ wxBitmap* BitmapCache::insert_raw_rgba(const std::string &bitmap_key, unsigned w
 }
 
 
-NSVGimage* BitmapCache::nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const std::map<std::string, std::string>& replaces)
+NSVGimage* BitmapCache::nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const Slic3r::ColorReplaces& replaces)
 {
     std::string str;
     FILE* fp = NULL;
@@ -315,12 +315,12 @@ NSVGimage* BitmapCache::nsvgParseFromFileWithReplace(const char* filename, const
     data[size] = '\0';	// Must be null terminated.
     fclose(fp);
 
-    if (replaces.empty())
+    if (replaces.changes.empty())
         image = nsvgParse(data, units, dpi);
     else {
         str.assign(data);
-        for (auto val : replaces)
-            boost::replace_all(str, val.first, val.second);
+        for (const auto &val : replaces.changes)
+            boost::replace_all(str, val.color_to_replace_str, val.new_color_str);
         image = nsvgParse(str.data(), units, dpi);
     }
     free(data);

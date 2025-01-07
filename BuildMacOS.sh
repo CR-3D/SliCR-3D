@@ -45,7 +45,7 @@ if [ $TARGET_OS == "macos" ]; then
         echo -e "$(tput setaf 2)macOS x86_64 found$(tput sgr0)\n"
         Processor="x86_64"
         BUILD_IMG_ARCH="-x"
-		echo "x86 BUILD_IMG_ARCH=${BUILD_IMG_ARCH}\n"
+        echo "x86 BUILD_IMG_ARCH=${BUILD_IMG_ARCH}\n"
     elif [[ $(uname -m) == "i386" || $(uname -m) == "i686" ]]; then
         echo "$(tput setaf 2)macOS i386 / i686 (arm?) found$(tput sgr0)\n"
         Processor="arm64"
@@ -340,6 +340,8 @@ then
     ls -al $ROOT
     echo "> ls ROOT/build"
     ls -al $ROOT/build
+    echo "> ls -al ROOT/build/bin"
+    ls -al $ROOT/build/bin
     echo "> ls -al ROOT/build/bin"
     ls -al $ROOT/build/bin
     echo "> ls -al ROOT/build/src"

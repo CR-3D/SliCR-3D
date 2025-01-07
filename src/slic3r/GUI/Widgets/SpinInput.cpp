@@ -107,7 +107,7 @@ bool SpinInputBase::SetBackgroundColour(const wxColour& colour)
 {
     const int clr_background_disabled = Slic3r::GUI::wxGetApp().dark_mode() ? Slic3r::GUI::Widget::clr_background_disabled_dark : Slic3r::GUI::Widget::clr_background_disabled_light;
     StateColor clr_state(std::make_pair(clr_background_disabled, (int)StateColor::Disabled),
-                         std::make_pair(Slic3r::GUI::Widget::clr_background_focused, (int)StateColor::Checked),
+                         std::make_pair(Slic3r::GUI::Widget::get_clr_background_focused(), (int)StateColor::Checked),
                          std::make_pair(colour, (int)StateColor::Focused),
                          std::make_pair(colour, (int)StateColor::Normal));
 

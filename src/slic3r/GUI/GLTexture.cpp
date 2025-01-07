@@ -3,6 +3,7 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "libslic3r/libslic3r.h"
+#include <libslic3r/AppConfig.hpp>
 #include "GLTexture.hpp"
 
 #include "3DScene.hpp"
@@ -163,8 +164,10 @@ bool GLTexture::load_from_svg_file(const std::string& filename, bool use_mipmaps
         return false;
 }
 
-bool GLTexture::load_from_svg_files_as_sprites_array(const std::vector<std::string>& filenames, const std::vector<std::pair<int, bool>>& states, unsigned int sprite_size_px, bool compress, uint32_t color)
-{
+bool GLTexture::load_from_svg_files_as_sprites_array(const std::vector<std::string> &filenames,
+                                                     const std::vector<std::pair<int, bool>> &states,
+                                                     unsigned int sprite_size_px,
+                                                     bool compress) {
     reset();
 
     if (filenames.empty() || states.empty() || sprite_size_px == 0)
@@ -207,22 +210,30 @@ bool GLTexture::load_from_svg_files_as_sprites_array(const std::vector<std::stri
 
         if (!boost::algorithm::iends_with(filename, ".svg"))
             continue;
-
-        NSVGimage* image = BitmapCache::nsvgParseFromFileWithReplace(filename.c_str(), "px", 96.0f, {});
+        
+        Slic3r::ColorReplaces replaces;
+        uint32_t color_int = Slic3r::GUI::wxGetApp().app_config->create_color(0.86f, 0.93f, AppConfig::EAppColorType::Platter);
+        replaces.add("#ED6B21", color_int);
+        replaces.add("#ed6b21", color_int);
+        replaces.add("#ED8D21", Slic3r::GUI::wxGetApp().app_config->create_color(0.5f, 0.93f, AppConfig::EAppColorType::Platter));
+        replaces.add("#2172eb", color_int);
+        // as the platter is quite dark, then this replacment is always active
+        replaces.add("#808080", "#FFFFFF");
+        NSVGimage* image = BitmapCache::nsvgParseFromFileWithReplace(filename.c_str(), "px", 96.0f, replaces);
         if (image == nullptr)
             continue;
 
-        //recolor
-        if (color < 0xFFFFFFFF) {
-            NSVGshape* shape = image->shapes;
-            while (shape != nullptr) {
-                if ((shape->fill.color & 0xFFFFFF) == 15430177 || (shape->fill.color & 0xFFFFFF) == 2223467)
-                    shape->fill.color = color | 0xFF000000;
-                if ((shape->stroke.color & 0xFFFFFF) == 15430177 || (shape->stroke.color & 0xFFFFFF) == 2223467)
-                    shape->stroke.color = color | 0xFF000000;
-                shape = shape->next;
-            }
-        }
+        //recolor (use colorreplace, it's more reliable
+        //if (color < 0xFFFFFFFF) {
+        //    NSVGshape* shape = image->shapes;
+        //    while (shape != nullptr) {
+        //        if ((shape->fill.color & 0xFFFFFF) == 15430177 || (shape->fill.color & 0xFFFFFF) == 2223467)
+        //            shape->fill.color = color | 0xFF000000;
+        //        if ((shape->stroke.color & 0xFFFFFF) == 15430177 || (shape->stroke.color & 0xFFFFFF) == 2223467)
+        //            shape->stroke.color = color | 0xFF000000;
+        //        shape = shape->next;
+        //    }
+        //}
 
         float scale = (float)sprite_size_px / std::max(image->width, image->height);
 

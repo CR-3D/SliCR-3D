@@ -29,27 +29,25 @@ namespace GUI {
 
 void CalibrationTempDialog::create_buttons(wxStdDialogButtonSizer* buttons) {
 
-    wxString choices_steps[] = {"5", "10", "15", "20"};
-    steps = new wxComboBox(this, wxID_ANY, wxString{"10"}, wxDefaultPosition, wxDefaultSize, 4, choices_steps);
-    steps->SetToolTip(
-        _L("Select the step in Celsius between two tests.\nNote that only multiples of 5 are engraved on the part."));
-    steps->SetSelection(1);
-    steps->SetForegroundColour(text_color);
-    steps->SetBackgroundColour(background_color);
+    const wxSize size(6 * em_unit(), wxDefaultCoord);
 
-    wxString choices_nb[] = {"0", "1", "2", "3", "4", "5", "6", "7"};
-    nb_down = new wxComboBox(this, wxID_ANY, wxString{"2"}, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    wxString choices_steps[] = { "5","10","15","20" };
+    //steps = new wxComboBox(this, wxID_ANY, wxString{ "10" }, wxDefaultPosition, wxDefaultSize, 4, choices_steps);
+    steps = new ComboBox(this, wxID_ANY, wxString{ "10" }, wxDefaultPosition, size, 4, choices_steps);
+    steps->SetToolTip(_L("Select the step in celcius between two tests.\nNote that only multiple of 5 are engraved on the part."));
+    steps->SetSelection(1);
+    wxString choices_nb[] = { "0","1","2","3","4","5","6","7" };
+    
+    //nb_down = new wxComboBox(this, wxID_ANY, wxString{ "2" }, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    nb_down = new ComboBox(this, wxID_ANY, wxString{ "2" }, wxDefaultPosition, size, 8, choices_nb);
     nb_down->SetToolTip(_L("Select the number of tests with lower temperature than the current one."));
     nb_down->SetSelection(2);
-    nb_down->SetForegroundColour(text_color);
-    nb_down->SetBackgroundColour(background_color);
-
-    nb_up = new wxComboBox(this, wxID_ANY, wxString{"2"}, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    
+    //nb_up = new wxComboBox(this, wxID_ANY, wxString{ "2" }, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    nb_up = new ComboBox(this, wxID_ANY, wxString{ "2" }, wxDefaultPosition, size, 8, choices_nb);
     nb_up->SetToolTip(_L("Select the number of tests with higher temperature than the current one."));
     nb_up->SetSelection(2);
-    nb_up->SetForegroundColour(text_color);
-    nb_up->SetBackgroundColour(background_color);
-
+    
     wxStaticText *labelNbDown = new wxStaticText(this, wxID_ANY, _L("Nb down:"));
     buttons->Add(labelNbDown);
     buttons->Add(nb_down);
@@ -86,8 +84,8 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
         return;
     // wait for slicing end if needed
     wxGetApp().Yield();
-
-    //GLCanvas3D::set_warning_freeze(true);
+    
+    std::unique_ptr<wxWindowUpdateLocker> freeze_gui = std::make_unique<wxWindowUpdateLocker>(this);
     std::vector<size_t> objs_idx = plat->load_files(std::vector<std::string>{
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / "Smart_compact_temperature_calibration_item.amf").string()}, true, true, false, false);
 
@@ -168,6 +166,9 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
         }
     }
 
+
+    /// --- translate ---
+
     /// --- main config, please modify object config when possible ---
     DynamicPrintConfig new_print_config = *print_config; //make a copy
     new_print_config.set_key_value("complete_objects", new ConfigOptionBool(false));
@@ -219,7 +220,7 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
     //update everything, easier to code.
     ObjectList* obj = this->gui_app->obj_list();
     obj->update_after_undo_redo();
-
+    freeze_gui.reset();
 
     plat->reslice();
     gui_app->app_config->set("autocenter", "0");

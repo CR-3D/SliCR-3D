@@ -97,7 +97,8 @@ void FillSizerWithTextColorDescriptions(wxSizer* sizer, wxWindow* parent,
 	wxFlexGridSizer* grid_sizer = new wxFlexGridSizer(3, 5, 5);
 	sizer->Add(grid_sizer, 0, wxEXPAND);
 
-	auto add_color = [grid_sizer, parent](wxColourPickerCtrl** color_picker, const wxColour& color, const wxColour& def_color, wxString label_text) {
+	auto add_color = [grid_sizer, parent](wxColourPickerCtrl **color_picker, std::function<wxColour()> color,
+                                          std::function<wxColour()> def_color, wxString label_text) {
 		// wrap the label_text to the max 80 characters
 		if (label_text.Len() > 80) {
 			size_t brack_pos = label_text.find_last_of(" ", 79);
@@ -106,9 +107,9 @@ void FillSizerWithTextColorDescriptions(wxSizer* sizer, wxWindow* parent,
 		}
 
 		auto sys_label = new wxStaticText(parent, wxID_ANY, label_text);
-		sys_label->SetForegroundColour(color);
+		sys_label->SetForegroundColour(color());
 
-		*color_picker = new wxColourPickerCtrl(parent, wxID_ANY, color);
+		*color_picker = new wxColourPickerCtrl(parent, wxID_ANY, color());
 		wxGetApp().UpdateDarkUI((*color_picker)->GetPickerCtrl(), true);
 		(*color_picker)->Bind(wxEVT_COLOURPICKER_CHANGED, [color_picker, sys_label](wxCommandEvent&) {
 			sys_label->SetForegroundColour((*color_picker)->GetColour());
@@ -118,23 +119,34 @@ void FillSizerWithTextColorDescriptions(wxSizer* sizer, wxWindow* parent,
 		auto btn = new ScalableButton(parent, wxID_ANY, "undo");
 		btn->SetToolTip(_L("Revert color to default"));
 		btn->Bind(wxEVT_BUTTON, [sys_label, color_picker, def_color](wxEvent& event) {
-			(*color_picker)->SetColour(def_color);
-			sys_label->SetForegroundColour(def_color);
+			(*color_picker)->SetColour(def_color());
+			sys_label->SetForegroundColour(def_color());
 			sys_label->Refresh();
 		});
 		parent->Bind(wxEVT_UPDATE_UI, [color_picker, def_color](wxUpdateUIEvent& evt) {
-			evt.Enable((*color_picker)->GetColour() != def_color);
+			evt.Enable((*color_picker)->GetColour() != def_color());
 	    }, btn->GetId());
 
 		grid_sizer->Add(*color_picker, 0, wxALIGN_CENTRE_VERTICAL);
 		grid_sizer->Add(btn, 0, wxALIGN_CENTRE_VERTICAL);
 		grid_sizer->Add(sys_label, 0, wxALIGN_CENTRE_VERTICAL);
 	};
-
-	add_color(default_colour, wxGetApp().get_label_clr_default(), wxGetApp().get_label_default_clr_default(), _L("Value is the same as the last saved preset, but is not the system value"));
-	add_color(sys_colour, wxGetApp().get_label_clr_sys(),	  wxGetApp().get_label_default_clr_system(),	_L("Value is the same as the system value"));
-	add_color(mod_colour, wxGetApp().get_label_clr_modified(), wxGetApp().get_label_default_clr_modified(),	_L("Value was changed and is not equal to the system value or the last saved preset"));
-	add_color(phony_colour, wxGetApp().get_label_clr_phony(), wxGetApp().get_label_default_clr_phony(),     _L("Value isn't taken into account, it's computed over an other field."));
+    add_color(
+        default_colour, []() { return wxGetApp().get_label_clr_default(); },
+        []() { return wxGetApp().get_label_default_clr_default(wxGetApp().dark_mode()); },
+        _L("Value is the same as the last saved preset, but is not the system value"));
+    add_color(
+        sys_colour, []() { return wxGetApp().get_label_clr_sys(); },
+        []() { return wxGetApp().get_label_default_clr_system(wxGetApp().dark_mode()); },
+        _L("Value is the same as the system value"));
+    add_color(
+        mod_colour, []() { return wxGetApp().get_label_clr_modified(); },
+        []() { return wxGetApp().get_label_default_clr_modified(wxGetApp().dark_mode()); },
+        _L("Value was changed and is not equal to the system value or the last saved preset"));
+    add_color(
+        phony_colour, []() { return wxGetApp().get_label_clr_phony(); },
+        []() { return wxGetApp().get_label_default_clr_phony(wxGetApp().dark_mode()); },
+        _L("Value isn't taken into account, it's computed over an other field."));
 }
 
 void FillSizerWithModeColorDescriptions(

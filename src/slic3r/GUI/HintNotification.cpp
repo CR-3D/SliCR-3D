@@ -129,7 +129,7 @@ TagCheckResult tag_check_tech(const std::string& tag)
 {
 	std::vector<std::string> allowed_tags = { "FFF", "MMU", "SLA" };
 	if (std::find(allowed_tags.begin(), allowed_tags.end(), tag) != allowed_tags.end()) {
-		const PrinterTechnology tech = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+		const PrinterTechnology tech = wxGetApp().get_current_printer_technology();
 		if (tech == ptFFF) {
 			// MMU / FFF
 			bool is_mmu = wxGetApp().extruders_edited_cnt() > 1;
@@ -889,7 +889,7 @@ void NotificationManager::HintNotification::render_close_button(ImGuiWrapper& im
 	//render_right_arrow_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
 	render_logo(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
 	render_preferences_button(imgui, win_pos_x, win_pos_y);
-	if (!m_documentation_link.empty() && !wxGetApp().app_config->get_bool("suppress_hyperlinks"))
+	if (!m_documentation_link.empty() && wxGetApp().app_config->get("suppress_hyperlinks") != "disable")
 	{
 		render_documentation_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
 	}

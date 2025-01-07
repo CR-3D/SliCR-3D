@@ -122,6 +122,7 @@ private:
 
     bool            m_imperial_units { false };
     bool            m_use_colors     { false };
+    bool            m_use_colors_is_dark { false };
     wxStaticText*   m_position_unit  { nullptr };
     wxStaticText*   m_size_unit      { nullptr };
 

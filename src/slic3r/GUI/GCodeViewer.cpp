@@ -4651,7 +4651,9 @@ void GCodeViewer::render_legend(float& legend_height)
                         }
                         else if (i == items_cnt) {
                             append_item(EItemType::Rect, cp_values[i - 1].first, above_label(cp_values[i - 1].second.second));
+                            continue;
                         }
+                        assert(i < items_cnt);
                         append_item(EItemType::Rect, cp_values[i - 1].first, fromto_label(cp_values[i - 1].second.second, cp_values[i].second.first));
                     }
                 }
@@ -4679,7 +4681,7 @@ void GCodeViewer::render_legend(float& legend_height)
                                 append_item(EItemType::Rect, cp_values[j - 1].first, label);
                                 continue;
                             }
-
+                            assert(j < items_cnt);
                             label += " " + fromto_label(cp_values[j - 1].second.second, cp_values[j].second.first);
                             append_item(EItemType::Rect, cp_values[j - 1].first, label);
                         }

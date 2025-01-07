@@ -1038,7 +1038,7 @@ bool UnsavedChangesDialog::save(PresetCollection* dependent_presets, bool show_s
     {
         std::vector<Preset::Type> types_for_save;
 
-        PrinterTechnology printer_technology = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+        PrinterTechnology printer_technology = wxGetApp().get_current_printer_technology();
 
         for (Tab* tab : wxGetApp().tabs_list)
             if (tab->supports_printer_technology(printer_technology) && tab->completed() && tab->current_preset_is_dirty()) {
@@ -1311,7 +1311,7 @@ void UnsavedChangesDialog::update(Preset::Type type, PresetCollection* dependent
         m_discard_btn ->Bind(wxEVT_ENTER_WINDOW, [this]                                    (wxMouseEvent& e) { show_info_line(Action::Discard); e.Skip(); });
 
     if (type == Preset::TYPE_INVALID || !dependent_presets) {
-        PrinterTechnology printer_technology = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+        PrinterTechnology printer_technology = wxGetApp().get_current_printer_technology();
         int presets_cnt = 0;
         for (Tab* tab : wxGetApp().tabs_list)
             if (tab->supports_printer_technology(printer_technology) && tab->completed() && tab->current_preset_is_dirty())
@@ -1348,7 +1348,7 @@ void UnsavedChangesDialog::update_tree(Preset::Type type, PresetCollection* pres
     std::vector<PresetCollection*> presets_list;
     if (type == Preset::TYPE_INVALID)
     {
-        PrinterTechnology printer_technology = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+        PrinterTechnology printer_technology = wxGetApp().get_current_printer_technology();
 
         for (Tab* tab : wxGetApp().tabs_list)
             if (tab->supports_printer_technology(printer_technology) && tab->completed() && tab->current_preset_is_dirty())
@@ -1762,7 +1762,7 @@ void DiffPresetDialog::complete_dialog_creation()
 
 DiffPresetDialog::DiffPresetDialog(MainFrame* mainframe)
     : DPIDialog(mainframe, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER, "diff_presets_dialog", mainframe->normal_font().GetPointSize()),
-    m_pr_technology(wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology())
+    m_pr_technology(wxGetApp().get_current_printer_technology())
 {    
     // Init bundles
 

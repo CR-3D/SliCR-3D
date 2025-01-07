@@ -3,6 +3,7 @@
 
 #include "CalibrationAbstractDialog.hpp"
 #include "libslic3r/Flow.hpp"
+#include "Widgets/ComboBox.hpp"
 
 #include <tuple>
 
@@ -24,14 +25,14 @@ protected:
     void create_geometry(float min_flow, float max_flow, float min_speed, float max_speed, float min_overlap, float max_overlap);
     std::tuple<float,float, Flow> get_cube_size(float overlap);
     
-    wxComboBox* cmb_gram;
-    wxComboBox* cmb_nb_steps;
+    ComboBox* cmb_gram;
+    ComboBox* cmb_nb_steps;
     wxTextCtrl* txt_min_speed;
     wxTextCtrl* txt_max_speed;
     wxTextCtrl* txt_min_flow;
     wxTextCtrl* txt_max_flow;
-    wxComboBox* cmb_min_overlap;
-    wxComboBox* cmb_max_overlap;
+    ComboBox* cmb_min_overlap;
+    ComboBox* cmb_max_overlap;
 };
 
 } // namespace GUI

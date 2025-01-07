@@ -2398,7 +2398,8 @@ MedialAxis::build(ThickPolylines& polylines_out)
     //    }
     //    std::cout << "\n";
     //}
-
+    
+#if _DEBUG
         //ensure valid
         for (size_t i = 0; i < pp.size(); ++i) {
             assert(pp[i].size() > 1);
@@ -2427,11 +2428,11 @@ MedialAxis::build(ThickPolylines& polylines_out)
                             size_t resized_size = it_end - to_resize.begin();
                             // is there points deleted?
                             if (resized_size < to_resize.size()) {
-                                // searhc them and move them
+                                // search them and move them
                                 size_t orig_i = ipt_start_same_width;
                                 for (size_t resized_i = 0; resized_i < resized_size; ) {
                                     if (pp[i].points[orig_i] == to_resize[resized_i]) {
-                                        // found it, move hte point & width
+                                        // found it, move the point & width
                                         pp[i].points[ipt_start_same_width + resized_i] = to_resize[resized_i];
                                         pp[i].points_width[ipt_start_same_width + resized_i] = pp[i].points_width[orig_i];
                                         // go to next point to move
@@ -2447,8 +2448,10 @@ MedialAxis::build(ThickPolylines& polylines_out)
                                     }
                                 }
                                 // all points are now moved, erase the surplus
-                                pp[i].points.erase(pp[i].points.begin() + resized_size, pp[i].points.begin() + to_resize.size());
-                                pp[i].points_width.erase(pp[i].points_width.begin() + resized_size, pp[i].points_width.begin() + to_resize.size());
+                                pp[i].points.erase(pp[i].points.begin() + ipt_start_same_width + resized_size,
+                                                   pp[i].points.begin() + ipt_start_same_width + to_resize.size());
+                                pp[i].points_width.erase(pp[i].points_width.begin() + ipt_start_same_width + resized_size,
+                                                         pp[i].points_width.begin() + ipt_start_same_width + to_resize.size());
                                 ipt -=  to_resize.size() - resized_size;
                                 assert(pp[i].points[ipt - 1] == to_resize.back());
                             } else {
@@ -2471,7 +2474,6 @@ MedialAxis::build(ThickPolylines& polylines_out)
                 --i;
             }
         }
-#if _DEBUG
     for (auto &poly : pp) {
         for (size_t idx_pt = 1; idx_pt < poly.size(); ++idx_pt) {
             assert(!poly.points[idx_pt - 1].coincides_with_epsilon(poly.points[idx_pt]));

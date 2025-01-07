@@ -548,8 +548,9 @@ enum class ArcFittingType {
 #ifdef _RELWITHDEBINFO
 //#define _DEBUGINFO
 inline void release_assert(bool valid) {
-    if (!valid)
-        ;
+    // superslicer variant -> don't hard crash on assert (nightly). For debug, use the slic3r variant (dev branch).
+    // if (!valid)
+        // throw new std::exception();
 }
 #endif
 

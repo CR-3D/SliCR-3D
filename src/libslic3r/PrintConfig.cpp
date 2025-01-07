@@ -1687,7 +1687,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->max = 100;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
+    def->set_default_value(new ConfigOptionPercent(80));
 
     def = this->add("external_perimeter_acceleration", coFloatOrPercent);
     def->label = L("External");
@@ -3255,7 +3255,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->max = 100;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
+    def->set_default_value(new ConfigOptionPercent(80));
 
     def = this->add("gap_fill_speed", coFloatOrPercent);
     def->label = L("Gap fill");
@@ -4904,7 +4904,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->max = 100;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
+    def->set_default_value(new ConfigOptionPercent(80));
 
     // Perimeter reverse for even layers
     def = this->add("perimeter_reverse", coBool);
@@ -10469,20 +10469,21 @@ double min_object_distance(const PrintConfig &config) {
     return min_object_distance(static_cast<const ConfigBase *>(&config));
 }
 
-double min_object_distance(const ConfigBase *config, double ref_height /* = 0*/) {
-    if (printer_technology(*config) == ptSLA)
-        return 6.;
+double min_object_distance(const ConfigBase *config, double ref_height /* = 0*/)
+{
+    if (printer_technology(*config) == ptSLA) return 6.;
 
-    const ConfigOptionFloat *dd_opt = config->option<ConfigOptionFloat>("duplicate_distance");
-    // test if called from usaslicer::l240 where it's called on an empty config...
-    if (dd_opt == nullptr)
-        return 0;
+    const ConfigOptionFloat* dd_opt = config->option<ConfigOptionFloat>("duplicate_distance");
+    //test if called from prusaslicer::l240 where it's called on an empty config...
+    if (dd_opt == nullptr) return 0;
 
     double base_dist = 0;
-    // std::cout << "START min_object_distance =>" << base_dist << "\n";
-    const ConfigOptionBool *co_opt = config->option<ConfigOptionBool>("complete_objects");
-    if ((config->option("parallel_objects_step")->get_float() > 0) || (co_opt && co_opt->value)) {
+    //std::cout << "START min_object_distance =>" << base_dist << "\n";
+    const ConfigOptionBool* opt_complete_object = config->option<ConfigOptionBool>("complete_objects");
+    const ConfigOption* opt_parallel_objects_step = config->option("parallel_objects_step");
+    if ((opt_parallel_objects_step && opt_parallel_objects_step->get_float() > 0) || (opt_complete_object && opt_complete_object->value)) {
         double skirt_dist = 0;
+        double brim_dist = 0;
         try {
             std::vector<double> vals = dynamic_cast<const ConfigOptionFloats *>(config->option("nozzle_diameter"))
                                            ->get_values();
@@ -10491,19 +10492,19 @@ double min_object_distance(const ConfigBase *config, double ref_height /* = 0*/)
                 max_nozzle_diam = std::fmax(max_nozzle_diam, val);
 
             // min object distance is max(duplicate_distance, clearance_radius)
-            // /2 becasue we only count the grawing for the current object
             // add 1 as safety offset.
-            double extruder_clearance_radius = config->option("extruder_clearance_radius")->get_float() / 2;
+            const double extruder_clearance_radius = config->option("extruder_clearance_radius")->get_float();
             if (extruder_clearance_radius > base_dist) {
                 base_dist = extruder_clearance_radius;
             }
 
+            // Add aso the skirt dist if per object, as the arrange & check method don't use it yet.
             // we use the max nozzle, just to be on the safe side
-            // ideally, we should use print::first_layer_height()
-            const double first_layer_height = dynamic_cast<const ConfigOptionFloatOrPercent *>(
-                                                  config->option("first_layer_height"))
-                                                  ->get_abs_value(max_nozzle_diam);
-            // add the skirt
+            //ideally, we should use print::first_layer_height()
+            const double first_layer_height = 
+                dynamic_cast<const ConfigOptionFloatOrPercent *>(config->option("first_layer_height"))
+                    ->get_abs_value(max_nozzle_diam);
+            //add the skirt
             int skirts = config->option("skirts")->get_int();
             if (skirts > 0 && ref_height == 0)
                 skirts += config->option("skirt_brim")->get_int();
@@ -10515,15 +10516,16 @@ double min_object_distance(const ConfigBase *config, double ref_height /* = 0*/)
                 // config->get_computed_value("filament_max_overlap");
                 if (ref_height == 0) {
                     skirt_dist = config->option("skirt_distance")->get_float();
-                    Flow skirt_flow = Flow::new_from_config_width(frPerimeter,
-                                                                  *Flow::extrusion_width_option("skirt", *config),
-                                                                  *Flow::extrusion_spacing_option("skirt", *config),
-                                                                  (float) max_nozzle_diam, (float) first_layer_height,
-                                                                  overlap_ratio, 0);
-                    skirt_dist += skirt_flow.width() + (skirt_flow.spacing() * ((double) skirts - 1));
-                    base_dist = std::max(base_dist, skirt_dist + 1);
-                    // set to 0 becasue it's incorporated into the base_dist, so we don't want to be added in to it again.
-                    skirt_dist = 0;
+                    Flow skirt_flow = Flow::new_from_config_width(
+                        frPerimeter,
+                        *Flow::extrusion_width_option("skirt", *config),
+                        *Flow::extrusion_spacing_option("skirt", *config),
+                        (float)max_nozzle_diam,
+                        (float)first_layer_height,
+                        overlap_ratio,
+                        0
+                    );
+                    skirt_dist += skirt_flow.width() + (skirt_flow.spacing() * ((double)skirts - 1));
                 } else {
                     double skirt_height = ((double) config->option("skirt_height")->get_int() - 1) *
                             config->get_computed_value("layer_height") +
@@ -10539,10 +10541,33 @@ double min_object_distance(const ConfigBase *config, double ref_height /* = 0*/)
                         skirt_dist += skirt_flow.width() + (skirt_flow.spacing() * ((double) skirts - 1));
                     }
                 }
+                // send a warning in print.validate if oneskirt, the skirt height is > 1mm and the skirt distance (from brim) is < extruder_clearance_radius
+                // send a warning in print.validate if not oneskirt and skirt height > 1mm (you might collide the skirt while printing another one)
             }
-        } catch (const std::exception &ex) { boost::nowide::cerr << ex.what() << std::endl; }
-        return base_dist + skirt_dist;
+            // Add also the biggest object brim, as the arrange & check method don't use it yet.
+            // mm we don't have access to each object config... then send a warning in print.validate.
+            const ConfigOption *opt_brim_per_object = config->option("brim_per_object");
+            const ConfigOption *opt_skirt_distance_from_brim = config->option("skirt_distance_from_brim");
+            const bool has_brim = (ref_height == 0 && opt_brim_per_object && opt_brim_per_object->get_bool());
+            const bool skirt_is_pushed = skirt_dist > 0 && opt_skirt_distance_from_brim && opt_skirt_distance_from_brim->get_bool();
+            if ( has_brim || skirt_is_pushed) {
+                double max_brim = config->option("brim_width")->get_float();
+                max_brim = std::max(max_brim, config->option("brim_width_interior")->get_float());
+            }
+
+            // if skirt_distance_from_brim, then push it further back
+            if (skirt_is_pushed) {
+                skirt_dist += brim_dist;
+                brim_dist = 0;
+            }
+        }
+        catch (const std::exception & ex) {
+            boost::nowide::cerr << ex.what() << std::endl;
+        }
+
+        return base_dist + std::max(skirt_dist, brim_dist);
     }
+    // else (not cmplete object/step)
     return base_dist;
 }
 
@@ -12042,26 +12067,18 @@ OtherPresetsConfigDef::OtherPresetsConfigDef() {
 }
 
 static std::map<t_custom_gcode_key, t_config_option_keys> s_CustomGcodeSpecificPlaceholders{
-    {"start_filament_gcode",
-     {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
-    {"end_filament_gcode",
-     {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
-    {"milling_toolchange_start_gcode",
-     {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
-    {"milling_toolchange_end_gcode",
-     {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
-    {"end_gcode",
-     {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
-    {"before_layer_gcode", {"layer_num", "layer_z", "previous_layer_z", "max_layer_z"}},
-    {"layer_gcode", {"layer_num", "layer_z", "previous_layer_z", "max_layer_z"}},
-    {"feature_gcode",
-     {"layer_num", "layer_z", "max_layer_z", "previous_extrusion_role", "next_extrusion_role",
-      /*deprecated*/ "extrusion_role", "last_extrusion_role" /*deprecated*/}},
-    {"toolchange_gcode",
-     {"layer_num", "layer_z", "max_layer_z", "previous_extruder", "next_extruder", "toolchange_z"}},
-    {"color_change_gcode", {"color_change_extruder"}},
-    {"pause_print_gcode", {"color_change_extruder"}},
-    {"between_objects_gcode", {"layer_num", "layer_z"}},
+    {"start_filament_gcode",    {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
+    {"end_filament_gcode",      {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
+    {"milling_toolchange_start_gcode", {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
+    {"milling_toolchange_end_gcode",   {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
+    {"end_gcode",               {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
+    {"before_layer_gcode",      {"layer_num", "layer_z", "previous_layer_z", "max_layer_z"}},
+    {"layer_gcode",             {"layer_num", "layer_z", "previous_layer_z", "max_layer_z"}},
+    {"feature_gcode",           {"layer_num", "layer_z", "max_layer_z", "previous_extrusion_role", "next_extrusion_role", /*deprecated*/"extrusion_role", "last_extrusion_role" /*deprecated*/}},
+    {"toolchange_gcode",        {"layer_num", "layer_z", "max_layer_z", "previous_extruder", "next_extruder", "toolchange_z"}},
+    {"color_change_gcode",      {"color_change_extruder", "next_color", "next_colour"}},
+    {"pause_print_gcode",       {"color_change_extruder"}},
+    {"between_objects_gcode",   {"layer_num", "layer_z"}},
 };
 
 const std::map<t_custom_gcode_key, t_config_option_keys> &custom_gcode_specific_placeholders() {
@@ -12118,8 +12135,17 @@ CustomGcodeSpecificConfigDef::CustomGcodeSpecificConfigDef() {
     // TRN: This is a label in custom g-code editor dialog, belonging to color_change_extruder. Denoted index of the
     // extruder for which color change is performed.
     def->label = L("Color change extruder");
-    def->tooltip = L("Index of the extruder for which color change will be performed. The index is zero based (first "
-                     "extruder has index 0).");
+    def->tooltip = L("Index of the extruder for which color change will be performed. The index is zero based (first extruder has index 0).");
+
+    def = this->add("next_color", coString);
+    // TRN: This is a label in custom g-code editor dialog, belonging to color_change_extruder. Denoted index of the extruder for which color change is performed.
+    def->label = L("Next color");
+    def->tooltip = L("Next color to display when a color change is performed, in #ffffff format.");
+
+    def = this->add("next_colour", coString);
+    // TRN: This is a label in custom g-code editor dialog, belonging to color_change_extruder. Denoted index of the extruder for which color change is performed.
+    def->label = L("Next colour");
+    def->tooltip = L("Next colour to display when a colour change is performed, in #ffffff format.");
 }
 
 const CustomGcodeSpecificConfigDef custom_gcode_specific_config_def;

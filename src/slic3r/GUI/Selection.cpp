@@ -2752,7 +2752,7 @@ void Selection::synchronize_unselected_instances(SyncRotationType sync_rotation_
             }
             else if (sync_rotation_type != SyncRotationType::NONE || mirrored)
                 new_inst_trafo_j.linear() = (old_inst_trafo_j.linear() * old_inst_trafo_i.linear().inverse()) * curr_inst_trafo_i.linear();
-            if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA)
+            if (wxGetApp().get_current_printer_technology() != ptSLA)
                 new_inst_trafo_j.translation().z() = curr_inst_trafo_i.translation().z();
             assert(is_rotation_xy_synchronized(curr_inst_trafo_i, new_inst_trafo_j));
             volume_j->set_instance_transformation(new_inst_trafo_j);

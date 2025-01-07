@@ -434,7 +434,7 @@ bool GLVolume::is_sla_pad() const { return this->composite_id.volume_id == -int(
 
 bool GLVolume::is_sinking() const
 {
-    if (is_modifier || GUI::wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA)
+    if (is_modifier || GUI::wxGetApp().get_current_printer_technology() == ptSLA)
         return false;
     const BoundingBoxf3& box = transformed_convex_hull_bounding_box();
     return box.min.z() < SINKING_Z_THRESHOLD && box.max.z() >= SINKING_Z_THRESHOLD;

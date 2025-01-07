@@ -496,8 +496,10 @@ wxBitmapBundle *get_bmp_bundle(const std::string &bmp_name_in, int width, int he
     if (height < 0)
         height = width;
 
-    if (Slic3r::GUI::wxGetApp().dark_mode())
+    if (Slic3r::GUI::wxGetApp().dark_mode()) {
         new_colors_rgb.add("#808080", "#FFFFFF");
+        new_colors_rgb.add("#000000", "#A0A0A0");
+    }
 
     //wxBitmap *bmp = cache.load_svg(bmp_name, width, height, grayscale, dark_mode, color);
     wxBitmapBundle* bmp = cache.from_svg(bmp_name, width, height, new_colors_rgb);

@@ -61,7 +61,7 @@ namespace Slic3r {
     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values() { return s_keys_map_##NAME; } \
     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names() { return s_keys_names_##NAME; }
 
-    enum  NotifyReleaseMode {
+    enum NotifyReleaseMode {
         NotifyReleaseAll,
         NotifyReleaseOnly,
         NotifyReleaseNone
@@ -74,20 +74,31 @@ namespace Slic3r {
     CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NotifyReleaseMode)
         
 
-    enum  AutoSwitchPreview {
-        NoSwitch,
-        Switch,
-        PlatterSwitch,
-        GcodeReadySwitch,
+    enum AutoSwitchPreview {
+        aspNoSwitch,
+        aspSwitch,
+        aspPlatterSwitch,
+        aspGcodeReadySwitch,
     };
     static const t_config_enum_values s_keys_map_AutoSwitchPreview = {
-        {"never",   NoSwitch},
-        {"always",  Switch},
-        {"platter", PlatterSwitch},
-        {"gcode",   GcodeReadySwitch},
+        {"never",   aspNoSwitch},
+        {"always",  aspSwitch},
+        {"platter", aspPlatterSwitch},
+        {"gcode",   aspGcodeReadySwitch},
     };
     CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(AutoSwitchPreview)
 
+    enum SuppressHyperlinks {
+        shSuppress,
+        shConfirm,
+        shAllow,
+    };
+    static const t_config_enum_values s_keys_map_SuppressHyperlinks = {
+        {"disable",   shSuppress},
+        {"confirm",  shConfirm},
+        {"allow", shAllow},
+    };
+    CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SuppressHyperlinks)
 
 namespace GUI {
 
@@ -159,6 +170,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
     std::vector<std::pair<std::string, t_config_enum_values>> enums = {
         {"notify_release", s_keys_map_NotifyReleaseMode},
         {"auto_switch_preview", s_keys_map_AutoSwitchPreview},
+        {"suppress_hyperlinks", s_keys_map_SuppressHyperlinks},
     };
     for (auto key2map : enums) {
         if (m_optkey_to_optgroup.find(key2map.first) != m_optkey_to_optgroup.end()) {
@@ -198,7 +210,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
             this->m_downloader->set_path_name(app_config->get("url_downloader_dest"));
             this->m_downloader->allow(!app_config->has("downloader_url_registered") || app_config->get_bool("downloader_url_registered"));
         }
-		for (const std::string& opt_key : {"suppress_hyperlinks", "downloader_url_registered"})
+        for (const std::string& opt_key : {"downloader_url_registered"})
 			m_optkey_to_optgroup[opt_key]->set_value(opt_key, app_config->get_bool(opt_key), true, false);
 
 		for (const std::string  opt_key : { "default_action_on_close_application"
@@ -263,8 +275,6 @@ std::shared_ptr<ConfigOptionsGroup> PreferencesDialog::create_options_group(cons
 			m_values[opt_key] = boost::any_cast<bool>(value) ? "none" : "discard";
 		else if (opt_key == "default_action_on_dirty_project")
 			m_values[opt_key] = boost::any_cast<bool>(value) ? "" : "0";
-		else if (opt_key == "suppress_hyperlinks")
-			m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "";
 		else if ("ui_layout" == opt_key) {
 			std::vector<std::string> splitted;
 			boost::split(splitted, boost::any_cast<std::string>(value), boost::is_any_of(":"));
@@ -511,6 +521,10 @@ void PreferencesDialog::build()
             if (need_set) {
                 app_config->set("auto_switch_preview", auto_switch_preview_value);
             }
+            if (s_keys_map_AutoSwitchPreview.find(auto_switch_preview_value) == s_keys_map_AutoSwitchPreview.end()) {
+                assert(false);
+                auto_switch_preview_value = "platter";
+            }
             append_enum_option<AutoSwitchPreview>(
                 m_tabid_2_optgroups.back().back(), "auto_switch_preview", L("Switch to Preview when sliced"),
                 L("When an object is sliced, it will switch your view from the curent view to the "
@@ -642,14 +656,15 @@ void PreferencesDialog::build()
 
 		append_bool_option(m_tabid_2_optgroups.back().back(), "single_instance",
 #if __APPLE__
-			L("Allow just a single PrusaSlicer instance"),
-			L("On OSX there is always only one instance of app running by default. However it is allowed to run multiple instances "
-			  "of same app from the command line. In such case this settings will allow only one instance."),
+            Slic3r::GUI::format(L("Allow just a single %1% instance"), SLIC3R_APP_NAME),
+            L("On OSX there is always only one instance of app running by default. However it is allowed to run multiple instances "
+              "of same app from the command line. In such case this settings will allow only one instance."),
 #else
-			L("Allow just a single PrusaSlicer instance"),
-			L("If this is enabled, when starting PrusaSlicer and another instance of the same PrusaSlicer is already running, that instance will be reactivated instead."),
+            Slic3r::GUI::format(L("Allow just a single %1% instance"),SLIC3R_APP_NAME),
+            Slic3r::GUI::format(L("If this is enabled, when starting %1% and another instance of the same %1% is "
+                               "already running, that instance will be reactivated instead."), SLIC3R_APP_NAME),
 #endif
-		app_config->has("single_instance") ? app_config->get_bool("single_instance") : false );
+            app_config->has("single_instance") ? app_config->get_bool("single_instance") : false);
 
 
 		append_bool_option(m_tabid_2_optgroups.back().back(), "default_action_on_dirty_project",
@@ -798,18 +813,41 @@ void PreferencesDialog::build()
 		  "If disabled, changes made using the sequential slider, in preview, apply to the whole gcode."),
 		app_config->get_bool("seq_top_layer_only"));
 
+    {
+        std::string suppress_hyperlinks_value = app_config->get("suppress_hyperlinks");
+        bool need_set = true;
+        if (app_config->get("suppress_hyperlinks") == "0") {
+            suppress_hyperlinks_value = "disable";
+        } else if (app_config->get("suppress_hyperlinks") == "1") {
+            suppress_hyperlinks_value = "confirm";
+        } else {
+            need_set = false;
+        }
+        if (need_set) {
+            app_config->set("suppress_hyperlinks", suppress_hyperlinks_value);
+        }
+        if (s_keys_map_SuppressHyperlinks.find(suppress_hyperlinks_value) == s_keys_map_SuppressHyperlinks.end()) {
+            assert(false);
+            suppress_hyperlinks_value = "confirm";
+        }
+        append_enum_option<SuppressHyperlinks>(m_tabid_2_optgroups.back().back(), "suppress_hyperlinks",
+            L("Allow to open hyperlink in browser"),
+            L("Sometimes an option is available to be opened in your browser, to have a link to documentation or a resource."
+                "\nDo you want to disabled these links (Disable)?"
+                "\nDo you want to have a confirm dialog (Confirm)?"
+                "\nDo you prefer to allow these (Allow)?"),
+            new ConfigOptionEnum<SuppressHyperlinks>(static_cast<SuppressHyperlinks>(s_keys_map_SuppressHyperlinks.at(suppress_hyperlinks_value))),
+            { { "disable", L("Disable") },
+                { "confirm", L("Confirm") },
+                { "allow", L("Allow") }
+            });
+    }
+
 	if (is_editor) {
 		append_bool_option(m_tabid_2_optgroups.back().back(), "show_collapse_button",
 			L("Show sidebar collapse/expand button"),
 			L("If enabled, the button for the collapse sidebar will be appeared in top right corner of the 3D Scene"),
 			app_config->get_bool("show_collapse_button"));
-		
-		append_bool_option(m_tabid_2_optgroups.back().back(), "suppress_hyperlinks",
-			L("Suppress to open hyperlink in browser"),
-			L("If enabled, Slic3r will not open a hyperlinks in your browser."),
-			//L("If enabled, the descriptions of configuration parameters in settings tabs wouldn't work as hyperlinks. "
-			//  "If disabled, the descriptions of configuration parameters in settings tabs will work as hyperlinks."),
-			app_config->get_bool("suppress_hyperlinks"));
 		
 		append_bool_option(m_tabid_2_optgroups.back().back(), "color_manipulation_panel",
 			L("Use colors for axes values in Manipulation panel"),
@@ -855,14 +893,19 @@ void PreferencesDialog::build()
 			L("If enabled, useful hints are displayed at startup."),
 			app_config->get_bool("show_hints"));
 
-		append_enum_option<NotifyReleaseMode>(m_tabid_2_optgroups.back().back(), "notify_release",
-			L("Notify about new releases"),
-			L("You will be notified about new release after startup acordingly: All = Regular release and alpha / beta releases. Release only = regular release."),
-			new ConfigOptionEnum<NotifyReleaseMode>(static_cast<NotifyReleaseMode>(s_keys_map_NotifyReleaseMode.at(app_config->get("notify_release")))),
-			{ { "all", L("All") },
-			  { "release", L("Release only") },
-			  { "none", L("None") }
-			});
+        std::string notify_release_value = app_config->get("notify_release");
+        if (s_keys_map_NotifyReleaseMode.find(notify_release_value) == s_keys_map_NotifyReleaseMode.end()) {
+            assert(false);
+            notify_release_value = "release";
+        }
+        append_enum_option<NotifyReleaseMode>(m_tabid_2_optgroups.back().back(), "notify_release",
+            L("Notify about new releases"),
+            L("You will be notified about new release after startup acordingly: All = Regular release and alpha / beta releases. Release only = regular release."),
+            new ConfigOptionEnum<NotifyReleaseMode>(static_cast<NotifyReleaseMode>(s_keys_map_NotifyReleaseMode.at(notify_release_value))),
+            { { "all", L("All") },
+              { "release", L("Release only") },
+              { "none", L("None") }
+            });
 
 		m_tabid_2_optgroups.back().back()->append_separator(); //seems it's not working
 		
@@ -1253,9 +1296,7 @@ void PreferencesDialog::accept(wxEvent&)
         }
     }
 
-	for (std::map<std::string, std::string>::iterator it = m_values.begin(); it != m_values.end(); ++it)
-		app_config->set(it->first, it->second);
-
+	// `set_label_clr_default` BEFORE  `app_config->set` to set the right color (light or dark mode)
 	if (wxGetApp().is_editor()) {
 		wxGetApp().set_label_clr_sys(m_sys_colour->GetColour());
 		wxGetApp().set_label_clr_modified(m_mod_colour->GetColour());
@@ -1265,6 +1306,9 @@ void PreferencesDialog::accept(wxEvent&)
 		wxGetApp().set_mode_palette(m_mode_palette);
 #endif
 	}
+	
+	for (std::map<std::string, std::string>::iterator it = m_values.begin(); it != m_values.end(); ++it)
+		app_config->set(it->first, it->second);
 
 	EndModal(wxID_OK);
 
@@ -1384,6 +1428,19 @@ void PreferencesDialog::on_sys_color_changed()
 #ifdef _WIN32
 	wxGetApp().UpdateDlgDarkUI(this);
 #endif
+	// update settings_text_color_widget
+    if (m_sys_colour) {
+        m_sys_colour->SetColour(wxGetApp().get_label_clr_sys());
+    }
+    if (m_mod_colour) {
+        m_mod_colour->SetColour(wxGetApp().get_label_clr_modified());
+    }
+    if (m_def_colour) {
+        m_def_colour->SetColour(wxGetApp().get_label_clr_default());
+    }
+    if (m_phony_colour) {
+        m_phony_colour->SetColour(wxGetApp().get_label_clr_phony());
+    }
 }
 
 void PreferencesDialog::layout()

@@ -1966,9 +1966,9 @@ void GLCanvas3D::set_config(const DynamicPrintConfig* config)
 
         m_arrange_settings_db.set_active_slot(slot);
 
-        double objdst = min_object_distance(config, 1);
+        double objdst = min_object_distance(config, 0);
         double min_obj_dst = slot == ArrangeSettingsDb_AppCfg::slotFFFSeqPrint ? objdst : 0.;
-        m_arrange_settings_db.set_distance_from_obj_range(slot, min_obj_dst, 100.);
+        m_arrange_settings_db.set_distance_from_obj_range(slot, min_obj_dst, std::max(100., min_obj_dst*2));
         
         if (std::abs(m_arrange_settings_db.get_defaults(slot).d_obj - objdst) > EPSILON) {
             m_arrange_settings_db.get_defaults(slot).d_obj = objdst;
@@ -5332,7 +5332,8 @@ void GLCanvas3D::update_sequential_clearance(bool force_contours_generation)
     if (force_contours_generation || m_sequential_print_clearance.m_first_displacement) {
         m_sequential_print_clearance.m_evaluating = false;
         m_sequential_print_clearance.m_hulls_2d_cache.clear();
-        const float shrink_factor = static_cast<float>(scale_(0.5 * fff_print()->config().extruder_clearance_radius.value - EPSILON));
+        const double clearance_dist = min_object_distance(&fff_print()->default_region_config(), 0);
+        const float shrink_factor = static_cast<float>(scale_(0.5 * clearance_dist - EPSILON));
         const double mitter_limit = scale_(0.1);
         m_sequential_print_clearance.m_hulls_2d_cache.reserve(m_model->objects.size());
         for (size_t i = 0; i < m_model->objects.size(); ++i) {
@@ -8901,7 +8902,8 @@ void GLCanvas3D::_set_warning_notification(EWarning warning, bool state)
                     const unsigned int obj_idx = std::distance(objects.begin(), iter);
                     wxGetApp().CallAfter([obj_idx, layer_id]() {
                         wxGetApp().plater()->set_preview_layers_slider_values_range(0, layer_id - 1);
-                        wxGetApp().plater()->select_view_3D("3D");
+                        // select_tab also set the notebook, it's better.
+                        wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPlater);
                         wxGetApp().plater()->canvas3D()->reset_all_gizmos();
                         wxGetApp().plater()->canvas3D()->get_selection().add_object(obj_idx, true);
                         wxGetApp().obj_list()->update_selections();

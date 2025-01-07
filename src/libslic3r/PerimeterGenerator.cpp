@@ -2578,6 +2578,8 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
             svg.Close();
         }
 #endif
+#ifdef _DEBUG
+        // this seems unneeded, and seems to create memory crashes (on linux).
         if (unbridgeable_area > 0.2 * area(real_overhang) || unsupp_dist > total_length(real_overhang) * 0.2) {
             // try with the real bridge detector
             BridgeDetector bd(
@@ -2617,6 +2619,7 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
         }
 #endif
         }
+#endif
 
         if (unbridgeable_area < 0.2 * area(real_overhang) && unsupp_dist < total_length(real_overhang) * 0.2) {
             inset_overhang_area_left_unfilled.insert(inset_overhang_area_left_unfilled.end(),overhang_to_cover.begin(),overhang_to_cover.end());

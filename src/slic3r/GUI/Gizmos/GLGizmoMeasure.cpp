@@ -564,7 +564,7 @@ std::string GLGizmoMeasure::on_get_name() const
 bool GLGizmoMeasure::on_is_activable() const
 {
     const Selection& selection = m_parent.get_selection();
-    bool res = (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA) ?
+    bool res = (wxGetApp().get_current_printer_technology() == ptSLA) ?
         selection.is_single_full_instance() :
         selection.is_single_full_instance() || selection.is_single_volume() || selection.is_single_modifier();
     if (res)

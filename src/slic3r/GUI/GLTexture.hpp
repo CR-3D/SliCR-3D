@@ -103,7 +103,10 @@ namespace GUI {
         // second field (bool):
         // false -> no changes
         // true -> add background color
-        bool load_from_svg_files_as_sprites_array(const std::vector<std::string>& filenames, const std::vector<std::pair<int, bool>>& states, unsigned int sprite_size_px, bool compress, uint32_t color);
+        bool load_from_svg_files_as_sprites_array(const std::vector<std::string> &filenames,
+                                                  const std::vector<std::pair<int, bool>> &states,
+                                                  unsigned int sprite_size_px,
+                                                  bool compress);
         void reset();
 
         unsigned int get_id() const { return m_id; }

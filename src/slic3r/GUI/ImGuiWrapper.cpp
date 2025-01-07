@@ -1714,8 +1714,15 @@ static const ImWchar ranges_keyboard_shortcuts[] =
 std::vector<unsigned char> ImGuiWrapper::load_svg(const std::string& bitmap_name, unsigned target_width, unsigned target_height)
 {
     std::vector<unsigned char> empty_vector;
-
-    NSVGimage* image = BitmapCache::nsvgParseFromFileWithReplace(Slic3r::var(bitmap_name + ".svg").c_str(), "px", 96.0f, { { "\"#808080\"", "\"#FFFFFF\"" } });
+    Slic3r::ColorReplaces replaces;
+    uint32_t color_int = Slic3r::GUI::wxGetApp().app_config->create_color(0.86f, 0.93f);
+    replaces.add("#ED6B21", color_int);
+    replaces.add("#ed6b21", color_int);
+    replaces.add("#ED8D21", Slic3r::GUI::wxGetApp().app_config->create_color(0.5f, 0.93f));
+    replaces.add("#2172eb", color_int);
+    // as the platter is quite dark, then this replacment is always active
+    replaces.add("#808080", "#FFFFFF");
+    NSVGimage* image = BitmapCache::nsvgParseFromFileWithReplace(Slic3r::var(bitmap_name + ".svg").c_str(), "px", 96.0f, replaces);
     if (image == nullptr)
         return empty_vector;
 

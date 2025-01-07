@@ -17,6 +17,7 @@
 
 namespace Slic3r { namespace arr2 {
 
+// to compute the max skirt, to be sure the skirt won't go out of the bed.
 coord_t get_skirt_inset(const Print &fffprint)
 {
     float skirt_inset = 0.f;
@@ -37,11 +38,15 @@ coord_t get_skirt_inset(const Print &fffprint)
     return scaled(skirt_inset);
 }
 
+// to compute the max brim, to be sure the brim won't go out of the bed.
 coord_t brim_offset(const PrintObject &po)
 {
+    // note: in superslicer, brim_separation is deduced from brim_width
+    //   while it's added in prusaslicer
     const float    brim_separation = po.config().brim_separation.value;
     const float    brim_width      = po.config().brim_width.value;
-    const bool     has_outer_brim  = po.config().brim_width.value > 0;
+    const bool     has_outer_brim  = po.config().brim_width.value > 0
+                                  && brim_separation < brim_width;
 
     // How wide is the brim? (in scaled units)
     return has_outer_brim ? scaled(brim_width /*+ brim_separation*/) : 0;
@@ -168,6 +173,13 @@ void SceneBuilder::set_brim_and_skirt()
     }
 
     m_skirt_offs = get_skirt_inset(*m_fff_print);
+
+    // apply skirt_distance_from_brim that move the skirt even more away.
+    const ConfigOption *opt_skirt_distance_from_brim = m_fff_print->config().option("skirt_distance_from_brim");
+    assert(opt_skirt_distance_from_brim);
+    if (opt_skirt_distance_from_brim && opt_skirt_distance_from_brim->get_bool()) {
+        m_skirt_offs += m_brims_offs;
+    }
 }
 
 void SceneBuilder::build_scene(Scene &sc) &&

@@ -38,7 +38,7 @@ while getopts ":ixavh" opt; do
 done
 
     echo -e "\n[8/9] Generating MacOS app..."
-    {
+#    {
         # update Info.plist
         pushd src
         sed "s/+UNKNOWN/_$(date '+%F')/" Info.plist >Info.date.plist
@@ -78,23 +78,30 @@ done
         chmod u+x pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
         cp /usr/local/opt/zstd/lib/libzstd.1.dylib pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/libzstd.1.dylib
 
-     } &> $ROOT/Build.log # Capture all command output
+#     } &> $ROOT/Build.log # Capture all command output
     echo -e "\n ... done\n"
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
 echo -e "\n[9/9] Creating .tgz and DMG Image for distribution..."
-{
+  {
 
     tar -czvf @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.tgz pack/@SLIC3R_APP_KEY@
-	#tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.tgz pack/@SLIC3R_APP_KEY@
+    #tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.tgz pack/@SLIC3R_APP_KEY@
 
     # create dmg
     hdiutil create -ov -fs HFS+ -volname "@SLIC3R_APP_KEY@" -srcfolder "pack/@SLIC3R_APP_KEY@" temp.dmg
     hdiutil convert temp.dmg -format UDZO -o @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
     rm -f temp.dmg
-
     popd
-} &> $ROOT/Build.log # Capture all command output
-echo -e "\n ... done\n"
+  } &> $ROOT/Build.log # Capture all command output
+
+  # check if evrything went well
+  if [ -e $OS_NAME.dmg ]; then
+      echo -e "\n ... done\n"
+  else
+      # something went wrong, publish log
+      echo -e "\n ... fail\n"
+      cat $ROOT/Build.log
+  fi
 fi

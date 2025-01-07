@@ -1634,12 +1634,25 @@ void ArcPolyline::make_arc(ArcFittingType with_fitting_arc, coordf_t tolerance, 
                                 if (ccw_angle < 0)
                                     ccw_angle = 2 * PI + ccw_angle;
                                 assert(is_approx(ccw_angle, angle, EPSILON));
+                                //set length & center
+                                end.center = Slic3r::Geometry::ArcWelder::arc_center_scalar(start.point, end.point, end.radius, end.ccw());
+                                assert(end.center == center.cast<coord_t>());
+                                end.length = Geometry::ArcWelder::segment_length<coordf_t>(start, end);
 #endif
                             } else {
                                 assert(false);
                             }
                         }
                         assert(path.empty() || path.front().radius == 0);
+#if _DEBUG
+                        for (size_t i = 1; i < m_path.size(); ++i) {
+                            Geometry::ArcWelder::Segment &seg = m_path[i];
+                            if (seg.radius) {
+                                seg.length = Geometry::ArcWelder::segment_length<coordf_t>(m_path[i - 1], seg);
+                                seg.center = Geometry::ArcWelder::arc_center_scalar(m_path[i - 1].point, seg.point, seg.radius, seg.ccw());
+                            }
+                        }
+#endif
                     } else /* if (with_fitting_arc == ArcFittingType::ArcWelder)*/ {
                         // === use ArcWelder ===
                         Geometry::ArcWelder::Path result = Geometry::ArcWelder::fit_path(pts, tolerance, fit_percent_tolerance);

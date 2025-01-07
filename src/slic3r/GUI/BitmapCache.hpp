@@ -48,7 +48,8 @@ public:
 	// Parses SVG file from a file, returns SVG image as paths.
 	// And makes replases befor parsing
 	// replace_map containes old_value->new_value
-	static NSVGimage* nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const std::map<std::string, std::string>& replaces);
+	// basically nsvgGetDataFromFileWithReplace with nsvgParse(data_str, units, dpi) after.
+	static NSVGimage* nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const Slic3r::ColorReplaces& replaces);
 	// Gets a data from SVG file and makes replases
 	// replace_map containes old_value->new_value
     static void		nsvgGetDataFromFileWithReplace(const char* filename, std::string& data_str, const ColorReplaces& replaces);

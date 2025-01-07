@@ -787,7 +787,7 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
             // Fucntion doesn't exists, reset the fields from the 'depends'
             // reset in all tabs
             // first set_key_value
-            PrinterTechnology printer_technology = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+            PrinterTechnology printer_technology = wxGetApp().get_current_printer_technology();
             std::vector<Tab*> tab_list = wxGetApp().tabs_list;
             std::set<size_t> modified_tabs_idx;
             for (const std::string& dep_key : it_opt->second.opt.depends_on) {
@@ -1167,7 +1167,7 @@ void ogStaticText::SetPathEnd(const std::string& link)
 #ifndef __linux__
 
     Bind(wxEVT_ENTER_WINDOW, [this, link](wxMouseEvent& event) {
-        SetToolTip(OptionsGroup::get_url(get_app_config()->get("suppress_hyperlinks") != "1" ? link : std::string()));
+        SetToolTip(OptionsGroup::get_url(get_app_config()->get("suppress_hyperlinks") != "disable" ? link : std::string()));
         FocusText(true);
         event.Skip();
     });
@@ -1192,7 +1192,7 @@ void ogStaticText::SetPathEnd(const std::string& link)
     // Workaround: On Linux wxStaticText doesn't receive wxEVT_ENTER(LEAVE)_WINDOW events,
     // so implement this behaviour trough wxEVT_MOTION events for this control and it's parent
     Bind(wxEVT_MOTION, [link, this](wxMouseEvent& event) {
-        SetToolTip(OptionsGroup::get_url(!get_app_config()->get_bool("suppress_hyperlinks") ? link : std::string()));
+        SetToolTip(OptionsGroup::get_url(get_app_config()->get("suppress_hyperlinks") != "disable" ? link : std::string()));
         FocusText(true);
         event.Skip();
     });
@@ -1212,7 +1212,7 @@ void ogStaticText::SetPathEnd(const std::string& link)
 
 void ogStaticText::FocusText(bool focus)
 {
-    if (get_app_config()->get_bool("suppress_hyperlinks"))
+    if (get_app_config()->get("suppress_hyperlinks") == "disable")
         return;
 
     SetFont(focus ? Slic3r::GUI::wxGetApp().link_font() :

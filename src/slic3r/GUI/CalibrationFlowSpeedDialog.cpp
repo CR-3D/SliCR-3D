@@ -31,13 +31,18 @@ namespace Slic3r {
 namespace GUI {
 
 void CalibrationFlowSpeedDialog::create_buttons(wxStdDialogButtonSizer* buttons){
+    const wxSize size(6 * em_unit(), wxDefaultCoord);
+    const wxSize bt_size(18 * em_unit(), wxDefaultCoord);
+
     wxString choices_gram[] = { "0.2","0.5","1","2","5","10" };
-    cmb_gram = new wxComboBox(this, wxID_ANY, wxString{ "1" }, wxDefaultPosition, wxDefaultSize, 5, choices_gram);
+    //cmb_gram = new wxComboBox(this, wxID_ANY, wxString{ "1" }, wxDefaultPosition, wxDefaultSize, 5, choices_gram);
+    cmb_gram = new ComboBox(this, wxID_ANY, wxString{"1"}, wxDefaultPosition, size, 5, choices_gram);
     cmb_gram->SetToolTip(_L("Choose the size of the patch to print (in gramme). A bigger weight allow to have more precision but it takes longer to print"));
     cmb_gram->SetSelection(2);
     
     wxString choices_nb[] = { "1","2","3","4","5","6","7","8" };
-    cmb_nb_steps = new wxComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    //cmb_nb_steps = new wxComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, wxDefaultSize, 8, choices_nb);
+    cmb_nb_steps = new ComboBox(this, wxID_ANY, wxString{"4"}, wxDefaultPosition, size, 8, choices_nb);
     cmb_nb_steps->SetToolTip(_L("Select the number of patches."));
     cmb_nb_steps->SetSelection(4);
 
@@ -55,8 +60,8 @@ void CalibrationFlowSpeedDialog::create_buttons(wxStdDialogButtonSizer* buttons)
         max_speed = curr_speed * 10;
     if (max_vol_flow > 0) {
         float layer_height = print_config->option("layer_height")->get_float();
-        layer_height = std::max(layer_height, float(print_config->get_computed_value("first_layer_height", 0)));
         float nz = printer_config->option("nozzle_diameter")->get_float(0);
+        layer_height = std::max(layer_height, float(print_config->get_abs_value("first_layer_height", nz)));
         float filament_max_overlap = filament_config->option("filament_max_overlap")->get_float();
         Flow  flow                 = Flow::new_from_config(FlowRole::frSolidInfill, *print_config, nz, layer_height,
                                           filament_max_overlap / 100.f, false);
@@ -73,30 +78,31 @@ void CalibrationFlowSpeedDialog::create_buttons(wxStdDialogButtonSizer* buttons)
         }
     }
     
-    auto size = wxSize(6 * em_unit(), wxDefaultCoord);
     float min_speed = std::max(filament_config->option("min_print_speed")->get_float(0), 0.);
     if (min_speed <= 0)
         min_speed = curr_speed / 10;
-    txt_min_speed = new wxTextCtrl(this, wxID_ANY, std::to_string(min_speed), wxDefaultPosition, size);
+    txt_min_speed = new wxTextCtrl(this, wxID_ANY, Slic3r::to_string_nozero(min_speed, 4), wxDefaultPosition, size);
     txt_min_speed->SetToolTip(_L("Speed of the first patch."));
 
-    txt_max_speed = new wxTextCtrl(this, wxID_ANY, std::to_string(max_speed), wxDefaultPosition, size);
+    txt_max_speed = new wxTextCtrl(this, wxID_ANY, Slic3r::to_string_nozero(max_speed, 4), wxDefaultPosition, size);
     txt_max_speed->SetToolTip(_L("Speed of the first patch."));
 
-    txt_min_flow = new wxTextCtrl(this, wxID_ANY, std::to_string(0.9), wxDefaultPosition, size);
+    txt_min_flow = new wxTextCtrl(this, wxID_ANY, Slic3r::to_string_nozero(0.9, 4), wxDefaultPosition, size);
     txt_min_flow->SetToolTip(_L("Minimum extrusion multiplier."));
 
-    txt_max_flow = new wxTextCtrl(this, wxID_ANY, std::to_string(1.3), wxDefaultPosition, size);
+    txt_max_flow = new wxTextCtrl(this, wxID_ANY, Slic3r::to_string_nozero(1.3, 4), wxDefaultPosition, size);
     txt_max_flow->SetToolTip(_L("Maximum extrusion multiplier."));
 
     wxString choices_min_overlap[] = { "0","10","20","30","40","50","60","70","80","90"};
-    cmb_min_overlap = new wxComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, wxDefaultSize, 8, choices_min_overlap);
+    //cmb_min_overlap = new wxComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, wxDefaultSize, 8, choices_min_overlap);
+    cmb_min_overlap = new ComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, size, 8, choices_min_overlap);
     cmb_min_overlap->SetToolTip(_L("Minimum overlap (0%: llnes don't touch (bad but easy to print)"
         " ; 100%: no empty spaces (almost impossible, the filament isn't liquid enough)."));
     cmb_min_overlap->SetSelection(6);
     
     wxString choices_max_overlap[] = { "100","90","80","70","60","50","30", "10"};
-    cmb_max_overlap = new wxComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, wxDefaultSize, 8, choices_max_overlap);
+    //cmb_max_overlap = new wxComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, wxDefaultSize, 8, choices_max_overlap);
+    cmb_max_overlap = new ComboBox(this, wxID_ANY, wxString{ "4" }, wxDefaultPosition, size, 8, choices_max_overlap);
     cmb_max_overlap->SetToolTip(_L("Maximum overlap (0%: llnes don't touch (bad but easy to print)"
         " ; 100%: no empty spaces (almost impossible, the filament isn't liquid enough)."));
     cmb_max_overlap->SetSelection(0);
@@ -107,52 +113,55 @@ void CalibrationFlowSpeedDialog::create_buttons(wxStdDialogButtonSizer* buttons)
     wxBoxSizer* hsizer_flow =new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer* hsizer_speed =new wxBoxSizer(wxHORIZONTAL);
 
-    hsizer_common->Add(new wxStaticText(this, wxID_ANY, _L("Patch weight:")));
+    hsizer_common->Add(new wxStaticText(this, wxID_ANY, _L("Patch weight:"), wxDefaultPosition, {9 * em_unit(), -1}, wxALIGN_RIGHT));
     hsizer_common->Add(cmb_gram);
-    hsizer_common->Add(new wxStaticText(this, wxID_ANY, ("g")));
+    hsizer_common->Add(new wxStaticText(this, wxID_ANY, _L("g"), wxDefaultPosition, {3 * em_unit(), -1}, wxALIGN_LEFT));
     hsizer_common->AddSpacer(20);
-    hsizer_common->Add(new wxStaticText(this, wxID_ANY, _L("steps:")));
+    hsizer_common->Add(new wxStaticText(this, wxID_ANY, _L("steps:"), wxDefaultPosition, {6 * em_unit(), -1}, wxALIGN_RIGHT));
     hsizer_common->Add(cmb_nb_steps);
     //hsizer_common->AddSpacer(20);
-
-    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, _L("min speed:")));
-    hsizer_speed->Add(txt_min_speed);
-    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, ("mm/s")));
-    hsizer_speed->AddSpacer(20);
-    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, _L("max speed:")));
-    hsizer_speed->Add(txt_max_speed);
-    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, ("mm/s")));
-    hsizer_speed->AddSpacer(20);
-    wxButton* bt_speed = new wxButton(this, wxID_FILE1, _L("Generate for multiple speeds"));
-    bt_speed->Bind(wxEVT_BUTTON, &CalibrationFlowSpeedDialog::create_speed, this);
-    hsizer_speed->Add(bt_speed);
     
-    hsizer_flow->Add(new wxStaticText(this, wxID_ANY, _L("Extrusion multiplier:")));
-    hsizer_flow->Add(new wxStaticText(this, wxID_ANY, _L("min:")));
+    hsizer_flow->Add(new wxStaticText(this, wxID_ANY, _L("Extrusion multiplier:") + " " + _L("min:"), wxDefaultPosition, {12 * em_unit(), -1}, wxALIGN_RIGHT));
     hsizer_flow->Add(txt_min_flow);
     hsizer_flow->AddSpacer(20);
-    hsizer_flow->Add(new wxStaticText(this, wxID_ANY, _L("max:")));
+    hsizer_flow->Add(new wxStaticText(this, wxID_ANY, _L("max:"), wxDefaultPosition, {6 * em_unit(), -1}, wxALIGN_RIGHT));
     hsizer_flow->Add(txt_max_flow);
+    hsizer_flow->Add(new wxStaticText(this, wxID_ANY, wxString(" "), wxDefaultPosition, {3 * em_unit(), -1}, wxALIGN_LEFT));
     hsizer_flow->AddSpacer(20);
-    wxButton* bt_flow = new wxButton(this, wxID_FILE1, _L("Generate for multiple flow"));
+    wxButton* bt_flow = new wxButton(this, wxID_FILE2, _L("Generate for multiple flows"), wxDefaultPosition, bt_size);
     bt_flow->Bind(wxEVT_BUTTON, &CalibrationFlowSpeedDialog::create_flow, this);
     hsizer_flow->Add(bt_flow);
 
-    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, _L("min overlap:")));
+    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, _L("min overlap:"), wxDefaultPosition, {9 * em_unit(), -1}, wxALIGN_RIGHT));
     hsizer_overlap->Add(cmb_min_overlap);
-    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, ("%")));
+    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, _L("%"), wxDefaultPosition, {3 * em_unit(), -1}, wxALIGN_LEFT));
     hsizer_overlap->AddSpacer(20);
-    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, _L("max overlap:")));
+    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, _L("max overlap:"), wxDefaultPosition, {6 * em_unit(), -1}, wxALIGN_RIGHT));
     hsizer_overlap->Add(cmb_max_overlap);
-    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, ("%")));
+    hsizer_overlap->Add(new wxStaticText(this, wxID_ANY, wxString(" ") + _L("%"), wxDefaultPosition, {3 * em_unit(), -1}, wxALIGN_LEFT));
     hsizer_overlap->AddSpacer(20);
-    wxButton* bt_overlap = new wxButton(this, wxID_FILE1, _L("Generate for multiple overlaps"));
+    wxButton* bt_overlap = new wxButton(this, wxID_FILE3, _L("Generate for multiple overlaps"), wxDefaultPosition, bt_size); 
     bt_overlap->Bind(wxEVT_BUTTON, &CalibrationFlowSpeedDialog::create_overlap, this);
     hsizer_overlap->Add(bt_overlap);
 
+    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, _L("min speed:"), wxDefaultPosition, {9 * em_unit(), -1}, wxALIGN_RIGHT));
+    hsizer_speed->Add(txt_min_speed);
+    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, wxString(" ") + _L("mm/s"), wxDefaultPosition, {3 * em_unit(), -1}, wxALIGN_LEFT));
+    hsizer_speed->AddSpacer(20);
+    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, _L("max speed:"), wxDefaultPosition, {6 * em_unit(), -1}, wxALIGN_RIGHT));
+    hsizer_speed->Add(txt_max_speed);
+    hsizer_speed->Add(new wxStaticText(this, wxID_ANY, wxString(" ") +  _L("mm/s"), wxDefaultPosition, {3 * em_unit(), -1}, wxALIGN_LEFT));
+    hsizer_speed->AddSpacer(20);
+    wxButton* bt_speed = new wxButton(this, wxID_FILE1, _L("Generate for multiple speeds"), wxDefaultPosition, bt_size);
+    bt_speed->Bind(wxEVT_BUTTON, &CalibrationFlowSpeedDialog::create_speed, this);
+    hsizer_speed->Add(bt_speed);
+
     vertical->Add(hsizer_common);
+    vertical->AddSpacer(5);
     vertical->Add(hsizer_flow);
+    vertical->AddSpacer(5);
     vertical->Add(hsizer_overlap);
+    vertical->AddSpacer(5);
     vertical->Add(hsizer_speed);
 
     buttons->Add(vertical);
@@ -174,16 +183,16 @@ std::tuple<float, float, Flow> CalibrationFlowSpeedDialog::get_cube_size(float o
 
     std::string str = cmb_gram->GetValue().ToStdString();
     float weight = std::stof(str);
-
+    
+    float nz = printer_config->option("nozzle_diameter")->get_float(0);
     // get max height
     float max_height = print_config->option("extruder_clearance_height")->get_float();
     // multiple of layer height
     float layer_height = print_config->option("layer_height")->get_float();
-    layer_height = std::max(layer_height, float(print_config->get_computed_value("first_layer_height", 0)));
+    layer_height = std::max(layer_height, float(print_config->get_abs_value("first_layer_height", nz)));
     max_height = int(max_height / layer_height) * layer_height;
     
     //compute flow
-    float nz = printer_config->option("nozzle_diameter")->get_float(0);
     Flow flow;
     float mult_size_for_overlap = 1;
     if (overlap < 100) {
@@ -366,8 +375,9 @@ void CalibrationFlowSpeedDialog::create_geometry(
     new_filament_config.option<ConfigOptionFloats>("slowdown_below_layer_time")->set_at(0, 0);
     
     /// --- custom config ---
+    float nz = printer_config->option("nozzle_diameter")->get_float(0);
     float layer_height = print_config->option("layer_height")->get_float();
-    layer_height = std::max(layer_height, float(print_config->get_computed_value("first_layer_height", 0)));
+    layer_height = std::max(layer_height, float(print_config->get_abs_value("first_layer_height", nz)));
     const float extrusion_mult = filament_config->option("extrusion_multiplier")->get_float(0);
     assert(objs_flow.size() == objs.size());
     assert(nb_steps == objs.size());
@@ -406,8 +416,7 @@ void CalibrationFlowSpeedDialog::create_geometry(
         objs[i]->config.set_key_value("brim_width", new ConfigOptionFloat(0));
 
         objs[i]->config.set_key_value("enforce_full_fill_volume", new ConfigOptionBool(true));
-        objs[i]->config.set_key_value("bottom_solid_layers", new ConfigOptionInt(10000));
-        objs[i]->config.set_key_value("top_solid_layers", new ConfigOptionInt(10000));
+        objs[i]->config.set_key_value("solid_infill_every_layers", new ConfigOptionInt(1));
         objs[i]->config.set_key_value("layer_height", new ConfigOptionFloat(layer_height));
         objs[i]->config.set_key_value("first_layer_height", new ConfigOptionFloatOrPercent(layer_height, false));
         objs[i]->config.set_key_value("solid_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinear));

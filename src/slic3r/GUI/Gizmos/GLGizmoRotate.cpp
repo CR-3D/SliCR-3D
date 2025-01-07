@@ -217,7 +217,7 @@ void GLGizmoRotate::init_data_from_selection(const Selection& selection)
 
 void GLGizmoRotate3D::on_render_input_window(float x, float y, float bottom_limit)
 {
-    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA)
+    if (wxGetApp().get_current_printer_technology() != ptSLA)
         return;
 
     RotoptimzeWindow popup{m_imgui, m_rotoptimizewin_state, {x, y, bottom_limit}};

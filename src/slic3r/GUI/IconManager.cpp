@@ -242,8 +242,7 @@ std::vector<IconManager::Icons> IconManager::init(const std::vector<std::string>
     const auto& states = priv::get_states(type);
         
     bool compress  = false;
-    uint32_t color = Slic3r::GUI::wxGetApp().app_config->create_color(0.86f, 0.93f, AppConfig::EAppColorType::Platter);
-    bool is_loaded = m_icons_texture.load_from_svg_files_as_sprites_array(file_paths, states, width, compress, color);
+    bool is_loaded = m_icons_texture.load_from_svg_files_as_sprites_array(file_paths, states, width, compress);
     if (!is_loaded || (size_t) m_icons_texture.get_width() < (states.size() * width) ||
         (size_t) m_icons_texture.get_height() < (file_paths.size() * width)) {
         // bad load of icons, but all usage of m_icons_texture check that texture is initialized

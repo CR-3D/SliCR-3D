@@ -795,7 +795,7 @@ bool GLGizmoSlaSupports::on_is_activable() const
 {
     const Selection& selection = m_parent.get_selection();
 
-    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA
+    if (wxGetApp().get_current_printer_technology() != ptSLA
         || !selection.is_single_full_instance())
         return false;
 
@@ -816,7 +816,7 @@ bool GLGizmoSlaSupports::on_is_activable() const
 
 bool GLGizmoSlaSupports::on_is_selectable() const
 {
-    return (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA);
+    return (wxGetApp().get_current_printer_technology() == ptSLA);
 }
 
 std::string GLGizmoSlaSupports::on_get_name() const

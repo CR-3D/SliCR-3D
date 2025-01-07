@@ -288,7 +288,7 @@ void AppConfig::set_defaults()
             set("show_collapse_button", "1");
 
         if (get("suppress_hyperlinks").empty())
-            set("suppress_hyperlinks", "1");
+            set("suppress_hyperlinks", "confirm");
 
         if (get("focus_platter_on_mouse").empty())
             set("focus_platter_on_mouse", "1");

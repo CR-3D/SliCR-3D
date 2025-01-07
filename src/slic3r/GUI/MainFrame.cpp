@@ -1323,7 +1323,7 @@ void MainFrame::add_created_tab(Tab* panel)
 {
     panel->create_preset_tab();
 
-    const auto printer_tech = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+    const auto printer_tech = wxGetApp().get_current_printer_technology();
 
     if (panel->supports_printer_technology(printer_tech)) {
         if (!wxGetApp().tabs_as_menu()) {
@@ -1652,7 +1652,7 @@ static wxMenu* generate_help_menu()
     append_menu_item(helpMenu, wxID_ANY, _L("Show &Configuration Folder"), _L("Show user configuration folder (datadir)"),
         [](wxCommandEvent&) { Slic3r::GUI::desktop_open_datadir_folder(); });
     append_menu_item(helpMenu, wxID_ANY, _L("Report an I&ssue"), wxString::Format(_L("Report an issue on %s"), SLIC3R_APP_NAME),
-        [](wxCommandEvent&) { wxGetApp().open_browser_with_warning_dialog("http://github.com/" SLIC3R_GITHUB "/issues/new", nullptr, false); });
+        [](wxCommandEvent&) { wxGetApp().open_browser_with_warning_dialog("http://github.com/" SLIC3R_GITHUB "/issues/new"); });
 
 #ifndef __APPLE__
     append_about_menu_item(helpMenu);
@@ -1896,7 +1896,7 @@ void MainFrame::init_menubar_as_editor()
             _L("Deselects all objects"), [this](wxCommandEvent&) { m_plater->deselect_all(); },
             "", nullptr, [this](){return can_deselect() && can_change_view(); }, this);
         editMenu->AppendSeparator();
-        append_menu_item(editMenu, wxID_ANY, _L("&Delete Selected") + "\t" + /*hotkey_delete don't use the real escape key, or it will prevent del on some fields*/ "Dèl",
+        append_menu_item(editMenu, wxID_ANY, _L("&Delete Selected") + "\t" + /*hotkey_delete don't use the real escape key, or it will prevent del on some fields*/ "Del",
             _L("Deletes the current selection"),[this](wxCommandEvent&) { m_plater->remove_selected(); },
             "remove_menu", nullptr, [this](){return can_delete() && can_change_view(); }, this);
         append_menu_item(editMenu, wxID_ANY, _L("Delete &All") + "\tCtrl+" + hotkey_delete,
@@ -2423,12 +2423,12 @@ void MainFrame::load_configbundle(wxString file/* = wxEmptyString*/, bool from_p
 // Also update the plater with the new presets.
 void MainFrame::load_config(const DynamicPrintConfig& config)
 {
-    PrinterTechnology printer_technology = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
-    const auto       *opt_printer_technology = config.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
-    if (opt_printer_technology != nullptr && opt_printer_technology->value != printer_technology) {
-        printer_technology = opt_printer_technology->value;
-        this->plater()->set_printer_technology(printer_technology);
-    }
+	PrinterTechnology printer_technology = wxGetApp().get_current_printer_technology();
+	const auto       *opt_printer_technology = config.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+	if (opt_printer_technology != nullptr && opt_printer_technology->value != printer_technology) {
+		printer_technology = opt_printer_technology->value;
+		this->plater()->set_printer_technology(printer_technology);
+	}
 #if 0
 	for (auto tab : wxGetApp().tabs_list)
 		if (tab->supports_printer_technology(printer_technology)) {

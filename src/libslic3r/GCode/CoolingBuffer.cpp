@@ -577,11 +577,11 @@ std::vector<PerExtruderAdjustments> CoolingBuffer::parse_layer_gcode(const std::
                 }
                 line.feedrate = new_pos[AxisIdx::F];
                 if (line.feedrate > 0.f && line.length > 0.f) {
-                    assert((line.type & CoolingLine::TYPE_ADJUSTABLE) == 0);
                     // there can be no active_speed_modifier in custom gcode. 
                     assert(active_speed_modifier != size_t(-1) || current_stamp == CoolingLine::TYPE_NONE);
                     line.type |= current_stamp;
                 }
+                // _EXTRUDE_SET_SPEED[_MAYBE] should be on the same line as a speed (F axis)
                 assert((line.type & CoolingLine::TYPE_ADJUSTABLE) == 0 || line.feedrate > 0.f);
                 if (line.length > 0) {
                     assert(line.feedrate > 0);

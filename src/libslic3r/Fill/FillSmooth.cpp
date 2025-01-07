@@ -75,60 +75,64 @@ namespace Slic3r {
         f2->link_max_length = this->link_max_length;
         // Used by the concentric infill pattern to clip the loops to create extrusion paths.
         f2->loop_clipping = this->loop_clipping;
-        Polylines polylines_layer = f2->fill_surface(&srf_to_fill, params);
 
-        if (!polylines_layer.empty()) {
-            //get the role
-            ExtrusionRole good_role = params.role;
-            if (good_role == ExtrusionRole::None) {
-                good_role = params.flow.bridge() && idx == 0 ? ExtrusionRole::BridgeInfill : rolePass[idx];
-            }
-            //get the flow
-            float mult_flow = 1;
-            if (params.fill_exactly) {
+        f2->fill_surface_extrusion(&srf_to_fill, params, eec.set_entities());
 
-                // compute the volume to extrude
-                double volume_to_occupy = compute_unscaled_volume_to_fill(&srf_to_fill, params);
 
-                //compute the path of the nozzle
-                double length_tot = 0;
-                int nb_lines = 0;
-                for (Polyline& pline : polylines_layer) {
-                    Lines lines = pline.lines();
-                    for (Line& line : lines) {
-                        length_tot += unscaled(line.length());
-                        nb_lines++;
-                    }
-                }
-                //compute flow to remove spacing_ratio from the equation
-                double extruded_volume = 0;
-                if (params.flow.spacing_ratio() < 1.f && !params.flow.bridge()) {
-                    // the spacing is larger than usual. get the flow from the current spacing
-                    Flow test_flow = Flow::new_from_spacing(params.flow.spacing(), params.flow.nozzle_diameter(), params.flow.height(), 1, params.flow.bridge());
-                    extruded_volume = test_flow.mm3_per_mm() * length_tot / params.density;
-                } else
-                    extruded_volume = params.flow.mm3_per_mm() * length_tot / params.density;
-                if (extruded_volume == 0) extruded_volume = volume_to_occupy;
-
-                // print
-                mult_flow = (float)std::min(2., volume_to_occupy / extruded_volume);
-                BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << " Ironing process " << idx << " extrude " << extruded_volume << " mm3 for a volume of " << volume_to_occupy << " mm3 : we mult the flow by " << mult_flow;
-                
-            }
-#if _DEBUG
-            this->debug_verify_flow_mult = mult_flow;
-#endif
-            extrusion_entities_append_paths(
-                eec,
-                std::move(polylines_layer),
-                ExtrusionAttributes{good_role,
-                                    ExtrusionFlow{params.flow.mm3_per_mm() * params.flow_mult * mult_flow,
-                                                    // min-reduced flow width for a better view (it's mostly a gui
-                                                    // thing, but some support code can want to mess with it)
-                                                    (float) (params.flow.width() * (params.flow_mult * mult_flow < 0.1 ? 0.1 : params.flow_mult * mult_flow)),
-                                                    (float) params.flow.height()}},
-                true);
-        }
+//        Polylines polylines_layer = f2->fill_surface(&srf_to_fill, params);
+//
+//        if (!polylines_layer.empty()) {
+//            //get the role
+//            ExtrusionRole good_role = params.role;
+//            if (good_role == ExtrusionRole::None) {
+//                good_role = params.flow.bridge() && idx == 0 ? ExtrusionRole::BridgeInfill : rolePass[idx];
+//            }
+//            //get the flow
+//            float mult_flow = 1;
+//            if (params.fill_exactly) {
+//
+//                // compute the volume to extrude
+//                double volume_to_occupy = compute_unscaled_volume_to_fill(&srf_to_fill, params);
+//
+//                //compute the path of the nozzle
+//                double length_tot = 0;
+//                int nb_lines = 0;
+//                for (Polyline& pline : polylines_layer) {
+//                    Lines lines = pline.lines();
+//                    for (Line& line : lines) {
+//                        length_tot += unscaled(line.length());
+//                        nb_lines++;
+//                    }
+//                }
+//                //compute flow to remove spacing_ratio from the equation
+//                double extruded_volume = 0;
+//                if (params.flow.spacing_ratio() < 1.f && !params.flow.bridge()) {
+//                    // the spacing is larger than usual. get the flow from the current spacing
+//                    Flow test_flow = Flow::new_from_spacing(params.flow.spacing(), params.flow.nozzle_diameter(), params.flow.height(), 1, params.flow.bridge());
+//                    extruded_volume = test_flow.mm3_per_mm() * length_tot / params.density;
+//                } else
+//                    extruded_volume = params.flow.mm3_per_mm() * length_tot / params.density;
+//                if (extruded_volume == 0) extruded_volume = volume_to_occupy;
+//
+//                // print
+//                mult_flow = (float)std::min(2., volume_to_occupy / extruded_volume);
+//                BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << " Ironing process " << idx << " extrude " << extruded_volume << " mm3 for a volume of " << volume_to_occupy << " mm3 : we mult the flow by " << mult_flow;
+//                
+//            }
+//#if _DEBUG
+//            this->debug_verify_flow_mult = mult_flow;
+//#endif
+//            extrusion_entities_append_paths(
+//                eec,
+//                std::move(polylines_layer),
+//                ExtrusionAttributes{good_role,
+//                                    ExtrusionFlow{params.flow.mm3_per_mm() * params.flow_mult * mult_flow,
+//                                                    // min-reduced flow width for a better view (it's mostly a gui
+//                                                    // thing, but some support code can want to mess with it)
+//                                                    (float) (params.flow.width() * (params.flow_mult * mult_flow < 0.1 ? 0.1 : params.flow_mult * mult_flow)),
+//                                                    (float) params.flow.height()}},
+//                true);
+//        }
     }
 
 

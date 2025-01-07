@@ -2,6 +2,7 @@
 #define slic3r_GUI_CalibrationRetractionDialog_hpp_
 
 #include "CalibrationAbstractDialog.hpp"
+#include "Widgets/ComboBox.hpp"
 
 namespace Slic3r { 
 namespace GUI {
@@ -18,11 +19,11 @@ protected:
     void remove_slowdown(wxCommandEvent& event_args);
     void create_geometry(wxCommandEvent& event_args);
 
-    wxComboBox* steps;
-    wxComboBox* nb_steps;
+    ComboBox* steps;
+    ComboBox* nb_steps;
     //wxComboBox* start_step;
     wxTextCtrl* temp_start;
-    wxComboBox* decr_temp;
+    ComboBox* decr_temp;
 };
 
 } // namespace GUI

@@ -467,7 +467,7 @@ wxBoxSizer* Preview::create_layers_slider_sizer()
     m_layers_slider = new DoubleSlider::Control(this, wxID_ANY, 0, 0, 0, 100);
     std::lock_guard lock(m_layers_slider->lock_render());
 
-    m_layers_slider->SetDrawMode(wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA,
+    m_layers_slider->SetDrawMode(wxGetApp().get_current_printer_technology() == ptSLA,
         wxGetApp().preset_bundle->fff_prints.get_edited_preset().config.opt_bool("complete_objects"));
     m_layers_slider->enable_action_icon(wxGetApp().is_editor());
 

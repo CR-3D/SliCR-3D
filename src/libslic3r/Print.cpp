@@ -614,7 +614,7 @@ bool Print::sequential_print_horizontal_clearance_valid(const Print &print, Poly
     std::vector<size_t> intersecting_idxs;
 
 	std::map<ObjectID, Polygon> map_model_object_to_convex_hull;
-    const double dist_grow = min_object_distance(static_cast<const ConfigBase*>(&print.full_print_config()), 0) * 2;
+    const double dist_grow = min_object_distance(static_cast<const ConfigBase*>(&print.full_print_config()), 0);
 	for (const PrintObject *print_object : print.objects()) {
         const double object_grow = (print.config().complete_objects && !print_object->config().brim_per_object) ? dist_grow : std::max(dist_grow, print_object->config().brim_width.value);
 	    assert(! print_object->model_object()->instances.empty());

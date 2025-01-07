@@ -44,13 +44,20 @@ void CalibrationBedDialog::create_geometry(wxCommandEvent& event_args) {
         return;
     // wait for slicing end if needed
     wxGetApp().Yield();
-
+    
+    std::unique_ptr<wxWindowUpdateLocker> freeze_gui = std::make_unique<wxWindowUpdateLocker>(this);
+    bool autocenter = gui_app->app_config->get("autocenter") == "1";
+    if(autocenter) {
+        //disable aut-ocenter for this calibration.
+        gui_app->app_config->set("autocenter", "0");
+    }
+    
     std::vector<size_t> objs_idx = plat->load_files(std::vector<std::string>{
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bed_leveling" / "patch.amf").string(),
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bed_leveling" / "patch.amf").string(),
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bed_leveling" / "patch.amf").string(),
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bed_leveling" / "patch.amf").string(),
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bed_leveling" / "patch.amf").string()}, true, false, false, false);
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "bed_leveling" / "patch.amf").string()}, /*load_model=*/true , false, false, false);
 
     assert(objs_idx.size() == 5);
     const DynamicPrintConfig* printConfig = this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->get_config();
@@ -100,18 +107,18 @@ void CalibrationBedDialog::create_geometry(wxCommandEvent& event_args) {
     bool large_enough = bed_shape->size() == 4 ?
         (bed_size.x() > offsetx * 3 && bed_size.y() > offsety * 3) :
         (bed_size.x() > offsetx * 2 + 10 * xyScale && bed_size.y() > offsety * 2 + 10 * xyScale);
-    if (!large_enough){
-        //problem : too small, use arrange instead and let the user place them.
-        Worker &ui_job_worker = plat->get_ui_job_worker();
-        plat->arrange(ui_job_worker, ArrangeSelectionMode::CurrentBedFull);
-        ui_job_worker.wait_for_current_job(20000);
-        //TODO add message
-    } else {
-        model.objects[objs_idx[0]]->translate({ bed_min.x() + offsetx,               bed_min.y() + bed_size.y() - offsety, 1 * zscale });
-        model.objects[objs_idx[1]]->translate({ bed_min.x() + bed_size.x() - offsetx,bed_min.y() + offsety ,               1 * zscale });
-        model.objects[objs_idx[2]]->translate({ bed_min.x() + bed_size.x()/2,       bed_min.y() + bed_size.y() / 2,        1 * zscale });
-        model.objects[objs_idx[3]]->translate({ bed_min.x() + offsetx,               bed_min.y() + offsety,                1 * zscale });
-        model.objects[objs_idx[4]]->translate({ bed_min.x() + bed_size.x() - offsetx,bed_min.y() + bed_size.y() - offsety, 1 * zscale });
+    // note: objects are loaded around bed_size center (because of load_model bool : center_instances_around_point(this->bed.build_volume().bed_center());)
+    if (large_enough) {
+        ModelInstance *instance = model.objects[objs_idx[0]]->instances.front();
+        instance->set_offset({ bed_min.x() + offsetx,               bed_min.y() + bed_size.y() - offsety, instance->get_offset().z() + 1 * zscale });
+        instance = model.objects[objs_idx[1]]->instances.front();
+        instance->set_offset({ bed_min.x() + bed_size.x() - offsetx,bed_min.y() + offsety ,               instance->get_offset().z() + 1 * zscale });
+        instance = model.objects[objs_idx[2]]->instances.front();
+        instance->set_offset({ bed_min.x() + bed_size.x()/2,       bed_min.y() + bed_size.y() / 2,        instance->get_offset().z() + 1 * zscale });
+        instance = model.objects[objs_idx[3]]->instances.front();
+        instance->set_offset({ bed_min.x() + offsetx,               bed_min.y() + offsety,                instance->get_offset().z() + 1 * zscale });
+        instance = model.objects[objs_idx[4]]->instances.front();
+        instance->set_offset({ bed_min.x() + bed_size.x() - offsetx,bed_min.y() + bed_size.y() - offsety, instance->get_offset().z() + 1 * zscale });
     }
 
     /// --- main config, please modify object config when possible ---
@@ -149,6 +156,16 @@ void CalibrationBedDialog::create_geometry(wxCommandEvent& event_args) {
     this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->update_dirty();
     //update everything, easier to code.
     this->gui_app->obj_list()->update_after_undo_redo();
+    freeze_gui.reset();
+    
+    if (!large_enough) {
+        //problem : too small, use arrange instead and let the user place them.
+        Worker &ui_job_worker = plat->get_ui_job_worker();
+        plat->arrange(ui_job_worker, ArrangeSelectionMode::CurrentBedFull);
+        ui_job_worker.wait_for_current_job(20000);
+        //TODO add message
+    }
+    
     //if(!plat->is_background_process_update_scheduled())
     //    plat->schedule_background_process();
     plat->reslice();

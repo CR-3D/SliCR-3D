@@ -144,12 +144,14 @@ static void set_font_and_background_style(wxWindow* win, const wxFont& font)
 
 static const wxString axes_color_text[] = { "#990000", "#009900", "#000099" };
 static const wxString axes_color_back[] = { "#f5dcdc", "#dcf5dc", "#dcdcf5" };
+static const wxString axes_color_back_dark_mode[] = { "#660505", "#044d04", "#050566" };
 
 ObjectManipulation::ObjectManipulation(wxWindow* parent) :
     OG_Settings(parent, true)
 {
     m_imperial_units = wxGetApp().app_config->get_bool("use_inches");
     m_use_colors     = wxGetApp().app_config->get_bool("color_manipulation_panel");
+    m_use_colors     = wxGetApp().dark_mode();
 
     m_manifold_warning_bmp = ScalableBitmap(parent, "exclamation");
 
@@ -623,16 +625,20 @@ void ObjectManipulation::update_ui_from_settings()
     }
     CheckBox::SetValue(m_check_inch, m_imperial_units);
 
-    if (m_use_colors != wxGetApp().app_config->get_bool("color_manipulation_panel")) {
+    if (m_use_colors != wxGetApp().app_config->get_bool("color_manipulation_panel") || m_use_colors_is_dark != wxGetApp().dark_mode()) {
         m_use_colors  = wxGetApp().app_config->get_bool("color_manipulation_panel");
+        m_use_colors_is_dark = wxGetApp().dark_mode();
         // update colors for edit-boxes
         int axis_id = 0;
         for (ManipulationEditor* editor : m_editors) {
 //            editor->SetForegroundColour(m_use_colors ? wxColour(axes_color_text[axis_id]) : wxGetApp().get_label_clr_default());
             if (m_use_colors) {
-                editor->SetBackgroundColour(wxColour(axes_color_back[axis_id]));
-                if (wxGetApp().dark_mode())
-                    editor->SetForegroundColour(wxGetApp().get_label_clr_default());
+                editor->SetForegroundColour(wxGetApp().get_label_clr_default());
+                if (wxGetApp().dark_mode()) {
+                    editor->SetBackgroundColour(wxColour(axes_color_back_dark_mode[axis_id]));
+                } else {
+                    editor->SetBackgroundColour(wxColour(axes_color_back[axis_id]));
+                }
             }
             else {
 #ifdef _WIN32
@@ -647,6 +653,8 @@ void ObjectManipulation::update_ui_from_settings()
                 axis_id = 0;
         }
     }
+
+    // change mirror button dark/clear mode
 }
 
 void ObjectManipulation::update_settings_value(const Selection& selection)
@@ -1242,8 +1250,12 @@ ManipulationEditor::ManipulationEditor(ObjectManipulation* parent,
 {
     set_font_and_background_style(this, wxGetApp().normal_font());
     if (parent->use_colors()) {
-        this->SetBackgroundColour(wxColour(axes_color_back[axis]));
         this->SetForegroundColour(wxGetApp().get_label_clr_default());
+        if (wxGetApp().dark_mode()) {
+            this->SetBackgroundColour(wxColour(axes_color_back_dark_mode[axis]));
+        } else {
+            this->SetBackgroundColour(wxColour(axes_color_back[axis]));
+        }
     } else {
         wxGetApp().UpdateDarkUI(this);
     }

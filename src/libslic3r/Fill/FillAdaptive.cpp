@@ -1330,6 +1330,10 @@ void Filler::_fill_surface_single(
     Polylines                     &polylines_out) const
 {
     assert (this->adapt_fill_octree);
+    if (!this->adapt_fill_octree) {
+        BOOST_LOG_TRIVIAL(error) << "Error in FillAdaptative: no adapt_fill_octree.";
+        return;
+    }
 
     Polylines all_polylines;
     {

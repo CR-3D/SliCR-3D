@@ -325,7 +325,7 @@ void OG_CustomCtrl::OnMotion(wxMouseEvent& event)
 
     wxString language = wxGetApp().app_config->get("translation_language");
 
-    const bool suppress_hyperlinks = get_app_config()->get_bool("suppress_hyperlinks");
+    const bool suppress_hyperlinks = get_app_config()->get("suppress_hyperlinks") == "disable";
 
     for (CtrlLine& line : ctrl_lines) {
         line.is_focused = false;
