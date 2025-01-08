@@ -77,6 +77,8 @@ void CalibrationRetractionDialog::create_buttons(wxStdDialogButtonSizer* buttons
 
     wxButton* bt = new wxButton(this, wxID_SETUP, _L("Remove fil. slowdown"));
     bt->Bind(wxEVT_BUTTON, &CalibrationRetractionDialog::remove_slowdown, this);
+    bt->SetForegroundColour(text_color);
+    bt->SetBackgroundColour(background_color);
     buttons->Add(bt);
     buttons->AddSpacer(20);
 
