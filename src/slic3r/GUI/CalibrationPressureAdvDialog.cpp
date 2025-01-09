@@ -198,7 +198,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
         //need to move this to another function.....
         wxString firstPaValue = dynamicFirstPa[id_item]->GetValue();
         wxString startPaValue = dynamicStartPa[id_item]->GetValue();
-        wxString endPaValue = dynamicEndPa[id_item]->GetValue();        
+        wxString endPaValue = dynamicEndPa[id_item]->GetValue();
         wxString paIncrementValue = dynamicPaIncrement[id_item]->GetValue();
         wxString erPaValue = dynamicExtrusionRole[id_item]->GetValue();
         smooth_time = dynamicEnableST[id_item]->GetValue();
@@ -473,18 +473,29 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
                     if (pa_values_string[j] == '.') {
 
                         add_part(model.objects[objs_idx[id_item]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_pressure" / "point.3mf").string(),
-                            Vec3d{ xpos + xy_scaled_number_x + nozzle_diameter , ypos_point, z_scaled_model_height - magical_transformation_z_pos }, Vec3d{ xyzScale * er_width_to_scale, xyzScale+(xyzScale/2), z_scale_factor*2 });
+                            Vec3d{ xpos + xy_scaled_number_x + nozzle_diameter ,
+                                   ypos_point,
+                                   z_scaled_model_height - magical_transformation_z_pos },
+                            Vec3d{ xyzScale * er_width_to_scale, xyzScale+(xyzScale/2), z_scale_factor*2 });
 
-                        Eigen::Vector3d modelPosition(xpos + xy_scaled_number_x + nozzle_diameter + magical_transformation_num_x_pos, ypos_point, z_scaled_model_height - magical_transformation_z_pos );
+                        Eigen::Vector3d modelPosition(xpos + xy_scaled_number_x + nozzle_diameter + magical_transformation_num_x_pos,
+                                                      ypos_point,
+                                                      z_scaled_model_height - magical_transformation_z_pos );
+                                                      
                         number_positions.push_back(modelPosition);
                         xpos = xpos + xy_scaled_point_xy + (nozzle_diameter * 2 );
                     }
                     else if (std::isdigit(pa_values_string[j])) {
                         
                         add_part(model.objects[objs_idx[id_item]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_pressure" / numered3mfpath).string(),
-                            Vec3d{ xpos + xy_scaled_number_x + nozzle_diameter /* +magical_transformation_num_x_pos */, ypos, z_scaled_model_height - magical_transformation_z_pos }, Vec3d{ xyzScale * er_width_to_scale, xyzScale * er_width_to_scale, z_scale_factor*2 });
+                            Vec3d{ xpos + xy_scaled_number_x + nozzle_diameter /* +magical_transformation_num_x_pos */,
+                                   ypos,
+                                   z_scaled_model_height - magical_transformation_z_pos },
+                            Vec3d{ xyzScale * er_width_to_scale, xyzScale * er_width_to_scale, z_scale_factor*2 });
                         
-                        Eigen::Vector3d modelPosition(xpos + xy_scaled_number_x + nozzle_diameter + magical_transformation_num_x_pos, ypos, z_scaled_model_height - magical_transformation_z_pos );
+                        Eigen::Vector3d modelPosition(xpos + xy_scaled_number_x + nozzle_diameter + magical_transformation_num_x_pos,
+                                                      ypos,
+                                                      z_scaled_model_height - magical_transformation_z_pos );
                         number_positions.push_back(modelPosition);
                         xpos = xpos + xy_scaled_number_x + nozzle_diameter /* +magical_transformation_num_x_pos */;
                     }
