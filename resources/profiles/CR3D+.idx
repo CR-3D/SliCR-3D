@@ -2,3 +2,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.1 initial add
 0.0.2 set 'start_gcode_manual' to 1
 0.0.3 also updating wipe_tower configuration
+0.0.4 updated start_gcode 

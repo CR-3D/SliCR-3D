@@ -1391,6 +1391,7 @@ bool PresetUpdater::install_bundles_rsrc_or_cache_vendor(std::vector<std::string
 			GUI::show_error(nullptr, msg);
 			continue;
 		}
+
 		Slic3r::GUI::Config::Index index;
 		try {
 			index.load(idx_path);
