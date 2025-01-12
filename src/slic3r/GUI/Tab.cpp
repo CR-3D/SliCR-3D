@@ -4291,8 +4291,7 @@ void Tab::load_current_preset()
                 static_cast<TabPrinter*>(this)->m_sys_milling_count = parent_preset == nullptr ? 0 :
                     static_cast<const ConfigOptionFloats*>(parent_preset->config.option("milling_diameter"))->size();
             }
-        }
-        else {
+        } else {
             on_presets_changed();
             //update width/spacing links
             if (type() == Preset::TYPE_FFF_PRINT) {
