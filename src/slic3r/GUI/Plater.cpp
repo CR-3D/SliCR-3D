@@ -9169,13 +9169,16 @@ void Plater::filament_notification_plater() {
         }
     }
     
-    if (!is_startup) {
+    if (!is_startup && !recommendation_message.empty()) {
         get_notification_manager()->push_notification(GUI::format(_L(recommendation_message)));
     }
-    
+
     // Set startup to false after the check
     is_startup = false;
-    
+
+
+
+
 }
 
 void Plater::on_config_change(const DynamicConfig &config)

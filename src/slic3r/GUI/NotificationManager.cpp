@@ -258,8 +258,12 @@ bool NotificationManager::PopNotification::push_background_color()
 }
 void NotificationManager::PopNotification::count_spaces()
 {
-	//determine line width 
-	m_line_height = 28.0; //ImGui::CalcTextSize("a").y;
+	//determine line width
+#if _WIN32
+	m_line_height = 15.0; //ImGui::CalcTextSize("a").y;
+#else 
+	m_line_height = 28.0;
+#endif
 
 	m_left_indentation = m_line_height;
 	if (m_data.level == NotificationLevel::ErrorNotificationLevel 
