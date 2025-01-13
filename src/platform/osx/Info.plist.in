@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key>
-  <string>SliCR-3D-V2</string>
+  <string>SliCR-3D</string>
   <key>CFBundleGetInfoString</key>
   <string>@SLIC3R_APP_NAME@ Copyright (C) 2011-2019 Alessandro Ranellucci, (C) 2016-2023 Prusa Reseach, (C) 2018-2023 Remi Durand</string>
   <key>CFBundleIconFile</key>
-  <string>SliCR-3D-V2.icns</string>
+  <string>SliCR-3D.icns</string>
   <key>CFBundleName</key>
-  <string>SliCR-3D-V2</string>
+  <string>SliCR-3D</string>
   <key>CFBundleShortVersionString</key>
-  <string>SliCR-3D-V2 SliCR-3D-V2_2.5.59.3_2024-03-16</string>
+  <string>SliCR-3D SliCR-3D_2.7.0.3_+UNKNOWN</string>
   <key>CFBundleIdentifier</key>
-  <string>org.SliCR-3D-V2/</string>
+  <string>org.SliCR-3D/</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -21,7 +21,7 @@
   <key>CFBundleSignature</key>
   <string>????</string>
   <key>CFBundleVersion</key>
-  <string>SliCR-3D-V2_2.5.59.3_2024-03-16</string>
+  <string>SliCR-3D_2.7.0.3_+UNKNOWN</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>

@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - rc
+      - master_27_dev
 
 jobs:
   build_dep:
