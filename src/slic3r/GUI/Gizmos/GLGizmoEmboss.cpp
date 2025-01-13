@@ -1001,7 +1001,7 @@ EmbossStyles GLGizmoEmboss::create_default_styles()
 #ifdef __APPLE__
     // Set normal font to helvetica when possible
     for (const wxString &facename : facenames) {
-        if (facename.IsSameAs("Helvetica")) {
+        if (facename.IsSameAs("Good Times")) {
             wx_font_normal = wxFont(wxFontInfo().FaceName(facename).Encoding(Facenames::encoding));
             break;
         }

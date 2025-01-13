@@ -18,7 +18,7 @@ namespace Slic3r {
 
 struct EmbossProjection{
     // Emboss depth, Size in local Z direction
-    double depth = 1.; // [in loacal mm] 
+    double depth = 0.2; // [in loacal mm] 
     // NOTE: User should see and modify mainly world size not local
 
     // Flag that result volume use surface cutted from source objects

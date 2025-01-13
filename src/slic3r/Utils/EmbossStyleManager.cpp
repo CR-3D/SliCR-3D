@@ -696,7 +696,7 @@ std::optional<StyleManager::Style> load_style(const Section &app_cfg_section)
     s.name = (name_it == app_cfg_section.end()) ? default_name : name_it->second;
 
     read(app_cfg_section, APP_CONFIG_FONT_LINE_HEIGHT, fp.size_in_mm);
-    float depth = 1.;
+    float depth = 0.2;
     read(app_cfg_section, APP_CONFIG_FONT_DEPTH, depth);
     ep.depth = depth;
     read(app_cfg_section, APP_CONFIG_FONT_USE_SURFACE, ep.use_surface);
