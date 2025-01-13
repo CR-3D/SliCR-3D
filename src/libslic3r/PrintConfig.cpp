@@ -4149,7 +4149,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(1500), true));
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0), true));
 
     def = this->add("max_fan_speed", coInts);
     def->label = L("Max");
@@ -5247,7 +5247,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent(10, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0, true));
 
     def = this->add("resolution_internal", coFloat);
     def->label = L("Internal resolution");
