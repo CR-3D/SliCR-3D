@@ -95,8 +95,8 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
     const DynamicPrintConfig* printer_config = this->gui_app->get_tab(Preset::TYPE_PRINTER)->get_config();
 
     // -- get temps
-    const ConfigOptionInts* temperature_config = filament_config->option<ConfigOptionInts>("temperature");
-    const int first_layer_temperature = filament_config->option<ConfigOptionInts>("temperature")->get_at(0);
+    const ConfigOptionInts* temperature_config = filament_config->option<ConfigOptionInts>("first_layer_temperature");
+    const int first_layer_temperature = filament_config->option<ConfigOptionInts>("first_layer_temperature")->get_at(0);
     assert(temperature_config->size() >= 1);
     long nb_items_up = 1;
     if (!nb_up->GetValue().ToLong(&nb_items_up)) {
