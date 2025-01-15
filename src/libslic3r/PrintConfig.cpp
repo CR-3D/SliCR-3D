@@ -6900,6 +6900,14 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionStrings(""));
 
+    def = this->add("firmware_name", coStrings);
+    def->label = L("Firmware name");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("Used for gcode processing only (i.e. in Klipper) and has to match the firmware extruder name. This parameter should generally not be changed!");
+    def->mode = comExpert | comSuSi;
+    def->is_vector_extruder = true;
+    def->set_default_value(new ConfigOptionStrings({"extruder", "extruder1"}));
+
     def = this->add("top_fan_speed", coInts);
     def->label = L("Top Solid fan speed");
     def->category = OptionCategory::cooling;
@@ -7726,6 +7734,7 @@ void PrintConfigDef::init_extruder_option_keys() {
         "seam_gap",
         "seam_gap_external",
         "tool_name",
+        "firmware_name",
         "bed_exclude_area",
         "travel_lift_before_obstacle",
         // "travel_max_lift",
@@ -10006,6 +10015,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "time_start_gcode",
 "time_toolchange",
 "tool_name",
+"firmware_name",
 "top_fan_speed",
 "top_infill_extrusion_spacing",
 "top_solid_infill_overlap",

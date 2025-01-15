@@ -2,6 +2,7 @@
 page:idx:Extruder:funnel
 group:Name And Size
 	setting:idx:tool_name
+	setting:idx:firmware_name
 	setting:idx:nozzle_diameter
 	update_nozzle_diameter
 	setting:idx:nozzle_type

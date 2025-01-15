@@ -232,6 +232,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "time_start_gcode",
         "time_toolchange",
         "tool_name",
+        "firmware_name",
         "toolchange_gcode",
         "top_fan_speed",
         "threads",
