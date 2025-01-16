@@ -1417,9 +1417,9 @@ void NotificationManager::PrintHostUploadNotification::complete()
 { 
 	m_uj_state = UploadJobState::PB_COMPLETED;
     if (m_uj_state == UploadJobState::PB_COMPLETED)
-        wxGetApp().mainframe->show_printer_webview_tab(wxGetApp().preset_bundle->physical_printers.get_selected_printer_config(), true);
-        wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpDevice, false);
-        
+        // wxGetApp().mainframe->show_printer_webview_tab(wxGetApp().preset_bundle->physical_printers.get_selected_printer_config(), true);
+       // wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpDevice, false);
+    
 	m_has_cancel_button = false;
 	init(); 
 }

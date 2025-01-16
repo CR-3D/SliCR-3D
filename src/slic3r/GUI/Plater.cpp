@@ -8992,6 +8992,14 @@ void Plater::send_gcode()
             if (dlg.ShowModal() != wxID_OK)
                 return;
         }
+
+        if (upload_job.upload_data.post_action == PrintHostPostUploadAction::StartPrint) {
+             wxGetApp().mainframe->show_printer_webview_tab(wxGetApp().preset_bundle->physical_printers.get_selected_printer_config(), true);
+             wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpDevice, false);
+        } else if (upload_job.upload_data.post_action == PrintHostPostUploadAction::None || upload_job.upload_data.post_action == PrintHostPostUploadAction::QueuePrint) {
+             wxGetApp().mainframe->show_printer_webview_tab(wxGetApp().preset_bundle->physical_printers.get_selected_printer_config(), false);
+             wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpDevice, false);
+        }
         
         p->export_gcode(fs::path(), false, std::move(upload_job));
     }
