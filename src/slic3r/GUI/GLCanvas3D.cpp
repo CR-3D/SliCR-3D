@@ -2190,6 +2190,7 @@ StatisticsSum get_statistics_sum() {
         result.cost += statistics->get().total_cost;
         result.filement_weight += statistics->get().total_weight;
         result.filament_length += statistics->get().total_used_filament;
+        result.normal_print_time += statistics->get().normal_print_time_seconds;
     }
 
     return result;
