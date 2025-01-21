@@ -187,7 +187,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     std::string nozzle_diameter_str = replaceCommaWithDot(std::to_string(nozzle_diameter));
     nozzle_diameter_str.erase(nozzle_diameter_str.find_last_not_of('0') + 2, std::string::npos);
 
-    if (nozzle_diameter_str.back() == '.') {
+    if (nozzle_diameter_str.back() == '.') {//if nozzle_diameter_str broke fix it by adding '0' to end, prob not needed?
         nozzle_diameter_str += '0';
     }
 
@@ -198,7 +198,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
         //need to move this to another function.....
         wxString firstPaValue = dynamicFirstPa[id_item]->GetValue();
         wxString startPaValue = dynamicStartPa[id_item]->GetValue();
-        wxString endPaValue = dynamicEndPa[id_item]->GetValue();
+        wxString endPaValue = dynamicEndPa[id_item]->GetValue();        
         wxString paIncrementValue = dynamicPaIncrement[id_item]->GetValue();
         wxString erPaValue = dynamicExtrusionRole[id_item]->GetValue();
         smooth_time = dynamicEnableST[id_item]->GetValue();

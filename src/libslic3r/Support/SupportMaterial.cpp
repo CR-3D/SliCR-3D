@@ -1351,9 +1351,9 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
 
             if (object_config.dont_support_bridges) {
                 // FIXME Expensive, potentially not precise enough. Misses gap fill extrusions, which bridge.
-                remove_bridges_from_contacts(print_config, lower_layer, *layerm, fw, diff_polygons);
-
                 assert_valid(diff_polygons);
+                remove_bridges_from_contacts(print_config, lower_layer, *layerm, fw, diff_polygons);
+                ensure_valid(diff_polygons, resolution);
             }
 
             if (diff_polygons.empty())

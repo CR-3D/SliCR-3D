@@ -3403,8 +3403,10 @@ extern bool g_showed_performance_warning;
  * \param storage The data storage where the mesh data is gotten from and
  * where the resulting support areas are stored.
  */
-static void generate_support_areas(Print &print, const BuildVolume &build_volume, const std::vector<size_t> &print_object_ids, std::function<void()> throw_on_cancel)
-{
+static void generate_support_areas(Print &print,
+                                   const BuildVolume &build_volume,
+                                   const std::vector<size_t> &print_object_ids,
+                                   std::function<void()> throw_on_cancel) {
     g_showed_critical_error = false;
     g_showed_performance_warning = false;
 
@@ -3534,10 +3536,10 @@ static void generate_support_areas(Print &print, const BuildVolume &build_volume
 
             // ### draw these points as circles
             
-            if (print_object.config().support_material_style.value == smsTree)
-                draw_areas(*print.get_object(processing.second.front()), volumes, config, overhangs, move_bounds, 
-                    bottom_contacts, top_contacts, intermediate_layers, layer_storage, throw_on_cancel);
-            else {
+            if (print_object.config().support_material_style.value == smsTree) {
+                draw_areas(*print.get_object(processing.second.front()), volumes, config, overhangs, move_bounds,
+                           bottom_contacts, top_contacts, intermediate_layers, layer_storage, throw_on_cancel);
+            } else {
                 assert(print_object.config().support_material_style.value == smsOrganic);
                 organic_draw_branches(
                     *print.get_object(processing.second.front()), volumes, config, move_bounds, 
@@ -3546,6 +3548,14 @@ static void generate_support_areas(Print &print, const BuildVolume &build_volume
             }
 
             remove_undefined_layers();
+
+            for (SupportGeneratorLayersPtr layer_ptr :
+                 {top_contacts, bottom_contacts, interface_layers, base_interface_layers, intermediate_layers}) {
+                for (auto layer : layer_ptr) {
+                    assert(layer);
+                    ensure_valid(layer->polygons, support_params.resolution);
+                }
+            }
 
             std::tie(interface_layers, base_interface_layers) = generate_interface_layers(print_object.config(), support_params,
                 bottom_contacts, top_contacts, interface_layers, base_interface_layers, intermediate_layers, layer_storage);

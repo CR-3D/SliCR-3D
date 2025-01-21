@@ -213,13 +213,12 @@ std::string GCodeWriter::set_pressure_advance(double pa) const {
     if (FLAVOR_IS(gcfKlipper)) {
         gcode = std::string("SET_PRESSURE_ADVANCE ADVANCE=") + to_string_nozero(pa, 4);
         if (tool_id >= 0) {
-            if (this->config.firmware_name.size() > tool_id && !this->config.firmware_name.get_at(tool_id).empty()) {
-                gcode += std::string(" EXTRUDER=") + this->config.firmware_name.get_at(tool_id);
+            if (this->config.tool_name.size() > tool_id && !this->config.tool_name.get_at(tool_id).empty()) {
+                gcode += std::string(" EXTRUDER=") + this->config.tool_name.get_at(tool_id);
             } else {
                 gcode += std::string(" EXTRUDER=extruder") + std::to_string(tool_id);
             }
         }
-        gcode += "; Override pressure advance value";
     } else if (FLAVOR_IS(gcfRepRap) || FLAVOR_IS(gcfSprinter)) {
         if (tool_id >= 0) {
             gcode = std::string("M572 D") + std::to_string(tool_id) + " S" + to_string_nozero(pa, 4);
@@ -474,7 +473,9 @@ std::string GCodeWriter::update_progress(uint32_t num, uint32_t tot, bool allow_
 std::string GCodeWriter::toolchange_prefix() const
 {
     return FLAVOR_IS(gcfMakerWare) ? "M135 T" :
-           FLAVOR_IS(gcfSailfish) ? "M108 T" : "T";
+           FLAVOR_IS(gcfSailfish) ? "M108 T" :
+           FLAVOR_IS(gcfKlipper) ? "ACTIVATE_EXTRUDER EXTRUDER=" :
+           "T";
 }
 
 std::string GCodeWriter::toolchange(uint16_t tool_id)
@@ -505,13 +506,25 @@ std::string GCodeWriter::toolchange(uint16_t tool_id)
     // if we are running a single-extruder setup, just set the extruder and return nothing
     std::ostringstream gcode;
     if (this->multiple_extruders) {
-        gcode << this->toolchange_prefix() << tool_id;
-        
-        if (this->config.gcode_comments) {
-            gcode << " ; change extruder";
-            gcode << "\n";
-            gcode << this->reset_e(true);
+        if (FLAVOR_IS(gcfKlipper)) {
+            //check if we can use the tool_name field or not
+            if (tool_id > 0 && tool_id < this->config.tool_name.size() && !this->config.tool_name.get_at(tool_id).empty()
+                // NOTE: this will probably break if there's more than 10 tools, as it's relying on the
+                // ASCII character table.
+                && this->config.tool_name.get_at(tool_id)[0] != static_cast<char>(('0' + tool_id))) {
+                gcode << this->toolchange_prefix() << this->config.tool_name.get_at(tool_id);
+            } else {
+                gcode << this->toolchange_prefix() << "extruder";
+                if (tool_id > 0)
+                    gcode << tool_id;
+            }
+        } else {
+            gcode << this->toolchange_prefix() << tool_id;
         }
+        if (this->config.gcode_comments)
+            gcode << " ; change extruder";
+        gcode << "\n";
+        gcode << this->reset_e(true);
     }
     return gcode.str();
 }
@@ -770,7 +783,7 @@ std::string GCodeWriter::extrude_to_xyz(const Vec3d &point, const double dE, con
     assert(std::abs(point.y()) < 120000.);
     assert(std::abs(point.z()) < 120000.);
     assert(dE == dE);
-    assert(point.z() >= m_pos.z());
+    assert(point.z() >= m_pos.z() - EPSILON);
     m_pos = point;
     m_lifted = 0;
      auto [/*double*/ delta_e, /*double*/ e_to_write]  = this->m_tool->extrude(dE + this->m_de_left);

@@ -302,7 +302,7 @@ then
     if [[ -z "$BUILD_XCODE" ]]
     then
         echo -e "\n[6/9] Building Slicer ...\n"
-        make -j$NCORES
+        make -j$NCORES Slic3r
         echo -e "\n ... done"
     fi
 

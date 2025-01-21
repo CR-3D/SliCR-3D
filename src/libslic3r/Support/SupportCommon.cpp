@@ -343,6 +343,13 @@ SupportGeneratorLayersPtr generate_raft_base(
     const SupportGeneratorLayersPtr   &base_layers,
     SupportGeneratorLayerStorage      &layer_storage)
 {
+    for (SupportGeneratorLayersPtr layer_ptr :
+         {top_contacts, interface_layers, base_interface_layers, base_layers}) {
+        for (auto layer : layer_ptr) {
+            assert(layer);
+            assert_valid(layer->polygons);
+        }
+    }
     // If there is brim to be generated, calculate the trimming regions.
     Polygons brim;
     if (object.has_brim()) {
@@ -505,7 +512,11 @@ SupportGeneratorLayersPtr generate_raft_base(
             if (base_interfaces) assert_valid(base_interfaces->polygons);
         }
     }
-
+    
+    for (auto layer : raft_layers) {
+        assert(layer);
+        assert_valid(layer->polygons);
+    }
     return raft_layers;
 }
 
@@ -706,6 +717,7 @@ static inline void tree_supports_generate_paths(
                 eec->set_can_sort_reverse(false, false);
                 // Make the tree branch stable by adding another perimeter.
                 ExPolygons level2 = offset2_ex({ expoly }, -1.5 * flow.scaled_width(), 0.5 * flow.scaled_width());
+                ensure_valid(level2, support_params.resolution);
                 if (level2.size() == 1) {
                     Polylines polylines;
                     extrusion_entities_append_paths(*eec, draw_perimeters(expoly, clip_length), { ExtrusionRole::SupportMaterial, flow },
@@ -731,6 +743,7 @@ static inline void tree_supports_generate_paths(
         for (int idx_loop = 0; idx_loop < int(expoly.num_contours()); ++ idx_loop) {
             // Open the loop with a seam.
             const Polygon &loop = expoly.contour_or_hole(idx_loop);
+            loop.assert_valid();
             Polyline pl(loop.points);
             // Orient all contours CW, because the anchor will be added to the end of polyline while we want to start a loop with the anchor.
             if (idx_loop == 0)
@@ -738,6 +751,7 @@ static inline void tree_supports_generate_paths(
                 pl.reverse();
             pl.points.emplace_back(pl.points.front());
             pl.clip_end(clip_length);
+            pl.assert_valid();
             if (pl.size() < 2)
                 continue;
             // Find the foot of the seam point on anchor_candidates. Only pick an anchor point that was created by offsetting the source contour.
@@ -775,6 +789,7 @@ static inline void tree_supports_generate_paths(
                 // Try to cut an anchor from the closest_contour.
                 // Both closest_contour and pl are CW oriented.
                 pl.points.emplace_back(closest_point.cast<coord_t>());
+            pl.assert_valid();
                 const ClipperLib_Z::Path &path = *closest_contour;
                 double remaining_length = anchor_length - (seam_pt - closest_point).norm();
                 int i = closest_point_idx;
@@ -786,9 +801,14 @@ static inline void tree_supports_generate_paths(
                 if (remaining_length < (1. - closest_point_t) * l) {
                     // Just trim the current line.
                     pl.points.emplace_back((closest_point + v * (remaining_length / l)).cast<coord_t>());
+            pl.assert_valid();
                 } else {
                     // Take the rest of the current line, continue with the other lines.
-                    pl.points.emplace_back(path[j].x(), path[j].y());
+                    Point pt_path_j(path[j].x(),path[j].y());
+                    if (!pl.points.back().coincides_with_epsilon(pt_path_j)) {
+                        pl.points.emplace_back(pt_path_j);
+                    }
+            pl.assert_valid();
                     pi = pj;
                     for (i = j; path[i].z() == idx_loop && remaining_length > 0; i = j, pi = pj) {
                         j = next_idx_modulo(i, path);
@@ -801,15 +821,18 @@ static inline void tree_supports_generate_paths(
                         }
                         if (remaining_length <= l) {
                             pl.points.emplace_back((pi + v * (remaining_length / l)).cast<coord_t>());
+            pl.assert_valid();
                             break;
                         }
                         pl.points.emplace_back(path[j].x(), path[j].y());
+            pl.assert_valid();
                         remaining_length -= l;
                     }
                 }
             }
             // Start with the anchor.
             pl.reverse();
+            pl.assert_valid();
             polylines.emplace_back(std::move(pl));
         }
 
@@ -1525,6 +1548,13 @@ SupportGeneratorLayersPtr generate_support_layers(
     const SupportGeneratorLayersPtr     &interface_layers,
     const SupportGeneratorLayersPtr     &base_interface_layers)
 {
+    for (SupportGeneratorLayersPtr layer_ptr :
+         {raft_layers, top_contacts, bottom_contacts, intermediate_layers, interface_layers, base_interface_layers}) {
+        for (auto layer : layer_ptr) {
+            assert(layer);
+            assert_valid(layer->polygons);
+        }
+    }
     // Install support layers into the object.
     // A support layer installed on a PrintObject has a unique print_z.
     SupportGeneratorLayersPtr layers_sorted;
@@ -1634,6 +1664,14 @@ void generate_support_toolpaths(
     const SupportGeneratorLayersPtr     &interface_layers,
     const SupportGeneratorLayersPtr     &base_interface_layers)
 {
+    for (SupportGeneratorLayersPtr layer_ptr :
+         {raft_layers, top_contacts, bottom_contacts, intermediate_layers, interface_layers, base_interface_layers}) {
+        for (auto layer : layer_ptr) {
+            assert(layer);
+            assert_valid(layer->polygons);
+        }
+    }
+
     // loop_interface_processor with a given circle radius.
     LoopInterfaceProcessor loop_interface_processor(1.5 * support_params.support_material_interface_flow.scaled_width());
     loop_interface_processor.n_contact_loops = config.support_material_interface_contact_loops ? 1 : 0;
