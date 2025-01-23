@@ -2529,19 +2529,13 @@ void GLCanvas3D::render()
     glsafe(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
         _render_background();
 
-    if (!s_multiple_beds.is_autoslicing()) {
-
-        _render_bed_axes();
-
-        if (is_looking_downward)
-            _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), false);
-            
-       if (m_show_objects)
-            _render_objects(GLVolumeCollection::ERenderType::Opaque);
-            
+    if (! s_multiple_beds.is_autoslicing()) {
+        _render_objects(GLVolumeCollection::ERenderType::Opaque);
         _render_sla_slices();
         _render_selection();
-        
+        _render_bed_axes();
+        if (is_looking_downward)
+            _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), false);
         if (!m_main_toolbar.is_enabled() && current_printer_technology() != ptSLA)
             _render_gcode();
         _render_objects(GLVolumeCollection::ERenderType::Transparent);

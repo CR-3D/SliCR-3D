@@ -123,6 +123,11 @@
 #include "PrintHostDialogs.hpp"
 #include "RemovableDriveManager.hpp"
 #include "Selection.hpp"
+#include "GLToolbar.hpp"
+#include "GUI_Preview.hpp"
+#include "3DBed.hpp"
+#include "Camera.hpp"
+#include "Mouse3DController.hpp"
 #include "Tab.hpp"
 #include "WipeTowerDialog.hpp"
 #include "format.hpp"
@@ -445,7 +450,7 @@ void FreqChangedParams::init()
 {
     DynamicPrintConfig*	config = &wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
     Tab* tab_freq_fff = wxGetApp().get_tab(Preset::TYPE_FREQUENT_FFF, false);
-
+    
     /* Not a best solution, but
      * Temporary workaround for right border alignment
      */
@@ -457,7 +462,7 @@ void FreqChangedParams::init()
         m_empty_buttons.push_back(btn);
         return sizer;
     };
-
+    
     assert(tab_freq_fff == nullptr || dynamic_cast<TabFrequent *>(tab_freq_fff));
     if (tab_freq_fff && dynamic_cast<TabFrequent *>(tab_freq_fff)) {
         static_cast<TabFrequent *>(tab_freq_fff)->set_freq_parent(m_og->parent());
@@ -467,90 +472,91 @@ void FreqChangedParams::init()
             assert(tab_freq_fff->get_page(0));
             assert(tab_freq_fff->get_page(0)->m_optgroups.size() == 1);
             m_og = (tab_freq_fff->get_page(0)->m_optgroups[0]);
-            m_og->set_config(config);
-            m_og->hide_labels();
+        m_og->set_config(config);
+        m_og->hide_labels();
             m_og->m_on_change = Tab::set_or_add(m_og->m_on_change,
                                 [tab_freq_fff, this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value)
-                                {
-                                    assert(enabled); //TODO fix & test
+                        {
+            assert(enabled); //TODO fix & test
                                     const Option *opt_def = this->m_og->get_option_def(opt_key_idx);
-                                    if (opt_def && !opt_def->opt.is_script) {
+            if (opt_def && !opt_def->opt.is_script) {
                                         tab_freq_fff->update_dirty();
                                         tab_freq_fff->reload_config();
                                         static_cast<TabFrequent *>(tab_freq_fff)->update_changed_setting(opt_key_idx.key);
-                                    }
-                                });
+            }
+        });
             assert(tab_freq_fff->get_page_count() == 1);
             assert(tab_freq_fff->get_page(0)->m_optgroups.size() == 1);
             PageShp page = tab_freq_fff->get_page(0);
             m_og->copy_for_freq_settings(*(page->m_optgroups[0].get()));
-
-            // hacks
-            Line *line_for_purge = nullptr;
+        
+        // hacks
+        Line *line_for_purge = nullptr;
             for (Line &l : page->m_optgroups[0]->set_lines()) {
-                if (l.label_tooltip == "freq_purging_volumes") {
-                    l.label_tooltip = "";
-                    line_for_purge  = &l;
-                }
-                if (l.get_options().size() == 1 && l.get_options().front().opt.full_width) {
-                    l.append_widget(empty_widget);
-                }
+            if (l.label_tooltip == "freq_purging_volumes") {
+                l.label_tooltip = "";
+                line_for_purge  = &l;
             }
-            // Purging volumesbutton
-            if (line_for_purge) {
-                auto wiping_dialog_btn = [this](wxWindow *parent) {
-                    m_wiping_dialog_button = new wxButton(parent, wxID_ANY, _L("Purging volumes") + dots,
-                                                          wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+            if (l.get_options().size() == 1 && l.get_options().front().opt.full_width) {
+                l.append_widget(empty_widget);
+            }
+        }
+        
+        // Purging volumesbutton
+        if (line_for_purge) {
+            auto wiping_dialog_btn = [this](wxWindow *parent) {
+                m_wiping_dialog_button = new wxButton(parent, wxID_ANY, _L("Purging volumes") + dots,
+                                                      wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
                     wxGetApp().SetWindowVariantForButton(m_wiping_dialog_button);
-                    wxGetApp().UpdateDarkUI(m_wiping_dialog_button, true);
-
-                    auto sizer = new wxBoxSizer(wxHORIZONTAL);
-                    sizer->Add(m_wiping_dialog_button, 0, wxALIGN_CENTER_VERTICAL);
-                    m_wiping_dialog_button
-                        ->Bind(wxEVT_BUTTON, ([parent](wxCommandEvent &e) {
+                wxGetApp().UpdateDarkUI(m_wiping_dialog_button, true);
+                
+                auto sizer = new wxBoxSizer(wxHORIZONTAL);
+                sizer->Add(m_wiping_dialog_button, 0, wxALIGN_CENTER_VERTICAL);
+                m_wiping_dialog_button
+                ->Bind(wxEVT_BUTTON, ([parent](wxCommandEvent &e) {
                                    auto &project_config = wxGetApp().preset_bundle->project_config;
-                                   const std::vector<double> &init_matrix =
-                                       (project_config.option<ConfigOptionFloats>("wiping_volumes_matrix"))->get_values();
+                    const std::vector<double> &init_matrix =
+                    (project_config.option<ConfigOptionFloats>("wiping_volumes_matrix"))->get_values();
                                    const std::vector<double> &init_extruders =
                                        (project_config.option<ConfigOptionFloats>("wiping_volumes_extruders"))->get_values();
-
-                                   const std::vector<std::string> extruder_colours =
-                                       wxGetApp().plater()->get_extruder_colors_from_plater_config();
-
-                                   WipingDialog dlg(parent, cast<float>(init_matrix), cast<float>(init_extruders),
-                                                    extruder_colours);
-
-                                   if (dlg.ShowModal() == wxID_OK) {
-                                       std::vector<float> matrix    = dlg.get_matrix();
-                                       std::vector<float> extruders = dlg.get_extruders();
+                    
+                    const std::vector<std::string> extruder_colours =
+                    wxGetApp().plater()->get_extruder_colors_from_plater_config();
+                    
+                    WipingDialog dlg(parent, cast<float>(init_matrix), cast<float>(init_extruders),
+                                     extruder_colours);
+                    
+                    if (dlg.ShowModal() == wxID_OK) {
+                        std::vector<float> matrix    = dlg.get_matrix();
+                        std::vector<float> extruders = dlg.get_extruders();
                                        (project_config.option<ConfigOptionFloats>("wiping_volumes_matrix"))->set(
                                            std::vector<double>(matrix.begin(), matrix.end()));
                                        (project_config.option<ConfigOptionFloats>("wiping_volumes_extruders"))->set(
                                           std::vector<double>(extruders.begin(), extruders.end()));
-                                       wxGetApp().plater()->update_project_dirty_from_presets();
-                                       wxPostEvent(parent, SimpleEvent(EVT_SCHEDULE_BACKGROUND_PROCESS, parent));
-                                   }
-                               }));
-
+                        wxGetApp().plater()->update_project_dirty_from_presets();
+                        wxPostEvent(parent, SimpleEvent(EVT_SCHEDULE_BACKGROUND_PROCESS, parent));
+                    }
+                }));
+                
                     auto btn = new ScalableButton(parent, wxID_ANY, "mirroring_transparent", wxEmptyString,
-                                                  wxDefaultSize, wxDefaultPosition,
-                                                  wxBU_EXACTFIT | wxNO_BORDER | wxTRANSPARENT_WINDOW);
-                    sizer->Add(btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, int(0.3 * wxGetApp().em_unit()));
-                    m_empty_buttons.push_back(btn);
-
-                    return sizer;
-                };
-                line_for_purge->append_widget(wiping_dialog_btn);
-            }
-
-            // current_group->m_on_change = on_change;
-            m_og->activate();
+                                              wxDefaultSize, wxDefaultPosition,
+                                              wxBU_EXACTFIT | wxNO_BORDER | wxTRANSPARENT_WINDOW);
+                sizer->Add(btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, int(0.3 * wxGetApp().em_unit()));
+                m_empty_buttons.push_back(btn);
+                
+                return sizer;
+            };
+            line_for_purge->append_widget(wiping_dialog_btn);
+        }
+        
+        // current_group->m_on_change = on_change;
+        m_og->activate();
             assert(m_og->sizer);
             m_sizer->Add(m_og->sizer, 0, wxEXPAND);
         }
     }
     
-        // Add preheat button
+    // Add preheat button
     m_preheat_button = new wxButton(m_parent, wxID_ANY, "Preheat", wxDefaultPosition, wxDefaultSize, wxEXPAND);
     //m_preheat_button->SetWindowStyle(wxBORDER_SIMPLE | wxBORDER_SUNKEN);
     m_preheat_button->SetToolTip(
@@ -591,6 +597,7 @@ void FreqChangedParams::init()
                 } else {
                     wxGetApp().plater_->get_notification_manager()->push_notification(_u8L("There was an error cooldowning the printer, please try again."));
                 }
+                
                 isOn = false;
             } else {
                 ScalableBitmap preheat_on = ScalableBitmap(m_parent,
@@ -737,12 +744,13 @@ ConfigOptionsGroup* FreqChangedParams::get_og(PrinterTechnology tech)
 {
     if ((tech & PrinterTechnology::ptFFF) != 0)
         return m_og.get();
-    for (auto& entry : m_og_other)
+    
+    for (auto &entry : m_og_other)
         if ((entry.first & tech) != 0)
             return entry.second.get();
+    
     return m_og.get();
 }
-
 
 // Sidebar / private
 
@@ -1504,7 +1512,7 @@ void Sidebar::jump_to_option(size_t selected)
                 return;
             }
         }
-
+        
         wxGetApp().get_tab(opt.type, false)->activate_option({opt.opt_key(), opt.idx}, boost::nowide::narrow(opt.category));
     }
     
@@ -2157,7 +2165,7 @@ struct Plater::priv
     static const std::regex pattern_zip;
     static const std::regex pattern_printRequest;
     static const std::regex pattern_step;
-
+    
     priv(Plater *q, MainFrame *main_frame);
     ~priv();
     
@@ -3014,8 +3022,8 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
     int answer_convert_from_imperial_units  = wxOK_DEFAULT;
     int answer_consider_as_multi_part_objects = wxOK_DEFAULT;
     bool apply_step_import_parameters_to_all   { false }; 
-
-    bool in_temp = false; 
+    
+    bool in_temp = false;
     const fs::path temp_path = wxStandardPaths::Get().GetTempDir().utf8_str().data();
     
     size_t input_files_size = input_files.size();
@@ -3114,8 +3122,8 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                         // and place the loaded config over the base.
                         config += std::move(config_loaded);
                     }
-                   // if (!config_substitutions.empty())
-                       // show_substitutions_info(config_substitutions.get(), filename.string());
+                    if (!config_substitutions.empty())
+                        show_substitutions_info(config_substitutions.get(), filename.string());
                     
                     if (load_config) {
                         this->model.get_custom_gcode_per_print_z_vector() = model.get_custom_gcode_per_print_z_vector();
@@ -3182,7 +3190,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                         model = Slic3r::Model::read_from_file(path.string(),
                                           nullptr,
                                           nullptr,
-                                          only_if(load_config, Model::LoadAttribute::CheckVersion));
+                                                      only_if(load_config, Model::LoadAttribute::CheckVersion));
                   }
                }
                
@@ -3869,7 +3877,7 @@ void Plater::priv::split_object()
         s_multiple_beds.set_loading_project_flag(true);
         std::vector<size_t> idxs = load_model_objects(new_objects);
         s_multiple_beds.set_loading_project_flag(false);
-
+        
         // clear previosli selection
         get_selection().clear();
         // select newly added objects
@@ -4829,17 +4837,24 @@ void Plater::priv::reload_all_from_disk()
     for (unsigned int idx : curr_idxs) { selection.add(idx, false); }
 }
 
-void Plater::priv::set_current_panel(wxTitledPanel* panel)
+void Plater::priv::set_current_panel(wxTitledPanel *panel)
 {
     if (std::find(panels.begin(), panels.end(), panel) == panels.end())
         return;
-
+    
 #ifdef __WXMAC__
     bool force_render = (current_panel != nullptr);
 #endif // __WXMAC__
 
-    if (current_panel == panel)
-        return;
+    ScopeGuard guard([]() { s_reload_preview_after_switching_beds = false; });
+
+    if (current_panel == panel) {
+        if (!s_reload_preview_after_switching_beds)
+            return;
+        else {
+            update_background_process();
+        }
+    }
 
     wxTitledPanel* old_panel = current_panel;
     current_panel = panel;
@@ -4859,19 +4874,30 @@ void Plater::priv::set_current_panel(wxTitledPanel* panel)
         }
     }
     // then set to invisible the other
-    for (wxPanel* p : panels) {
+    for (wxPanel *p : panels) {
         if (p != current_panel)
             p->Hide();
     }
     
     panel_sizer->Layout();
-
-    if(old_panel)
+    
+    if (old_panel)
         old_panel->get_canvas3d()->unbind_event_handlers();
     if (current_panel)
         current_panel->get_canvas3d()->bind_event_handlers();
 
     if (current_panel == view3D) {
+
+        if(s_multiple_beds.stop_autoslice(true)) {
+            sidebar->switch_from_autoslicing_mode();
+            update_background_process();
+        }
+
+        if (old_panel == preview)
+            preview->get_canvas3d()->unbind_event_handlers();
+
+        view3D->get_canvas3d()->bind_event_handlers();
+
         if (view3D->is_reload_delayed()) {
             // Delayed loading of the 3D scene.
             if (printer_technology == ptSLA) {
@@ -4881,31 +4907,28 @@ void Plater::priv::set_current_panel(wxTitledPanel* panel)
             } else
                 view3D->reload_scene(true);
         }
-    }
-    else if (current_panel == preview) {
+    } else if (current_panel == preview) {
+        
         if (wxGetApp().is_editor()) {
             // see: Plater::priv::object_list_changed()
-            // FIXME: it may be better to have a single function making this check and let it be called wherever needed
             bool export_in_progress = this->background_process.is_export_scheduled();
-            bool model_fits = view3D->get_canvas3d()->check_volumes_outside_state() != ModelInstancePVS_Partly_Outside;
-            if (!model.objects.empty() && !export_in_progress && model_fits) {
-                //check if already slicing
-                bool already_running = this->background_process.state() == BackgroundSlicingProcess::State::STATE_RUNNING
-                    || this->background_process.state() == BackgroundSlicingProcess::State::STATE_STARTED;
-                if(!already_running) {
-                    preview->get_canvas3d()->init_gcode_viewer();
-                    this->q->reslice();
-                } else if (! this->background_process.finished()) {
-                    //TODO test
-                    preview->get_canvas3d()->init_gcode_viewer();
-                    preview->load_gcode_shells();
-                }
+            if (
+                s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed())
+                && !export_in_progress
+                && is_sliceable(s_print_statuses[s_multiple_beds.get_active_bed()])
+            ) {
+                preview->get_canvas3d()->init_gcode_viewer();
+                preview->get_canvas3d()->load_gcode_shells();
+                q->reslice();
             }
             // keeps current gcode preview, if any
-            preview->reload_print(true);
+            preview->reload_print();
+
+            if (! s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed()))
+                preview->get_canvas3d()->reset_gcode_toolpaths();
         }
     }
-
+    
     if (current_panel) {
         // sets the canvas as dirty to force a render at the 1st idle event (wxWidgets IsShownOnScreen() is buggy and cannot be used reliably)
         current_panel->set_as_dirty();
@@ -4914,7 +4937,7 @@ void Plater::priv::set_current_panel(wxTitledPanel* panel)
         view_toolbar.select_item(current_panel->name);
         if (notification_manager != nullptr)
             notification_manager->set_in_preview(current_panel == preview);
-
+        
         current_panel->SetFocusFromKbd();
     }
 }
@@ -4928,25 +4951,25 @@ void Plater::priv::on_support_material_selected(std::string filament_name, int i
 
     if (std::find(support_material_filaments.begin(), support_material_filaments.end(), filament_name) == support_material_filaments.end())
         return;
-        
+    
     Tab* tab_print = wxGetApp().get_tab(Preset::TYPE_FFF_PRINT);
     DynamicPrintConfig* new_conf = tab_print->get_config();
     
-     // Set specific values in the new configuration
+        // Set specific values in the new configuration
      new_conf->set_key_value("wipe_tower", new ConfigOptionBool(true));
-     new_conf->set_key_value("support_material", new ConfigOptionBool(true));
-     new_conf->set_key_value("support_material_contact_distance_type",
-                             new ConfigOptionEnum<SupportZDistanceType>(zdNone));
-     new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
+        new_conf->set_key_value("support_material", new ConfigOptionBool(true));
+        new_conf->set_key_value("support_material_contact_distance_type",
+                                new ConfigOptionEnum<SupportZDistanceType>(zdNone));
+        new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
      new_conf->set_key_value("support_material_bottom_interface_layers", new ConfigOptionInt(3));
-     new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
-     new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
+        new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
+        new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
 
 
-     tab_print->load_config(*new_conf);
-     tab_print->update_dirty();
-     tab_print->reload_config();
-     return;
+        tab_print->load_config(*new_conf);
+        tab_print->update_dirty();
+        tab_print->reload_config();
+        return;
 }
 
 void Plater::priv::on_select_preset(wxCommandEvent &evt)
@@ -6187,7 +6210,7 @@ void Plater::priv::take_snapshot(const std::string &snapshot_name, const UndoRed
         const DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
         model.set_center_pos(wxGetApp().preset_bundle->printers.get_edited_preset().config, config);
         model.wipe_tower().position = Vec2d(model.wipe_tower().position.x(), model.wipe_tower().position.y());
-        model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
+       model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
     }
     const GLGizmosManager &gizmos = view3D->get_canvas3d()->get_gizmos_manager();
     
@@ -6279,7 +6302,7 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
         const DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
         model.set_center_pos(wxGetApp().preset_bundle->printers.get_edited_preset().config, config);
         model.wipe_tower().position = Vec2d(model.wipe_tower().position.x(), model.wipe_tower().position.y());
-        model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
+       model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
     }
     const int layer_range_idx = it_snapshot->snapshot_data.layer_range_idx;
     // Flags made of Snapshot::Flags enum values.
@@ -8456,7 +8479,6 @@ void Plater::export_all_gcodes(bool prefer_removable) {
     if (!optional_default_output_file) {
         return;
     }
-
     const fs::path &default_output_file{*optional_default_output_file};
     const std::string start_dir{get_output_start_dir(prefer_removable, default_output_file)};
     const auto optional_output_dir{get_multiple_output_dir(start_dir)};
@@ -8464,7 +8486,6 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         return;
     }
     const fs_path &output_dir{*optional_output_dir};
-
 
     std::map<int, PrintToExport> prints_to_export;
     std::vector<std::pair< int, std::optional<fs::path> >> paths;
@@ -8539,7 +8560,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         );
     }
 
-   // p->notification_manager->push_bulk_exporting_finished_notification(output_dir.string(), path_on_removable_media);
+  //  p->notification_manager->push_bulk_exporting_finished_notification(output_dir.string(), path_on_removable_media);
 }
 
 void Plater::export_stl_obj(std::string path_u8, bool extended, bool selection_only)
@@ -8930,28 +8951,28 @@ void Plater::reslice()
     // There is "invalid data" button instead "slice now"
     if (!is_sliceable(s_print_statuses[s_multiple_beds.get_active_bed()]))
         return;
-
+    
     // In case SLA gizmo is in editing mode, refuse to continue
     // and notify user that he should leave it first.
     if (canvas3D()->get_gizmos_manager().is_in_editing_mode(true))
         return;
-
+    
     // Stop the running (and queued) UI jobs and only proceed if they actually
     // get stopped.
     unsigned timeout_ms = 10000;
     if (!stop_queue(this->get_ui_job_worker(), timeout_ms)) {
         BOOST_LOG_TRIVIAL(error) << "Could not stop UI job within "
-                                 << timeout_ms << " milliseconds timeout!";
+        << timeout_ms << " milliseconds timeout!";
         return;
     }
-
+    
     if (printer_technology() == ptSLA) {
-        for (auto& object : model().objects)
+        for (auto &object : model().objects)
             if (object->sla_points_status == sla::PointsStatus::NoPoints)
                 object->sla_points_status = sla::PointsStatus::Generating;
     }
-
-    //FIXME Don't reslice if export of G-code or sending to OctoPrint is running.
+    
+    // FIXME Don't reslice if export of G-code or sending to OctoPrint is running.
     // bitmask of UpdateBackgroundProcessReturnState
     unsigned int state = this->p->update_background_process(true);
     if (state & priv::UPDATE_BACKGROUND_PROCESS_REFRESH_SCENE)
@@ -8960,30 +8981,28 @@ void Plater::reslice()
     this->p->background_process.set_task(PrintBase::TaskParams());
     // Only restarts if the state is valid.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
-
+    
     if ((state & priv::UPDATE_BACKGROUND_PROCESS_INVALID) != 0)
         return;
-
+    
     bool clean_gcode_toolpaths = true;
     if (p->background_process.running())
     {
-        if (wxGetApp().get_mode() == comSimple)
+        if (wxGetApp().get_mode() == comSimple && !get_app_config()->get_bool("objects_always_expert"))
             p->sidebar->set_btn_label(ActionButtonType::abReslice, _L("Slicing") + dots);
-        else
-        {
+        else {
             p->sidebar->set_btn_label(ActionButtonType::abReslice, _L("Slice now"));
             p->show_action_buttons(false);
         }
-    }
-    else if (!p->background_process.empty() && !p->background_process.idle())
+    } else if (!p->background_process.empty() && !p->background_process.idle())
         p->show_action_buttons(true);
     else
         clean_gcode_toolpaths = false;
-
+    
     if (clean_gcode_toolpaths)
         reset_gcode_toolpaths();
-
-    p->preview->reload_print();
+    
+    p->preview->reload_print(!clean_gcode_toolpaths);
 }
 
 void Plater::reslice_until_step_inner(int step, const ModelObject &object, bool postpone_error_messages)
