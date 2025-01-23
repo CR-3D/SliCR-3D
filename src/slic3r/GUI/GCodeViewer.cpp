@@ -1418,14 +1418,11 @@ void GCodeViewer::init()
     m_gl_data_initialized = true;
 }
 
-bool GCodeViewer::is_loaded(const GCodeProcessorResult& gcode_result) {
-    return (m_last_result_id == gcode_result.id);
-}
-
 void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& print)
 {
-    if (!m_gcode_result.has_value())
-        m_gcode_result = gcode_result;
+
+    m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
+
     assert(&m_gcode_result->get() == &gcode_result);
     if (!m_print.has_value())
         m_print = print;
@@ -1438,7 +1435,6 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
     }
 
     m_last_result_id = gcode_result.id;
-    s_beds_switched_since_last_gcode_load = false;
     m_last_view_type = m_view_type;
     m_last_mode = m_current_mode;
 
@@ -1465,7 +1461,6 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
     load_toolpaths(gcode_result);
     load_wipetower_shell(print);
     
-
     if (m_layers.empty())
         return;
 
@@ -2316,8 +2311,10 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
         }
     }
 
-    if (wxGetApp().is_editor())
-        m_contained_in_bed = wxGetApp().plater()->build_volume().all_paths_inside(gcode_result, m_paths_bounding_box);
+    m_contained_in_bed = wxGetApp().plater()->build_volume().all_paths_inside(GCodeProcessorResult(), m_paths_bounding_box);
+    if (!m_contained_in_bed) {
+        s_print_statuses[s_multiple_beds.get_active_bed()] = PrintStatus::toolpath_outside;
+    }
 
     m_cog.reset();
 
@@ -4060,7 +4057,6 @@ void GCodeViewer::render_shells()
     Transform3d tr = camera.get_view_matrix();
     tr.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
 
-    m_shells.volumes.render(GLVolumeCollection::ERenderType::Transparent, true, tr, camera.get_projection_matrix());    
     shader->set_uniform("emission_factor", 0.0f);
     shader->stop_using();
 }
@@ -4534,8 +4530,9 @@ void GCodeViewer::render_legend(float& legend_height)
         
         std::array<unsigned int, 2> saved_layers_z_range = m_layers_z_range;
         if (m_gcode_result.has_value() && m_print.has_value()) {
-            this->load(m_gcode_result->get(), m_print->get());
-            this->refresh(m_gcode_result->get(), m_last_str_tool_colors);
+           this->load(wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()], wxGetApp().plater_->active_fff_print());
+            
+            this->refresh(wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()], m_last_str_tool_colors);
         } else {
             wxGetApp().plater()->refresh_print();
         }
@@ -5369,11 +5366,13 @@ void GCodeViewer::render_legend(float& legend_height)
     if (need_refresh_paths) {
         std::array<unsigned int, 2> saved_layers_z_range = m_layers_z_range;
         if (m_gcode_result.has_value() && m_print.has_value()) {
-            this->load(m_gcode_result->get(), m_print->get());
-            this->refresh(m_gcode_result->get(), m_last_str_tool_colors);
+            
+           this->load(wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()], wxGetApp().plater_->active_fff_print());
+           this->refresh(wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()], m_last_str_tool_colors);
         } else {
             wxGetApp().plater()->refresh_print();
         }
+        
         wxGetApp().plater()->get_current_canvas3D()->set_as_dirty();
         wxGetApp().plater()->get_current_canvas3D()->request_extra_frame();
         wxGetApp().plater()->update_preview_moves_slider();

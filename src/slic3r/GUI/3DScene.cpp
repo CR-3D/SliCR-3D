@@ -778,9 +778,24 @@ void GLVolumeCollection::render(GLVolumeCollection::ERenderType type, bool disab
     if (disable_cullface)
         glsafe(::glDisable(GL_CULL_FACE));
 
+    const ModelObjectPtrs& model_objects = GUI::wxGetApp().model().objects;
+    const std::vector<std::string> extruders_colors = GUI::wxGetApp().plater()->get_extruder_colors_from_plater_config();
+    const bool is_render_as_mmu_painted_enabled = !model_objects.empty() && !extruders_colors.empty();
+
     for (GLVolumeWithIdAndZ& volume : to_render) {
-        const Transform3d& world_matrix = volume.first->world_matrix();
-        volume.first->set_render_color(true);
+        if (!volume.first->is_active)
+            continue;
+
+        const Transform3d world_matrix = volume.first->world_matrix();
+        const Matrix3d world_matrix_inv_transp = world_matrix.linear().inverse().transpose();
+        const Matrix3d view_normal_matrix = view_matrix.linear() * world_matrix_inv_transp;
+        const int obj_idx = volume.first->object_idx();
+        const int vol_idx = volume.first->volume_idx();
+        const bool render_as_mmu_painted = is_render_as_mmu_painted_enabled && !volume.first->selected &&
+            !volume.first->is_outside && volume.first->hover == GLVolume::HS_None && !volume.first->is_wipe_tower() && obj_idx >= 0 && vol_idx >= 0 &&
+            !model_objects[obj_idx]->volumes[vol_idx]->mm_segmentation_facets.empty() &&
+            type != GLVolumeCollection::ERenderType::Transparent; // to filter out shells (not very nice)
+        volume.first->set_render_color(false);
 
         // render sinking contours of non-hovered volumes
         shader->stop_using();
@@ -823,7 +838,7 @@ void GLVolumeCollection::render(GLVolumeCollection::ERenderType type, bool disab
         const Transform3d model_matrix = world_matrix;
         shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
         shader->set_uniform("projection_matrix", projection_matrix);
-        const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
+        //const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
         shader->set_uniform("view_normal_matrix", view_normal_matrix);
         volume.first->render();
 
@@ -851,10 +866,8 @@ void GLVolumeCollection::render(GLVolumeCollection::ERenderType type, bool disab
             }
             sink_shader->start_using();
         }
-        shader->start_using();
     }
 
-    shader->stop_using();
     if (edges_shader != nullptr) {
         edges_shader->start_using();
         if (m_show_non_manifold_edges && GUI::wxGetApp().app_config->get_bool("non_manifold_edges")) {
@@ -864,6 +877,7 @@ void GLVolumeCollection::render(GLVolumeCollection::ERenderType type, bool disab
         }
         edges_shader->stop_using();
     }
+    
     shader->start_using();
 
     if (disable_cullface)

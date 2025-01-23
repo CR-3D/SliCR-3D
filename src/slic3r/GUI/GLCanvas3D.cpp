@@ -127,6 +127,15 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
     int old_bed = s_multiple_beds.get_active_bed();
     if ((i == old_bed  && !s_multiple_beds.is_autoslicing()) || i == -1)
         return;
+
+    if (current_printer_technology() == ptSLA) {
+        // Close SlaSupports or Hollow gizmos before switching beds. They rely on having access to SLAPrintObject to work.
+        if (GLGizmosManager::EType cur_giz = get_gizmos_manager().get_current_type();
+            cur_giz == GLGizmosManager::EType::SlaSupports || cur_giz == GLGizmosManager::EType::Hollow) {
+            if (! get_gizmos_manager().open_gizmo(get_gizmos_manager().get_current_type()))
+                return;
+        }
+    }
     wxGetApp().plater()->canvas3D()->m_process->stop();
     m_sequential_print_clearance.m_evaluating = true;
     reset_sequential_print_clearance();
@@ -142,7 +151,6 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
         s_multiple_beds.set_active_bed(i);
         s_beds_just_switched = true;
         s_beds_switched_since_last_gcode_load = true;
-
         if (wxGetApp().plater()->is_preview_shown()) {
             s_reload_preview_after_switching_beds = true;
             wxPostEvent(wxGetApp().plater(), SimpleEvent(EVT_GLVIEWTOOLBAR_PREVIEW));
@@ -151,7 +159,6 @@ void GLCanvas3D::select_bed(int i, bool triggered_by_user)
                 - s_multiple_beds.get_bed_translation(old_bed)
             );
         }
-        
         wxGetApp().plater()->schedule_background_process();
         wxGetApp().plater()->object_list_changed(); // Updates Slice Now / Export buttons.
         if (s_multiple_beds.is_autoslicing() && triggered_by_user) {
@@ -2520,15 +2527,21 @@ void GLCanvas3D::render()
 
     // draw scene
     glsafe(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-    _render_background();
+        _render_background();
 
-    if (! s_multiple_beds.is_autoslicing()) {
-        _render_objects(GLVolumeCollection::ERenderType::Opaque);
-        _render_sla_slices();
-        _render_selection();
+    if (!s_multiple_beds.is_autoslicing()) {
+
         _render_bed_axes();
+
         if (is_looking_downward)
             _render_bed(camera.get_view_matrix(), camera.get_projection_matrix(), false);
+            
+       if (m_show_objects)
+            _render_objects(GLVolumeCollection::ERenderType::Opaque);
+            
+        _render_sla_slices();
+        _render_selection();
+        
         if (!m_main_toolbar.is_enabled() && current_printer_technology() != ptSLA)
             _render_gcode();
         _render_objects(GLVolumeCollection::ERenderType::Transparent);
@@ -2992,7 +3005,8 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 volume->is_modifier = !mvs->model_volume->is_model_part();
                 volume->shader_outside_printer_detection_enabled = mvs->model_volume->is_model_part();
                 volume->set_color(color_from_model_volume(*mvs->model_volume));
-                // force update of render_color alpha channel 
+                
+                // force update of render_color alpha channel
                 volume->set_render_color(volume->color.is_transparent());
 
                 // updates volumes transformations
@@ -3337,13 +3351,13 @@ void GLCanvas3D::load_gcode_shells()
 }
 
 bool GLCanvas3D::is_gcode_preview_dirty(const GCodeProcessorResult& gcode_result) {
-    return last_showned_gcode != gcode_result.computed_timestamp;
+    return false;
 }
 
 void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result,
                                     const std::vector<std::string> &str_tool_colors)
 {
-    if (last_showned_gcode != gcode_result.computed_timestamp || !m_gcode_viewer.is_loaded(gcode_result)) {
+    if (last_showned_gcode != gcode_result.computed_timestamp) {
         last_showned_gcode = gcode_result.computed_timestamp;
         m_gcode_viewer.load(gcode_result, *this->fff_print());
     }
@@ -3352,6 +3366,8 @@ void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result
         _set_warning_notification_if_needed(EWarning::ToolpathOutside);
         _set_warning_notification_if_needed(EWarning::GCodeConflict);
         m_gcode_viewer.refresh(gcode_result, str_tool_colors);
+       std::cout << gcode_result.filename;
+       
         set_as_dirty();
         request_extra_frame();
     }

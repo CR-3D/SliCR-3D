@@ -661,7 +661,7 @@ void Preview::update_layers_slider(const std::vector<double>& layers_z, bool sho
         m_layers_slider->IsNewPrint())
     {
         const Print& print = wxGetApp().plater()->active_fff_print();
-
+      
         //bool is_possible_auto_color_change = false;
         for (auto object : print.objects()) {
             double object_x = double(object->size().x());
@@ -959,7 +959,7 @@ void Preview::load_print_as_fff(bool keep_z_range)
             // Load the real G-code preview.
             if (current_force_state == ForceState::NoForce)
                 m_canvas->set_items_show(false, true);
-            m_canvas->load_gcode_preview(*active_gcode_result(), colors);
+            m_canvas->load_gcode_preview(wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()], colors);
             m_left_sizer->Layout();
             Refresh();
             zs = m_canvas->get_gcode_layers_zs();
@@ -1006,7 +1006,7 @@ void Preview::load_print_as_fff(bool keep_z_range)
                 m_canvas->set_gcode_view_preview_type(choice);
                 if (wxGetApp().is_gcode_viewer())
                     m_keep_current_preview_type = true;
-             // refresh_print();
+              refresh_print();
             }
         }
 
