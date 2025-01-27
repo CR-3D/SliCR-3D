@@ -192,7 +192,10 @@ public:
 		return nullptr;
     }
 
-	bool			set_value(const t_config_option_key &id, const boost::any &value, bool enabled, bool change_event /*= false*/) {
+    bool set_value(const t_config_option_key &id,
+                   const boost::any &value,
+                   bool enabled,
+                   bool change_event /*= false*/) {
         if (auto it = m_fields.find(id); it != m_fields.end()) {
             it->second->set_enable_bitmap_checked(enabled);
             it->second->set_any_value(value, change_event);
@@ -200,12 +203,13 @@ public:
         }
         return false;
     }
-	boost::any		get_value(const t_config_option_key& id) {
-							boost::any out; 
-       if (m_fields.find(id) == m_fields.end()) ;
-							else 
-								out = m_fields.at(id)->get_value();
-							return out;
+    boost::any get_value(const t_config_option_key &id) {
+        boost::any out;
+        if (m_fields.find(id) == m_fields.end())
+            ;
+        else
+            out = m_fields.at(id)->get_value();
+        return out;
     }
 
 	void			show_field(const t_config_option_key& opt_key, bool show = true);
@@ -255,7 +259,7 @@ protected:
     /// using types that need to know what it is beyond the public interface 
     /// need to cast based on the related ConfigOptionDef.
     t_optionfield_map		m_fields;
-    bool					m_disabled {false};
+    bool					m_disabled {false}; //seems deprecated
     wxGridSizer*			m_grid_sizer {nullptr};
 	// "true" if option is created in preset tabs
 	bool					m_use_custom_ctrl{ false };

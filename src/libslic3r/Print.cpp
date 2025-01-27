@@ -181,6 +181,8 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "pause_print_gcode",
         "post_process",
         "print_custom_variables",
+        "print_bed_temperature",
+        "print_first_layer_bed_temperature",
         "printer_custom_variables",
         "perimeter_fan_speed",
         "printer_notes",
@@ -439,26 +441,40 @@ bool Print::is_step_done(PrintObjectStep step) const
 }
 
 // returns 0-based indices of used extruders
-std::set<uint16_t> Print::object_extruders(const PrintObjectPtrs &objects) const
+std::set<uint16_t> Print::object_extruders(const PrintObjectPtrs &objects, float z /*= -1*/) const
 {
     std::set<uint16_t> extruders;
-    for (const PrintObject *object : objects)
-        for (const PrintRegion& region : object->all_regions())
+    for (const PrintObject *object : objects) {
+        std::vector<std::reference_wrapper<const PrintRegion>> ok_regions;
+        if (z < 0) {
+            ok_regions = object->all_regions();
+        } else {
+            std::set<const PrintRegion*> region_set;
+            for (const Layer *layer : object->layers()) {
+                if (layer->print_z - layer->height - EPSILON < z && z < layer->print_z + EPSILON ) {
+                    for (const LayerRegion *lr : layer->regions()) {
+                        region_set.insert(&lr->region());
+                    }
+                }
+            }
+            for (const PrintRegion *lr : region_set) {
+                ok_regions.emplace_back(*lr);
+            }
+            assert(ok_regions.size() == region_set.size());
+        }
+        for (const PrintRegion &region : ok_regions) {
             region.collect_object_printing_extruders(*object->print(), extruders);
+        }
+    }
     return extruders;
 }
-
-std::set<uint16_t> Print::object_extruders() const
+std::set<uint16_t> Print::object_extruders(float z /*= -1*/) const
 {
-    std::set<uint16_t> extruders;
-    for (const PrintObject *object : m_objects)
-        for (const PrintRegion& region : object->all_regions())
-            region.collect_object_printing_extruders(*object->print(), extruders);
-    return extruders;
+    return object_extruders(m_objects, z);
 }
 
 // returns 0-based indices of used extruders
-std::set<uint16_t> Print::support_material_extruders() const
+std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
 {
     std::set<uint16_t> extruders;
     bool support_uses_current_extruder = false;
@@ -466,14 +482,26 @@ std::set<uint16_t> Print::support_material_extruders() const
 
     for (PrintObject *object : m_objects) {
         if (object->has_support_material()) {
-        	assert(object->config().support_material_extruder >= 0);
-            if (object->config().support_material_extruder == 0)
-                support_uses_current_extruder = true;
-            else {
-                uint16_t i = (uint16_t)object->config().support_material_extruder - 1;
-                extruders.insert((i >= num_extruders) ? 0 : i);
+            bool has_support = true;
+            bool has_support_interface = object->config().support_material_interface_layers > 0;
+            if (z >= 0) {
+                has_support = false;
+                for (const SupportLayer *suppl : object->support_layers()) {
+                    if (suppl->print_z - suppl->height - EPSILON < z && z < suppl->print_z + EPSILON && suppl->has_extrusions()) {
+                        has_support = true;
+                    }
+                }
             }
-            if (object->config().support_material_interface_layers > 0) {
+            if (has_support) {
+                assert(object->config().support_material_extruder >= 0);
+                if (object->config().support_material_extruder == 0)
+                    support_uses_current_extruder = true;
+                else {
+                    uint16_t i = (uint16_t) object->config().support_material_extruder - 1;
+                    extruders.insert((i >= num_extruders) ? 0 : i);
+                }
+            }
+            if (has_support && has_support_interface) {
                 assert(object->config().support_material_interface_extruder >= 0);
                 if (object->config().support_material_interface_extruder == 0)
                     support_uses_current_extruder = true;
@@ -493,16 +521,19 @@ std::set<uint16_t> Print::support_material_extruders() const
 }
 
 // returns 0-based indices of used extruders
-std::set<uint16_t> Print::extruders() const
+std::set<uint16_t> Print::extruders(float z /*= -1*/) const
 {
-    std::set<uint16_t> extruders = this->object_extruders(m_objects);
-    append(extruders, this->support_material_extruders());
-    
-    // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
-    // append its extruder into the list too.
-    if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
-        assert(config().wipe_tower_extruder > 0 && config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
-        extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
+    std::set<uint16_t> extruders = this->object_extruders(m_objects, z);
+    append(extruders, this->support_material_extruders(z));
+
+    if (z < 0) {
+        // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
+        // append its extruder into the list too.
+        if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
+            assert(config().wipe_tower_extruder > 0 &&
+                   config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
+            extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
+        }
     }
     
     return extruders;
@@ -923,8 +954,8 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
             && m_config.gcode_flavor != gcfMarlinFirmware
             && m_config.gcode_flavor != gcfKlipper )
             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is currently only supported for the Marlin, Klipper, RepRap/Sprinter and Repetier G-code flavors.") };
-        if (! m_config.use_relative_e_distances)
-            return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is currently only supported with the relative extruder addressing (use_relative_e_distances=1).") };
+        //if (! m_config.use_relative_e_distances)
+            //return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is currently only supported with the relative extruder addressing (use_relative_e_distances=1).") };
         if (m_config.ooze_prevention && m_config.single_extruder_multi_material)
             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Ooze prevention is currently not supported with the wipe tower enabled.") };
         if (m_config.use_volumetric_e)
@@ -2150,38 +2181,45 @@ bool Print::has_wipe_tower() const
         m_config.nozzle_diameter.size() > 1;
 }
 
-const WipeTowerData& Print::wipe_tower_data(size_t extruders_cnt, double nozzle_diameter) const
+const WipeTowerData& Print::wipe_tower_data(const ConfigBase* config, double nozzle_diameter) const
 {
     // If the wipe tower wasn't created yet, make sure the depth and brim_width members are set to default.
-    if (! is_step_done(psWipeTower) && extruders_cnt !=0) {
-        const_cast<Print*>(this)->m_wipe_tower_data.brim_width = m_config.wipe_tower_brim_width;
+    if (! is_step_done(psWipeTower) && config != &this->m_config) {
+        size_t extruders_cnt = config->option("nozzle_diameter")->size();
 
         // Calculating depth should take into account currently set wiping volumes.
         // For a long time, the initial preview would just use 900/width per toolchange (15mm on a 60mm wide tower)
         // and it worked well enough. Let's try to do slightly better by accounting for the purging volumes.
-        std::vector<std::vector<float>> wipe_volumes = WipeTower::extract_wipe_volumes(m_config);
+        std::vector<std::vector<float>> wipe_volumes = WipeTower::extract_wipe_volumes(*config);
         std::vector<float> max_wipe_volumes;
         for (const std::vector<float>& v : wipe_volumes)
             max_wipe_volumes.emplace_back(*std::max_element(v.begin(), v.end()));
         float maximum = std::accumulate(max_wipe_volumes.begin(), max_wipe_volumes.end(), 0.f);
         maximum = maximum * extruders_cnt / max_wipe_volumes.size();
 
-        float width = float(m_config.wipe_tower_width);
-        float unscaled_brim_width = m_config.wipe_tower_brim_width.get_abs_value(nozzle_diameter);
+        float unscaled_brim_width = config->option<ConfigOptionFloatOrPercent>("wipe_tower_brim_width")->get_abs_value(nozzle_diameter);
         // use min layer height, as it's what wil disctate the wipe tower width.
-        float layer_height = 0;
-        if (m_objects.empty()) {
+        float first_layer_height = 0;
+        //if (m_objects.empty()) {
             // if no objects, then no extruder selected: use the first one.
-            layer_height = default_object_config().first_layer_height.get_abs_value(config().nozzle_diameter.get_at(0));
-        } else {
-            layer_height = get_min_first_layer_height();
-        }
+            //first_layer_height = default_object_config().first_layer_height.get_abs_value(config->option("nozzle_diameter")->get_float(0));
+            first_layer_height = config->option<ConfigOptionFloatOrPercent>("first_layer_height")->get_abs_value(config->option("nozzle_diameter")->get_float(0));
+        //} else {
+        //    first_layer_height = get_min_first_layer_height();
+        //}
         // FIXME: get layer height from layers instead of config.
-        layer_height = std::min(layer_height, float(default_object_config().layer_height.value));
-
-        const_cast<Print*>(this)->m_wipe_tower_data.depth = (maximum/layer_height)/width;
-        const_cast<Print*>(this)->m_wipe_tower_data.height = -1.f; // unknown yet
+        //float layer_height = std::min(first_layer_height, float(default_object_config().layer_height.value));
+        float layer_height = std::min(layer_height, float(config->option("layer_height")->get_float()));
+        
+        const_cast<Print*>(this)->m_wipe_tower_data.position = Vec2d{config->option("wipe_tower_x")->get_float(), config->option("wipe_tower_y")->get_float()};
+        const_cast<Print*>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
+        const_cast<Print*>(this)->m_wipe_tower_data.rotation_angle = float(config->option("wipe_tower_rotation_angle")->get_float());
+        const_cast<Print*>(this)->m_wipe_tower_data.depth = (maximum/layer_height)/this->m_wipe_tower_data.width;
         const_cast<Print*>(this)->m_wipe_tower_data.brim_width = unscaled_brim_width;
+        const_cast<Print*>(this)->m_wipe_tower_data.cone_angle = float(config->option("wipe_tower_cone_angle")->get_float());
+        const_cast<Print*>(this)->m_wipe_tower_data.first_layer_height = first_layer_height;
+        const_cast<Print*>(this)->m_wipe_tower_data.height = -1.f; // unknown yet
+        const_cast<Print*>(this)->m_wipe_tower_data.z_and_depth_pairs.clear(); // unknown yet
     }
 
     return this->m_wipe_tower_data;

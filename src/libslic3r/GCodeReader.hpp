@@ -76,6 +76,11 @@ public:
 
         static bool cmd_is(const std::string &gcode_line, const char *cmd_test) {
             const char *cmd = GCodeReader::skip_whitespaces(gcode_line.c_str());
+            // Skip line number
+            if (*cmd == 'N') {
+                cmd = skip_word(cmd);
+                cmd = skip_whitespaces(cmd);
+            }
             size_t len = strlen(cmd_test); 
             return strncmp(cmd, cmd_test, len) == 0 && GCodeReader::is_end_of_word(cmd[len]);
         }

@@ -145,9 +145,10 @@ PrintObject::PrintObject(Print* print, ModelObject* model_object, const Transfor
 
 PrintBase::ApplyStatus PrintObject::set_instances(PrintInstances&& instances)
 {
-    for (PrintInstance& i : instances)
-    	// Add the center offset, which will be subtracted from the mesh when slicing.
-    	i.shift += m_center_offset;
+    for (PrintInstance &i : instances) {
+        // Add the center offset, which will be subtracted from the mesh when slicing.
+        i.shift += m_center_offset;
+    }
     // Invalidate and set copies.
     PrintBase::ApplyStatus status = PrintBase::APPLY_STATUS_UNCHANGED;
     bool equal_length = instances.size() == m_instances.size();
@@ -155,24 +156,27 @@ PrintBase::ApplyStatus PrintObject::set_instances(PrintInstances&& instances)
         [](const PrintInstance& lhs, const PrintInstance& rhs) { return lhs.model_instance == rhs.model_instance && lhs.shift == rhs.shift; });
     if (! equal) {
         status = PrintBase::APPLY_STATUS_CHANGED;
-        if (m_print->invalidate_steps({ psSkirtBrim, psGCodeExport }) ||
-            (! equal_length && m_print->invalidate_step(psWipeTower)))
+        if (m_print->invalidate_steps({psSkirtBrim, psGCodeExport}) ||
+            (!equal_length && m_print->invalidate_step(psWipeTower))) {
             status = PrintBase::APPLY_STATUS_INVALIDATED;
+        }
         m_instances = std::move(instances);
-	    for (PrintInstance &i : m_instances)
-	    	i.print_object = this;
+        for (PrintInstance &i : m_instances) {
+            i.print_object = this;
+        }
     }
     return status;
 }
 
-    std::vector<std::reference_wrapper<const PrintRegion>> PrintObject::all_regions() const
+std::vector<std::reference_wrapper<const PrintRegion>> PrintObject::all_regions() const
 {
-        std::vector<std::reference_wrapper<const PrintRegion>> out;
-        out.reserve(m_shared_regions->all_regions.size());
-        for (const std::unique_ptr<Slic3r::PrintRegion> &region : m_shared_regions->all_regions)
-            out.emplace_back(*region.get());
-        return out;
+    std::vector<std::reference_wrapper<const PrintRegion>> out;
+    out.reserve(m_shared_regions->all_regions.size());
+    for (const std::unique_ptr<Slic3r::PrintRegion> &region : m_shared_regions->all_regions) {
+        out.emplace_back(*region.get());
     }
+    return out;
+}
 
 // 1) Merges typed region slices into stInternal type.
 // 2) Increases an "extra perimeters" counter at region slices where needed.
@@ -655,15 +659,15 @@ void PrintObject::prepare_infill()
     //this->clip_fill_surfaces(); // infill_only_where_needed
     m_print->throw_if_canceled();
 
-#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
-    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
-        for (const Layer *layer : m_layers) {
-            LayerRegion *layerm = layer->m_regions[region_id];
-            layerm->export_region_slices_to_svg_debug("8_clip_surfaces-final");
-            layerm->export_region_fill_surfaces_to_svg_debug("8_clip_surfaces-final");
-        } // for each layer
-    } // for each region
-#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
+//#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+//    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
+//        for (const Layer *layer : m_layers) {
+//            LayerRegion *layerm = layer->m_regions[region_id];
+//            layerm->export_region_slices_to_svg_debug("8_clip_surfaces-final");
+//            layerm->export_region_fill_surfaces_to_svg_debug("8_clip_surfaces-final");
+//        } // for each layer
+//    } // for each region
+//#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
     
     // the following step needs to be done before combination because it may need
     // to remove only half of the combined infill
@@ -684,10 +688,52 @@ void PrintObject::prepare_infill()
     this->tag_under_bridge();
     m_print->throw_if_canceled();
 
+#ifdef _DEBUG
+    //assert each surface is not on top of each other (or almost)
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+        for (const Layer *layer : m_layers) {
+            for (auto &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                for (auto &srf2 : layer->m_regions[region_id]->fill_surfaces().surfaces) {
+                    if (&srf != &srf2) {
+                        ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
+                        intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                        double area = 0;
+                        for (auto &expoly : intersect) {
+                            area += expoly.area();
+                        }
+                        // assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
+                        assert(area < scale_t(1) * scale_t(1));
+                    }
+                }
+            }
+        }
+    }
+#endif
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
+        for (const Layer *layer : m_layers) {
+            LayerRegion *layerm = layer->m_regions[region_id];
+            layerm->export_region_slices_to_svg_debug("8_tag_under_bridge-final1");
+            layerm->export_region_fill_surfaces_to_svg_debug("8_tag_under_bridge-final2");
+        } // for each layer
+    } // for each region
+#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
+
     // create internal bridge, converting (internal | solid) to (internal | solid | bridge)
     // also expand the surface into sparse/void infill to bridge to the first internal extrusion from below.
     this->bridge_over_infill();
     m_print->throw_if_canceled();
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+    for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
+        for (const Layer *layer : m_layers) {
+            LayerRegion *layerm = layer->m_regions[region_id];
+            layerm->export_region_slices_to_svg_debug("8b_bridge_over_infil-final1");
+            layerm->export_region_fill_surfaces_to_svg_debug("8b_bridge_over_infil-final2");
+        } // for each layer
+    } // for each region
+#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 
     // apply stModOverBridge over bridge surfaces
     // TODO: use a visitor that change the flow on infill extrusion after infill, instead of this stuff.
@@ -3326,14 +3372,14 @@ void PrintObject::bridge_over_infill()
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
                             debug_draw(std::to_string(lidx) + "_candidate_surface_" + std::to_string(area(srf->expolygon)),
-                                       to_lines(region->layer()->lslices()), to_lines(srf->expolygon), to_lines(worth_bridging),
-                                       to_lines(unsupported_area));
+                                       to_polylines(region->layer()->lslices()), to_polylines(srf->expolygon), to_polylines(worth_bridging),
+                                       to_polylines(unsupported_area));
 #endif
 #ifdef DEBUG_BRIDGE_OVER_INFILL
                             debug_draw(std::to_string(lidx) + "_candidate_processing_" + std::to_string(area(unsupported)),
-                                       to_lines(unsupported), to_lines(intersection(to_polygons(srf->expolygon), expand(unsupported, 5 * spacing))), 
-                                       to_lines(diff(to_polygons(srf->expolygon), expand(worth_bridging, spacing))),
-                                       to_lines(unsupported_area));
+                                       to_polylines(unsupported), to_polylines(intersection(to_polygons(srf->expolygon), expand(unsupported, 5 * spacing))), 
+                                       to_polylines(diff(to_polygons(srf->expolygon), expand(worth_bridging, spacing))),
+                                       to_polylines(unsupported_area));
 #endif
                         }
                     }
@@ -3931,8 +3977,13 @@ void PrintObject::bridge_over_infill()
                 }
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
-                debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" + std::to_string(job_idx) + "_" + "_total_area",
-                           to_lines(total_fill_area), to_lines(expansion_area), to_lines(deep_infill_area), to_lines(anchors));
+                {
+                    static int r = 0;
+                    debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" +
+                                   std::to_string(job_idx) + "_" + "_total_area_" + std::to_string(r++) + ".svg",
+                               to_polylines(total_fill_area), to_polylines(expansion_area), to_polylines(deep_infill_area),
+                               (anchors));
+                }
 #endif
 
                 std::vector<CandidateSurface> expanded_surfaces;
@@ -3940,13 +3991,15 @@ void PrintObject::bridge_over_infill()
                 for (const CandidateSurface &candidate : surfaces_by_layer[lidx]) {
                     const Flow &flow              = candidate.region->bridging_flow(frSolidInfill, candidate.region->region().config().bridge_type);
                     Polygons    area_to_be_bridge = candidate.new_polys; //expand(candidate.new_polys, flow.scaled_spacing()); //why?
-                    area_to_be_bridge             = intersection(area_to_be_bridge, deep_infill_area);
-                    area_to_be_bridge.erase(std::remove_if(area_to_be_bridge.begin(), area_to_be_bridge.end(),
-                                                            [internal_unsupported_area](const Polygon &p) {
-                                                                return intersection({p}, internal_unsupported_area)
+                    // note: using polygons instead of expolygons really create weird issues.... is it really that more efficient?
+                    ExPolygons ex_area_to_be_bridge = intersection_ex(area_to_be_bridge, deep_infill_area);
+                    ex_area_to_be_bridge.erase(std::remove_if(ex_area_to_be_bridge.begin(), ex_area_to_be_bridge.end(),
+                                                            [internal_unsupported_area](const ExPolygon &exp) {
+                                                                return intersection_ex(exp, internal_unsupported_area)
                                                                     .empty();
                                                             }),
-                                            area_to_be_bridge.end());
+                                            ex_area_to_be_bridge.end());
+                    area_to_be_bridge = to_polygons(ex_area_to_be_bridge);
                     if (area_to_be_bridge.empty())
                         continue;
 
@@ -3967,11 +4020,13 @@ void PrintObject::bridge_over_infill()
                     } else {
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
-                        int r = safe_rand();
-                        debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" +
-                                       std::to_string(job_idx) + "_" + "_anchors_" + std::to_string(r),
-                                   to_lines(area_to_be_bridge), to_lines(boundary_plines), to_lines(anchors),
-                                   to_lines(expansion_area));
+                        {
+                            static int r = 0;
+                            debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" +
+                                           std::to_string(job_idx) + "_" + "_anchors_" + std::to_string(r++) + ".svg",
+                                       to_polylines(area_to_be_bridge), (boundary_plines), (anchors),
+                                       to_polylines(expansion_area));
+                        }
 #endif
                         if (!anchors.empty()) {
                             bridging_angle =
@@ -4019,8 +4074,13 @@ void PrintObject::bridge_over_infill()
                     expansion_area         = diff(expansion_area, bridging_area);
 
 #ifdef DEBUG_BRIDGE_OVER_INFILL
-                    debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" + std::to_string(job_idx) + "_" + "_expanded_bridging" +  std::to_string(r),
-                               to_lines(layer->lslices()), to_lines(boundary_plines), to_lines(candidate.new_polys), to_lines(bridging_area));
+                    {
+                        static int r = 0;
+                        debug_draw(std::to_string(lidx) + "_" + std::to_string(cluster_idx) + "_" +
+                                       std::to_string(job_idx) + "_" + "_expanded_bridging" + std::to_string(r++) + ".svg",
+                                   to_polylines(layer->lslices()), (boundary_plines),
+                                   to_polylines(candidate.new_polys), to_polylines(bridging_area));
+                    }
 #endif
 
                     expanded_surfaces.push_back(CandidateSurface(candidate.original_surface, candidate.layer_index, bridging_area,

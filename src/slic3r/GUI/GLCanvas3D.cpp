@@ -3176,14 +3176,17 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         const bool wt = dynamic_cast<const ConfigOptionBool*>(m_config->option("wipe_tower"))->value;
         const bool co = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"))->value;
             
-            const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-            const float bw = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_brim_width"))->value;
-            const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
+        const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
+        const float bw = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_brim_width"))->value;
+        const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
         if (extruders_count > 1 && wt && !co) {
-            const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
-
-          // const double real_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(wxGetApp().preset_bundle->printers.get_selected_idx());
+            // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
+            const float x = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_x"))->value;
+            const float y = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_y"))->value;
+            const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
+            const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
+            const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
             
             for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
                 const Print *print = wxGetApp().plater()->get_fff_prints()[bed_idx].get();
@@ -3192,9 +3195,9 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 const float y = m_model->get_wipe_tower_vector()[bed_idx].position.y();
                 const float a = m_model->get_wipe_tower_vector()[bed_idx].rotation;
                 
-                const float depth = print->wipe_tower_data(extruders_count, first_nozzle_diameter ).depth;
-                const std::vector<std::pair<float, float>> z_and_depth_pairs = print->wipe_tower_data(extruders_count, first_nozzle_diameter).z_and_depth_pairs;
-                const float height_real = print->wipe_tower_data(extruders_count, first_nozzle_diameter).height; // -1.f = unknown
+                const float depth = print->wipe_tower_data().depth;
+                const std::vector<std::pair<float, float>> z_and_depth_pairs = print->wipe_tower_data().z_and_depth_pairs;
+                const float height_real = print->wipe_tower_data().height; // -1.f = unknown
                 
                 const bool is_wipe_tower_step_done = print->is_step_done(psWipeTower);
 

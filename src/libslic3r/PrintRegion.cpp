@@ -171,17 +171,19 @@ coordf_t PrintRegion::nozzle_dmr_avg(const PrintConfig &print_config) const
 void PrintRegion::collect_object_printing_extruders(const PrintConfig &print_config, const PrintObjectConfig &object_config, const PrintRegionConfig &region_config, std::set<uint16_t> &object_extruders)
 {
     // These checks reflect the same logic used in the GUI for enabling/disabling extruder selection fields.
-    auto num_extruders = (int)print_config.nozzle_diameter.size();
+    auto num_extruders = (int) print_config.nozzle_diameter.size();
     auto emplace_extruder = [num_extruders, &object_extruders](int extruder_id) {
-    	int i = std::max(0, extruder_id - 1);
+        int i = std::max(0, extruder_id - 1);
         object_extruders.insert((i >= num_extruders) ? 0 : i);
     };
-    if (region_config.perimeters.value > 0 || object_config.brim_width.value > 0 || object_config.brim_width_interior > 0)
-    	emplace_extruder(region_config.perimeter_extruder);
+    if (region_config.perimeters.value > 0 || object_config.brim_width.value > 0 ||
+        object_config.brim_width_interior > 0)
+        emplace_extruder(region_config.perimeter_extruder);
     if (region_config.fill_density.value > 0)
-    	emplace_extruder(region_config.infill_extruder);
-    if (region_config.top_solid_layers.value > 0 || region_config.bottom_solid_layers.value > 0 || (region_config.solid_infill_every_layers.value > 0 && region_config.fill_density.value > 0))
-    	emplace_extruder(region_config.solid_infill_extruder);
+        emplace_extruder(region_config.infill_extruder);
+    if (region_config.top_solid_layers.value > 0 || region_config.bottom_solid_layers.value > 0 ||
+        (region_config.solid_infill_every_layers.value > 0 && region_config.fill_density.value > 0))
+        emplace_extruder(region_config.solid_infill_extruder);
 }
 
 void PrintRegion::collect_object_printing_extruders(const Print& print, std::set<uint16_t> &object_extruders) const

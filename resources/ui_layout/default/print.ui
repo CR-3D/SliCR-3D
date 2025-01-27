@@ -906,6 +906,10 @@ group:Wipe tower
 
 
 group:Advanced
+	line:Bed Temperature
+		setting:label$First layer:print_first_layer_bed_temperature
+		setting:label$Other layers:print_bed_temperature
+	end_line
 	setting:interface_shells
 
 	line:Segmented Regions Max Width

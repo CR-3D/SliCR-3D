@@ -568,7 +568,7 @@ public:
         return this;
     }
     // Like FCO_EXTRUDER_ARRAY that is a copy of the def, this is the copy of the def to replicate is_nullable()
-    bool                        can_be_disabled()		const { return (flags & FCO_CAN_DISABLED) != 0; }
+    bool                        can_be_disabled() const { return (flags & FCO_CAN_DISABLED) != 0; }
     // should only be set by configdef when a new item is requested. It also set it as disabled if you set the arg to true.
     ConfigOption*               set_can_be_disabled(bool force_disabled = false) { this->flags |= FCO_CAN_DISABLED; if(force_disabled) set_enabled(false); return this; }
 
@@ -3224,6 +3224,14 @@ public:
     // Be careful, as this method does not test the existence of opt_key in this->def().
     bool                    set_key_value(const std::string &opt_key, ConfigOption *opt)
     {
+        // ensure set_can_be_disabled is set
+        if (def()) {
+            const ConfigOptionDef* opt_def = def()->get(opt_key);
+            if (opt_def && opt_def->can_enable && !opt->can_be_disabled()) {
+                opt->set_can_be_disabled();
+            }
+        }
+        // replace or insert
         assert(opt != nullptr);
         auto it = this->options.find(opt_key);
         if (it == this->options.end()) {

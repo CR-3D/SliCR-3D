@@ -776,6 +776,8 @@ static std::vector<std::string> s_Preset_print_options {
         "print_first_layer_temperature",
         "print_retract_length",
         "print_temperature",
+        "print_bed_temperature",
+        "print_first_layer_bed_temperature",
         "print_retract_lift",
         "external_perimeter_cut_corners",
         "external_perimeter_overlap",

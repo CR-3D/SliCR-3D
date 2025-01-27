@@ -1525,12 +1525,16 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
 
     wxBusyCursor busy;
 
-    if (m_view_type == EViewType::Tool && !gcode_result.extruder_colors.empty())
-        // update tool colors from config stored in the gcode
-        decode_colors(gcode_result.extruder_colors, m_tool_colors);
-    else
+    if (m_view_type == EViewType::Tool && !gcode_result.extruder_colors.empty()) {
+        assert(str_tool_colors.size() == gcode_result.extruder_colors.size());
         // update tool colors
         decode_colors(str_tool_colors, m_tool_colors);
+        // update (override) tool colors from config stored in the gcode where it's defined.
+        decode_colors(gcode_result.extruder_colors, m_tool_colors);
+    } else {
+        // update tool colors
+        decode_colors(str_tool_colors, m_tool_colors);
+    }
 
     ColorRGBA default_color;
     decode_color("#FF8000", default_color);
@@ -1539,12 +1543,16 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
     while (m_tool_colors.size() < std::max(size_t(1), gcode_result.extruders_count))
         m_tool_colors.push_back(default_color);
 
-    if (!gcode_result.filament_colors.empty())
-        // update tool colors from config stored in the gcode
+    if (!gcode_result.filament_colors.empty()) {
+        assert(str_tool_colors.size() == gcode_result.filament_colors.size());
+        // update filament colors
+        decode_colors(str_tool_colors, m_filament_colors);
+        // update(override) filament colors from config stored in the gcode
         decode_colors(gcode_result.filament_colors, m_filament_colors);
-    else
+    } else {
         // use tool colors
         decode_colors(str_tool_colors, m_filament_colors);
+    }
 
     // ensure there are enough colors defined
     while (m_filament_colors.size() < std::max(size_t(1), gcode_result.extruders_count)) {
@@ -3070,8 +3078,7 @@ void GCodeViewer::load_wipetower_shell(const Print& print)
         const PrintConfig& config = print.config();
         const size_t extruders_count = config.nozzle_diameter.size();
         if (extruders_count > 1 && config.wipe_tower && !config.complete_objects) {
-            //FIXME using first nozzle diameter instead of the "right" one.
-            const WipeTowerData& wipe_tower_data = print.wipe_tower_data(extruders_count, config.nozzle_diameter.get_at(0));
+            const WipeTowerData& wipe_tower_data = print.wipe_tower_data();
             const float depth = wipe_tower_data.depth;
             const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
             const float brim_width = wipe_tower_data.brim_width;

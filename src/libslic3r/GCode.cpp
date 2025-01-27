@@ -73,6 +73,7 @@
 
 #include "SVG.hpp"
 
+#include <fast_float/fast_float.h>
 #include <tbb/parallel_for.h>
 
 // Intel redesigned some TBB interface considerably when merging TBB with their oneAPI set of libraries, see GH #7332.
@@ -1706,7 +1707,12 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     // Enable ooze prevention if configured so.
     DoExport::init_ooze_prevention(print, m_ooze_prevention);
 
-    std::string start_gcode = this->placeholder_parser_process("start_gcode", print.config().start_gcode.value, initial_extruder_id);
+    std::string start_gcode ;
+    {
+        DynamicConfig config;
+        config.set_key_value("start_gcode_bed_temperature", new ConfigOptionInt((int)_compute_first_layer_bed_temperature(print)));
+        start_gcode = this->placeholder_parser_process("start_gcode", print.config().start_gcode.value, initial_extruder_id, &config);
+    }
     // get the start_filament_gcode to check if M109 or others are inside it
     std::string start_filament_gcode;
     if (!m_config.start_filament_gcode.get_at(initial_extruder_id).empty()) {
@@ -1814,9 +1820,9 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     m_writer.tool()->reset_retract();
 
     //write temps after custom gcodes to ensure the temperature are good. (after tool selection)
-    if ((initial_extruder_id != (uint16_t)-1) && !this->config().start_gcode_manual && print.config().first_layer_temperature.get_at(initial_extruder_id) != 0)
+    if ((initial_extruder_id != (uint16_t)-1) && print.config().first_layer_temperature.get_at(initial_extruder_id) != 0)
         this->_print_first_layer_extruder_temperatures(preamble_to_put_start_layer, print, start_all_gcode, initial_extruder_id, true);
-    if ((initial_extruder_id != (uint16_t)-1) && !this->config().start_gcode_manual && print.config().first_layer_bed_temperature.get_at(initial_extruder_id) != 0)
+    if ((initial_extruder_id != (uint16_t)-1) && print.config().first_layer_bed_temperature.get_at(initial_extruder_id) != 0)
         this->_print_first_layer_bed_temperature(preamble_to_put_start_layer, print, start_all_gcode, initial_extruder_id, true);
     
     // Do all objects for each layer.
@@ -1844,8 +1850,8 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                         this->placeholder_parser_process("between_objects_gcode",
                                                          print.config().between_objects_gcode.value,
                                                          initial_extruder_id);
-                    // Set first layer bed and extruder temperatures, don't wait for it to reach the temperature.
-                    this->_print_first_layer_bed_temperature(preamble_to_put_start_layer, print, between_objects_gcode, initial_extruder_id, false);
+                    // Set first layer extruder temperatures, don't wait for it to reach the temperature.
+                    // don't change the bed temp for each object, it can lead to auto-removel
                     this->_print_first_layer_extruder_temperatures(preamble_to_put_start_layer, print, between_objects_gcode, initial_extruder_id, false);
                     preamble_to_put_start_layer.append(between_objects_gcode).append("\n");
                 } else {
@@ -1938,7 +1944,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                     m_wipe_tower = std::make_unique<GCode::WipeTowerIntegration>(print.config(), *print.wipe_tower_data().priming.get(), print.wipe_tower_data().tool_changes, *print.wipe_tower_data().final_purge.get());
 
                     // Set position for wipe tower generation.
-                    file.write(this->writer().travel_to_z(first_layer_height, "Move to first z, for wipe tower"));
+                    preamble_to_put_start_layer.append(this->writer().travel_to_z(first_layer_height, "Move to first z, for wipe tower"));
                     m_last_layer_z = first_layer_height;
                     m_max_layer_z = std::max(m_max_layer_z, this->writer().get_unlifted_position().z());
 
@@ -2453,6 +2459,59 @@ void GCodeGenerator::process_layers(
     output_stream.find_replace_enable();
 }
 
+std::vector<std::optional<double>> compute_new_position(GCodeGenerator &gcodegen, const std::string &gcode) {
+    GCodeReader parser;
+    std::vector<std::optional<double>> position;
+    position.resize(3);
+    if (gcodegen.last_pos_defined()) {
+        position[0] = gcodegen.writer().get_position().x();
+        position[1] = gcodegen.writer().get_position().y();
+        position[2] = gcodegen.writer().get_position().z() + gcodegen.writer().config.z_offset.value;
+    }
+    if(gcode.empty()) return position;
+    parser.parse_buffer(gcode,
+        [&position](GCodeReader& reader, const GCodeReader::GCodeLine& line) {
+        const std::string_view  cmd = line.cmd();
+        if (!cmd.empty()
+        // T is known
+         && !(cmd[0] == 'T' && cmd.size() == 1)) {
+            //Gxxx & Mxxx are known,
+            if (cmd[0] == 'G' || cmd[0] == 'M') {
+                // Try to parse the numeric value.
+                double v = 0.;
+                auto [pend, ec] = fast_float::from_chars((&cmd.front())+1, (&cmd.back())+1, v);
+                if (pend == (&cmd.back())+1) {
+                    // The axis value has been parsed correctly.
+                    //TODO: encounter G1XYZ -> reset current position to that
+                    if (cmd[0] == 'G' && (v >= 1 && v <= 3)) {
+                        if (line.has(Axis::X)) {
+                            position[0] = line.value(Axis::X);
+                        }
+                        if (line.has(Axis::Y)) {
+                            position[1] = line.value(Axis::Y);
+                        }
+                        if (line.has(Axis::Z)) {
+                            position[2] = line.value(Axis::Z);
+                        }
+                    }
+                } else {
+                    // nan => unknown thing
+                    position[0].reset();
+                    position[1].reset();
+                    position[2].reset();
+                }
+            } else {
+                // rest is not
+                position[0].reset();
+                position[1].reset();
+                position[2].reset();
+            }
+        }
+        });
+
+    return position;
+}
+
 std::string GCodeGenerator::placeholder_parser_process(
     const std::string   &name,
     const std::string   &templ,
@@ -2506,6 +2565,24 @@ std::string GCodeGenerator::placeholder_parser_process(
             // Update G-code writer. (without z_offset)
             m_writer.update_position_by_lift({ pos[0], pos[1], pos[2] - m_writer.config.z_offset.value});
             this->set_last_pos(this->gcode_to_point({pos[0], pos[1]}));
+        } else {
+            // TODO that shouldn't be necessary if we didn't detect any problematic lines.
+            auto position_vec = compute_new_position(*this, output);
+            if (!position_vec[0] || !position_vec[1]) {
+                // to be sure, we should invalidate the position. But for simplicity's sake, we will keep the last good pos we know.
+                // this->unset_last_pos();
+            } else {
+                //update our current position
+                Point pt_updated = this->gcode_to_point({pos[0], pos[1]});
+                if (!is_approx(pt_updated.x(), last_pos().x(), SCALED_EPSILON) ||
+                    !is_approx(pt_updated.y(), last_pos().y(), SCALED_EPSILON)) {
+                    set_last_pos(pt_updated);
+                }
+            }
+            // Update G-code writer. (without z_offset)
+            m_writer.update_position_by_lift({position_vec[0] ? *position_vec[0] : m_writer.get_position().x(),
+                                              position_vec[1] ? *position_vec[1] : m_writer.get_position().y(),
+                 position_vec[2] ? *position_vec[2] - m_writer.config.z_offset.value : m_writer.get_position().z()});
         }
 
         for (const Extruder &e : m_writer.extruders()) {
@@ -2686,28 +2763,86 @@ void GCodeGenerator::print_machine_envelope(GCodeOutputStream &file, const Print
                 int(print.config().machine_min_travel_rate.get_at(0) + 0.5));
     }
 }
-
 // Write 1st layer bed temperatures into the G-code.
-// Only do that if the start G-code does not already contain any M-code controlling an extruder temperature.
+// Only do that if the start G-code does not already contain any M-code controlling the bed temperature.
 // M140 - Set Bed Temperature
 // M190 - Set Bed Temperature and Wait
-void GCodeGenerator::_print_first_layer_bed_temperature(std::string &out, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait)
+int32_t GCodeGenerator::_compute_first_layer_bed_temperature(const Print &print)
+{
+    int32_t  temp = 0;
+    //is overriden by print_first_layer_bed_temperature?
+    if (print.config().print_first_layer_bed_temperature.is_enabled()) {
+        temp = print.config().print_first_layer_bed_temperature.value;
+    } else {
+        // Initial bed temperature based on the first layer extruders
+        std::set<uint16_t> extruders = print.extruders(0);
+        //get max temp
+        for (uint16_t tool_idx : extruders) {
+            temp = std::max(temp, print.config().first_layer_bed_temperature.get_at(tool_idx));
+        }
+    }
+    return temp;
+}
+
+// Write 1st layer bed temperatures into the G-code.
+// Only do that if the start G-code does not already contain any M-code controlling the bed temperature.
+// M140 - Set Bed Temperature
+// M190 - Set Bed Temperature and Wait
+void GCodeGenerator::_print_first_layer_bed_temperature(std::string &out, const Print &print, const std::string &gcode, uint16_t /*first_printing_extruder_id*/, bool wait)
 {
     bool autoemit = print.config().autoemit_temperature_commands;
-    // Initial bed temperature based on the first extruder.
-    int  temp = print.config().first_layer_bed_temperature.get_at(first_printing_extruder_id);
+    int32_t  temp = _compute_first_layer_bed_temperature(print);
     //disable bed temp control if 0
     if (temp == 0) return;
     // Is the bed temperature set by the provided custom G-code?
-    int  temp_by_gcode     = -1;
+    int temp_by_gcode = -1;
     bool temp_set_by_gcode = custom_gcode_sets_temperature(gcode, 140, 190, false, temp_by_gcode);
     if (autoemit && temp_set_by_gcode && temp_by_gcode >= 0 && temp_by_gcode < 1000)
         temp = temp_by_gcode;
     // Always call m_writer.set_bed_temperature() so it will set the internal "current" state of the bed temp as if
     // the custom start G-code emited these.
-    std::string set_temp_gcode = m_writer.set_bed_temperature(temp, wait);
+    std::string set_temp_gcode = m_writer.set_bed_temperature(uint32_t(temp), wait);
     if (autoemit && !temp_set_by_gcode)
         out += (set_temp_gcode);
+}
+
+int32_t GCodeGenerator::_compute_bed_temperature(const Print &print)
+{
+    int32_t  temp = 0;
+    //is overriden by print_bed_temperature?
+    if (print.config().print_bed_temperature.is_enabled()) {
+        temp = print.config().print_bed_temperature.value;
+    } else {
+        // Initial bed temperature based on the first layer extruders
+        std::set<uint16_t> extruders = print.extruders();
+        //get max temp
+        for (uint16_t tool_idx : extruders) {
+            temp = std::max(temp, print.config().bed_temperature.get_at(tool_idx));
+        }
+    }
+    return temp;
+}
+// Write layer bed temperatures into the G-code.
+// Only do that if the start G-code does not already contain any M-code controlling the bed temperature.
+// M140 - Set Bed Temperature
+// M190 - Set Bed Temperature and Wait
+void GCodeGenerator::_print_second_layer_bed_temperature(std::string &out, const Print &print, const std::string &gcode, uint16_t /*first_printing_extruder_id*/, bool wait)
+{
+    bool autoemit = true; //print.config().autoemit_temperature_commands; // autoemit_temperature_commands only works for start gcode
+    int32_t  temp = _compute_bed_temperature(print);
+    //disable bed temp control if 0
+    if (temp == 0) return;
+    // Is the bed temperature set by the provided custom G-code?
+    int temp_by_gcode = -1;
+    bool temp_set_by_gcode = custom_gcode_sets_temperature(gcode, 140, 190, false, temp_by_gcode);
+    if (autoemit && temp_set_by_gcode && temp_by_gcode >= 0 && temp_by_gcode < 1000)
+        temp = temp_by_gcode;
+    // Always call m_writer.set_bed_temperature() so it will set the internal "current" state of the bed temp as if
+    // the custom start G-code emited these.
+    std::string set_temp_gcode = m_writer.set_bed_temperature(uint32_t(temp), wait);
+    if (autoemit && !temp_set_by_gcode)
+        out += (set_temp_gcode);
+
 }
 
 // Write 1st layer chamber temperatures into the G-code.
@@ -3180,11 +3315,15 @@ LayerResult GCodeGenerator::process_layer(
     m_last_height = height;
     m_last_too_small.polyline.clear();
     //m_already_unretracted = false;
+    if (!first_layer && !m_second_layer_things_done) {
+        m_bed_temperature = _compute_bed_temperature(print);
+    }
 
     // Set new layer - this will change Z and force a retraction if retract_layer_change is enabled.
     if (! print.config().before_layer_gcode.value.empty()) {
         DynamicConfig config;
         config.set_key_value("previous_layer_z", new ConfigOptionFloat(previous_layer_z));
+        config.set_key_value("gcode_bed_temperature", new ConfigOptionInt(m_bed_temperature));
         gcode += this->placeholder_parser_process("before_layer_gcode",
             print.config().before_layer_gcode.value, m_writer.tool()->id(), &config)
             + "\n";
@@ -3221,6 +3360,7 @@ LayerResult GCodeGenerator::process_layer(
     if (!first_layer && ! print.config().layer_gcode.value.empty()) {
         DynamicConfig config;
         config.set_key_value("previous_layer_z", new ConfigOptionFloat(previous_layer_z));
+        config.set_key_value("gcode_bed_temperature", new ConfigOptionInt(m_bed_temperature));
         gcode += this->placeholder_parser_process("layer_gcode",
             print.config().layer_gcode.value, m_writer.tool()->id(), &config)
             + "\n";
@@ -3254,8 +3394,9 @@ LayerResult GCodeGenerator::process_layer(
             if (temperature > 0) // don't set it if disabled
                 gcode += m_writer.set_temperature(temperature, false, extruder.id());
         }
-        if (print.config().bed_temperature.get_at(first_extruder_id) > 0)  // don't set it if disabled
-            gcode += m_writer.set_bed_temperature(print.config().bed_temperature.get_at(first_extruder_id));
+        _print_second_layer_bed_temperature(gcode, print, print.config().before_layer_gcode.value +"\n" + print.config().layer_gcode.value, first_extruder_id, /*wait=*/false);
+        //if (print.config().bed_temperature.get_at(first_extruder_id) > 0)  // don't set it if disabled
+            //gcode += m_writer.set_bed_temperature(print.config().bed_temperature.get_at(first_extruder_id));
         // Mark the temperature transition from 1st to 2nd layer to be finished.
         m_second_layer_things_done = true;
     }
@@ -3558,9 +3699,9 @@ void GCodeGenerator::process_layer_single_object(
                         if (ee->role() == role)
                             entities_cache.emplace_back(ee);
                 }
-                if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.print_first_layer_temperature.value > 0)
+                if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.print_first_layer_temperature.is_enabled())
                     gcode += m_writer.set_temperature(m_config.print_first_layer_temperature.value, false, m_writer.tool()->id());
-                else if (m_config.print_temperature.value > 0)
+                else if (m_config.print_temperature.is_enabled())
                     gcode += m_writer.set_temperature(m_config.print_temperature.value, false, m_writer.tool()->id());
                 else if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.first_layer_temperature.get_at(m_writer.tool()->id()) > 0)
                         gcode += m_writer.set_temperature(m_config.first_layer_temperature.get_at(m_writer.tool()->id()), false, m_writer.tool()->id());
@@ -5307,7 +5448,8 @@ void GCodeGenerator::use(const ExtrusionEntityCollection &collection) {
         }
     } else {
         bool reversed = this->visitor_flipped;
-        ExtrusionEntityReferences chained = chain_extrusion_references(collection, &last_pos());
+        Point start_pos = last_pos_defined() ? last_pos() : collection.first_point();
+        ExtrusionEntityReferences chained = chain_extrusion_references(collection, &start_pos);
         for (const ExtrusionEntityReference &next_entity : chained) {
             this->visitor_flipped = reversed != next_entity.flipped();
             next_entity.extrusion_entity().visit(*this);
@@ -5485,9 +5627,9 @@ void GCodeGenerator::set_region_for_extrude(const Print &print, const PrintObjec
     // perimeter-only (but won't break anything if done also in infill & ironing): pass needed settings to seam placer.
     m_seam_placer.external_perimeters_first = region_config.external_perimeters_first.value;
     // temperature override from region
-    if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.print_first_layer_temperature.value > 0) {
+    if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.print_first_layer_temperature.is_enabled()) {
         gcode += m_writer.set_temperature(m_config.print_first_layer_temperature.value, false, m_writer.tool()->id());
-    } else if (m_config.print_temperature > 0) {
+    } else if (m_config.print_temperature.is_enabled()) {
         gcode += m_writer.set_temperature(m_config.print_temperature.value, false, m_writer.tool()->id());
     } else if (m_layer != nullptr && m_layer->bottom_z() < EPSILON && m_config.first_layer_temperature.get_at(m_writer.tool()->id()) > 0) {
         gcode += m_writer.set_temperature(m_config.first_layer_temperature.get_at(m_writer.tool()->id()), false, m_writer.tool()->id());
@@ -6965,7 +7107,7 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
         Point last_post_before_retract = this->last_pos_defined() ? this->last_pos() : Point{0, 0};
 
-        bool no_lift_on_retract = travel.length() <= scale_(EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_before_travel, 0));
+        bool no_lift_on_retract = travel.length() <= scale_(EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_before_travel, 0)) && travel.size() > 1;
         gcode += this->retract_and_wipe(false, no_lift_on_retract /*, comment*/);
 
         // When "Wipe while retracting" is enabled, then extruder moves to another position, and travel from this position can cross perimeters.
@@ -6995,6 +7137,11 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
             travel.points.front() = this->last_pos();
         }
     } else {
+        // retraction not needed
+        // check if lift is enforced
+        if (m_writer.get_extra_lift() > 0) {
+            gcode += m_writer.lift(this->m_layer_index);
+        }
         // Reset the wipe path when traveling, so one would not wipe along an old path.
         m_wipe.reset_path();
     }
@@ -7402,8 +7549,9 @@ bool GCodeGenerator::needs_retraction(const Polyline& travel, ExtrusionRole role
     coordf_t min_dist = scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(retract_before_travel, 0));
     if (max_min_dist > 0)
         min_dist = std::min(max_min_dist, min_dist);
-    if (! m_writer.tool() || (travel.length() < min_dist || travel.size() == 1)) {
+    if (! m_writer.tool() || (travel.length() < min_dist && travel.size() > 1)) {
         // skip retraction if the move is shorter than the configured threshold
+        // unless it's from an unknown position.
         return false;
     }
 
@@ -7688,12 +7836,13 @@ std::string GCodeGenerator::retract_and_wipe(bool toolchange, bool inhibit_lift)
     if (!inhibit_lift) {
         // check if need to lift
         bool need_lift = !m_writer.tool_is_extruder() || toolchange
-            || (BOOL_EXTRUDER_CONFIG(retract_lift_first_layer) && m_config.print_retract_lift.value != 0 && this->m_layer_index == 0)
+            || (BOOL_EXTRUDER_CONFIG(retract_lift_first_layer) && this->m_layer_index == 0 &&
+                (!m_config.print_retract_lift.is_enabled() || m_config.print_retract_lift.value > 0))
             || this->m_writer.get_extra_lift() > 0;
         bool last_fill_extusion_role_top_infill = (this->m_last_extrusion_role == GCodeExtrusionRole::TopSolidInfill || this->m_last_extrusion_role == GCodeExtrusionRole::Ironing);
         if (this->m_last_extrusion_role == GCodeExtrusionRole::GapFill)
             last_fill_extusion_role_top_infill = (this->m_last_not_gapfill_extrusion_role == GCodeExtrusionRole::TopSolidInfill || this->m_last_not_gapfill_extrusion_role == GCodeExtrusionRole::Ironing);
-        if (!need_lift && m_config.print_retract_lift.value != 0) {
+        if (!need_lift && (!m_config.print_retract_lift.is_enabled() || m_config.print_retract_lift.value > 0)) {
             if (EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_top, "") == "Not on top")
                 need_lift = !last_fill_extusion_role_top_infill;
             else if (EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_top, "") == "Only on top")
@@ -7774,7 +7923,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
 
     if (!m_writer.need_toolchange(extruder_id))
         return "";
-    
+
     std::string gcode;
 
     // end the object session if needed
@@ -7847,34 +7996,46 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
 
     // Set the temperature if the wipe tower didn't (not needed for non-single extruder MM)
     // supermerill change: try to set the good temp, because the wipe tower don't use the gcode writer and so can write wrong stuff.
-    if (m_config.single_extruder_multi_material /*&& !m_config.wipe_tower*/) {
+    std::string gcode_set_temp;
+    //if (m_config.single_extruder_multi_material /*&& !m_config.wipe_tower*/) {
         int temp = (m_layer_index <= 0 && m_config.first_layer_temperature.get_at(extruder_id) > 0 ? m_config.first_layer_temperature.get_at(extruder_id) :
                                          m_config.temperature.get_at(extruder_id));
-        if (temp > 0)
-            gcode += m_writer.set_temperature(temp, false);
-    }
+        if (temp > 0) {
+            gcode_set_temp += m_writer.set_temperature(temp, true);
+        }
+    //}
 
     this->placeholder_parser().set("current_extruder", extruder_id);
 
     // Append the filament start G-code.
     const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
-    if (! start_filament_gcode.empty()) {
+    if (!start_filament_gcode.empty()) {
         DynamicConfig config;
         assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
         config.set_key_value("filament_extruder_id", new ConfigOptionInt(int(extruder_id)));
-        config.set_key_value("previous_extruder", new ConfigOptionInt((int)old_extruder_id));
-        config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));
+        config.set_key_value("previous_extruder", new ConfigOptionInt((int) old_extruder_id));
+        config.set_key_value("next_extruder", new ConfigOptionInt((int) extruder_id));
         // Process the start_filament_gcode for the new filament.
-        gcode += this->placeholder_parser_process("start_filament_gcode", start_filament_gcode, extruder_id, &config);
-        check_add_eol(gcode);
-        //check if it changed the temp
-        int  temp_by_gcode = -1;
-        if (custom_gcode_sets_temperature(gcode, 104, 109, false, temp_by_gcode)) {
-            //set writer
-            m_writer.set_temperature(temp_by_gcode, false, extruder_id);
+        std::string gcode_start_filament = this->placeholder_parser_process("start_filament_gcode",
+                                                                            start_filament_gcode, extruder_id,
+                                                                            &config);
+        check_add_eol(gcode_start_filament);
+        // check if it changed the temp
+        int temp_by_gcode = -1;
+        if (custom_gcode_sets_temperature(gcode_start_filament, 104, 109, false, temp_by_gcode)) {
+            // set writer
+            m_writer.set_temperature(temp_by_gcode, true, extruder_id);
+        } else {
+            // set temperature
+            gcode += gcode_set_temp;
         }
+        // now that temperature was added before (so the temp wait is done in the wipetower), add it to gcode,
+        gcode += gcode_start_filament;
+    } else {
+        gcode += gcode_set_temp;
     }
-    // Set the new extruder to the operating temperature.
+
+    // Set the new extruder to the operating temperature (should be ignored by the writer, now that the temp is enforced)
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 

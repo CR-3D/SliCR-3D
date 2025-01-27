@@ -12,6 +12,35 @@ static inline Point wipe_tower_point_to_object_point(GCodeGenerator &gcodegen, c
     return Point(scale_(wipe_tower_pt.x() - gcodegen.origin()(0)), scale_(wipe_tower_pt.y() - gcodegen.origin()(1)));
 }
 
+std::string WipeTowerIntegration::deretraction_from_wipe_tower_generator(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id) const {
+    std::string deretraction_str;
+    const bool is_ramming = (gcodegen.config().single_extruder_multi_material)
+                         || (! gcodegen.config().single_extruder_multi_material && gcodegen.config().filament_multitool_ramming.get_at(tcr.initial_tool));
+    if (tcr.priming || (new_extruder_id >= 0)) {
+        if (is_ramming)
+            gcodegen.m_wipe.reset_path(); // We don't want wiping on the ramming lines.
+        if (gcodegen.config().wipe_tower) {
+            //const double retract_to_z = tcr.priming ? tcr.print_z : z;
+            deretraction_str += gcodegen.writer().unlift();
+            deretraction_str += gcodegen.unretract();
+        }
+    }
+    assert(deretraction_str.empty() || deretraction_str.back() == '\n');
+    return deretraction_str;
+}
+std::string WipeTowerIntegration::toolchange_gcode_from_wipe_tower_generator(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id) const {
+    const bool is_ramming = (gcodegen.config().single_extruder_multi_material)
+                         || (! gcodegen.config().single_extruder_multi_material && gcodegen.config().filament_multitool_ramming.get_at(tcr.initial_tool));
+    std::string toolchange_gcode_str;
+    if (tcr.priming || (new_extruder_id >= 0)) {
+        if (is_ramming)
+            gcodegen.m_wipe.reset_path(); // We don't want wiping on the ramming lines.
+        toolchange_gcode_str = gcodegen.set_extruder(new_extruder_id, tcr.print_z); // TODO: toolchange_z vs print_z
+    }
+    assert(toolchange_gcode_str.empty() || toolchange_gcode_str.back() == '\n');
+    return toolchange_gcode_str;
+}
+
 std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id, double z) const
 {
     // has previous pos, or it's first layer.
@@ -55,7 +84,6 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
     Vec2f wipe_tower_offset = tcr.priming ? Vec2f::Zero() : m_wipe_tower_pos;
     float wipe_tower_rotation = tcr.priming ? 0.f : alpha;
 
-    std::string tcr_rotated_gcode = post_process_wipe_tower_moves(tcr, wipe_tower_offset, wipe_tower_rotation);
 
     double current_z = gcodegen.writer().get_position().z();
 
@@ -96,32 +124,20 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
     if(need_unretract)
         gcode += gcodegen.unretract();
 
-    std::string toolchange_gcode_str;
-    std::string deretraction_str;
-    if (tcr.priming || (new_extruder_id >= 0 && needs_toolchange)) {
-        if (is_ramming)
-            gcodegen.m_wipe.reset_path(); // We don't want wiping on the ramming lines.
-        toolchange_gcode_str = gcodegen.set_extruder(new_extruder_id, tcr.print_z); // TODO: toolchange_z vs print_z
-        if (gcodegen.config().wipe_tower) {
-            //const double retract_to_z = tcr.priming ? tcr.print_z : z;
-            deretraction_str += gcodegen.writer().unlift();
-            deretraction_str += gcodegen.unretract();
-        }
-    }
-    assert(toolchange_gcode_str.empty() || toolchange_gcode_str.back() == '\n');
-    assert(deretraction_str.empty() || deretraction_str.back() == '\n');
 
     // Insert the toolchange and deretraction gcode into the generated gcode.
-    boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_from_wipe_tower_generator]", toolchange_gcode_str);
-    boost::replace_first(tcr_rotated_gcode, "[deretraction_from_wipe_tower_generator]", deretraction_str);
-    boost::replace_first(tcr_rotated_gcode, "{layer_z}", to_string_nozero(gcodegen.writer().get_position().z() + gcodegen.writer().config.z_offset.value, 4));
-    boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_disable_linear_advance]", gcodegen.writer().set_pressure_advance(0));
-    if (gcodegen.config().filament_pressure_advance.is_enabled(new_extruder_id)) {
-        boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]",
-                             gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(new_extruder_id)));
-    } else {
-        boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]\n","");
-    }
+    //boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_from_wipe_tower_generator]", toolchange_gcode_str);
+    //boost::replace_first(tcr_rotated_gcode, "[deretraction_from_wipe_tower_generator]", deretraction_str);
+    //boost::replace_first(tcr_rotated_gcode, "{layer_z}", to_string_nozero(gcodegen.writer().get_position().z() + gcodegen.writer().config.z_offset.value, 4));
+    //boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_disable_linear_advance]", gcodegen.writer().set_pressure_advance(0));
+    //if (gcodegen.config().filament_pressure_advance.is_enabled(new_extruder_id)) {
+    //    boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]",
+    //                         gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(new_extruder_id)));
+    //} else {
+    //    boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]\n","");
+    //}
+    std::string tcr_rotated_gcode = post_process_wipe_tower_moves(tcr, wipe_tower_offset, wipe_tower_rotation,// gcodegen.config().gcode_flavor.value,
+                                                                  gcodegen, new_extruder_id);
     std::string tcr_gcode;
     unescape_string_cstyle(tcr_rotated_gcode, tcr_gcode);
     gcode += tcr_gcode;
@@ -158,8 +174,13 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
 
 // This function postprocesses gcode_original, rotates and moves all G1 extrusions and returns resulting gcode
 // Starting position has to be supplied explicitely (otherwise it would fail in case first G1 command only contained one coordinate)
-std::string WipeTowerIntegration::post_process_wipe_tower_moves(const WipeTower::ToolChangeResult& tcr, const Vec2f& translation, float angle) const
-{
+std::string WipeTowerIntegration::post_process_wipe_tower_moves(const WipeTower::ToolChangeResult &tcr,
+                                                                const Vec2f &translation,
+                                                                float angle,
+                                                                //const GCodeFlavor gcode_flavor,
+                                                                GCodeGenerator &gcodegen,
+                                                                int new_extruder_id
+                                                                ) const {
     Vec2f extruder_offset = m_extruder_offsets[tcr.initial_tool].cast<float>();
 
     std::istringstream gcode_str(tcr.gcode);
@@ -169,13 +190,27 @@ std::string WipeTowerIntegration::post_process_wipe_tower_moves(const WipeTower:
     Vec2f transformed_pos = Eigen::Rotation2Df(angle) * pos + translation;
     Vec2f old_pos(-1000.1f, -1000.1f);
 
+    std::string extruder_letter = gcodegen.writer().extrusion_axis();
+
+    bool is_absolute_e = !gcodegen.writer().gcode_config().use_relative_e_distances.value;
+    Tool* current_tool = gcodegen.writer().tool();
+    assert(current_tool);
+    assert(current_tool->id() == tcr.initial_tool);
+
     while (gcode_str) {
         std::getline(gcode_str, line);  // we read the gcode line by line
+
+        //replace special macro
+        while (line.find("{layer_z}") != std::string::npos) {
+            boost::replace_first(line, "{layer_z}",
+                    to_string_nozero(gcodegen.writer().get_position().z() + gcodegen.writer().config.z_offset.value, 4));
+        }
 
         // All G1 commands should be translated and rotated. X and Y coords are
         // only pushed to the output when they differ from last time.
         // WT generator can override this by appending the never_skip_tag
         if (boost::starts_with(line, "G1 ")) {
+            std::string raw_line = line;
             bool never_skip = false;
             auto it = line.find(WipeTower::never_skip_tag());
             if (it != std::string::npos) {
@@ -187,49 +222,86 @@ std::string WipeTowerIntegration::post_process_wipe_tower_moves(const WipeTower:
             std::istringstream line_str(line);
             line_str >> std::noskipws;  // don't skip whitespace
             char ch = 0;
+            bool has_e = false;
+            double pos_e;
             line_str >> ch >> ch; // read the "G1"
             while (line_str >> ch) {
-                if (ch == 'X' || ch == 'Y')
+                if (ch == 'X' || ch == 'Y') {
                     line_str >> (ch == 'X' ? pos.x() : pos.y());
-                else
+                } else if (ch == 'E') {
+                    line_str >> pos_e;
+                    has_e = true;
+                } else {
                     line_out << ch;
+                }
             }
 
             line = line_out.str();
             boost::trim(line); // Remove leading and trailing spaces.
 
             transformed_pos = Eigen::Rotation2Df(angle) * pos + translation;
+            if (has_e) {
+                auto [delta_e, gcode_e] = current_tool->extrude(pos_e);
+                pos_e = gcode_e;
+            }
 
-            if (transformed_pos != old_pos || never_skip || ! line.empty()) {
+            if (transformed_pos != old_pos || never_skip || ! line.empty() || has_e) {
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(3) << "G1";
                 if (transformed_pos.x() != old_pos.x() || never_skip)
                     oss << " X" << transformed_pos.x() - extruder_offset.x();
                 if (transformed_pos.y() != old_pos.y() || never_skip)
                     oss << " Y" << transformed_pos.y() - extruder_offset.y();
+                if (has_e) {
+                    oss << " " << extruder_letter << pos_e;
+                }
                 if (! line.empty())
                     oss << " ";
                 line = oss.str() + line;
                 old_pos = transformed_pos;
             }
+            line += "; raw: ";
+            line += raw_line;
+        } else if (boost::starts_with(line, "[toolchange_gcode_from_wipe_tower_generator]")) {
+            assert(new_extruder_id == tcr.new_tool);
+            const bool needs_toolchange = gcodegen.writer().need_toolchange(new_extruder_id);
+            if (needs_toolchange) {
+                // change tool
+                line = toolchange_gcode_from_wipe_tower_generator(gcodegen, tcr, new_extruder_id);
+                // now gcodegen.writer() has the new tool loaded.
+                current_tool = gcodegen.writer().tool();
+                assert(current_tool);
+                assert(current_tool->id() == uint16_t(tcr.new_tool));
+                // If this was a toolchange command, we should change current extruder offset
+                extruder_offset = m_extruder_offsets[tcr.new_tool].cast<float>();
+                // update letter
+                extruder_letter = gcodegen.writer().extrusion_axis();
+
+                // If the extruder offset changed, add an extra move so everything is continuous
+                if (extruder_offset != m_extruder_offsets[tcr.initial_tool].cast<float>()) {
+                    std::ostringstream oss;
+                    oss << std::fixed << std::setprecision(3) << "G1 X" << transformed_pos.x() - extruder_offset.x()
+                        << " Y" << transformed_pos.y() - extruder_offset.y() << "\n";
+                    line += oss.str();
+                }
+                line = "; toolchange_gcode_from_wipe_tower_generator\n" + line +
+                    "; END toolchange_gcode_from_wipe_tower_generator\n";
+            }
+        } else if (boost::starts_with(line, "[deretraction_from_wipe_tower_generator]")) {
+            line = deretraction_from_wipe_tower_generator(gcodegen, tcr, new_extruder_id);
+            line = "; deretraction_from_wipe_tower_generator\n" + line + "; END deretraction_from_wipe_tower_generator\n";
+        } else if (boost::starts_with(line, "[toolchange_gcode_disable_linear_advance]")) {
+            line = gcodegen.writer().set_pressure_advance(0);
+        } else if (boost::starts_with(line, "[toolchange_gcode_enable_linear_advance]")) {
+            if (gcodegen.config().filament_pressure_advance.is_enabled(new_extruder_id)) {
+                line = gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(gcodegen.writer().tool()->id()));
+            } else {
+                line = "";
+            }
         }
 
         gcode_out += line + "\n";
 
-        // If this was a toolchange command, we should change current extruder offset
-        if (line == "[toolchange_gcode_from_wipe_tower_generator]") {
-            extruder_offset = m_extruder_offsets[tcr.new_tool].cast<float>();
-
-            // If the extruder offset changed, add an extra move so everything is continuous
-            if (extruder_offset != m_extruder_offsets[tcr.initial_tool].cast<float>()) {
-                std::ostringstream oss;
-                oss << std::fixed << std::setprecision(3)
-                    << "G1 X" << transformed_pos.x() - extruder_offset.x()
-                    << " Y" << transformed_pos.y() - extruder_offset.y()
-                    << "\n";
-                gcode_out += oss.str();
-            }
-        }
     }
     return gcode_out;
 }

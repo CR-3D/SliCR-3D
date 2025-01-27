@@ -1703,14 +1703,14 @@ std::pair<double, double> WipeTower::get_wipe_tower_cone_base(double width, doub
 }
 
 // Static method to extract wipe_volumes[from][to] from the configuration.
-std::vector<std::vector<float>> WipeTower::extract_wipe_volumes(const PrintConfig& config)
+std::vector<std::vector<float>> WipeTower::extract_wipe_volumes(const ConfigBase& config)
 {
     // Get wiping matrix to get number of extruders and convert vector<double> to vector<float>:
-    std::vector<float> wiping_matrix(cast<float>(config.wiping_volumes_matrix.get_values()));
+    std::vector<float> wiping_matrix(cast<float>(config.option<ConfigOptionFloats>("wiping_volumes_matrix")->get_values()));
 
     // The values shall only be used when SEMM is enabled. The purging for other printers
     // is determined by filament_minimal_purge_on_wipe_tower.
-    if (! config.single_extruder_multi_material.value)
+    if (! config.option("single_extruder_multi_material")->get_bool())
         std::fill(wiping_matrix.begin(), wiping_matrix.end(), 0.f);
 
     // Extract purging volumes for each extruder pair:
@@ -1722,7 +1722,7 @@ std::vector<std::vector<float>> WipeTower::extract_wipe_volumes(const PrintConfi
     // Also include filament_minimal_purge_on_wipe_tower. This is needed for the preview.
     for (unsigned int i = 0; i<number_of_extruders; ++i)
         for (unsigned int j = 0; j<number_of_extruders; ++j)
-            wipe_volumes[i][j] = std::max<float>(wipe_volumes[i][j], config.filament_minimal_purge_on_wipe_tower.get_at(j));
+            wipe_volumes[i][j] = std::max<float>(wipe_volumes[i][j], config.option("filament_minimal_purge_on_wipe_tower")->get_float(j));
 
     return wipe_volumes;
 }

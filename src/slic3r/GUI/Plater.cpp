@@ -2459,47 +2459,48 @@ const std::regex Plater::priv::pattern_prusa(".*prusa", std::regex::icase);
 const std::regex Plater::priv::pattern_zip(".*zip", std::regex::icase);
 
 Plater::priv::priv(Plater *q, MainFrame *main_frame)
-: q(q)
-, main_frame(main_frame)
-, config(Slic3r::DynamicPrintConfig::new_from_defaults_keys({
-    // These keys are used by (at least) printconfig::min_object_distance
-    "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area",
-    "brim_width", "brim_width_interior","brim_separation",
-    "complete_objects",
-    "parallel_objects_step",
-    "complete_objects_sort",
-    "complete_objects_one_skirt",
-    "brim_per_object",
-    "duplicate_distance",
-    "draft_shield",
-    "extruder_clearance_radius",
-    "first_layer_extrusion_width",
-    "first_layer_infill_extrusion_width",
-    "init_z_rotate",
-    "max_print_height",
-    "perimeter_extrusion_width",
-    "extrusion_width",
-    "skirts", "skirt_brim", "skirt_distance", "skirt_distance_from_brim",
-    "skirt_extrusion_width", "skirt_height", "first_layer_extrusion_spacing", "perimeter_extrusion_spacing", "extrusion_spacing",
-    "variable_layer_height", "nozzle_diameter", "single_extruder_multi_material",
-    "wipe_tower", "wipe_tower_brim_width", "wipe_tower_rotation_angle", "wipe_tower_width", "wipe_tower_x", "wipe_tower_y",
-    "wipe_tower_cone_angle", "wipe_tower_extra_spacing", "wipe_tower_extruder",
-    "extruder_colour", "filament_colour", "material_colour",
-    "printer_model", "printer_notes", "printer_technology",
-    // These values are necessary to construct SlicingParameters by the Canvas3D variable layer height editor.
-    "layer_height", "first_layer_height", "min_layer_height", "max_layer_height",
-    "perimeters", "perimeter_extruder", "fill_density", "infill_extruder", "raft_layers",
-    "support_material", "support_material_extruder", "support_material_interface_extruder", "support_material_contact_distance", "top_solid_layers",
-    "z_step"
-}))
-, sidebar(new Sidebar(q))
-, notification_manager(std::make_unique<NotificationManager>(q))
-, m_worker{q, std::make_unique<NotificationProgressIndicator>(notification_manager.get()), "ui_worker"}
-, m_sla_import_dlg{new SLAImportDialog{q}}
-, delayed_scene_refresh(false)
-, view_toolbar(GLToolbar::Radio, "View")
-, collapse_toolbar(GLToolbar::Normal, "Collapse")
-, m_project_filename(wxEmptyString)
+    : q(q)
+    , main_frame(main_frame)
+    , config(Slic3r::DynamicPrintConfig::new_from_defaults_keys({
+        // These keys are used by (at least) printconfig::min_object_distance
+        "bed_shape", "bed_custom_texture", "bed_custom_model", "bed_exclude_area",
+        "brim_width", "brim_width_interior","brim_separation",
+        "complete_objects",
+        "parallel_objects_step",
+        "complete_objects_sort",
+        "complete_objects_one_skirt",
+        "brim_per_object",
+        "duplicate_distance", 
+        "draft_shield",
+        "extruder_clearance_radius",
+        "first_layer_extrusion_width",
+        "first_layer_infill_extrusion_width",
+        "init_z_rotate", 
+        "max_print_height",
+        "perimeter_extrusion_width",
+        "extrusion_width",
+        "skirts", "skirt_brim", "skirt_distance", "skirt_distance_from_brim", 
+        "skirt_extrusion_width", "skirt_height", "first_layer_extrusion_spacing", "perimeter_extrusion_spacing", "extrusion_spacing",
+        "variable_layer_height", "nozzle_diameter", "single_extruder_multi_material",
+        "wipe_tower", "wipe_tower_brim_width", "wipe_tower_rotation_angle", "wipe_tower_width", "wipe_tower_x", "wipe_tower_y",
+        "wipe_tower_cone_angle", "wipe_tower_extra_spacing", "wipe_tower_extruder",
+        "filament_minimal_purge_on_wipe_tower", "wiping_volumes_matrix", // for wipe_tower_data
+        "extruder_colour", "filament_colour", "material_colour",
+        "printer_model", "printer_notes", "printer_technology",
+        // These values are necessary to construct SlicingParameters by the Canvas3D variable layer height editor.
+        "layer_height", "first_layer_height", "min_layer_height", "max_layer_height",
+        "perimeters", "perimeter_extruder", "fill_density", "infill_extruder", "raft_layers", 
+        "support_material", "support_material_extruder", "support_material_interface_extruder", "support_material_contact_distance", "top_solid_layers",
+        "z_step"
+        }))
+    , sidebar(new Sidebar(q))
+    , notification_manager(std::make_unique<NotificationManager>(q))
+    , m_worker{q, std::make_unique<NotificationProgressIndicator>(notification_manager.get()), "ui_worker"}
+    , m_sla_import_dlg{new SLAImportDialog{q}}
+    , delayed_scene_refresh(false)
+    , view_toolbar(GLToolbar::Radio, "View")
+    , collapse_toolbar(GLToolbar::Normal, "Collapse")
+    , m_project_filename(wxEmptyString)
 {
     for (int i = 0; i < s_multiple_beds.get_max_beds(); ++i) {
         gcode_results.emplace_back();

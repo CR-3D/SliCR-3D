@@ -725,12 +725,12 @@ public:
     double              get_object_first_layer_height(const PrintObject& object) const;
 
     // get the extruders of these obejcts
-    std::set<uint16_t>  object_extruders(const PrintObjectPtrs &objects) const;
+    std::set<uint16_t>  object_extruders(const PrintObjectPtrs &objects, float z = -1) const;
     // get all extruders from the list of objects in this print ( same as print.object_extruders(print.objects()) )
-    std::set<uint16_t>  object_extruders() const;
-    std::set<uint16_t>  support_material_extruders() const;
-    std::set<uint16_t>  extruders() const;
-        
+    std::set<uint16_t>  object_extruders(float z = -1) const;
+    std::set<uint16_t>  support_material_extruders(float z = -1) const;
+    // all extruder to print layers that extrude at this z.
+    std::set<uint16_t>  extruders(float z = -1) const;
     double              max_allowed_layer_height() const;
     bool                has_support_material() const;
     // Make sure the background processing has no access to this model_object during this call!
@@ -775,8 +775,8 @@ public:
 
     // Wipe tower support.
     bool                        has_wipe_tower() const;
-    const WipeTowerData&        wipe_tower_data(size_t extruders_cnt, double nozzle_diameter) const;
-    const WipeTowerData&        wipe_tower_data() const { return wipe_tower_data(0,0); }
+    const WipeTowerData&        wipe_tower_data(const ConfigBase* config, double nozzle_diameter) const;
+    const WipeTowerData&        wipe_tower_data() const { return wipe_tower_data(&this->m_config,0); }
     const ToolOrdering& 		tool_ordering() const { return m_tool_ordering; }
 
 	std::string                 output_filename(const std::string &filename_base = std::string()) const override;

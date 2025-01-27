@@ -11,8 +11,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: mkdir in deps
-      run: mkdir deps/build
+    - name: Install Autoconf
+      run: |
+        brew update
+        brew install autoconf
+    - name: check autoconf version
+      run: autoconf --version
     - name: update automake for mpfr
       run: |
         curl -O -L http://ftpmirror.gnu.org/automake/automake-1.16.5.tar.gz
@@ -22,6 +26,8 @@ jobs:
         make
         sudo make install
         automake --version
+    - name: mkdir in deps
+      run: mkdir deps/build
     - name: dep cache
       id: cache-action
       uses: actions/cache@v3

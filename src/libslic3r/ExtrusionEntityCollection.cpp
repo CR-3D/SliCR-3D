@@ -38,6 +38,7 @@ ExtrusionEntityCollection& ExtrusionEntityCollection::operator= (const Extrusion
 {
     this->m_no_sort = other.m_no_sort;
     this->m_can_reverse = other.m_can_reverse;
+    this->m_id = other.m_id;
     clear();
     this->append(other.m_entities);
     return *this;
@@ -48,6 +49,7 @@ void ExtrusionEntityCollection::swap(ExtrusionEntityCollection &c)
     std::swap(this->m_entities, c.m_entities);
     std::swap(this->m_no_sort, c.m_no_sort);
     std::swap(this->m_can_reverse, c.m_can_reverse);
+    std::swap(this->m_id, c.m_id);
 }
 
 void ExtrusionEntityCollection::clear()

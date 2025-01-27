@@ -59,10 +59,14 @@ public:
 class ExtrusionEntity
 {
 protected:
-    // even if no_sort, allow to reverse() us (and our entities if they allow it, but they should)
+    static inline std::atomic_int64_t id_generator;
+    uint64_t m_id; // for travel map
+    // even if no_sort, allow to reverse() us (and our entities if they allow it, but they should) 
     bool m_can_reverse;
-    ExtrusionEntity(bool can_reverse) : m_can_reverse(can_reverse) {}
+    ExtrusionEntity(bool can_reverse) : m_can_reverse(can_reverse) , m_id(++id_generator) {}
+    ExtrusionEntity(uint64_t id, bool can_reverse) : m_can_reverse(can_reverse), m_id(id) {}
 public:
+    uint64_t get_id() const { return m_id; }
     virtual ExtrusionRole role() const = 0;
     virtual bool is_collection() const { return false; }
     virtual bool is_loop() const { return false; }
@@ -183,8 +187,8 @@ public:
 
     //ExtrusionPath(ExtrusionRole role) : ExtrusionEntity(true), m_attributes{role} {}
     ExtrusionPath(const ExtrusionAttributes &attributes, bool can_reverse = true) : ExtrusionEntity(can_reverse), m_attributes(attributes) {}
-    ExtrusionPath(const ExtrusionPath &rhs) : ExtrusionEntity(rhs.m_can_reverse), polyline(rhs.polyline), m_attributes(rhs.m_attributes) {}
-    ExtrusionPath(ExtrusionPath &&rhs) : ExtrusionEntity(rhs.m_can_reverse), polyline(std::move(rhs.polyline)), m_attributes(rhs.m_attributes) {}
+    ExtrusionPath(const ExtrusionPath &rhs) : ExtrusionEntity(rhs.m_id, rhs.m_can_reverse), polyline(rhs.polyline), m_attributes(rhs.m_attributes) {}
+    ExtrusionPath(ExtrusionPath &&rhs) : ExtrusionEntity(rhs.m_id, rhs.m_can_reverse), polyline(std::move(rhs.polyline)), m_attributes(rhs.m_attributes) {}
     ExtrusionPath(const ArcPolyline &polyline, const ExtrusionAttributes &attribs, bool can_reverse = true) : ExtrusionEntity(can_reverse), polyline(polyline), m_attributes(attribs) {}
     ExtrusionPath(ArcPolyline &&polyline, const ExtrusionAttributes &attribs, bool can_reverse = true) : ExtrusionEntity(can_reverse), polyline(std::move(polyline)), m_attributes(attribs) {}
 
@@ -336,8 +340,8 @@ public:
     std::vector<THING> paths;
 
     ExtrusionMultiEntity(): ExtrusionEntity(false) {};
-    ExtrusionMultiEntity(const ExtrusionMultiEntity &rhs) : paths(rhs.paths), ExtrusionEntity(rhs.m_can_reverse) {}
-    ExtrusionMultiEntity(ExtrusionMultiEntity &&rhs) : paths(std::move(rhs.paths)), ExtrusionEntity(rhs.m_can_reverse) {}
+    ExtrusionMultiEntity(const ExtrusionMultiEntity &rhs) : paths(rhs.paths), ExtrusionEntity(rhs.m_id, rhs.m_can_reverse) {}
+    ExtrusionMultiEntity(ExtrusionMultiEntity &&rhs) : paths(std::move(rhs.paths)), ExtrusionEntity(rhs.m_id, rhs.m_can_reverse) {}
     ExtrusionMultiEntity(const std::vector<THING> &paths) : paths(paths), ExtrusionEntity(false) {};
     ExtrusionMultiEntity(const THING &path): ExtrusionEntity(false) { this->paths.push_back(path); }
 

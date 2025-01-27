@@ -183,7 +183,6 @@ std::tuple<float, float, Flow> CalibrationFlowSpeedDialog::get_cube_size(float o
 
     std::string str = cmb_gram->GetValue().ToStdString();
     float weight = std::stof(str);
-    
     float nz = printer_config->option("nozzle_diameter")->get_float(0);
     // get max height
     float max_height = print_config->option("extruder_clearance_height")->get_float();

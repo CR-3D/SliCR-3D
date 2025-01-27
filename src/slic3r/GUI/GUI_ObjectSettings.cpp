@@ -129,7 +129,6 @@ bool ObjectSettings::update_settings_list()
             optgroup->sidetext_width = 5;
 
             optgroup->m_on_change = [this, config](const t_config_option_key& opt_idv, bool enabled, const boost::any& value) {
-                                    assert(enabled);
                                     this->update_config_values(config);
                                     wxGetApp().obj_list()->changed_object(); };
 
@@ -163,7 +162,6 @@ bool ObjectSettings::update_settings_list()
             optgroup->activate();
             for (auto& opt : cat.second)
                 optgroup->get_field(opt)->m_on_change = [optgroup](const std::string& opt_id, bool enabled, const boost::any& value) {
-                    assert(enabled);
                     // first of all take a snapshot and then change value in configuration
                     wxGetApp().plater()->take_snapshot(format_wxstr(_L("Change Option %s"), opt_id));
                     optgroup->on_change_OG(opt_id, enabled, value);

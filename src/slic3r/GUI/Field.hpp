@@ -145,12 +145,12 @@ protected:
     {
         // Bitmap and Tooltip text for m_Edit_btn. The wxButton will be updated only if the new wxBitmap pointer
         // differs from the currently rendered one.
-		const ScalableBitmap  *m_on{nullptr};
-		const ScalableBitmap  *m_off{nullptr};
-		const ScalableBitmap  *m_on_disabled{nullptr};
-		const ScalableBitmap  *m_off_disabled{nullptr};
-		const ScalableBitmap  *m_on_hover{nullptr};
-		const ScalableBitmap  *m_off_hover{nullptr};
+        const ScalableBitmap *m_on{nullptr};
+        const ScalableBitmap *m_off{nullptr};
+        const ScalableBitmap *m_on_disabled{nullptr};
+        const ScalableBitmap *m_off_disabled{nullptr};
+        const ScalableBitmap *m_on_hover{nullptr};
+        const ScalableBitmap *m_off_hover{nullptr};
         wxString tooltip{wxEmptyString};
         bool is_hover{false};
         // cache for the current state of the opt.
@@ -166,6 +166,7 @@ protected:
     };
 
     EnableUI m_enable_ui;
+    CheckBoxWidget_t* m_enable_widget = nullptr; // for modifiers
 
 public:
 	UndoValueUIManager() {}
@@ -180,11 +181,22 @@ public:
 	bool 	set_edit_bitmap(const ScalableBitmap* bmp)			{ return m_edit_ui.set_bitmap(bmp); }
 	bool 	set_edit_tooltip(const wxString& tip)				{ return m_edit_ui.set_tooltip(tip); }
 	
-	void 	set_enable_bitmap_checked(bool checked)				{ m_enable_ui.is_checked = checked; }
-	void 	set_enable_bitmap(const ScalableBitmap* bmp_on, const ScalableBitmap* bmp_off) { m_enable_ui.m_on = bmp_on; m_enable_ui.m_off = bmp_off; }
-	void 	set_enable_bitmap_disabled(const ScalableBitmap* bmp_on, const ScalableBitmap* bmp_off) { m_enable_ui.m_on_disabled = bmp_on; m_enable_ui.m_off_disabled = bmp_off; }
-	void 	set_enable_bitmap_hover(const ScalableBitmap* bmp_on, const ScalableBitmap* bmp_off) { m_enable_ui.m_on_hover = bmp_on; m_enable_ui.m_off_hover = bmp_off; }
-	bool 	set_enable_tooltip(const wxString& tip)				{ return m_enable_ui.set_tooltip(tip); }
+    void set_enable_bitmap_checked(bool checked) {
+        if (m_enable_widget) {
+            m_enable_widget->SetValue(checked);
+        } else {
+            m_enable_ui.is_checked = checked;
+        }
+    }
+    void set_enable_bitmap(const ScalableBitmap* bmp_on, const ScalableBitmap* bmp_off) { m_enable_ui.m_on = bmp_on; m_enable_ui.m_off = bmp_off; }
+    void set_enable_bitmap_disabled(const ScalableBitmap* bmp_on, const ScalableBitmap* bmp_off) { m_enable_ui.m_on_disabled = bmp_on; m_enable_ui.m_off_disabled = bmp_off; }
+    void set_enable_bitmap_hover(const ScalableBitmap* bmp_on, const ScalableBitmap* bmp_off) { m_enable_ui.m_on_hover = bmp_on; m_enable_ui.m_off_hover = bmp_off; }
+    bool set_enable_tooltip(const wxString &tip) {
+        if (m_enable_widget) {
+            m_enable_widget->SetToolTip(tip);
+        }
+        return m_enable_ui.set_tooltip(tip);
+    }
 
 	// ui items used for revert line value
 	bool					has_undo_ui()			const { return m_undo_ui.undo_bitmap != nullptr; }
@@ -208,7 +220,13 @@ public:
     // enable setting button
     bool                          has_enable_ui()        const { return !m_enable_ui.tooltip.IsEmpty(); }
     void                          enable_set_hover(bool focus) { m_enable_ui.is_hover = focus; }
-    bool                          is_setting_enabled()   const { return m_enable_ui.is_checked; }
+    bool                          is_setting_enabled()   const { 
+        if (m_enable_widget) {
+            return m_enable_widget->GetValue();
+        } else {
+            return m_enable_ui.is_checked;
+        }
+    }
     virtual const wxBitmapBundle *enable_bitmap()        const;
     virtual const wxString*       enable_tooltip()       const { return &m_enable_ui.tooltip; }
 };
@@ -329,6 +347,7 @@ public:
 	
 	const wxBitmapBundle *enable_bitmap() const override;
     const wxString*     enable_tooltip() const override;
+    CheckBoxWidget_t *create_enable_widget(wxWindow *parent = nullptr);
 
     void				field_changed() { on_change_field(); }
 

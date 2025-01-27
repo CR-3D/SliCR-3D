@@ -42,4 +42,6 @@ private:
     ScalableBitmap  m_off_focused;
 };
 
+using CheckBoxWidget_t = CheckBox;
+
 #endif // !slic3r_GUI_CheckBox_hpp_

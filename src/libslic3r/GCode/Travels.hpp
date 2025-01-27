@@ -39,38 +39,26 @@ public:
     ObjectOrExtrusionLinef(const Vec2d &a, const Vec2d &b) : Linef(a, b) {}
     explicit ObjectOrExtrusionLinef(const Vec2d &a, const Vec2d &b, size_t object_layer_idx, size_t instance_idx)
         : Linef(a, b), object_layer_idx(int(object_layer_idx)), instance_idx(int(instance_idx)) {}
-    ObjectOrExtrusionLinef(const Vec2d &a, const Vec2d &b, size_t object_layer_idx, size_t instance_idx, const ExtrusionEntity *extrusion_entity)
-        : Linef(a, b), object_layer_idx(int(object_layer_idx)), instance_idx(int(instance_idx)), extrusion_entity(extrusion_entity) {}
+    ObjectOrExtrusionLinef(const Vec2d &a, const Vec2d &b, size_t object_layer_idx, size_t instance_idx, const ExtrusionEntity *extrusion_entity);
 
     virtual ~ObjectOrExtrusionLinef() = default;
 
     const int              object_layer_idx = -1;
     const int              instance_idx     = -1;
-    const ExtrusionEntity *extrusion_entity = nullptr;
+    const uint64_t         extrusion_entity_id = 0;
 };
 
 struct ExtrudedExtrusionEntity
 {
     const int              object_layer_idx = -1;
     const int              instance_idx     = -1;
-    const ExtrusionEntity *extrusion_entity = nullptr;
-
-    bool operator==(const ExtrudedExtrusionEntity &other) const
-    {
-        return extrusion_entity == other.extrusion_entity && object_layer_idx == other.object_layer_idx &&
-               instance_idx == other.instance_idx;
-    }
+    const uint64_t         extrusion_entity_id = 0;
+    bool operator==(const ExtrudedExtrusionEntity &other) const;
 };
 
 struct ExtrudedExtrusionEntityHash
 {
-    size_t operator()(const ExtrudedExtrusionEntity &eee) const noexcept
-    {
-        std::size_t seed = std::hash<const ExtrusionEntity *>{}(eee.extrusion_entity);
-        boost::hash_combine(seed, std::hash<int>{}(eee.object_layer_idx));
-        boost::hash_combine(seed, std::hash<int>{}(eee.instance_idx));
-        return seed;
-    }
+    size_t operator()(const ExtrudedExtrusionEntity &eee) const noexcept;
 };
 
 class TravelObstacleTracker
@@ -100,7 +88,9 @@ private:
     AABBTreeLines::LinesDistancer<ObjectOrExtrusionLinef>                    m_current_layer_distancer;
     std::unordered_set<ExtrudedExtrusionEntity, ExtrudedExtrusionEntityHash> m_extruded_extrusion;
 #ifdef _DEBUG
+public:
     std::unordered_set<ExtrudedExtrusionEntity, ExtrudedExtrusionEntityHash> m_registered_extrusion;
+    std::set<uint64_t> all_ee_id;
 #endif
 };
 } // namespace Slic3r::GCode

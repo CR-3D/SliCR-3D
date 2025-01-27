@@ -414,9 +414,10 @@ void OptionsGroup::activate_line(Line& line)
 
     // If we have a single option with no sidetext just add it directly to the grid sizer
     if (option_set.size() == 1 && option_set.front().opt.sidetext.size() == 0 &&
-		option_set.front().side_widget == nullptr && line.get_extra_widgets().size() == 0) {
-		const auto& option = option_set.front();
-		const auto& field = build_field(option);
+        option_set.front().side_widget == nullptr && line.get_extra_widgets().size() == 0 &&
+        !option_set.front().opt.can_be_disabled) {
+        const auto& option = option_set.front();
+        const auto& field = build_field(option);
 
         if (!custom_ctrl) {
             if (is_window_field(field))
@@ -446,8 +447,8 @@ void OptionsGroup::activate_line(Line& line)
                 label = new wxStaticText(this->ctrl_parent(), wxID_ANY,
                    (no_dots ? str_label : (str_label + ": ")), wxDefaultPosition, //wxDefaultSize);
                    (option.label_width >= 0) ? ((option.label_width != 0) ? wxSize(option.label_width*wxGetApp().em_unit(), -1) : wxDefaultSize) :
-					((label_width > 0) ? wxSize(label_width * wxGetApp().em_unit(), -1) : (wxDefaultSize))
-				, wxALIGN_RIGHT);
+                                             ((label_width > 0) ? wxSize(label_width * wxGetApp().em_unit(), -1) : (wxDefaultSize)),
+                                         wxALIGN_RIGHT);
                 label->SetBackgroundStyle(wxBG_STYLE_PAINT);
                 label->SetFont(wxGetApp().normal_font());
                 if (option.label_width > 0 || label_width >0) {
@@ -455,6 +456,13 @@ void OptionsGroup::activate_line(Line& line)
                 }
                 m_options_mode.back()[opt.opt.mode].push_back(h_sizer->GetItemCount());
                 h_sizer->Add(label, 0, wxALIGN_CENTER_VERTICAL, 0);
+            }
+
+            //add enable button
+            if (opt.opt.can_be_disabled) {
+                //h_sizer->Add(new wxStaticText(this->ctrl_parent(), wxID_ANY, " "), 0, wxALIGN_CENTER_VERTICAL, 0);
+                h_sizer->Add(field->create_enable_widget(this->ctrl_parent()), 0, wxALIGN_CENTER_VERTICAL, 0);
+                //h_sizer->Add(new wxStaticText(this->ctrl_parent(), wxID_ANY,"!"), 0, wxALIGN_CENTER_VERTICAL, 0);
             }
 
             if (option_set.size() == 1 && option_set.front().opt.full_width)

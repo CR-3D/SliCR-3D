@@ -247,49 +247,65 @@ std::string GCodeWriter::set_temperature(const int16_t temperature, bool wait, i
     temp_w_offset += int16_t(get_tool(tool)->temp_offset());
     temp_w_offset = std::max(int16_t(0), std::min(int16_t(2000), temp_w_offset));
 
+    // gcfMakerWare and gcfSailfish can't wait for temp
+    if ((FLAVOR_IS(gcfMakerWare) || FLAVOR_IS(gcfSailfish)))
+        wait = false;
+
     // temp_w_offset has an effective minimum value of 0, so this cast is safe.
-    if (m_last_temperature_with_offset == temp_w_offset && !wait)
+    if (m_last_temperature_with_offset == temp_w_offset && (!wait || m_last_temperature_with_offset_waited))
         return "";
-    if (wait && (FLAVOR_IS(gcfMakerWare) || FLAVOR_IS(gcfSailfish)))
-        return {};
     
-    std::string_view code, comment;
-    if (wait && FLAVOR_IS_NOT(gcfTeacup) && FLAVOR_IS_NOT(gcfRepRap)) {
-        code = "M109"sv;
-        comment = "set temperature and wait for it to be reached"sv;
-    } else {
-        if (FLAVOR_IS(gcfRepRap)) { // M104 is deprecated on RepRapFirmware
-            code = "G10"sv;
-        } else {
-            code = "M104"sv;
-        }
-        comment = "set temperature"sv;
+    // some firmwares need to emit temp to wait for temp
+    bool need_emit_temp = m_last_temperature_with_offset != temp_w_offset;
+    bool can_M109 = FLAVOR_IS_NOT(gcfTeacup) && FLAVOR_IS_NOT(gcfRepRap);
+    if (wait && can_M109) {
+        need_emit_temp = true;
     }
-    
+
     std::ostringstream gcode;
-    gcode << code << " ";
-    if (FLAVOR_IS(gcfMach3) || FLAVOR_IS(gcfMachinekit)) {
-        gcode << "P";
-    } else if (FLAVOR_IS(gcfRepRap)) {
-        gcode << "P" << tool << " S";
-    } else if (wait && (FLAVOR_IS(gcfMarlinFirmware) || FLAVOR_IS(gcfMarlinLegacy)) && temp_w_offset < m_last_temperature_with_offset) {
-        gcode << "R"; //marlin doesn't wait with S if it's a cooling change, it needs a R
-    } else {
-        gcode << "S";
+    // emit temp (and sometimes wait)
+    if (need_emit_temp) {
+        std::string_view code, comment;
+        if (wait && can_M109) {
+            code = "M109"sv;
+            comment = "set temperature and wait for it to be reached"sv;
+        } else {
+            if (FLAVOR_IS(gcfRepRap)) { // M104 is deprecated on RepRapFirmware
+                code = "G10"sv;
+            } else {
+                code = "M104"sv;
+            }
+            comment = "set temperature"sv;
+        }
+
+        gcode << code;
+        if (FLAVOR_IS(gcfMach3) || FLAVOR_IS(gcfMachinekit)) {
+            gcode << " P";
+        } else if (FLAVOR_IS(gcfRepRap)) {
+            gcode << " P" << tool << " S";
+        } else if (wait && (FLAVOR_IS(gcfMarlinFirmware) || FLAVOR_IS(gcfMarlinLegacy)) &&
+                   temp_w_offset < m_last_temperature_with_offset) {
+            gcode << " R"; // marlin doesn't wait with S if it's a cooling change, it needs a R
+        } else {
+            gcode << " S";
+        }
+        gcode << temp_w_offset;
+        bool multiple_tools = this->multiple_extruders && !m_single_extruder_multi_material;
+        if (tool != -1 && (multiple_tools || FLAVOR_IS(gcfMakerWare) || FLAVOR_IS(gcfSailfish)) &&
+            FLAVOR_IS_NOT(gcfRepRap)) {
+            gcode << " T" << tool;
+        }
+        gcode << " ; " << comment << "\n";
     }
-    gcode << temp_w_offset;
-    bool multiple_tools = this->multiple_extruders && ! m_single_extruder_multi_material;
-    if (tool != -1 && (multiple_tools || FLAVOR_IS(gcfMakerWare) || FLAVOR_IS(gcfSailfish)) && FLAVOR_IS_NOT(gcfRepRap)) {
-        gcode << " T" << tool;
+    // emit wait (for  gcfTeacup, gcfRepRap, gcfNematX)
+    if (wait && !can_M109) {
+        if ((FLAVOR_IS(gcfTeacup) || FLAVOR_IS(gcfRepRap)))
+            gcode << "M116 ; wait for temperature to be reached\n";
     }
-    gcode << " ; " << comment << "\n";
-    
-    if ((FLAVOR_IS(gcfTeacup) || FLAVOR_IS(gcfRepRap)) && wait)
-        gcode << "M116 ; wait for temperature to be reached\n";
-    
+    // update internal var to prevent repeat
     m_last_temperature = temperature;
     m_last_temperature_with_offset = temp_w_offset;
-
+    m_last_temperature_with_offset_waited  = wait;
     return gcode.str();
 }
 
@@ -860,7 +876,7 @@ std::string GCodeWriter::retract(bool before_wipe)
     if (factor == 0)
         return "";
     //check for override
-    if (config_region && config_region->print_retract_length >= 0) {
+    if (config_region && config_region->print_retract_length.is_enabled()) {
         return this->_retract(
             factor * config_region->print_retract_length,
             factor * m_tool->retract_restart_extra(),
@@ -1004,7 +1020,7 @@ double GCodeWriter::will_lift(int layer_id) const{
     }
 
     // use the override if set
-    if (target_lift > 0 && config_region && config_region->print_retract_lift.value >= 0) {
+    if (target_lift > 0 && config_region && config_region->print_retract_lift.is_enabled()) {
         target_lift = config_region->print_retract_lift.value;
     }
 

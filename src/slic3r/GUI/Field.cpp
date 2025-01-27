@@ -212,6 +212,17 @@ const wxBitmapBundle *UndoValueUIManager::enable_bitmap() const {
     return bmp;
 }
 
+CheckBoxWidget_t *Field::create_enable_widget(wxWindow *parent) {
+    assert(!m_enable_widget);
+    m_enable_widget = new ::CheckBox(parent == nullptr ? m_parent : parent, "");
+    set_enable_tooltip(_L("This Setting can be disabled/enabled by clicking on this checkbox."));
+    m_enable_widget->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent e) {
+        on_enable_value();
+        m_enable_widget->Update();
+    });
+    return m_enable_widget;
+}
+
 Field::~Field()
 {
 	if (m_on_kill_focus)

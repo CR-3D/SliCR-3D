@@ -147,6 +147,7 @@ private:
     uint8_t         m_last_fan_speed = 0;
     int16_t         m_last_temperature = 0;
     int16_t         m_last_temperature_with_offset = 0;
+    bool            m_last_temperature_with_offset_waited = false;
     int16_t         m_last_bed_temperature = 0;
     bool            m_last_bed_temperature_reached = true;
     int16_t         m_last_chamber_temperature = 0;

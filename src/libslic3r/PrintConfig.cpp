@@ -5037,6 +5037,70 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionInt(0));
 
+    def = this->add("print_bed_temperature", coInt);
+    def->label = L("Bed Temperature");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Override the temperature of the bed."
+                    "\nIf disabled, uses the highest bed temperature from all filaments used in the first layer.");
+    def->sidetext = L("°C");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(60)));
+
+    def = this->add("print_first_layer_bed_temperature", coInt);
+    def->label = L("First Layer Bed Temperature");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Override the temperature of the bed while printing the first layer."
+                    "\nIf disabled, uses the highest first layer bed temperature from all filaments used in the first layer."
+                    "\nSet to 0 to prevent the slicer to do any first layer bed command.");
+    def->sidetext = L("°C");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(60)));
+
+    def = this->add("print_first_layer_temperature", coInt);
+    def->label = L("First Layer Temperature");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Override the temperature of the extruder (for the first layer). Avoid making too many changes, it won't stop for cooling/heating."
+        "May only work on Height range modifiers.");
+    def->sidetext = L("°C");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(200)));
+
+    def = this->add("print_retract_length", coFloat);
+    def->label = L("Retraction length");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Override the retract_length setting from the printer config. Used for calibration.");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0)));
+
+    def = this->add("print_retract_lift", coFloat);
+    def->label = L("Z-lift override");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Set the new lift-z value for this override. 0 will disable the z-lift. -& to disable. May only work on Height range modifiers.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0)));
+
+    def = this->add("print_temperature", coInt);
+    def->label = L("Temperature");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Override the temperature of the extruder. Avoid making too many changes, it won't stop for cooling/heating."
+        " May only work on Height range modifiers.");
+    def->sidetext = L("°C");
+    def->min = 0;
+    def->mode = comExpert | comSuSi;
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(200)));
+
     def = this->add("printer_model", coString);
     def->label = L("Printer type");
     def->tooltip = L("Type of the printer.");
@@ -5311,14 +5375,6 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{2.});
 
-    def = this->add("print_retract_length", coFloat);
-    def->label = L("Retraction length");
-    def->category = OptionCategory::filament;
-    def->tooltip = L(
-        "Override the retract_length setting from the printer config. Used for calibration. Set negative to disable");
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloat(-1.f));
-
     def = this->add("retract_length_toolchange", coFloats);
     def->label = L("Length");
     def->full_label = L("Retraction Length (Toolchange)");
@@ -5373,6 +5429,19 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comPrusa;
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionBools{false});
+
+    def = this->add("retract_length_toolchange", coFloats);
+    def->label = L("Length");
+    def->full_label = L("Retraction Length (Toolchange)");
+    def->tooltip = L("When retraction is triggered before changing tool, filament is pulled back "
+                   "by the specified amount (the length is measured on raw filament, before it enters "
+                   "the extruder)."
+                    "\nNote: This value will be unretracted when this extruder will load the next time.");
+    def->sidetext = L("mm (zero to disable)");
+    def->mode = comExpert | comPrusa;
+    def->min = 0;
+    def->is_vector_extruder = true;
+    def->set_default_value(new ConfigOptionFloats { 10. });
 
     def = this->add("retract_lift", coFloats);
     def->label = L("Lift height");
@@ -5992,7 +6061,7 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("start_gcode", coString);
     def->label = L("Start G-code");
     def->tooltip = L("This start procedure is inserted at the beginning, possibly prepended by "
-                     "temperature-changing commands. See 'autoemit_temperature_commands'.");
+                     "temperature-changing commands and others. See 'autoemit_temperature_commands' and 'start_gcode_manual'.");
     def->multiline = true;
     def->full_width = true;
     def->height = 12;
@@ -6682,44 +6751,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comSimpleAE | comPrusa;
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionInts{200});
-
-    def = this->add("print_temperature", coInt);
-    def->label = L("Temperature");
-    def->category = OptionCategory::filament;
-    def->tooltip = L("Override the temperature of the extruder. Avoid making too many changes, it won't stop for "
-                     "cooling/heating. 0 to disable. May only work on Height range modifiers.");
-    def->mode = comExpert | comSuSi;
-    def->min = 0;
-    def->set_default_value(new ConfigOptionInt(0));
-
-    def = this->add("print_first_layer_temperature", coInt);
-    def->label = L("First Layer Temperature");
-    def->category = OptionCategory::filament;
-    def->tooltip = L("Override the temperature of the extruder (for the first layer). Avoid making too many changes, "
-                     "it won't stop for cooling/heating. 0 to disable (using print_temperature if defined). May only "
-                     "work on Height range modifiers.");
-    def->mode = comExpert | comSuSi;
-    def->min = 0;
-    def->set_default_value(new ConfigOptionInt(0));
-
-    def = this->add("print_first_layer_temperature", coInt);
-    def->label = L("Temperature");
-    def->category = OptionCategory::filament;
-    def->tooltip = L("Override the temperature of the extruder (for the first layer). Avoid making too many changes, "
-                     "it won't stop for cooling/heating. 0 to disable (using print_temperature if defined). May only "
-                     "work on Height range modifiers.");
-    def->mode = comExpert | comSuSi;
-    def->min = 0;
-    def->set_default_value(new ConfigOptionInt(0));
-
-    def = this->add("print_retract_lift", coFloat);
-    def->label = L("Z-lift override");
-    def->category = OptionCategory::filament;
-    def->tooltip = L("Set the new lift-z value for this override. 0 will disable the z-lift. -& to disable. May only "
-                     "work on Height range modifiers.");
-    def->sidetext = L("mm");
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloat(-1));
 
     def = this->add("thin_perimeters", coPercent);
     def->label = L("Overlapping external perimeter");
@@ -9119,29 +9150,19 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
         }
     }
     if ("0" == value) {
-        if ("max_layer_height" == opt_key) {
-            value = "!75%";
-        }
-        if ("gcode_min_length" == opt_key) {
-            value = "!0";
-        }
-        if ("max_gcode_per_second" == opt_key) {
-            value = "!0";
-        }
+        if ("max_layer_height" == opt_key) {value = "!75%";}
+        if ("gcode_min_length" == opt_key) {value = "!0";}
+        if ("max_gcode_per_second" == opt_key) {value = "!0";}
+        if ("print_temperature" == opt_key) {value = "!0";}
+        if ("print_first_layer_temperature" == opt_key) {value = "!0";}
     }
     if (value == "-1") {
-        if ("overhangs_bridge_threshold" == opt_key) {
-            value = "!0";
-        }
-        if ("overhangs_bridge_upper_layers" == opt_key) {
-            value = "!2";
-        }
-        if ("perimeters_hole" == opt_key) {
-            value = "!0";
-        }
-        if ("support_material_bottom_interface_layers" == opt_key) {
-            value = "!0";
-        }
+        if ("overhangs_bridge_threshold" == opt_key) {value = "!0";}
+        if ("overhangs_bridge_upper_layers" == opt_key) {value = "!2";}
+        if ("perimeters_hole" == opt_key) {value = "!0";}
+        if ("support_material_bottom_interface_layers" == opt_key) {value = "!0";}
+        if ("print_retract_length" == opt_key) {value = "!200";}
+        if ("print_retract_lift" == opt_key) {value = "!200";}
     }
     // nil-> disabled
     if (value.find("e+") != std::string::npos) {
@@ -9943,7 +9964,9 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "perimeter_round_corners",
 "perimeters_hole",
 "priming_position",
+"print_bed_temperature",
 "print_extrusion_multiplier",
+"print_first_layer_bed_temperature",
 "print_first_layer_temperature",
 "print_custom_variables",
 "print_retract_length",
@@ -12081,9 +12104,10 @@ static std::map<t_custom_gcode_key, t_config_option_keys> s_CustomGcodeSpecificP
     {"end_filament_gcode",      {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
     {"milling_toolchange_start_gcode", {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
     {"milling_toolchange_end_gcode",   {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
+    {"start_gcode",             {"start_gcode_bed_temperature"}},
     {"end_gcode",               {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
-    {"before_layer_gcode",      {"layer_num", "layer_z", "previous_layer_z", "max_layer_z"}},
-    {"layer_gcode",             {"layer_num", "layer_z", "previous_layer_z", "max_layer_z"}},
+    {"before_layer_gcode",      {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "gcode_bed_temperature"}},
+    {"layer_gcode",             {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "gcode_bed_temperature"}},
     {"feature_gcode",           {"layer_num", "layer_z", "max_layer_z", "previous_extrusion_role", "next_extrusion_role", /*deprecated*/"extrusion_role", "last_extrusion_role" /*deprecated*/}},
     {"toolchange_gcode",        {"layer_num", "layer_z", "max_layer_z", "previous_extruder", "next_extruder", "toolchange_z"}},
     {"color_change_gcode",      {"color_change_extruder", "next_color", "next_colour"}},
@@ -12156,6 +12180,14 @@ CustomGcodeSpecificConfigDef::CustomGcodeSpecificConfigDef() {
     // TRN: This is a label in custom g-code editor dialog, belonging to color_change_extruder. Denoted index of the extruder for which color change is performed.
     def->label = L("Next colour");
     def->tooltip = L("Next colour to display when a colour change is performed, in #ffffff format.");
+    
+    def = this->add("start_gcode_bed_temperature", coInt);
+    def->label = L("Computed bed temperature for first layer");
+    def->tooltip = L("It's the 'print_first_layer_bed_temperature' if defined or the maximum of the 'first_layer_bed_temperature' used in the first layer.");
+
+    def = this->add("gcode_bed_temperature", coInt);
+    def->label = L("Computed bed temperature");
+    def->tooltip = L("It's the 'print_bed_temperature' if defined or the maximum of the 'bed_temperature'.");
 }
 
 const CustomGcodeSpecificConfigDef custom_gcode_specific_config_def;

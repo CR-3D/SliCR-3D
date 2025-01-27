@@ -95,7 +95,7 @@ Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) c
     Polylines polylines_out;
     for (ExPolygon &expoly : expp) {
         _fill_surface_single(params, surface->thickness_layers, _infill_direction(surface), std::move(expoly), polylines_out);
-        //assert_valid(polylines_out);
+        ensure_valid(polylines_out, std::max(SCALED_EPSILON, params.fill_resolution / 4));
     }
     assert(get_spacing() >= 0);
     return polylines_out;

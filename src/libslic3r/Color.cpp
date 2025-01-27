@@ -362,24 +362,31 @@ bool decode_color(const std::string& color_in, ColorRGBA& color_out)
 	return true;
 }
 
-bool decode_colors(const std::vector<std::string>& colors_in, std::vector<ColorRGB>& colors_out)
-{
-	colors_out = std::vector<ColorRGB>(colors_in.size(), ColorRGB::BLACK());
-	for (size_t i = 0; i < colors_in.size(); ++i) {
-		if (!decode_color(colors_in[i], colors_out[i]))
-			return false;
-	}
-	return true;
+bool decode_colors(const std::vector<std::string> &colors_in, std::vector<ColorRGB> &colors_out) {
+    bool all_success = true;
+    colors_out.resize(colors_in.size(), ColorRGB::BLACK());
+    for (size_t i = 0; i < colors_in.size(); ++i) {
+        if (!decode_color(colors_in[i], colors_out[i])) {
+            // continue, please.
+            // return false;
+            all_success = false;
+        }
+    }
+    return all_success;
 }
 
 bool decode_colors(const std::vector<std::string>& colors_in, std::vector<ColorRGBA>& colors_out)
 {
-	colors_out = std::vector<ColorRGBA>(colors_in.size(), ColorRGBA::BLACK());
-	for (size_t i = 0; i < colors_in.size(); ++i) {
-		if (!decode_color(colors_in[i], colors_out[i]))
-			return false;
-	}
-	return true;
+    bool all_success = true;
+    colors_out.resize(colors_in.size(), ColorRGBA::BLACK());
+    for (size_t i = 0; i < colors_in.size(); ++i) {
+        if (!decode_color(colors_in[i], colors_out[i])) {
+            // continue, please.
+            // return false;
+            all_success = false;
+        }
+    }
+    return all_success;
 }
 
 static const std::array<ColorRGBA, 12> COLOR_ROTATION = {{

@@ -14,8 +14,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: install autoconf
-      run: brew install autoconf
+    - name: Install Autoconf
+      run: |
+        brew update
+        brew install autoconf
     - name: check autoconf version
       run: autoconf --version
     - name: update automake for mpfr

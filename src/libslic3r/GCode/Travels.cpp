@@ -8,10 +8,29 @@
 
 namespace Slic3r::GCode {
     
+ObjectOrExtrusionLinef::ObjectOrExtrusionLinef(const Vec2d &a, const Vec2d &b, size_t object_layer_idx, size_t instance_idx, const ExtrusionEntity *ee)
+        : Linef(a, b), object_layer_idx(int(object_layer_idx)), instance_idx(int(instance_idx)), extrusion_entity_id(ee->get_id()) {}
+
+bool ExtrudedExtrusionEntity::operator==(const ExtrudedExtrusionEntity &other) const
+{
+    bool result = extrusion_entity_id == other.extrusion_entity_id &&
+        object_layer_idx == other.object_layer_idx && instance_idx == other.instance_idx;
+    return result;
+}
+
+size_t ExtrudedExtrusionEntityHash::operator()(const ExtrudedExtrusionEntity &eee) const noexcept
+{
+    std::size_t seed = std::hash<uint64_t>{}(eee.extrusion_entity_id);
+    boost::hash_combine(seed, std::hash<int>{}(eee.object_layer_idx));
+    boost::hash_combine(seed, std::hash<int>{}(eee.instance_idx));
+    return seed;
+}
+
 class ExtPeriExtrusionToLines : public ExtrusionVisitorConst {
 public:
 #ifdef _DEBUG
     std::unordered_set<ExtrudedExtrusionEntity, ExtrudedExtrusionEntityHash> *registered_extrusion;
+    std::set<uint64_t> all_ee_id;
 #endif
     std::vector<ObjectOrExtrusionLinef> lines;
     size_t object_layer_idx;
@@ -24,7 +43,11 @@ public:
                 lines.emplace_back(unscaled(Point{line.a + instance->shift}), unscaled(Point{line.b + instance->shift}),
                                    object_layer_idx, instance_idx, root_extrusion ? root_extrusion : &path);
 #ifdef _DEBUG
-                this->registered_extrusion->insert({int(object_layer_idx), int(instance_idx), root_extrusion ? root_extrusion : &path});
+                if (all_ee_id.find(root_extrusion ? root_extrusion->get_id() : path.get_id()) == all_ee_id.end()) {
+                    ExtrudedExtrusionEntity eee = {int(object_layer_idx), int(instance_idx), root_extrusion ? root_extrusion->get_id() : path.get_id()};
+                    this->registered_extrusion->insert(eee);
+                    all_ee_id.insert(root_extrusion ? root_extrusion->get_id() : path.get_id());
+                }
 #endif
             }
         }
@@ -35,7 +58,9 @@ public:
                 lines.emplace_back(unscaled(Point{line.a + instance->shift}), unscaled(Point{line.b + instance->shift}),
                                    object_layer_idx, instance_idx, root_extrusion ? root_extrusion : &path3D);
 #ifdef _DEBUG
-                this->registered_extrusion->insert({int(object_layer_idx), int(instance_idx), root_extrusion ? root_extrusion : &path3D});
+                ExtrudedExtrusionEntity eee = {int(object_layer_idx), int(instance_idx), root_extrusion ? root_extrusion->get_id() : path3D.get_id()};
+                this->registered_extrusion->insert(eee);
+                all_ee_id.insert(root_extrusion ? root_extrusion->get_id() : path3D.get_id());
 #endif
             }
         }
@@ -147,6 +172,7 @@ class InsertExternalPeriExtruded : public ExtrusionVisitorConst {
 public:
 #ifdef _DEBUG
     std::unordered_set<ExtrudedExtrusionEntity, ExtrudedExtrusionEntityHash> *registered_extrusion;
+    TravelObstacleTracker *tracker;
 #endif
     std::unordered_set<ExtrudedExtrusionEntity, ExtrudedExtrusionEntityHash> &extruded_extrusion;
     size_t object_layer_idx;
@@ -158,17 +184,17 @@ public:
     void use(const ExtrusionPath &path) override {
         if (path.role().is_external_perimeter()) {
 #ifdef _DEBUG
-            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), &path}) != registered_extrusion->end());
+            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), path.get_id()}) != registered_extrusion->end());
 #endif
-            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), &path});
+            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), path.get_id()});
         }
     }
     void use(const ExtrusionPath3D &path3D) override {
         if (path3D.role().is_external_perimeter()){
 #ifdef _DEBUG
-            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), &path3D}) != registered_extrusion->end());
+            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), path3D.get_id()}) != registered_extrusion->end());
 #endif
-            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), &path3D});
+            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), path3D.get_id()});
         }
     }
     void use(const ExtrusionMultiPath &multipath) override {
@@ -179,9 +205,9 @@ public:
         }
         if (has_external_peri) {
 #ifdef _DEBUG
-            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), &multipath}) != registered_extrusion->end());
+            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), multipath.get_id()}) != registered_extrusion->end());
 #endif
-            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), &multipath});
+            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), multipath.get_id()});
         }
     }
     void use(const ExtrusionMultiPath3D &multipath3D) override {
@@ -192,9 +218,9 @@ public:
         }
         if (has_external_peri) {
 #ifdef _DEBUG
-            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), &multipath3D}) != registered_extrusion->end());
+            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), multipath3D.get_id()}) != registered_extrusion->end());
 #endif
-            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), &multipath3D});
+            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), multipath3D.get_id()});
         }
     }
     void use(const ExtrusionLoop &loop) override {
@@ -205,9 +231,9 @@ public:
         }
         if (has_external_peri) {
 #ifdef _DEBUG
-            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), &loop}) != registered_extrusion->end());
+            assert(registered_extrusion->find({int(object_layer_idx), int(instance_idx), loop.get_id()}) != registered_extrusion->end());
 #endif
-            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), &loop});
+            this->extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), loop.get_id()});
         }
     }
     void use(const ExtrusionEntityCollection &collection) override {
@@ -222,22 +248,18 @@ public:
 
 void TravelObstacleTracker::mark_extruded(const ExtrusionEntity *extrusion_entity, size_t object_layer_idx, size_t instance_idx)
 {
+    assert(extrusion_entity);
     InsertExternalPeriExtruded visitor(this->m_extruded_extrusion, object_layer_idx, instance_idx);
 #ifdef _DEBUG
     visitor.registered_extrusion = &this->m_registered_extrusion;
+    visitor.tracker = this;
 #endif
     visitor.process(extrusion_entity);
-//    if (extrusion_entity->role().is_external_perimeter()) {
-//#ifdef _DEBUG
-//    assert(m_registered_extrusion.find({int(object_layer_idx), int(instance_idx), extrusion_entity}) != m_registered_extrusion.end());
-//#endif
-//        this->m_extruded_extrusion.insert({int(object_layer_idx), int(instance_idx), extrusion_entity});
-//    }
 }
 
 bool TravelObstacleTracker::is_extruded(const ObjectOrExtrusionLinef &line) const
 {
-    return m_extruded_extrusion.find({line.object_layer_idx, line.instance_idx, line.extrusion_entity}) != m_extruded_extrusion.end();
+    return m_extruded_extrusion.find({line.object_layer_idx, line.instance_idx, line.extrusion_entity_id}) != m_extruded_extrusion.end();
 }
 
 } // namespace Slic3r::GCode
