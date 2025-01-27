@@ -14,11 +14,9 @@ fi
 # Navigate to the source folder
 cd "$SOURCE_FOLDER" || { echo "Failed to navigate to folder."; exit 1; }
 
-# Remove existing zip file if it exists
 echo "Creating zip archive: $ZIP_ARCHIVE"
 rm -f "$ZIP_ARCHIVE"
 
-# Use 7z to create a .zip archive
 if ! 7z a -tzip "$ZIP_ARCHIVE" *.idx; then
   echo "No .idx files found or failed to create zip archive."
   exit 1
