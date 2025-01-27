@@ -21,6 +21,8 @@ deps/deps-*
 deps/usr/*
 # MacOS Ignores
 .DS_Store
+/resources/scripts/shell/ftp_config
+
 
 deps/build-linux/*
 **/.idea/
