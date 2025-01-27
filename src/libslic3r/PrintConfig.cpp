@@ -6873,7 +6873,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This setting allows you to set how much an hour of printing time is costing you in printer "
                      "maintenance, loan, human albor, etc.");
     def->mode = comExpert | comSuSi;
-    def->sidetext = L("$ per hour");
+    def->sidetext = L("€ per hour");
     def->min = 0;
     def->set_default_value(new ConfigOptionFloat(0));
 
