@@ -123,5 +123,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: rc_win64
+        name: SliCR-3D_rc_win64
         path: build/package/
