@@ -16,7 +16,7 @@ fi
 source "$CONFIG_FILE"
 
 # Check if all required FTP variables are set
-if [ -z "$FTP_SERVER" ] || [ -z "$FTP_PORT" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASSWORD" ] || [ -z "$REMOTE_PATH" ]; then
+if [ -z "$FTP_SERVER" ] || [ -z "$FTP_PORT" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASSWORD" ] || [ -z "$VENDOR_INDICES_PATH" ]; then
   echo "Error: Missing FTP configuration details in 'ftp_config'."
   exit 1
 fi
@@ -41,15 +41,15 @@ fi
 echo "Zip archive '$ZIP_ARCHIVE' created successfully."
 
 # Upload the zip file to the FTP server
-FTP_URL="${FTP_SERVER}:${FTP_PORT}/${REMOTE_PATH}"
+FTP_URL="${FTP_SERVER}:${FTP_PORT}/${VENDOR_INDICES_PATH}"
 echo "Uploading $ZIP_ARCHIVE to $FTP_URL"
 curl -T "$ZIP_ARCHIVE" "$FTP_URL" --user "$FTP_USER:$FTP_PASSWORD"
 
 # Check if the upload was successful
 if [ $? -eq 0 ]; then
-  echo "File uploaded successfully to $REMOTE_PATH!"
+  echo "File uploaded successfully to $VENDOR_INDICES_PATH!"
 else
-  echo "Failed to upload file to $REMOTE_PATH."
+  echo "Failed to upload file to $VENDOR_INDICES_PATH."
   exit 1
 fi
 
