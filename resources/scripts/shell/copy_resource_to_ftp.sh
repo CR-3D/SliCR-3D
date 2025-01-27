@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Define the source folder to compress
+# Define the source folder
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_FOLDER="$(cd "$SCRIPT_DIR/../../profiles" && pwd)"
-ARCHIVE_FILE="$SCRIPT_DIR/profiles.zip"           # Path for the .zip archive
 
 # Load FTP configuration
 CONFIG_FILE="$SCRIPT_DIR/ftp_config"
@@ -27,28 +26,31 @@ if [ ! -d "$SOURCE_FOLDER" ]; then
   exit 1
 fi
 
-# Compress the contents of the source folder into a .zip archive using 7z
-echo "Creating zip archive $ARCHIVE_FILE from the contents of $SOURCE_FOLDER using 7z..."
-rm -f "$ARCHIVE_FILE" # Remove existing archive if it exists
+# Determine files to upload based on git status
+echo "Checking for modified or new files in $SOURCE_FOLDER..."
 cd "$SOURCE_FOLDER" || { echo "Failed to navigate to $SOURCE_FOLDER"; exit 1; }
-if ! 7z a -tzip "$ARCHIVE_FILE" *; then
-  echo "Error: Failed to create zip archive with 7z."
-  exit 1
-fi
-echo "Zip archive created successfully: $ARCHIVE_FILE"
 
-# Upload the .zip file to the FTP server
-REMOTE_ARCHIVE="$PROFILES_PATH/profiles.zip"
-echo "Uploading $ARCHIVE_FILE to $FTP_SERVER:$REMOTE_ARCHIVE..."
-curl --ftp-create-dirs -T "$ARCHIVE_FILE" "$FTP_SERVER/$REMOTE_ARCHIVE" --user "$FTP_USER:$FTP_PASSWORD"
+# Get the list of modified or new files
+CHANGED_FILES=$(git ls-files -m -o --exclude-standard)
 
-# Check if the upload was successful
-if [ $? -eq 0 ]; then
-  echo "File uploaded successfully to $REMOTE_ARCHIVE!"
-else
-  echo "Failed to upload $ARCHIVE_FILE to $REMOTE_ARCHIVE."
-  exit 1
+if [ -z "$CHANGED_FILES" ]; then
+  echo "No modified or new files to upload."
+  exit 0
 fi
 
+# Upload each modified or new file to the FTP server
+for file in $CHANGED_FILES; do
+  REMOTE_FILE="$PROFILES_PATH/$file"
+  echo "Uploading $file to $REMOTE_FILE..."
+  curl --ftp-create-dirs -T "$file" "$FTP_SERVER/$REMOTE_FILE" --user "$FTP_USER:$FTP_PASSWORD"
+
+  if [ $? -eq 0 ]; then
+    echo "$file uploaded successfully!"
+  else
+    echo "Failed to upload $file."
+    exit 1
+  fi
+done
+
+echo "All modified files uploaded successfully!"
 exit 0
-s
