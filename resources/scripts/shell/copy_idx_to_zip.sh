@@ -11,7 +11,6 @@ if [ ! -d "$SOURCE_FOLDER" ]; then
   exit 1
 fi
 
-# Navigate to the source folder
 cd "$SOURCE_FOLDER" || { echo "Failed to navigate to folder."; exit 1; }
 
 echo "Creating zip archive: $ZIP_ARCHIVE"
