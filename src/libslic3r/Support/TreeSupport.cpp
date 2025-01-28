@@ -128,7 +128,7 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
     for (size_t object_id : print_object_ids) {
         const PrintObject       &print_object  = *print.get_object(object_id);
         const PrintObjectConfig &object_config = print_object.config();
-        if (object_config.support_material_contact_distance < EPSILON)
+        if (object_config.support_material_contact_distance_type.value == zdNone)
             // || min_feature_size < scaled<coord_t>(0.1) that is the minimum line width
             TreeSupportSettings::soluble = true;
     }

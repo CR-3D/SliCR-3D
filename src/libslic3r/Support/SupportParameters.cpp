@@ -148,7 +148,7 @@ SupportParameters::SupportParameters(const PrintObject &object)
 
     this->base_angle            = Geometry::deg2rad(float(object_config.support_material_angle.value));
     this->base_angle_height     = object_config.support_material_angle_height.value;
-    this->interface_angle       = Geometry::deg2rad(float(object_config.support_material_angle.value + 90.));
+    this->interface_angle       = Geometry::deg2rad(float(object_config.support_material_interface_angle.value));
     this->interface_angle_incr  = Geometry::deg2rad(float(object_config.support_material_interface_angle_increment.value));
     this->raft_angle_1st_layer  = 0.f;
     this->raft_angle_base       = 0.f;

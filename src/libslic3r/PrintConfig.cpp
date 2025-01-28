@@ -6242,7 +6242,8 @@ void PrintConfigDef::init_fff_params()
     def->category = OptionCategory::support;
     def->tooltip = L("Style and shape of the support towers. Projecting the supports into a regular grid "
         "will create more stable supports, while snug support towers will save material and reduce "
-        "object scarring.");
+        "object scarring."
+        "\nOrganic: create tree support structure, but this algorithm force to synchronize the support layers with object layers, and only allow for one layer height for each object.");
     def->set_enum<SupportMaterialStyle>({
         { "grid", L("Grid") }, 
         { "snug", L("Snug") },

@@ -808,6 +808,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     // support_material_bottom_contact_distance (PS 2.4) == support_material_contact_distance_bottom (SuSi 2.3 &-)
     ((ConfigOptionFloatOrPercent,       support_material_bottom_contact_distance))
     ((ConfigOptionEnum<InfillPattern>,  support_material_bottom_interface_pattern))
+    // Morphological closing of support areas. Only used for "sung" supports.
+    ((ConfigOptionFloat,                support_material_closing_radius))
     ((ConfigOptionInt,                  support_material_enforce_layers))
     ((ConfigOptionInt,                  support_material_extruder))
     ((ConfigOptionFloatOrPercent,       support_material_extrusion_width))
@@ -822,8 +824,6 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                support_material_interface_spacing))
     ((ConfigOptionFloatOrPercent,       support_material_interface_speed))
     ((ConfigOptionEnum<SupportMaterialPattern>,  support_material_pattern))
-    // Morphological closing of support areas. Only used for "sung" supports.
-    ((ConfigOptionFloat,                support_material_closing_radius))
     ((ConfigOptionFloatOrPercent,       support_material_layer_height))
     // Spacing between support material lines (the hatching distance).
     ((ConfigOptionFloat,                support_material_spacing))
