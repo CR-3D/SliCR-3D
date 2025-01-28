@@ -180,14 +180,7 @@ bool Bed3D::set_shape(const Pointfs& bed_shape,
 
     s_multiple_beds.update_build_volume(m_build_volume.bounding_volume2d());
 
-    BoundingBoxf bb = m_build_volume.bounding_volume2d();
-    Vec2d gap = unscale(s_multiple_beds.get_bed_gap());
-
-    bb.max = Vec2d(
-          bb.max.x() + std::max(0., m_model.model.get_bounding_box().size().x() - bb.size().x()),
-          bb.max.y() + std::max(0., (m_model.model.get_bounding_box().size().y() - bb.size().y()) * gap.y())
-    );
-    
+    m_models_overlap = false;
 
     // Set the origin and size for rendering the coordinate system axes.
     m_axes.set_origin({ 0.0, 0.0, static_cast<double>(GROUND_Z) });
@@ -301,12 +294,14 @@ void Bed3D::render_internal(GLCanvas3D& canvas, const Transform3d& view_matrix, 
     if (!picking && !active) {
         m_model.model.set_color(DISABLED_MODEL_COLOR);
         m_triangles.set_color(DISABLED_MODEL_COLOR);
+       //m_model.mesh_raycaster->
+       // m_model_filename = "";
     }
 
     switch (m_type) {
-    case Type::System: { render_system(canvas, view_matrix, projection_matrix, bottom, show_texture, active); break; }
+      case Type::System: { render_system(canvas, view_matrix, projection_matrix, bottom, show_texture, active); break; }
     default:
-    case Type::Custom: { render_custom(canvas, view_matrix, projection_matrix, bottom, show_texture, picking, active); break; }
+      case Type::Custom: { render_custom(canvas, view_matrix, projection_matrix, bottom, show_texture, picking, active); break; }
     }
 
     glsafe(::glDisable(GL_DEPTH_TEST));
@@ -639,20 +634,15 @@ void Bed3D::render_grid(bool bottom, bool has_model)
 
 void Bed3D::render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool is_active)
 {
+
     if (!bottom) {
-        render_model(view_matrix, projection_matrix);
+        render_model(view_matrix, projection_matrix, is_active);
     }
     
     if (show_texture)
         render_texture(bottom, canvas, view_matrix, projection_matrix, is_active);
     else if (bottom)
         render_contour(view_matrix, projection_matrix);
-
-    // m_models_overlap shouldn't be always true
-    //if (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1) {
-    //    render_default(bottom, false, show_texture, view_matrix, projection_matrix);
-    //    return;
-    //}
 }
 
 void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active)
@@ -822,9 +812,8 @@ void Bed3D::init_internal_model_from_file()
     }
 }
 
-void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix)
-{
-    if (m_model_filename.empty())
+void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active) {
+    if (m_model_filename.empty() || !is_active) 
         return;
 
     init_internal_model_from_file();
@@ -848,15 +837,13 @@ void Bed3D::render_model(const Transform3d& view_matrix, const Transform3d& proj
 void Bed3D::render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking, bool is_active)
 {
     if ((m_texture_filename.empty() && m_model_filename.empty())
-    // m_models_overlap shouldn't be always true
-    // || (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1)
-        ) {
+     || (m_models_overlap && s_multiple_beds.get_number_of_beds() + int(s_multiple_beds.should_show_next_bed()) > 1)) {
         render_default(bottom, picking, show_texture, view_matrix, projection_matrix);
         return;
     }
 
     if (!bottom) {
-        render_model(view_matrix, projection_matrix);
+        render_model(view_matrix, projection_matrix, is_active);
    }
 
     if (show_texture)

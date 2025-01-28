@@ -129,7 +129,7 @@ private:
         bool show_texture, bool picking, bool active);
     void render_system(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool is_active);
     void render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active);
-    void render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix);
+    void render_model(const Transform3d& view_matrix, const Transform3d& projection_matrix, bool is_active);
     void render_custom(GLCanvas3D& canvas, const Transform3d& view_matrix, const Transform3d& projection_matrix, bool bottom, bool show_texture, bool picking, bool is_active);
     void render_default(bool bottom, bool picking, bool show_texture, const Transform3d& view_matrix, const Transform3d& projection_matrix);
     void render_contour(const Transform3d& view_matrix, const Transform3d& projection_matrix);
