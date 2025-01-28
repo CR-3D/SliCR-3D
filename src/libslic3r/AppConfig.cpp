@@ -42,9 +42,6 @@
 
 namespace Slic3r {
 
-https://sftp_files@cr-3d.de/updates/SliCR-3D/vendor_indices.zip
-
-
 static const std::string VENDOR_PREFIX = "vendor:";
 static const std::string MODEL_PREFIX = "model:";
 //static const std::string VERSION_CHECK_URL = "https://api.github.com/repos/" SLIC3R_GITHUB "/releases";
@@ -53,9 +50,7 @@ static const std::string MODEL_PREFIX = "model:";
 // then, in t8he json look for an entry with name == "vendor_indices.zip"
 
 // Url to folder with vendor profile files. Used when downloading new profiles that are not in resources folder.
-static const std::string PROFILE_FOLDER_URL = "https://raw.githubusercontent.com/" SLIC3R_GITHUB "-profiles/main/";
-
-// TODO: ADD STRATO VERSION CHECK URL
+static const std::string PROFILE_FOLDER_URL = "http://files.cr3d.de/updates/SliCR-3D/profiles/";
 static const std::string INDEX_ARCHIVE_URL= "http://files.cr3d.de/updates/SliCR-3D/vendor_indices.zip";
 static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/SliCR-3D/SliCR-3D.version";
 const std::string AppConfig::SECTION_FILAMENTS = "filaments";
