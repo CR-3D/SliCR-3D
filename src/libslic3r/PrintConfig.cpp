@@ -1101,7 +1101,7 @@ void PrintConfigDef::init_fff_params()
     def->label = L("Chamber");
     def->full_label = L("Chamber temperature");
     def->category = OptionCategory::cooling;
-    def->tooltip = L("Chamber temperature. Note that this setting doesn't do anything, but you can access it in Start G-code, Tool change G-code and the other ones, like for other temperature settings.");
+    def->tooltip = L("Chamber temperature.");
     def->sidetext = L("°C");
     def->min = 0;
     def->max = 300;
