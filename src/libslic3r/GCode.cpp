@@ -2572,7 +2572,8 @@ std::string GCodeGenerator::placeholder_parser_process(
             } else {
                 //update our current position
                 Point pt_updated = this->gcode_to_point({pos[0], pos[1]});
-                if (!is_approx(pt_updated.x(), last_pos().x(), SCALED_EPSILON) ||
+                if (!last_pos_defined() ||
+                    !is_approx(pt_updated.x(), last_pos().x(), SCALED_EPSILON) ||
                     !is_approx(pt_updated.y(), last_pos().y(), SCALED_EPSILON)) {
                     set_last_pos(pt_updated);
                 }
@@ -7931,7 +7932,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     ensure_end_object_change_labels(gcode);
 
     //just for testing
-    assert(is_approx(this->writer().get_position().z(), print_z, EPSILON));
+    assert(m_layer == nullptr || is_approx(this->writer().get_position().z(), print_z, EPSILON));
 
     // if we are running a single-extruder setup, just set the extruder and return nothing
     if (!m_writer.multiple_extruders) {
