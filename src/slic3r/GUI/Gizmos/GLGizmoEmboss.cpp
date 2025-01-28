@@ -308,14 +308,14 @@ void init_text_lines(TextLinesModel &text_lines, const Selection& selection, /* 
 struct GLGizmoEmboss::Facenames: public ::Facenames{};
 struct GLGizmoEmboss::GuiCfg: public ::GuiCfg{};
 
-GLGizmoEmboss::GLGizmoEmboss(GLCanvas3D &parent)
-    : GLGizmoBase(parent, M_ICON_FILENAME, -2)
+GLGizmoEmboss::GLGizmoEmboss(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
+    : GLGizmoBase(parent, icon_filename, sprite_id)
     , m_gui_cfg(nullptr)
     , m_style_manager(m_imgui->get_glyph_ranges(), create_default_styles)
     , m_face_names(std::make_unique<Facenames>())
     , m_rotate_gizmo(parent, GLGizmoRotate::Axis::Z) // grab id = 2 (Z axis)
 {
-    m_rotate_gizmo.set_group_id(0);
+   // m_rotate_gizmo.set_group_id(0);
     m_rotate_gizmo.set_force_local_coordinate(true);
     // to use https://fontawesome.com/ (copy & paste) unicode symbols from web
     // paste HEX unicode into notepad move cursor after unicode press [alt] + [x]
@@ -478,11 +478,6 @@ bool GLGizmoEmboss::init_create(ModelVolumeType volume_type)
     // check valid volume type
     if (!check(volume_type)){    
         BOOST_LOG_TRIVIAL(error) << "Can't create embossed volume with this type: " << (int) volume_type;
-        return false;
-    }
-
-    if (!is_activable()) {
-        BOOST_LOG_TRIVIAL(error) << "Can't create text. Gizmo is not activabled.";
         return false;
     }
 
@@ -1152,6 +1147,16 @@ void init_text_lines(TextLinesModel &text_lines, const Selection& selection, /* 
 
 void GLGizmoEmboss::reinit_text_lines(unsigned count_lines) {    
     init_text_lines(m_text_lines, m_parent.get_selection(), m_style_manager, count_lines);
+}
+
+
+bool GLGizmoEmboss::on_is_selectable() const {
+    return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert");
+}
+
+bool GLGizmoEmboss::on_is_activable() const {
+    const Selection& selection = m_parent.get_selection();
+    return !selection.is_single_text() && !selection.is_empty();
 }
 
 void GLGizmoEmboss::set_volume_by_selection()

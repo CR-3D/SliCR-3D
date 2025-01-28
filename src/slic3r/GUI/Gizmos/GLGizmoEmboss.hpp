@@ -36,7 +36,7 @@ namespace Slic3r::GUI {
 class GLGizmoEmboss : public GLGizmoBase
 {
 public:
-    explicit GLGizmoEmboss(GLCanvas3D& parent);
+    explicit GLGizmoEmboss(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
 
     /// <summary>
     /// Create new embossed text volume by type on position of mouse
@@ -79,8 +79,8 @@ protected:
     void on_register_raycasters_for_picking() override;
     void on_unregister_raycasters_for_picking() override;
     void on_render_input_window(float x, float y, float bottom_limit) override;
-    bool on_is_selectable() const override { return false; }
-    bool on_is_activable() const override { return true; };
+    bool on_is_selectable() const override;
+    bool on_is_activable() const override;
     void on_set_state() override;
     void data_changed(bool is_serializing) override; // selection changed
     void on_set_hover_id() override{ m_rotate_gizmo.set_hover_id(m_hover_id); }

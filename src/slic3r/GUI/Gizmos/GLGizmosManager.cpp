@@ -114,7 +114,7 @@ bool GLGizmosManager::init()
     m_gizmos.emplace_back(new GLGizmoSeam(m_parent, "seam.svg", 8));
     m_gizmos.emplace_back(new GLGizmoMmuSegmentation(m_parent, "mmu_segmentation.svg", 9));
     m_gizmos.emplace_back(new GLGizmoMeasure(m_parent, "measure.svg", 10));
-    m_gizmos.emplace_back(new GLGizmoEmboss(m_parent));
+    m_gizmos.emplace_back(new GLGizmoEmboss(m_parent, "text_part.svg", 11));
     m_gizmos.emplace_back(new GLGizmoSVG(m_parent));
     m_gizmos.emplace_back(new GLGizmoSimplify(m_parent));
 
