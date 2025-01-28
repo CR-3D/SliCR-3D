@@ -270,7 +270,6 @@ public:
     const GLVolume* get_volume(unsigned int volume_idx) const;
     const GLVolume* get_first_volume() const { return get_volume(*m_list.begin()); }
     GLVolume* get_volume(unsigned int volume_idx);
-
     const ObjectIdxsToInstanceIdxsMap& get_content() const { return m_cache.content; }
 
     unsigned int volumes_count() const { return (unsigned int)m_list.size(); }
