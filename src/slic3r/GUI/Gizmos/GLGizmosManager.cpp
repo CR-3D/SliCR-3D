@@ -193,6 +193,13 @@ bool GLGizmosManager::open_gizmo(EType type) {
     if (m_current == type)
         type = Undefined;
 
+    if (m_gizmos[idx]->is_actionable()) {
+        m_gizmos[idx]->trigger_action();
+        // remove update data into gizmo itself
+        update_data();
+        return true;
+    }
+
     if (m_gizmos[idx]->is_activable() && activate_gizmo(type)) {
         // remove update data into gizmo itself
         update_data();
