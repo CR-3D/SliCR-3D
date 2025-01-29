@@ -66,7 +66,7 @@ min_slic3r_version = 2.7.0.5-intern
 0.0.62 Changed nozzle for pa from '0.61' to '0.6'
 0.0.63 chamber_temperature = 50; filament_pressure_advance rounded values; ASA-X FibCR20 = 280
 
-min_slic3r_version = 2.7.0.5-rc1
+min_slic3r_version = 2.7.0.5
 0.0.64 Set nozzle size to 0.6 for all printers
 0.0.65 Changed internal index for versions to 0.1.XX
 0.0.66 updated PA values
