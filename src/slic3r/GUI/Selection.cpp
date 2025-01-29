@@ -580,10 +580,6 @@ bool Selection::is_sla_compliant() const
 
 
 bool Selection::is_text() const {
-
-   if (!is_any_volume()) {
-      return false;
-    }
    
     const GLVolume* gl_volume = (m_volumes->volumes)[*m_list.begin()].get();
     const ModelVolume* model_volume = m_model->objects[gl_volume->object_idx()]->volumes[gl_volume->volume_idx()];

@@ -190,15 +190,16 @@ bool GLGizmosManager::open_gizmo(EType type)
 {
     int idx = static_cast<int>(type);
     if (m_current == type) type = Undefined;
+    const Selection& selection = m_parent.get_selection();
 
-    if (m_gizmos[idx]->is_actionable()) {
+   if (selection.is_single_text() && activate_gizmo(type)) {
+      update_data();
+      return true;
+   }
+      
+    if (m_gizmos[idx]->is_actionable() && activate_gizmo(type)) {
+      if (!selection.is_text())
         m_gizmos[idx]->trigger_action();
-        // remove update data into gizmo itself
-        update_data();
-        return true;
-    }
-
-    if (m_gizmos[idx]->is_activable() && activate_gizmo(type)) {
         // remove update data into gizmo itself
         update_data();
         return true;

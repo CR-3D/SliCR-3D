@@ -1160,7 +1160,7 @@ bool GLGizmoEmboss::on_is_activable() const {
 
 bool GLGizmoEmboss::on_is_actionable() const {
     const Selection& selection = m_parent.get_selection();
-    return selection.is_single_full_instance();
+   return (selection.is_single_full_instance());
 }
 
 void GLGizmoEmboss::trigger_action() { create_volume(ModelVolumeType::MODEL_PART); }
