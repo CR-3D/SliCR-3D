@@ -578,6 +578,19 @@ bool Selection::is_sla_compliant() const
     return true;
 }
 
+
+bool Selection::is_text() const {
+
+   if (!is_any_volume()) {
+      return false;
+    }
+   
+    const GLVolume* gl_volume = (m_volumes->volumes)[*m_list.begin()].get();
+    const ModelVolume* model_volume = m_model->objects[gl_volume->object_idx()]->volumes[gl_volume->volume_idx()];
+   
+    return model_volume->is_text();
+}
+
 bool Selection::is_single_text() const
 {
     if (!is_single_volume_or_modifier())
@@ -585,7 +598,7 @@ bool Selection::is_single_text() const
 
     const GLVolume* gl_volume = (m_volumes->volumes)[*m_list.begin()].get();
     const ModelVolume* model_volume = m_model->objects[gl_volume->object_idx()]->volumes[gl_volume->volume_idx()];
-    
+   
     return model_volume && model_volume->text_configuration.has_value();
 }
 

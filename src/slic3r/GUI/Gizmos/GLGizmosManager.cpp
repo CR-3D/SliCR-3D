@@ -189,10 +189,13 @@ void GLGizmosManager::reset_all_states()
 bool GLGizmosManager::open_gizmo(EType type)
 {
     int idx = static_cast<int>(type);
-
-    // re-open same type cause closing
     if (m_current == type) type = Undefined;
-
+    
+    if (m_gizmos[idx]->is_activable() && m_gizmos[idx]->is_trigger_action()) {
+       update_data();
+       return true;
+    }
+   
     if (m_gizmos[idx]->is_activable() && activate_gizmo(type)) {
         // remove update data into gizmo itself
         update_data();

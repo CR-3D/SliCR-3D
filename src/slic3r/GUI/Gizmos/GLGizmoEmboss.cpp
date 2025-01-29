@@ -1142,21 +1142,36 @@ void init_text_lines(TextLinesModel &text_lines, const Selection& selection, /* 
     if (es.fix_3mf_tr.has_value())
         mv_trafo = mv_trafo * (es.fix_3mf_tr->inverse());
     text_lines.init(mv_trafo, volumes, style_manager, count_lines);
-}
+  }
 }
 
 void GLGizmoEmboss::reinit_text_lines(unsigned count_lines) {    
     init_text_lines(m_text_lines, m_parent.get_selection(), m_style_manager, count_lines);
 }
 
-
 bool GLGizmoEmboss::on_is_selectable() const {
     return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert");
 }
 
+bool GLGizmoEmboss::on_is_triggered() {
+   
+    const Selection &selection = m_parent.get_selection();
+    const GLCanvas3D *canvas = wxGetApp().plater()->canvas3D();
+    auto screen_position = canvas->get_popup_menu_position();
+
+   if (selection.is_empty()) {
+      if (screen_position.has_value()) {
+         create_volume(ModelVolumeType::MODEL_PART, *screen_position);
+      } else {
+         create_volume(ModelVolumeType::MODEL_PART);
+      }
+      return true;
+   }
+   return false;
+}
+
 bool GLGizmoEmboss::on_is_activable() const {
-    const Selection& selection = m_parent.get_selection();
-    return !selection.is_single_text() && !selection.is_empty();
+   return true;
 }
 
 void GLGizmoEmboss::set_volume_by_selection()

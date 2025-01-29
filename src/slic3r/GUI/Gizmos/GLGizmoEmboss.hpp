@@ -81,6 +81,7 @@ protected:
     void on_render_input_window(float x, float y, float bottom_limit) override;
     bool on_is_selectable() const override;
     bool on_is_activable() const override;
+    bool on_is_triggered() override;
     void on_set_state() override;
     void data_changed(bool is_serializing) override; // selection changed
     void on_set_hover_id() override{ m_rotate_gizmo.set_hover_id(m_hover_id); }

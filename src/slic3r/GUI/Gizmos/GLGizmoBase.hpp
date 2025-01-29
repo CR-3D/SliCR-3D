@@ -149,6 +149,8 @@ public:
 
     bool is_activable() const { return on_is_activable(); }
     bool is_selectable() const { return on_is_selectable(); }
+    bool is_trigger_action() { return on_is_triggered(); }
+    
     CommonGizmosDataID get_requirements() const { return on_get_requirements(); }
     virtual bool wants_enter_leave_snapshots() const { return false; }
     virtual std::string get_gizmo_entering_text() const { assert(false); return ""; }
@@ -203,6 +205,7 @@ protected:
     virtual void on_set_hover_id() {}
     virtual bool on_is_activable() const { return true; }
     virtual bool on_is_selectable() const { return true; }
+    virtual bool on_is_triggered() { return false; }
     virtual CommonGizmosDataID on_get_requirements() const { return CommonGizmosDataID(0); }
     virtual void on_enable_grabber(unsigned int id) {}
     virtual void on_disable_grabber(unsigned int id) {}

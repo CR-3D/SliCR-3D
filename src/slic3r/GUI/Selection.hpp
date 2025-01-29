@@ -238,6 +238,7 @@ public:
     bool is_single_volume_or_modifier() const { return is_single_volume() || is_single_modifier(); }
     bool is_single_volume_instance() const { return is_single_full_instance() && m_list.size() == 1; }
     bool is_single_text() const;
+    bool is_text() const;
 
     bool contains_volume(unsigned int volume_idx) const { return m_list.find(volume_idx) != m_list.end(); }
     // returns true if the selection contains all the given indices

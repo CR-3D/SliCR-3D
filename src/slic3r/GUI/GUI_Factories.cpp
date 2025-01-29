@@ -609,7 +609,12 @@ void MenuFactory::append_submenu_add_generic(wxMenu* menu_parent, wxMenu* sub_me
     }
 }
 
-static void append_menu_itemm_add_(const wxString& name, GLGizmosManager::EType gizmo_type, wxMenu *menu, ModelVolumeType type, bool is_submenu_item) {
+static void append_menu_itemm_add_(const wxString& name,
+                                   GLGizmosManager::EType gizmo_type,
+                                   wxMenu *menu,
+                                   ModelVolumeType type,
+                                   bool is_submenu_item) {
+                                   
     auto add_ = [type, gizmo_type](const wxCommandEvent & /*unnamed*/) {
         const GLCanvas3D *canvas = plater()->canvas3D();
         const GLGizmosManager &mng = canvas->get_gizmos_manager();
@@ -622,7 +627,7 @@ static void append_menu_itemm_add_(const wxString& name, GLGizmosManager::EType 
 
         auto screen_position = canvas->get_popup_menu_position();
         if (gizmo_type == GLGizmosManager::Emboss) {
-            auto emboss = dynamic_cast<GLGizmoEmboss *>(gizmo_base);
+            auto emboss = dynamic_cast<GLGizmoEmboss*>(gizmo_base);
             assert(emboss != nullptr);
             if (emboss == nullptr) return;
             if (screen_position.has_value()) {
