@@ -1153,26 +1153,17 @@ bool GLGizmoEmboss::on_is_selectable() const {
     return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert");
 }
 
-bool GLGizmoEmboss::on_is_triggered() {
-   
-    const Selection &selection = m_parent.get_selection();
-    const GLCanvas3D *canvas = wxGetApp().plater()->canvas3D();
-    auto screen_position = canvas->get_popup_menu_position();
-
-   if (selection.is_empty()) {
-      if (screen_position.has_value()) {
-         create_volume(ModelVolumeType::MODEL_PART, *screen_position);
-      } else {
-         create_volume(ModelVolumeType::MODEL_PART);
-      }
-      return true;
-   }
-   return false;
-}
-
 bool GLGizmoEmboss::on_is_activable() const {
-   return true;
+    const Selection& selection = m_parent.get_selection();
+    return on_is_actionable() || (!selection.is_empty() && selection.is_single_text() );
 }
+
+bool GLGizmoEmboss::on_is_actionable() const {
+    const Selection& selection = m_parent.get_selection();
+    return selection.is_single_full_instance();
+}
+
+void GLGizmoEmboss::trigger_action() { create_volume(ModelVolumeType::MODEL_PART); }
 
 void GLGizmoEmboss::set_volume_by_selection()
 {

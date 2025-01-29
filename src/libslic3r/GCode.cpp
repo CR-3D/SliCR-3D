@@ -2574,7 +2574,8 @@ std::string GCodeGenerator::placeholder_parser_process(
             } else {
                 //update our current position
                 Point pt_updated = this->gcode_to_point({pos[0], pos[1]});
-                if (!is_approx(pt_updated.x(), last_pos().x(), SCALED_EPSILON) ||
+                if (!last_pos_defined() ||
+                    !is_approx(pt_updated.x(), last_pos().x(), SCALED_EPSILON) ||
                     !is_approx(pt_updated.y(), last_pos().y(), SCALED_EPSILON)) {
                     set_last_pos(pt_updated);
                 }
@@ -7107,7 +7108,7 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
         Point last_post_before_retract = this->last_pos_defined() ? this->last_pos() : Point{0, 0};
 
-        bool no_lift_on_retract = travel.length() <= scale_(EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_before_travel, 0)) && travel.size() > 1;
+        bool no_lift_on_retract = m_writer.get_extra_lift() == 0 && travel.length() <= scale_(EXTRUDER_CONFIG_WITH_DEFAULT(retract_lift_before_travel, 0)) && travel.size() > 1;
         gcode += this->retract_and_wipe(false, no_lift_on_retract /*, comment*/);
 
         // When "Wipe while retracting" is enabled, then extruder moves to another position, and travel from this position can cross perimeters.
@@ -7546,6 +7547,9 @@ std::string GCodeGenerator::travel_to(
 
 bool GCodeGenerator::needs_retraction(const Polyline& travel, ExtrusionRole role /*=ExtrusionRole::None*/, coordf_t max_min_dist /*=0*/)
 {
+    // If extra lift set, please lift (and retract, as one is dependent on the other)
+    if (m_writer.get_extra_lift() > 0)
+        return true;
     coordf_t min_dist = scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(retract_before_travel, 0));
     if (max_min_dist > 0)
         min_dist = std::min(max_min_dist, min_dist);
@@ -7930,7 +7934,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     ensure_end_object_change_labels(gcode);
 
     //just for testing
-    assert(is_approx(this->writer().get_position().z(), print_z, EPSILON));
+    assert(m_layer == nullptr || is_approx(this->writer().get_position().z(), print_z, EPSILON));
 
     // if we are running a single-extruder setup, just set the extruder and return nothing
     if (!m_writer.multiple_extruders) {

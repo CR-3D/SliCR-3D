@@ -31,7 +31,7 @@ TreeSupportMeshGroupSettings::TreeSupportMeshGroupSettings(const PrintObject &pr
         const PrintRegion &region = print_object.printing_region(region_id);
         external_perimeter_width = std::max<double>(external_perimeter_width, region.flow(print_object, frExternalPerimeter, config.layer_height, 2 /*not first layer, even layer*/).width());
     }
-
+    
     this->layer_height              = scaled<coord_t>(config.layer_height.value);
     this->resolution                = scaled<coord_t>(print_config.resolution_internal.value);
     // Arache feature <- why? it's not even editable when the organic support are activated! And it doesn't take into account the %! I'll fix it to 25% of external_perimeter_width. 
@@ -53,8 +53,23 @@ TreeSupportMeshGroupSettings::TreeSupportMeshGroupSettings(const PrintObject &pr
     this->support_xy_distance       = scaled<coord_t>(config.support_material_xy_spacing.get_abs_value(external_perimeter_width));
     // Separation of interfaces, it is likely smaller than support_xy_distance.
     this->support_xy_distance_overhang = std::min(this->support_xy_distance, scaled<coord_t>(0.5 * external_perimeter_width));
+    // compute separate support_material_contact_distance_type. As organic support only support one layer height,
+    // it has to be done here, where we have access to the printobject
     this->support_top_distance      = scaled<coord_t>(slicing_params.gap_support_object);
     this->support_bottom_distance   = scaled<coord_t>(slicing_params.gap_object_support);
+    if (config.support_material_contact_distance_type.value == zdNone) {
+        this->support_top_distance      = 0;
+        this->support_bottom_distance   = 0;
+    } else if (config.support_material_contact_distance_type.value == zdFilament && print_object.layers().size() > 0 &&
+        print_object.layers().front()->regions().size() > 0) {
+        //get one region, with organic support there is only one layer height anyway
+        assert(print_object.num_printing_regions() > 0);
+        const LayerRegion *lr = print_object.layers().front()->regions().front();
+        assert(is_approx(lr->layer()->height, config.layer_height.value, EPSILON));
+        coord_t diff_lh_filamenth = scale_t(lr->bridging_height_avg()) - this->layer_height;
+        this->support_top_distance += diff_lh_filamenth;
+        this->support_bottom_distance += diff_lh_filamenth;
+    }
 //    this->support_interface_skip_height =
 //    this->support_infill_angles     = 
     this->support_roof_enable       = config.support_material_interface_layers.value > 0;

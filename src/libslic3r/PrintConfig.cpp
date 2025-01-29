@@ -1097,8 +1097,7 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Chamber");
     def->full_label = L("Chamber temperature");
     def->category = OptionCategory::cooling;
-    def->tooltip = L("Chamber temperature. Note that this setting doesn't do anything, but you can access it in "
-                     "Start G-code, Tool change G-code and the other ones, like for other temperature settings.");
+    def->tooltip = L("Chamber temperature.");
     def->sidetext = L("°C");
     def->min = 0;
     def->max = 300;
@@ -6592,8 +6591,9 @@ void PrintConfigDef::init_fff_params() {
     def->full_label = L("Support tower style");
     def->category = OptionCategory::support;
     def->tooltip = L("Style and shape of the support towers. Projecting the supports into a regular grid "
-                     "will create more stable supports, while snug support towers will save material and reduce "
-                     "object scarring.");
+        "will create more stable supports, while snug support towers will save material and reduce "
+        "object scarring."
+        "\nOrganic: create tree support structure, but this algorithm force to synchronize the support layers with object layers, and only allow for one layer height for each object.");
     def->set_enum<SupportMaterialStyle>({
         {"organic", L("Organic")},
         {"grid", L("Grid")},
