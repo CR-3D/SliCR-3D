@@ -1156,8 +1156,15 @@ bool GLGizmoEmboss::on_is_selectable() const {
 
 bool GLGizmoEmboss::on_is_activable() const {
     const Selection& selection = m_parent.get_selection();
-    return !selection.is_single_text() && !selection.is_empty();
+    return on_is_actionable() || (!selection.is_empty() && selection.is_single_text() );
 }
+
+bool GLGizmoEmboss::on_is_actionable() const {
+    const Selection& selection = m_parent.get_selection();
+    return selection.is_single_full_instance();
+}
+
+void GLGizmoEmboss::trigger_action() { create_volume(ModelVolumeType::MODEL_PART); }
 
 void GLGizmoEmboss::set_volume_by_selection()
 {

@@ -103,20 +103,20 @@ bool GLGizmosManager::init()
     }
 
     // Order of gizmos in the vector must match order in EType!
-    m_gizmos.emplace_back(new GLGizmoMove3D(m_parent, "move.svg", 0));
-    m_gizmos.emplace_back(new GLGizmoScale3D(m_parent, "scale.svg", 1));
-    m_gizmos.emplace_back(new GLGizmoRotate3D(m_parent, "rotate.svg", 2));
-    m_gizmos.emplace_back(new GLGizmoFlatten(m_parent, "place.svg", 3));
-    m_gizmos.emplace_back(new GLGizmoCut3D(m_parent, "cut.svg", 4));
-    m_gizmos.emplace_back(new GLGizmoHollow(m_parent, "hollow.svg", 5));
-    m_gizmos.emplace_back(new GLGizmoSlaSupports(m_parent, "sla_supports.svg", 6));
-    m_gizmos.emplace_back(new GLGizmoFdmSupports(m_parent, "fdm_supports.svg", 7));
-    m_gizmos.emplace_back(new GLGizmoSeam(m_parent, "seam.svg", 8));
-    m_gizmos.emplace_back(new GLGizmoMmuSegmentation(m_parent, "mmu_segmentation.svg", 9));
-    m_gizmos.emplace_back(new GLGizmoMeasure(m_parent, "measure.svg", 10));
-    m_gizmos.emplace_back(new GLGizmoEmboss(m_parent, "text_part.svg", 11));
-    m_gizmos.emplace_back(new GLGizmoSVG(m_parent));
-    m_gizmos.emplace_back(new GLGizmoSimplify(m_parent));
+    m_gizmos.emplace_back(new GLGizmoMove3D(m_parent, "move.svg", EType::Move)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoScale3D(m_parent, "scale.svg", EType::Scale)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoRotate3D(m_parent, "rotate.svg", EType::Rotate)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoFlatten(m_parent, "place.svg", EType::Flatten)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoCut3D(m_parent, "cut.svg", EType::Cut)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoHollow(m_parent, "hollow.svg", EType::Hollow)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoEmboss(m_parent, "text_part.svg", EType::Emboss)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoSlaSupports(m_parent, "sla_supports.svg", EType::SlaSupports)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoFdmSupports(m_parent, "fdm_supports.svg", EType::FdmSupports)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoSeam(m_parent, "seam.svg", EType::Seam)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoMmuSegmentation(m_parent, "mmu_segmentation.svg", EType::MmuSegmentation)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoMeasure(m_parent, "measure.svg", EType::Measure)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoSVG(m_parent)); assert(EType::Svg == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoSimplify(m_parent)); assert(EType::Simplify == m_gizmos.size() - 1);
 
     m_common_gizmos_data.reset(new CommonGizmosDataPool(&m_parent));
 
@@ -192,6 +192,13 @@ bool GLGizmosManager::open_gizmo(EType type)
 
     // re-open same type cause closing
     if (m_current == type) type = Undefined;
+
+    if (m_gizmos[idx]->is_actionable()) {
+        m_gizmos[idx]->trigger_action();
+        // remove update data into gizmo itself
+        update_data();
+        return true;
+    }
 
     if (m_gizmos[idx]->is_activable() && activate_gizmo(type)) {
         // remove update data into gizmo itself

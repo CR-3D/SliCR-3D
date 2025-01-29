@@ -149,11 +149,13 @@ public:
 
     bool is_activable() const { return on_is_activable(); }
     bool is_selectable() const { return on_is_selectable(); }
+    bool is_actionable() const { return on_is_actionable(); }
     CommonGizmosDataID get_requirements() const { return on_get_requirements(); }
     virtual bool wants_enter_leave_snapshots() const { return false; }
     virtual std::string get_gizmo_entering_text() const { assert(false); return ""; }
     virtual std::string get_gizmo_leaving_text() const { assert(false); return ""; }
     virtual std::string get_action_snapshot_name() const;
+    virtual void trigger_action() {}
     void set_common_data_pool(CommonGizmosDataPool* ptr) { m_c = ptr; }
 
     unsigned int get_sprite_id() const { return m_sprite_id; }
@@ -203,6 +205,7 @@ protected:
     virtual void on_set_hover_id() {}
     virtual bool on_is_activable() const { return true; }
     virtual bool on_is_selectable() const { return true; }
+    virtual bool on_is_actionable() const { return false; }
     virtual CommonGizmosDataID on_get_requirements() const { return CommonGizmosDataID(0); }
     virtual void on_enable_grabber(unsigned int id) {}
     virtual void on_disable_grabber(unsigned int id) {}

@@ -77,12 +77,12 @@ public:
         Flatten,
         Cut,
         Hollow,
+        Emboss,
         SlaSupports,
         FdmSupports,
         Seam,
         MmuSegmentation,
         Measure,
-        Emboss,
         Svg,
         Simplify,
         Undefined
