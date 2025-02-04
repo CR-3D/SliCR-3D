@@ -295,7 +295,7 @@ std::string GCodeWriter::set_temperature(const int16_t temperature, bool wait, i
             FLAVOR_IS_NOT(gcfRepRap)) {
             gcode << " T" << tool;
         }
-        if (this->config.gcode_comments) {
+        if (this->config.gcode_comments && !comment.empty()) {
             gcode << " ; " << comment;
         }
         gcode << "\n";
@@ -346,7 +346,7 @@ std::string GCodeWriter::set_bed_temperature(uint32_t temperature, bool wait)
         gcode << "S";
     }
     gcode << temperature;
-    if (this->config.gcode_comments) {
+    if (this->config.gcode_comments && !comment.empty()) {
          gcode << " ; " << comment;
     }
     gcode << "\n";
@@ -386,7 +386,7 @@ std::string GCodeWriter::set_chamber_temperature(uint32_t temperature, bool wait
     
     std::ostringstream gcode;
     gcode << code << " " << "S" << temperature;
-    if (this->config.gcode_comments) {
+    if (this->config.gcode_comments && !comment.empty()) {
         gcode << " ; " << comment;
     }
     gcode << "\n";

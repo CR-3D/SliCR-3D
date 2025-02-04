@@ -1970,7 +1970,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                     current_group->m_on_change = set_or_add(current_group->m_on_change,
                         [this, tab, current_group_wk = ConfigOptionsGroupWkp(current_group)]
                         (t_config_option_key opt_key, bool enable, boost::any value) {
-                        assert(enable);
                         auto current_group_sh = current_group_wk.lock();
                         if (!current_group_sh)
                             return;
@@ -2034,7 +2033,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                     current_group->m_on_change = set_or_add(current_group->m_on_change,
                         [this, tab, current_group_wk = ConfigOptionsGroupWkp(current_group)]
                         (t_config_option_key opt_key, bool enable, boost::any value) {
-                        assert(enable);
                         auto current_group_sh = current_group_wk.lock();
                         if (!current_group_sh)
                             return;
@@ -2053,7 +2051,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                     TabPrinter* tab = nullptr;
                     if ((tab = dynamic_cast<TabPrinter*>(this)) == nullptr) continue;
                     current_group->m_on_change = set_or_add(current_group->m_on_change, [this, tab](t_config_option_key opt_key, bool enable, boost::any value) {
-                        assert(enable);
                         tab->update_fff(); //check for kinematic rebuild
                         tab->build_unregular_pages(false);
                     });
@@ -2061,7 +2058,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                 else if (params[i] == "material_density_event") {
                     current_group->m_on_change = set_or_add(current_group->m_on_change, [this](t_config_option_key opt_key, bool enable, boost::any value)
                     {
-                        assert(enable);
                         assert(m_config);
                         DynamicPrintConfig new_conf = *m_config;
 
@@ -2088,7 +2084,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                 } else if (params[i] == "filament_spool_weight_event") {
                     current_group->m_on_change = set_or_add(current_group->m_on_change, [this](t_config_option_key opt_key, bool enable, boost::any value)
                         {
-                            assert(enable);
                             update_dirty();
                             if (opt_key == "filament_spool_weight") {
                                 // Change of this option influences for an update of "Sliced Info"
@@ -2101,7 +2096,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                 } else if (params[i] == "validate_gcode") {
                     current_group->m_on_change = set_or_add(current_group->m_on_change, [this, current_group_wk = ConfigOptionsGroupWkp(current_group)]
                         (t_config_option_key opt_key, bool enable, boost::any value) {
-                        assert(enable);
                         auto current_group_sh = current_group_wk.lock();
                         if (!current_group_sh)
                         //validate_custom_gcode_cb(this, current_group, opt_key, value);
@@ -2481,7 +2475,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
         } else if (full_line == "update_nozzle_diameter") {
             current_group->m_on_change = set_or_add(current_group->m_on_change, [this, idx_page]
                     (const t_config_option_key &opt_key, bool enable, boost::any value) {
-                assert(enable);
                 TabPrinter *tab = nullptr;
                 if ((tab = dynamic_cast<TabPrinter *>(this)) == nullptr)
                     return;

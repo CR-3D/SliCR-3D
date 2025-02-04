@@ -1652,7 +1652,7 @@ static inline void fill_contact_layer(
     #endif // SLIC3R_DEBUG
                 );
         }
-        assert_valid(new_polygons);
+        ensure_valid(new_polygons, support_params.resolution);
         append(new_layer.polygons, std::move(new_polygons));
         if (needs_union)
             new_layer.polygons = union_(new_layer.polygons);

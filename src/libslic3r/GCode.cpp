@@ -7638,7 +7638,7 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
              m_config.fill_density.value > 0) ||
             m_config.avoid_crossing_perimeters) {
             assert(m_last_object_layer == m_layer ||
-                (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z));
+                (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z + EPSILON));
             assert(m_last_object_layer);
             if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {
                 m_layer_slices_offseted.layer    = m_last_object_layer;
