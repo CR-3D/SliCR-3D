@@ -639,8 +639,6 @@ struct ConfigWizard::priv
 #endif // _WIN32
     PageMode         *page_mode = nullptr;
 #ifdef ALLOW_PRUSA_FIRST
-    PagePrinters     *page_fff = nullptr;
-    PagePrinters     *page_msla = nullptr;
     PageVendors      *page_vendors = nullptr;
     Pages3rdparty     pages_3rdparty;
 #else
