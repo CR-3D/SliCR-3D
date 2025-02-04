@@ -296,8 +296,10 @@ protected:
 
     static Geometry::ArcWelder::Path _from_polyline(const Points &poly);
     static Geometry::ArcWelder::Path _from_polyline(std::initializer_list<Point> poly);
-
 public:
+#ifdef _DEBUG
+    bool is_3D = false; // to deactivate assert about epsilon dist
+#endif
     ArcPolyline(){};
     ArcPolyline(const ArcPolyline &) = default;
     ArcPolyline(ArcPolyline &&)      = default;
@@ -314,7 +316,7 @@ public:
     void append(const Points::const_iterator &begin, const Points::const_iterator &end);
     void append(const ArcPolyline &src);
     void append(ArcPolyline &&src);
-    void clear() { m_path.clear(); }
+    void clear();
     void swap(ArcPolyline &other) { m_path.swap(other.m_path); this->m_only_strait = other.m_only_strait; assert(is_valid()); }
     void reverse() { Geometry::ArcWelder::reverse(m_path); }
     

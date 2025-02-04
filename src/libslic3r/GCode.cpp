@@ -3353,6 +3353,9 @@ LayerResult GCodeGenerator::process_layer(
         //gcode += "; m_wipe.reset_path(); after change_layer\n";
         assert(m_new_z_target || is_approx(print_z, m_writer.get_unlifted_position().z(), EPSILON));
     }
+    if (object_layer != nullptr) {
+        m_last_object_layer = object_layer;
+    }
     m_layer = &layer;
     if (this->line_distancer_is_required(layer_tools.extruders) && this->m_layer != nullptr && this->m_layer->lower_layer != nullptr)
         m_travel_obstacle_tracker.init_layer(layer, layers);
@@ -4108,7 +4111,7 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
         double l2 = v.squaredNorm();
         // Shift by no more than a nozzle diameter.
         //FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        inward_point = (/*(nd * nd >= l2) ? p2 : */(p1 + v * (nd / sqrt(l2)))).cast<coord_t>();
+        inward_point = (/*(nd * nd >= l2) ? p2 : */Point::round(p1 + v * (nd / sqrt(l2))));
         inward_point.rotate(angle, paths.front().polyline.front());
     }
 
@@ -4258,7 +4261,7 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
         double l2 = v.squaredNorm();
         // Shift by no more than a nozzle diameter.
         //FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        inward_point = (/*(nd * nd >= l2) ? p2 : */(p1 + v * (nd / sqrt(l2)))).cast<coord_t>();
+        inward_point = (/*(nd * nd >= l2) ? p2 : */Point::round(p1 + v * (nd / sqrt(l2))));
         inward_point.rotate(angle, paths.front().polyline.front());
         
         // generate the travel move
@@ -4591,9 +4594,9 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         //use a vec that is the mean between the two.
         vec_start = (vec_start + vec_end) / 2;
 
-        Point moved_start = (start_point.cast<double>() + vec_start * notch_value).cast<coord_t>();
+        Point moved_start = Point::round(start_point.cast<double>() + vec_start * notch_value);
         moved_start.rotate(angle, start_point);
-        Point moved_end = (end_point.cast<double>() + vec_start * notch_value).cast<coord_t>();
+        Point moved_end = Point::round(end_point.cast<double>() + vec_start * notch_value);
         moved_end.rotate(angle, end_point);
 
         //check if the current angle isn't too sharp
@@ -4635,6 +4638,7 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             //reduce the flow of the notch path, as it's longer than previously
             path.attributes_mutable().width = path.width() * ratio;
             path.attributes_mutable().mm3_per_mm = path.mm3_per_mm() * ratio;
+            assert(path.polyline.is_valid());
         };
         for (ExtrusionPath &ep : notch_extrusion_start) {
             assert(!ep.can_reverse());
@@ -4687,9 +4691,12 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             create_new_extrusion(notch_extrusion_end, model, 0.f, p1, moved_end);
         } //else : keep the path as-is
     }
-        for (ExtrusionPath &ep : notch_extrusion_start) {
-            assert(!ep.can_reverse());
-        }
+    for (ExtrusionPath &ep : notch_extrusion_start) {
+        assert(!ep.can_reverse());
+    }
+    for(auto &e : building_paths) assert(e.polyline.empty() || e.polyline.is_valid());
+    for(auto &e : notch_extrusion_start) assert(e.polyline.empty() || e.polyline.is_valid());
+    for(auto &e : notch_extrusion_end) assert(e.polyline.empty() || e.polyline.is_valid());
 }
 
 std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, const std::string_view description, double speed)
@@ -4749,9 +4756,16 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
 
     //if spiral vase, we have to ensure that all loops are in the same orientation.
     if (has_spiral_vase) {
-        // loop_to_seam.make_counter_clockwise();
-        if(!loop_to_seam.is_counter_clockwise())
-            loop_to_seam.reverse();
+        if (this->m_config.perimeter_direction.value == pdCW_CCW ||
+            this->m_config.perimeter_direction.value == pdCW_CW) {
+            // loop_to_seam.make_clockwise();
+            if(loop_to_seam.is_counter_clockwise())
+                loop_to_seam.reverse();
+        } else {
+            // loop_to_seam.make_counter_clockwise();
+            if(!loop_to_seam.is_counter_clockwise())
+                loop_to_seam.reverse();
+        }
         is_hole_loop = false;
     }
     for (const ExtrusionPath &path : loop_to_seam.paths)
@@ -4893,7 +4907,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         double vec_norm = vec_dist.norm();
         const double setting_max_depth = (m_config.wipe_inside_depth.get_abs_value(m_writer.tool()->id(), nozzle_diam));
         coordf_t dist = scale_d(nozzle_diam) / 2;
-        Point  pt = (current_pos + vec_dist * (2 * dist / vec_norm)).cast<coord_t>();
+        Point  pt = Point::round(current_pos + vec_dist * (2 * dist / vec_norm));
         pt.rotate(angle, current_point);
         //check if we can go to higher dist
         if (nozzle_diam != 0 && setting_max_depth > nozzle_diam * 0.55) {
@@ -4902,7 +4916,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
             if (m_writer.tool()->need_unretract()) {
                 this->m_throw_if_canceled();
                 dist = coordf_t(check_wipe::max_depth(wipe_paths, scale_t(setting_max_depth), scale_t(nozzle_diam), [current_pos, current_point, vec_dist, vec_norm, angle](coord_t dist)->Point {
-                    Point pt = (current_pos + vec_dist * (2 * dist / vec_norm)).cast<coord_t>();
+                    Point pt = Point::round(current_pos + vec_dist * (2 * dist / vec_norm));
                     pt.rotate(angle, current_point);
                     return pt;
                     }));
@@ -4910,7 +4924,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         }
         // Shift by no more than a nozzle diameter.
         //FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        pt = (/*(nd >= vec_norm) ? next_pos : */(current_pos + vec_dist * ( 2 * dist / vec_norm))).cast<coord_t>();
+        pt = Point::round(/*(nd >= vec_norm) ? next_pos : */(current_pos + vec_dist * ( 2 * dist / vec_norm)));
         pt.rotate(angle, current_point);
         //gcode += m_writer.travel_to_xy(this->point_to_gcode(pt), 0.0, "move inwards before retraction/seam");
         //this->set_last_pos(pt);
@@ -5080,14 +5094,13 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         if (nozzle_diam != 0 && setting_max_depth > nozzle_diam * 0.55)
             dist = coordf_t(check_wipe::max_depth(wipe_paths, scale_t(setting_max_depth), scale_t(nozzle_diam), 
                 [current_pos, current_point, vec_dist, vec_norm, angle, sin_a](coord_t dist)->Point {
-                    Point pt = (current_pos + vec_dist * (dist / (vec_norm * sin_a))).cast<coord_t>();
+                    Point pt = Point::round(current_pos + vec_dist * (dist / (vec_norm * sin_a)));
                     pt.rotate(angle, current_point);
                     return pt;
                 }));
         // Shift by no more than a nozzle diameter.
         // FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        Point pt_inside = (/*(nd >= vec_norm) ? next_pos : */ (current_pos + vec_dist * ( dist / (vec_norm * sin_a))))
-                              .cast<coord_t>();
+        Point pt_inside = Point::round(/*(nd >= vec_norm) ? next_pos : */ (current_pos + vec_dist * ( dist / (vec_norm * sin_a))));
         pt_inside.rotate(angle, current_point);
 
         if (EXTRUDER_CONFIG_WITH_DEFAULT(wipe_inside_end, true)) {
@@ -5462,6 +5475,7 @@ void GCodeGenerator::use(const ExtrusionEntityCollection &collection) {
 std::string GCodeGenerator::extrude_path(const ExtrusionPath &path, const std::string_view description, double speed_mm_per_sec) {
     std::string gcode;
     ExtrusionPath simplifed_path = path;
+        assert(simplifed_path.polyline.empty() || simplifed_path.polyline.is_valid());
     for (int i = 1; i < simplifed_path.polyline.size(); ++i)
         assert(!simplifed_path.polyline.get_point(i - 1).coincides_with_epsilon(simplifed_path.polyline.get_point(i)));
     
@@ -5513,6 +5527,7 @@ std::string GCodeGenerator::extrude_path(const ExtrusionPath &path, const std::s
         0;
     if (scaled_min_length > 0 && simplifed_path.length() < scaled_min_length) {
         m_last_too_small = simplifed_path;
+        assert(m_last_too_small.polyline.empty() || m_last_too_small.polyline.is_valid());
         m_last_description = description;
         m_last_speed_mm_per_sec = speed_mm_per_sec;
         return gcode;
@@ -5793,7 +5808,6 @@ void GCodeGenerator::extrude_ironing(const ExtrudeArgs &print_args, const LayerI
 void GCodeGenerator::extrude_skirt(
     ExtrusionLoop &loop_src, const ExtrusionFlow &extrusion_flow_override, std::string &gcode, const std::string_view description)
 {
-    assert(loop_src.is_counter_clockwise());
 
     if (loop_src.paths.empty())
         return;
@@ -5845,8 +5859,6 @@ std::string GCodeGenerator::extrude_support(const ExtrusionEntityReferences &sup
     }
     return gcode;
 }
-
-
 
 bool GCodeGenerator::GCodeOutputStream::is_error() const 
 {
@@ -7627,13 +7639,18 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
               !(m_config.enforce_retract_first_layer && m_layer_index == 0)) &&
              m_config.fill_density.value > 0) ||
             m_config.avoid_crossing_perimeters) {
-            if (m_layer_slices_offseted.layer != m_layer) {
-                m_layer_slices_offseted.layer    = m_layer;
+            assert(m_last_object_layer == m_layer ||
+                (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z));
+            assert(m_last_object_layer);
+            if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {
+                m_layer_slices_offseted.layer    = m_last_object_layer;
                 m_layer_slices_offseted.diameter = scale_t(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) / 2;
-                ExPolygons slices                = m_layer->lslices();
-                ExPolygons slices_offsetted = offset_ex(m_layer->lslices(), -m_layer_slices_offseted.diameter * 1.5f);
+                ExPolygons slices                = m_last_object_layer->lslices();
+                ExPolygons slices_offsetted = offset_ex(m_last_object_layer->lslices(), -m_layer_slices_offseted.diameter * 1.5f);
+                //also offset in the other side, to avoid a travel that may cross it from the exterior
+                append(slices_offsetted, offset_ex(m_last_object_layer->lslices(), m_layer_slices_offseted.diameter * .5f));
                 // remove top surfaces
-                for (const LayerRegion *reg : m_layer->regions()) {
+                for (const LayerRegion *reg : m_last_object_layer->regions()) {
                     m_throw_if_canceled();
                     slices_offsetted = diff_ex(slices_offsetted, to_expolygons(reg->fill_surfaces().filter_by_type_flag(SurfaceType::stPosTop)));
                     slices           = diff_ex(slices, to_expolygons(reg->fill_surfaces().filter_by_type_flag(SurfaceType::stPosTop)));

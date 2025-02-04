@@ -103,6 +103,10 @@ inline coordf_t dot(const Vec2d &v) { return v.x() * v.x() + v.y() * v.y(); }
 
 inline bool operator<(const Vec2d &lhs, const Vec2d &rhs) { return lhs.x() < rhs.x() || (lhs.x() == rhs.x() && lhs.y() < rhs.y()); }
 
+inline distsqrf_t squared_norm(const Vec2crd &vec) {
+    return vec.x()*coordf_t(vec.x()) + vec.y()*coordf_t(vec.y());
+}
+
 // Cross product of two 2D vectors.
 // None of the vectors may be of int32_t type as the result would overflow.
 template<typename Derived, typename Derived2>
@@ -117,13 +121,13 @@ inline typename Derived::Scalar cross2(const Eigen::MatrixBase<Derived> &v1, con
 
 // cross2 that use double as intermediate values, to avoid overflow of int types.
 template<typename Derived, typename Derived2>
-inline typename Derived::Scalar cross2_double(const Eigen::MatrixBase<Derived> &v1, const Eigen::MatrixBase<Derived2> &v2)
+inline double cross2_double(const Eigen::MatrixBase<Derived> &v1, const Eigen::MatrixBase<Derived2> &v2)
 {
     static_assert(Derived::IsVectorAtCompileTime && int(Derived::SizeAtCompileTime) == 2, "cross2(): first parameter is not a 2D vector");
     static_assert(Derived2::IsVectorAtCompileTime && int(Derived2::SizeAtCompileTime) == 2, "cross2(): first parameter is not a 2D vector");
     static_assert(! std::is_same<typename Derived::Scalar, int32_t>::value, "cross2(): Scalar type must not be int32_t, otherwise the cross product would overflow.");
     static_assert(std::is_same<typename Derived::Scalar, typename Derived2::Scalar>::value, "cross2(): Scalar types of 1st and 2nd operand must be equal.");
-    return Derived::Scalar(double(v1.x()) * double(v2.y()) - double(v1.y()) * double(v2.x()));
+    return (double(v1.x()) * double(v2.y()) - double(v1.y()) * double(v2.x()));
 }
 
 // 2D vector perpendicular to the argument.
@@ -225,11 +229,13 @@ public:
     Point(int64_t x, int64_t y) : Vec2crd(coord_t(x), coord_t(y)) {}
     Point(double x, double y) : Vec2crd(coord_t(std::round(x)), coord_t(std::round(y))) {}
     Point(const Point &rhs) { *this = rhs; }
+    // I don't know how to call it, as it call the implicit below
 	explicit Point(const Vec2d& rhs) : Vec2crd(coord_t(std::round(rhs.x())), coord_t(std::round(rhs.y()))) {}
 	// This constructor allows you to construct Point from Eigen expressions
     // This constructor has to be implicit (non-explicit) to allow implicit conversion from Eigen expressions.
     template<typename OtherDerived>
     Point(const Eigen::MatrixBase<OtherDerived> &other) : Vec2crd(other) {}
+    static Point round(const Vec2d& rhs) { return Point(coord_t(std::round(rhs.x())), coord_t(std::round(rhs.y()))); }
     static Point new_scale(coordf_t x, coordf_t y) { return Point(coord_t(scale_(x)), coord_t(scale_(y))); }
     static Point new_scale(const Point &p) { return Point(scale_t(p.x()), scale_t(p.y())); }
     template<typename OtherDerived>
@@ -252,8 +258,8 @@ public:
     void   rotate(double cos_a, double sin_a) {
         double cur_x = (double)this->x();
         double cur_y = (double)this->y();
-        this->x() = (coord_t)round(cos_a * cur_x - sin_a * cur_y);
-        this->y() = (coord_t)round(cos_a * cur_y + sin_a * cur_x);
+        this->x() = (coord_t)std::round(cos_a * cur_x - sin_a * cur_y);
+        this->y() = (coord_t)std::round(cos_a * cur_y + sin_a * cur_x);
     }
 
     void   rotate(double angle, const Point &center);

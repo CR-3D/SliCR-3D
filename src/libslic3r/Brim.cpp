@@ -732,6 +732,9 @@ void extrude_brim_from_tree(const Print& print, std::vector<std::vector<BrimLoop
     if (loops.empty())
         return;
 
+    bool extrude_cw = print.default_region_config().perimeter_direction.value == pdCW_CCW ||
+                print.default_region_config().perimeter_direction.value == pdCW_CW;
+
     // nest contour loops (same as in perimetergenerator)
     for (int d = loops.size() - 1; d >= 1; --d) {
         std::vector<BrimLoop>& contours_d = loops[d];
@@ -827,7 +830,7 @@ void extrude_brim_from_tree(const Print& print, std::vector<std::vector<BrimLoop
     float height = float(print.get_min_first_layer_height());
     int nextIdx = 0;
     std::function<void(BrimLoop&, ExtrusionEntityCollection*)>* extrude_ptr;
-    std::function<void(BrimLoop&, ExtrusionEntityCollection*) > extrude = [&mm3_per_mm, &width, &height, &extrude_ptr, &nextIdx](BrimLoop& to_cut, ExtrusionEntityCollection* parent) {
+    std::function<void(BrimLoop&, ExtrusionEntityCollection*) > extrude = [&mm3_per_mm, &width, &height, &extrude_ptr, &nextIdx, extrude_cw](BrimLoop& to_cut, ExtrusionEntityCollection* parent) {
         DEBUG_VISIT(*parent, LoopAssertVisitor())
         int idx = nextIdx++;
         //bool i_have_line = !to_cut.line.points.empty() && to_cut.line.is_valid();
@@ -839,6 +842,9 @@ void extrude_brim_from_tree(const Print& print, std::vector<std::vector<BrimLoop
             for (Polyline& pline : to_cut.lines) {
                 pline.assert_valid();
                 assert(pline.size() > 0);
+                if (extrude_cw) {
+                    pline.reverse();
+                }
                 if (pline.back() == pline.front()) {
                     ExtrusionPath path({ExtrusionRole::Skirt, {mm3_per_mm, width, height}}, false);
                     path.polyline = pline;
@@ -879,6 +885,9 @@ void extrude_brim_from_tree(const Print& print, std::vector<std::vector<BrimLoop
             for (Polyline& pline : to_cut.lines) {
                 assert(pline.size() > 0);
                 pline.assert_valid();
+                if (extrude_cw) {
+                    pline.reverse();
+                }
                 if (pline.back() == pline.front()) {
                     ExtrusionPath path({ExtrusionRole::Skirt, {mm3_per_mm, width, height}}, false);
                     path.polyline = pline;

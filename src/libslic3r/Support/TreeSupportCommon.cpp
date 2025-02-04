@@ -65,7 +65,7 @@ TreeSupportMeshGroupSettings::TreeSupportMeshGroupSettings(const PrintObject &pr
         //get one region, with organic support there is only one layer height anyway
         assert(print_object.num_printing_regions() > 0);
         const LayerRegion *lr = print_object.layers().front()->regions().front();
-        assert(is_approx(lr->layer()->height, config.layer_height.value, EPSILON));
+        assert(is_approx(lr->layer()->height, config.layer_height.value, EPSILON) || lr->layer()->id() == 0);
         coord_t diff_lh_filamenth = scale_t(lr->bridging_height_avg()) - this->layer_height;
         this->support_top_distance += diff_lh_filamenth;
         this->support_bottom_distance += diff_lh_filamenth;

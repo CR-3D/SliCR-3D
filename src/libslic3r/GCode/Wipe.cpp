@@ -557,7 +557,7 @@ std::optional<Point> sample_path_point_at_distance_from_start(const ExtrusionPat
                     Vec2d  v    = (point - prev_point).cast<double>();
                     double lsqr = v.squaredNorm();
                     if (lsqr > sqr(distance))
-                        return std::make_optional<Point>(prev_point + (v * (distance / sqrt(lsqr))).cast<coord_t>());
+                        return std::make_optional<Point>(prev_point + Point::round(v * (distance / sqrt(lsqr))));
                     distance -= sqrt(lsqr);
                 } else {
                     // Circular segment
@@ -565,8 +565,8 @@ std::optional<Point> sample_path_point_at_distance_from_start(const ExtrusionPat
                     double len = std::abs(it->radius) * angle;
                     if (len > distance) {
                         // Rotate the segment end point in reverse towards the start point.
-                        return std::make_optional<Point>(prev_point.rotated(- angle * (distance / len),
-                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<coord_t>()));
+                        return std::make_optional<Point>(prev_point.rotated(- angle * (distance / len), Point::round(
+                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<double>())));
                     }
                     distance -= len;
                 }
@@ -595,7 +595,7 @@ std::optional<Point> sample_path_point_at_distance_from_end(const ExtrusionPaths
                     Vec2d  v = (point - prev_point).cast<double>();
                     double lsqr = v.squaredNorm();
                     if (lsqr > sqr(distance))
-                        return std::make_optional<Point>(prev_point + (v * (distance / sqrt(lsqr))).cast<coord_t>());
+                        return std::make_optional<Point>(prev_point + Point::round(v * (distance / sqrt(lsqr))));
                     distance -= sqrt(lsqr);
                 }
                 else {
@@ -604,8 +604,8 @@ std::optional<Point> sample_path_point_at_distance_from_end(const ExtrusionPaths
                     double len = std::abs(it->radius) * angle;
                     if (len > distance) {
                         // Rotate the segment end point in reverse towards the start point.
-                        return std::make_optional<Point>(prev_point.rotated(-angle * (distance / len),
-                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<coord_t>()));
+                        return std::make_optional<Point>(prev_point.rotated(-angle * (distance / len), Point::round(
+                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<double>())));
                     }
                     distance -= len;
                 }
@@ -669,7 +669,7 @@ std::optional<Point> wipe_hide_seam(const ExtrusionPaths &paths, bool is_hole, d
         }
         // Rotate the forward segment inside by 1/3 of the wedge angle.
         auto v_rotated = Eigen::Rotation2D(angle_inside) * (p_next - p_current).cast<double>().normalized();
-        return std::make_optional<Point>(p_current + (v_rotated * wipe_length).cast<coord_t>());
+        return std::make_optional<Point>(p_current + Point::round(v_rotated * wipe_length));
     }
 
     return {};

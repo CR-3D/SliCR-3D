@@ -1021,10 +1021,12 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
         chain_and_reorder_extrusion_paths(paths, &overhang_params.first_point);
 
     // merge path that are smaller than epsilon
+    int nb_erased = 0;
     for (auto &path : paths) assert(path.length() > SCALED_EPSILON || path.size() == 2);
     while (paths.size() > 1 && paths.front().size() == 2 && paths.front().length() < coordf_t(SCALED_EPSILON)) {
         paths[1].polyline.set_front(paths.front().first_point());
         paths.erase(paths.begin());
+        nb_erased++;
     }
     for (size_t idx_path = 1; idx_path < paths.size(); ++idx_path) {
         ExtrusionPath &path = paths[idx_path];
@@ -1033,8 +1035,9 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
             // del
             paths.erase(paths.begin() + idx_path);
             --idx_path;
+            nb_erased++;
         } else {
-            assert(paths[idx_path-1].last_point() == paths[idx_path].first_point());
+            assert(paths[idx_path-1].last_point().coincides_with_epsilon(paths[idx_path].first_point()));
         }
     }
 
@@ -1058,6 +1061,9 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
     }
 
 #ifdef _DEBUGINFO
+    for (size_t idx_path = 1; idx_path < paths.size(); ++idx_path) {
+        assert(paths[idx_path - 1].last_point() == paths[idx_path].first_point());
+    }
     if (overhang_params.is_loop) {
         ExtrusionLoop loop_test;
         loop_test.paths = paths;
@@ -1787,6 +1793,77 @@ struct cmpClipperLib_Z {
     }
 };
 
+bool is_length_more_than_epsilon(ClipperLib_Z::Path &path) {
+    coordf_t length = 0;
+    for (size_t i = 1; i < path.size(); i++) {
+        length += (path[i - 1] - path[i]).cast<coordf_t>().norm();
+        if (length > SCALED_EPSILON) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool merge_path(const ClipperLib_Z::Path &tomerge, ClipperLib_Z::Paths &receiver) {
+#ifdef _DEBUG
+    {
+        // check there seems to be a continous path from start to end
+        const ClipperLib_Z::Path &path = tomerge;
+        bool found_another_path_after = false;
+        bool found_another_path_before = false;
+        bool found_almost_another_path_after = false;
+        bool found_almost_another_path_before = false;
+        int other_paths_count = 0;
+        for (size_t idx_path2 = 0; idx_path2 < receiver.size(); ++idx_path2) {
+            other_paths_count++;
+            found_another_path_after = found_another_path_after || (path.back() == receiver[idx_path2].front());
+            found_another_path_before = found_another_path_before || (path.front() == receiver[idx_path2].back());
+            found_almost_another_path_after = found_almost_another_path_after || (path.back() - receiver[idx_path2].front()).cast<coordf_t>().norm() < SCALED_EPSILON;
+            found_almost_another_path_before = found_almost_another_path_before || (path.front() - receiver[idx_path2].back()).cast<coordf_t>().norm() < SCALED_EPSILON;
+        }
+        bool found_another_path_after_strict = found_another_path_after;
+        bool found_another_path_before_strict = found_another_path_before;
+        bool found_almost_another_path_after_strict = found_almost_another_path_after;
+        bool found_almost_another_path_before_strict = found_almost_another_path_before;
+        //assert(other_paths_count == 0 || found_another_path_after || found_another_path_before);
+        for (size_t idx_path2 = 0; idx_path2 < receiver.size(); ++idx_path2) {
+            found_another_path_after = found_another_path_after || path.back() == receiver[idx_path2].front() || path.back() == receiver[idx_path2].back();
+            found_another_path_before = found_another_path_before || path.front() == receiver[idx_path2].back() || path.front() == receiver[idx_path2].front();
+            found_almost_another_path_after = found_almost_another_path_after || (path.back() - receiver[idx_path2].back()).cast<coordf_t>().norm() < SCALED_EPSILON; 
+            found_almost_another_path_before = found_almost_another_path_before || (path.front() - receiver[idx_path2].front()).cast<coordf_t>().norm() < SCALED_EPSILON;
+        }
+        assert(other_paths_count == 0 || found_another_path_after_strict || found_another_path_before_strict);
+    }
+#endif
+    size_t idx_first;
+    bool found_first = false;
+    // search start
+    for (idx_first = 0; idx_first < receiver.size(); ++idx_first) {
+        if (receiver[idx_first].back() == tomerge.front()) {
+            found_first = true;
+            receiver[idx_first].insert(receiver[idx_first].end(), tomerge.begin() + 1, tomerge.end());
+            break;
+        }
+    }
+    bool found_last = false;
+    if (found_first) {
+        //find the last, add it and remove it.
+        size_t idx_last;
+        for (idx_last = 0; idx_last < receiver.size(); ++idx_last) {
+            if (idx_last == idx_first) {
+                continue;
+            }
+            if (receiver[idx_last].front() == receiver[idx_first].back()) {
+                found_last = true;
+                receiver[idx_first].insert(receiver[idx_first].end(), receiver[idx_last].begin() + 1, receiver[idx_last].end());
+                receiver.erase(receiver.begin() + idx_last);
+                break;
+            }
+        }
+    }
+    return found_first && found_last;
+}
+
 //TODO: transform to ExtrusionMultiPath instead of ExtrusionPaths
 ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &        params,
                                                             const ClipperLib_Z::Path &arachne_path,
@@ -1854,15 +1931,50 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
 #endif
             dynamic_speed = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctDifference);
 #ifdef _DEBUG
-            for (ClipperLib_Z::Path& poly : dynamic_speed) //                       assert dynamic_speed
-                for (int i = 0; i < poly.size() - 1; i++) //     assert dynamic_speed
-                    assert(poly[i] != poly[i + 1]); //    assert dynamic_speed
+            for (ClipperLib_Z::Path &poly : dynamic_speed)   // assert dynamic_speed
+                for (int i = 0; i < poly.size() - 1; i++)    // assert dynamic_speed
+                    assert(poly[i] != poly[i + 1]);          // assert dynamic_speed
 #endif
             if (!dynamic_speed.empty()) {
                 *previous = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctIntersection);
 #ifdef _DEBUG
-            test_overhangs(dynamic_speed, *previous, outer_points);
-            test_overhangs(*previous, dynamic_speed, outer_points);
+                test_overhangs(dynamic_speed, *previous, outer_points);
+                test_overhangs(*previous, dynamic_speed, outer_points);
+                //for (ClipperLib_Z::Path &poly : dynamic_speed) {
+                //    assert(poly.size() > 1);
+                //    assert(is_length_more_than_epsilon(poly));
+                //}
+                //for (ClipperLib_Z::Path &poly : *previous) {
+                //    assert (poly.size() > 1);
+                //    assert(is_length_more_than_epsilon(poly));
+                //}
+#endif
+                // merge epsilon-length from dynamic_speed into previous
+                for (size_t path_idx = 0; path_idx < dynamic_speed.size(); ++path_idx) {
+                    ClipperLib_Z::Path &poly = dynamic_speed[path_idx];
+                    if (!is_length_more_than_epsilon(poly)) {
+                        merge_path(poly, *previous); //TODO
+                        dynamic_speed.erase(dynamic_speed.begin() + path_idx);
+                        path_idx--;
+                    }
+                }
+                for (size_t path_idx = 0; path_idx < previous->size(); ++path_idx) {
+                    ClipperLib_Z::Path &poly = (*previous)[path_idx];
+                    if (!is_length_more_than_epsilon(poly)) {
+                        merge_path(poly, dynamic_speed); //TODO
+                        previous->erase(previous->begin() + path_idx);
+                        path_idx--;
+                    }
+                }
+#ifdef _DEBUG
+                for (ClipperLib_Z::Path &poly : dynamic_speed) {
+                    assert(poly.size() > 1);
+                    assert(is_length_more_than_epsilon(poly));
+                }
+                for (ClipperLib_Z::Path &poly : *previous) {
+                    assert (poly.size() > 1);
+                    assert(is_length_more_than_epsilon(poly));
+                }
 #endif
                 previous = &dynamic_speed;
             }
@@ -1887,9 +1999,26 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
                 if (!small_speed.empty()) {
                     *previous = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctIntersection);
 #ifdef _DEBUG
-                test_overhangs(small_speed, *previous, outer_points);
-                test_overhangs(*previous, small_speed, outer_points);
+                    test_overhangs(small_speed, *previous, outer_points);
+                    test_overhangs(*previous, small_speed, outer_points);
 #endif
+                    // merge epsilon-length from small_speed into previous
+                    for (size_t path_idx = 0; path_idx < small_speed.size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = small_speed[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, *previous); //TODO
+                            small_speed.erase(small_speed.begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
+                    for (size_t path_idx = 0; path_idx < previous->size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = (*previous)[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, small_speed); //TODO
+                            previous->erase(previous->begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
                     previous = &small_speed;
                 }
             }
@@ -1911,9 +2040,26 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
                 if (!big_speed.empty()) {
                     *previous = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctIntersection);
 #ifdef _DEBUG
-                test_overhangs(big_speed, *previous, outer_points);
-                test_overhangs(*previous, big_speed, outer_points);
+                    test_overhangs(big_speed, *previous, outer_points);
+                    test_overhangs(*previous, big_speed, outer_points);
 #endif
+                    // merge epsilon-length from big_speed into previous
+                    for (size_t path_idx = 0; path_idx < big_speed.size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = big_speed[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, *previous); //TODO
+                            big_speed.erase(big_speed.begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
+                    for (size_t path_idx = 0; path_idx < previous->size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = (*previous)[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, big_speed); //TODO
+                            previous->erase(previous->begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
                     previous = &big_speed;
                 }
             }
@@ -1937,9 +2083,26 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
                 if (!small_flow.empty()) {
                     *previous = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctIntersection);
 #ifdef _DEBUG
-                test_overhangs(small_flow, *previous, outer_points);
-                test_overhangs(*previous, small_flow, outer_points);
+                    test_overhangs(small_flow, *previous, outer_points);
+                    test_overhangs(*previous, small_flow, outer_points);
 #endif
+                    // merge epsilon-length from small_flow into previous
+                    for (size_t path_idx = 0; path_idx < small_flow.size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = small_flow[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, *previous); //TODO
+                            small_flow.erase(small_flow.begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
+                    for (size_t path_idx = 0; path_idx < previous->size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = (*previous)[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, small_flow); //TODO
+                            previous->erase(previous->begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
                     previous = &small_flow;
                 }
             }
@@ -1961,9 +2124,26 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
                 if (!big_flow.empty()) {
                     *previous = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctIntersection);
 #ifdef _DEBUG
-                test_overhangs(big_flow, *previous, outer_points);
-                test_overhangs(*previous, big_flow, outer_points);
+                    test_overhangs(big_flow, *previous, outer_points);
+                    test_overhangs(*previous, big_flow, outer_points);
 #endif
+                    // merge epsilon-length from big_flow into previous
+                    for (size_t path_idx = 0; path_idx < big_flow.size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = big_flow[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, *previous); //TODO
+                            big_flow.erase(big_flow.begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
+                    for (size_t path_idx = 0; path_idx < previous->size(); ++path_idx) {
+                        ClipperLib_Z::Path &poly = (*previous)[path_idx];
+                        if (!is_length_more_than_epsilon(poly)) {
+                            merge_path(poly, big_flow); //TODO
+                            previous->erase(previous->begin() + path_idx);
+                            path_idx--;
+                        }
+                    }
                     previous = &big_flow;
                 }
             }
@@ -1973,10 +2153,20 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
     // ensure polylines are valid (at least EPSILON between two points), unless the path is itself shorter than epsilon (then it's two points)
     for (ClipperLib_Z::Paths *polylines : {&ok_polylines, &dynamic_speed, &small_speed, &big_speed, &small_flow, &big_flow}) {
         for (ClipperLib_Z::Path &poly : *polylines) {
-            auto it_end = Slic3r::douglas_peucker<coord_t/*ClipperLib_Z::cInt*/>(poly.begin(), poly.end(), poly.begin(), double(SCALED_EPSILON), [](const ClipperLib_Z::IntPoint &p) { return Point(p.x(), p.y()); });
-            assert(it_end <= poly.end());
-            poly.resize(std::distance(poly.begin(), it_end));
-            assert(poly.size() >= 2);
+            if (poly.size() == 1) {
+                // this polyline can be removed
+                assert(false);
+            } else {
+                assert(poly.size() >= 2);
+                assert(is_length_more_than_epsilon(poly));
+                ClipperLib_Z::Path old_poly = poly;
+                auto it_end = Slic3r::douglas_peucker<coord_t/*ClipperLib_Z::cInt*/>(
+                    poly.begin(), poly.end(), poly.begin(), double(SCALED_EPSILON),
+                    [](const ClipperLib_Z::IntPoint &p) { return Point(p.x(), p.y()); });
+                assert(it_end <= poly.end());
+                poly.resize(std::distance(poly.begin(), it_end));
+                assert(poly.size() >= 2);
+            }
         }
     }
 
@@ -2218,6 +2408,8 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
             }
             bool found_another_path_after_strict = found_another_path_after;
             bool found_another_path_before_strict = found_another_path_before;
+            bool found_almost_another_path_after_strict = found_almost_another_path_after;
+            bool found_almost_another_path_before_strict = found_almost_another_path_before;
             //assert(other_paths_count == 0 || found_another_path_after || found_another_path_before);
             for (size_t idx_path2 = 0; idx_path2 < paths.size(); ++idx_path2) {
                 if (idx_path == idx_path2)
@@ -4005,6 +4197,7 @@ void grow_holes_only(std::vector<ExPolygonAsynch> &unmoveable_contours,
                     ok_holes.erase(ok_holes.begin() + idx_hole);
                     idx_hole--;
                     it_contour_candidate_for_fuse = ex_contour_offset.erase(it_contour_candidate_for_fuse);
+                    break; // stop iterating the while, we already fused the hole
                 } else {
                     ++it_contour_candidate_for_fuse;
                 }
@@ -4350,7 +4543,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         //growing back the polygon
                         ExPolygons thin = offset_ex(half_thin, double(min_width / 2));
                         assert(thin.size() <= 1);
-                        if (thin.empty()) continue;
+                        if (thin.empty() || thin.front().empty()) continue;
                         coord_t thin_walls_overlap = scale_t(params.config.thin_walls_overlap.get_abs_value(params.ext_perimeter_flow.nozzle_diameter()));
                         ExPolygons anchor = intersection_ex(offset_ex(half_thin, double(min_width / 2) +
                             (float)(thin_walls_overlap), jtSquare), no_thin_zone, ApplySafetyOffset::Yes);
@@ -4510,30 +4703,60 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // not using safety offset here would "detect" very narrow gaps
                     // (but still long enough to escape the area threshold) that gap fill
                     // won't be able to fill but we'd still remove from infill area
-                    no_last_gapfill = offset_ex(*all_next_onion, 0.5f * good_spacing + 10,
+                    no_last_gapfill = offset_ex(*all_next_onion, 0.5f * params.get_perimeter_spacing() + 10,
                         (params.use_round_perimeters() ? ClipperLib::JoinType::jtRound : ClipperLib::JoinType::jtMiter),
                         (params.use_round_perimeters() ? params.get_min_round_spacing() : 3));
                     if (perimeter_idx == 1) {
-                        append(gaps, ensure_valid(diff_ex(
+            {
+                static int aodfjiaz = 0;
+                std::stringstream stri;
+                stri << params.layer->id() << "_gap_fill_1_ext_" << (aodfjiaz++) << ".svg";
+                SVG svg(stri.str());
+                svg.draw(surface.expolygon, "grey");
+                svg.draw(to_polylines(last), "yellow", scale_t(0.05));
+                svg.draw(to_polylines(offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 10)), "orange", scale_t(0.045));
+                svg.draw(to_polylines(*all_next_onion), "green", scale_t(0.04));
+                svg.draw(to_polylines(no_last_gapfill), "teal", scale_t(0.035));
+                svg.draw(to_polylines(ensure_valid(diff_ex(
                             offset_ex(last, -0.5f * params.get_ext_perimeter_spacing()),
+                            no_last_gapfill), resolution)), "purple", scale_t(0.03));
+                svg.Close();
+            }
+                        append(gaps, ensure_valid(diff_ex(
+                            offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 10),
                             no_last_gapfill), resolution));  // safety offset
                     } else {
+            {
+                static int aodfjiaz = 0;
+                std::stringstream stri;
+                stri << params.layer->id() << "_gap_fill_"<<perimeter_idx<<"_int_" << (aodfjiaz++) << ".svg";
+                SVG svg(stri.str());
+                svg.draw(surface.expolygon, "grey");
+                svg.draw(to_polylines(last), "yellow", scale_t(0.05));
+                svg.draw(to_polylines(offset_ex(last, -0.5f * params.get_perimeter_spacing())), "orange", scale_t(0.045));
+                svg.draw(to_polylines(*all_next_onion), "green", scale_t(0.04));
+                svg.draw(to_polylines(no_last_gapfill), "teal", scale_t(0.035));
+                svg.draw(to_polylines(ensure_valid(diff_ex(
+                            offset_ex(last, -0.5f * params.get_perimeter_spacing() + 10),
+                            no_last_gapfill), resolution)), "purple", scale_t(0.03));
+                svg.Close();
+            }
                         append(gaps, ensure_valid(diff_ex(
                             offset_ex(last, -0.5f * params.get_perimeter_spacing()),
                             no_last_gapfill), resolution));  // safety offset
                     }
                 }
             }
-            //{
-            //    static int aodfjiaz = 0;
-            //    std::stringstream stri;
-            //    stri << params.layer->id() << "_perimeter_loop_" << (aodfjiaz++) << ".svg";
-            //    SVG svg(stri.str());
-            //    svg.draw(surface.expolygon, "grey");
-            //    svg.draw(to_polylines(last), "yellow");
-            //    svg.draw(to_polylines(next_onion), "green");
-            //    svg.Close();
-            //}
+            {
+                static int aodfjiaz = 0;
+                std::stringstream stri;
+                stri << params.layer->id() << "_perimeter_loop_" << (aodfjiaz++) << ".svg";
+                SVG svg(stri.str());
+                svg.draw(surface.expolygon, "grey");
+                svg.draw(to_polylines(last), "yellow");
+                svg.draw(to_polylines(next_onion), "green");
+                svg.Close();
+            }
 
             if (next_onion.empty() && last_asynch.empty()) {
                 // Store the number of loops actually generated.

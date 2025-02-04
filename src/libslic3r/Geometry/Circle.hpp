@@ -259,7 +259,7 @@ public:
 
     Point get_closest_point(const Point& input) {
         Vec2d v = (input - center).cast<double>().normalized();
-        return (center + (v * radius).cast<coord_t>());
+        return (center + Point::round(v * radius));
     }
 
     static bool try_create_circle(const Point& p1, const Point& p2, const Point& p3, const double max_radius, ArcCircle& new_circle);

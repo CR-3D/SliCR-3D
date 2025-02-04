@@ -1966,17 +1966,6 @@ void MainFrame::init_menubar_as_editor()
         m_changeable_menu_items.push_back(item_printer_tab);
 
         windowMenu->AppendSeparator();
-        append_menu_item(windowMenu, wxID_ANY, _L("Shape Gallery"), _L("Open the dialog to modify shape gallery"),
-            [this](wxCommandEvent&) {
-                if (gallery_dialog()->show(true) == wxID_OK) {
-                    wxArrayString input_files;
-                    m_gallery_dialog->get_input_files(input_files);
-                    if (!input_files.IsEmpty())
-                        m_plater->sidebar().obj_list()->load_shape_object_from_gallery(input_files);
-                }
-            }, "shape_gallery", nullptr, []() {return true; }, this);
-        
-        windowMenu->AppendSeparator();
         append_menu_item(windowMenu, wxID_ANY, _L("Print &Host Upload Queue") + "\tCtrl+J", _L("Display the Print Host Upload Queue window"),
             [this](wxCommandEvent&) { m_printhost_queue_dlg->Show(); }, "upload_queue", nullptr, []() {return true; }, this);
         
@@ -2082,6 +2071,17 @@ void MainFrame::init_menubar_as_editor()
     if (wxGetApp().is_editor())
     {
         generationMenu  = new wxMenu();
+        append_menu_item(generationMenu, wxID_ANY, _L("Shape Gallery"), _L("Open the dialog to modify shape gallery"),
+            [this](wxCommandEvent&) {
+                if (gallery_dialog()->show(true) == wxID_OK) {
+                    wxArrayString input_files;
+                    m_gallery_dialog->get_input_files(input_files);
+                    if (!input_files.IsEmpty())
+                        m_plater->sidebar().obj_list()->load_shape_object_from_gallery(input_files);
+                }
+            }, "shape_gallery", nullptr, []() {return true; }, this);
+        
+        generationMenu->AppendSeparator();
         append_menu_item(generationMenu, wxID_ANY, _(L("FreeCad python script")), _(L("Create an object by writing little easy script.")),
             [this](wxCommandEvent&) { wxGetApp().freecad_script_dialog(); });
         append_menu_item(generationMenu, wxID_ANY, _(L("Script help page")), _(L("How to use the FreeCad python script window.")),

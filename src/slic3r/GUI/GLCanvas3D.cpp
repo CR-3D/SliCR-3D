@@ -3190,18 +3190,17 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
             
             for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
                 const Print *print = wxGetApp().plater()->get_fff_prints()[bed_idx].get();
-
-                const float x = m_model->get_wipe_tower_vector()[bed_idx].position.x();
-                const float y = m_model->get_wipe_tower_vector()[bed_idx].position.y();
-                const float a = m_model->get_wipe_tower_vector()[bed_idx].rotation;
-                
-                const float depth = print->wipe_tower_data().depth;
-                const std::vector<std::pair<float, float>> z_and_depth_pairs = print->wipe_tower_data().z_and_depth_pairs;
-                const float height_real = print->wipe_tower_data().height; // -1.f = unknown
-                
-                const bool is_wipe_tower_step_done = print->is_step_done(psWipeTower);
+            //FIXME use real nozzle diameter, or the biggest
+            const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
+            const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
+            const float depth = wipe_tower_data.depth;
+            const float bw = wipe_tower_data.brim_width;
+            const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
+            const float height_real = wipe_tower_data.height; // -1.f = unknown
+            
 
                 const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
+                const bool is_wipe_tower_step_done = print->is_step_done(psWipeTower);
 
             if (depth != 0.) {
 #if SLIC3R_OPENGL_ES

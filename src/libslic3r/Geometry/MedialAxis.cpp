@@ -2078,20 +2078,22 @@ MedialAxis::build(ThickPolylines& polylines_out)
     if (this->m_expolygon.area() < this->m_min_width * this->m_min_width) return;
 
     //check for circular shape
-    coordf_t radius = check_circular(this->m_expolygon, this->m_min_width / 4);
-    if (radius > 0 && this->m_expolygon.contour.points.size() > 4) {
-        ExPolygons miniPeri = offset_ex(Polygons{ this->m_expolygon.contour }, -radius / 2);
-        if (miniPeri.size() == 1 && miniPeri[0].holes.size() == 0) {
-            ThickPolyline thickPoly;
-            thickPoly.points = miniPeri[0].contour.points;
-            thickPoly.points.push_back(thickPoly.points.front());
-            thickPoly.endpoints.first = false;
-            thickPoly.endpoints.second = false;
-            for (int i = 0; i < thickPoly.points.size(); i++) {
-                thickPoly.points_width.push_back(radius);
+    if (this->m_expolygon.contour.size() > 3) {
+        coordf_t radius = check_circular(this->m_expolygon, this->m_min_width / 4);
+        if (radius > 0 && this->m_expolygon.contour.points.size() > 4) {
+            ExPolygons miniPeri = offset_ex(Polygons{this->m_expolygon.contour}, -radius / 2);
+            if (miniPeri.size() == 1 && miniPeri[0].holes.size() == 0) {
+                ThickPolyline thickPoly;
+                thickPoly.points = miniPeri[0].contour.points;
+                thickPoly.points.push_back(thickPoly.points.front());
+                thickPoly.endpoints.first = false;
+                thickPoly.endpoints.second = false;
+                for (int i = 0; i < thickPoly.points.size(); i++) {
+                    thickPoly.points_width.push_back(radius);
+                }
+                polylines_out.insert(polylines_out.end(), thickPoly);
+                return;
             }
-            polylines_out.insert(polylines_out.end(), thickPoly);
-            return;
         }
     }
 

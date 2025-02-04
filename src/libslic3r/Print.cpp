@@ -879,7 +879,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                      "Either remove all but the last object, or enable sequential mode by \"complete_objects\".") };
         assert(m_objects.size() == 1 || config().complete_objects.value);
         if (m_objects.front()->all_regions().size() > 1)
-            return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Spiral Vase option can only be used when printing single material objects.") };
+            return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Spiral Vase option can only be used when printing single material objects, and without any modifiers that may break the vase.") };
     }
 
     //if (m_config.machine_limits_usage == MachineLimitsUsage::EmitToGCode && m_config.gcode_flavor == gcfKlipper)
@@ -1563,8 +1563,21 @@ bool has_brim_patch(const std::vector<PrintObject*> &objs_group, ModelVolumeType
     return found;
 }
 
+struct ExtrusionDirectionSetter : public ExtrusionVisitorRecursive {
+    using ExtrusionVisitorRecursive::use;
+    bool m_set_cw;
+    ExtrusionDirectionSetter() : m_set_cw(true) {}
+    ExtrusionDirectionSetter(bool set_cw) : m_set_cw(set_cw) {}
+    virtual void default_use(ExtrusionEntity& entity) override {};
+    virtual void use(ExtrusionLoop& loop) override {
+        if (loop.is_counter_clockwise() == m_set_cw ) {
+            loop.reverse();
+        }
+    }
+};
+
 void Print::_make_skirt_brim() {
-    
+
     if (this->set_started(psSkirtBrim)) {
         this->set_status(printstep_2_percent[PrintStep::psSkirtBrim], L("Generating skirt and brim"));
         m_skirt.clear();
@@ -1740,10 +1753,41 @@ void Print::_make_skirt_brim() {
         for (Polygon& poly : to_polygons(brim_area))
             append(m_first_layer_convex_hull.points, std::move(poly.points));
         this->finalize_first_layer_convex_hull();
+
+        // everything should be extruded ccw, so only chajnge dir if cw is requested
+        if (this->m_default_region_config.perimeter_direction.value == pdCW_CCW ||
+            this->m_default_region_config.perimeter_direction.value == pdCW_CW) {
+            ExtrusionDirectionSetter visitor(true);
+            this->m_skirt.visit(visitor);
+            if (m_skirt_first_layer) {
+                this->m_skirt_first_layer->visit(visitor);
+            }
+            this->m_brim.visit(visitor);
+        }
+        for (PrintObject *object : m_objects) {
+            const PrintRegionConfig &region_config = object->default_region_config(this->m_default_region_config);
+            if (region_config.perimeter_direction.value == pdCW_CCW ||
+                region_config.perimeter_direction.value == pdCW_CW) {
+                ExtrusionDirectionSetter visitor(true);
+                // using firend privilege. If you remove it, just create & call a printobject function.
+                object->m_skirt.visit(visitor);
+                if (object->m_skirt_first_layer) {
+                    object->m_skirt_first_layer->visit(visitor);
+                }
+            }
+                // only global setting is useful for brim
+            if (this->m_default_region_config.perimeter_direction.value == pdCW_CCW ||
+                this->m_default_region_config.perimeter_direction.value == pdCW_CW) {
+                ExtrusionDirectionSetter visitor(true);
+                object->m_brim.visit(visitor);
+            }
+        }
+
         // Brim depends on skirt (brim lines are trimmed by the skirt lines), therefore if
         // the skirt gets invalidated, brim gets invalidated as well and the following line is called.
         this->set_done(psSkirtBrim);
     }
+
 }
 
 void Print::_make_skirt(const PrintObjectPtrs &objects, ExtrusionEntityCollection &out, std::optional<ExtrusionEntityCollection>& out_first_layer)
@@ -2209,7 +2253,10 @@ const WipeTowerData& Print::wipe_tower_data(const ConfigBase* config, double noz
         //}
         // FIXME: get layer height from layers instead of config.
         //float layer_height = std::min(first_layer_height, float(default_object_config().layer_height.value));
-        float layer_height = std::min(layer_height, float(config->option("layer_height")->get_float()));
+        float layer_height = float(config->option("layer_height")->get_float());
+        if (first_layer_height > 0 && first_layer_height < layer_height) {
+            layer_height = first_layer_height;
+        }
         
         const_cast<Print*>(this)->m_wipe_tower_data.position = Vec2d{config->option("wipe_tower_x")->get_float(), config->option("wipe_tower_y")->get_float()};
         const_cast<Print*>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());

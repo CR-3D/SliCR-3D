@@ -1832,7 +1832,7 @@ SupportGeneratorLayersPtr PrintObjectSupportMaterial::top_contact_layers(
     // Merge close contact layers conservatively: If two layers are closer than the minimum allowed print layer height (the min_layer_height parameter),
     // the top contact layer is merged into the bottom contact layer.
     merge_contact_layers(*m_slicing_params, m_support_params.support_layer_height_min, contact_out);
-    for(auto &layer : contact_out) assert_valid(layer->polygons);
+    for(auto &layer : contact_out) ensure_valid(layer->polygons, m_support_params.resolution);
 
     BOOST_LOG_TRIVIAL(debug) << "PrintObjectSupportMaterial::top_contact_layers() in parallel - end";
 

@@ -284,16 +284,22 @@ typedef std::vector<ExtrusionPath> ExtrusionPaths;
 ExtrusionPaths clip_end(ExtrusionPaths& paths, coordf_t distance);
 
 class ExtrusionPath3D : public ExtrusionPath {
+protected:
+    void init() {
+#ifdef _DEBUG
+        polyline.is_3D = true;
+#endif
+    }
 public:
     std::vector<coord_t> z_offsets;
 
     //ExtrusionPath3D(ExtrusionRole role) : ExtrusionPath(role) { /*std::cout << "new path3D\n"; */};
-    ExtrusionPath3D(const ExtrusionAttributes &attributes, bool can_reverse) : ExtrusionPath(attributes, can_reverse) { /*std::cout << "new path3D++\n";*/ };
-    ExtrusionPath3D(const ExtrusionPath &rhs) : ExtrusionPath(rhs) { /*std::cout << "new path3D from path "<<size()<<"?"<<z_offsets.size()<<"\n";*/ }
-    ExtrusionPath3D(ExtrusionPath &&rhs) : ExtrusionPath(rhs) { /*std::cout << "new path3D from path " << size() << "?" << z_offsets.size()<<"\n";*/ }
-    ExtrusionPath3D(const ExtrusionPath3D &rhs) : ExtrusionPath(rhs), z_offsets(rhs.z_offsets) { /*std::cout << "new path3D from path3D " << size() << "?" << z_offsets.size()<<"\n";*/ }
-    ExtrusionPath3D(ExtrusionPath3D &&rhs) : ExtrusionPath(rhs), z_offsets(std::move(rhs.z_offsets)) { /*std::cout << "new2 path3D from path3D " << size() << "?" << z_offsets.size()<<"\n";*/ }
-    //    ExtrusionPath(ExtrusionRole role, const Flow &flow) : m_role(role), mm3_per_mm(flow.mm3_per_mm()), width(flow.width), height(flow.height), feedrate(0.0f), extruder_id(0) {};
+    ExtrusionPath3D(const ExtrusionAttributes &attributes, bool can_reverse) : ExtrusionPath(attributes, can_reverse) { init(); };
+    ExtrusionPath3D(const ExtrusionPath &rhs) : ExtrusionPath(rhs) { init();  }
+    ExtrusionPath3D(ExtrusionPath &&rhs) : ExtrusionPath(rhs) { init();  }
+    ExtrusionPath3D(const ExtrusionPath3D &rhs) : ExtrusionPath(rhs), z_offsets(rhs.z_offsets) { init();  }
+    ExtrusionPath3D(ExtrusionPath3D &&rhs) : ExtrusionPath(rhs), z_offsets(std::move(rhs.z_offsets)) { init();  }
+
 
     ExtrusionPath3D &operator=(const ExtrusionPath3D &rhs)
     {
@@ -412,8 +418,9 @@ public:
     ArcPolyline as_polyline() const override {
         ArcPolyline out;
         if (!paths.empty()) {
-            for (const ExtrusionPath& path : paths) {
-                out.append(path.as_polyline());
+            out = paths.front().as_polyline();
+            for (size_t i = 1; i < paths.size(); ++i) {
+                out.append(paths[i].as_polyline());
             }
         }
         return out;

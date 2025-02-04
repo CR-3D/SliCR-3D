@@ -99,6 +99,8 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
     layer_height = check_z_step(layer_height, printerConfig->option<ConfigOptionFloat>("z_step")->value); // If z_step is not 0 the slicer will scale to the nearest multiple of z_step so account for that here
     first_layer_height = std::max(first_layer_height, nozzle_diameter / 2.);
 
+    // (zscale / 2) represents the midpoint of the filament_flow_test_cube. Note: we ned to use the height of filament_flow_test_cube before scaling. 
+    float z_origin = 0.5f;
     float zscale = first_layer_height + 5 * layer_height;
     //do scaling
     if (xyScale < 0.9 || 1.2 < xyScale) {
@@ -108,15 +110,19 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
         for (size_t i = 0; i < 5; i++)
             model.objects[objs_idx[i]]->scale(1, 1, zscale);
     }
+    //// move to bed
+    //for (size_t i = 0; i < 5; i++)
+    //    model.objects[objs_idx[i]]->translate(0, 0, ); // base: 10 10 1
+
 
     //add sub-part after scale
     float zscale_number = (first_layer_height + layer_height) / 0.4;
     /* zshift is calculated using the following:
-    (zscale / 2) represents the midpoint of the filament_flow_test_cube
+    z_origin: we go back to 0 by removing it.
     ((first_layer_height + layer_height) / 2) represents the midpoint of our indicator tab (it is scaled to be 2 layers tall)
     The 0.3 constant is the same as the delta calculated in add_part below, this should probably be calculated per the model object
     */
-    float zshift = -(zscale / 2) + ((first_layer_height + layer_height) / 2) + 0.3;
+    float zshift_number = -z_origin + ((first_layer_height + layer_height) / 2) + 0.3;
     
     // it's rotated but not around the good origin: correct that
     double init_z_rotate_angle = Geometry::deg2rad(plat->config()->opt_float("init_z_rotate"));
@@ -129,21 +135,21 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
         };
     
     if (delta == 10.f && start == 80.f) {
-        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m20.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
-        add_part(model.objects[objs_idx[1]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m10.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number });
-        add_part(model.objects[objs_idx[2]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "_0.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number });
-        add_part(model.objects[objs_idx[3]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "p10.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number });
-        add_part(model.objects[objs_idx[4]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "p20.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number });
+        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m20.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number});
+        add_part(model.objects[objs_idx[1]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m10.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number });
+        add_part(model.objects[objs_idx[2]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "_0.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number });
+        add_part(model.objects[objs_idx[3]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "p10.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number });
+        add_part(model.objects[objs_idx[4]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "p20.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number });
     } else if (delta == 2.f && start == 92.f) {
-        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m8.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
-        add_part(model.objects[objs_idx[1]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m6.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
-        add_part(model.objects[objs_idx[2]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m4.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
-        add_part(model.objects[objs_idx[3]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m2.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
-        add_part(model.objects[objs_idx[4]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "_0.amf").string(), Vec3d{ 10 * xyScale,0,zshift }, Vec3d{ xyScale , xyScale, zscale_number});
+        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m8.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number});
+        add_part(model.objects[objs_idx[1]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m6.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number});
+        add_part(model.objects[objs_idx[2]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m4.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number});
+        add_part(model.objects[objs_idx[3]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "m2.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number});
+        add_part(model.objects[objs_idx[4]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "_0.amf").string(), Vec3d{ 10 * xyScale,0,zshift_number }, Vec3d{ xyScale , xyScale, zscale_number});
     }
     for (size_t i = 0; i < 5; i++) {
-        translate_from_rotation(i, Vec3d{ 10 * xyScale,0,zshift });
-        add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "O.amf").string(), Vec3d{ 0,0,zscale/2.f + 0.5 }, Vec3d{xyScale , xyScale, layer_height / 0.2}); // base: 0.2mm height
+        translate_from_rotation(i, Vec3d{ 10 * xyScale, 0, zscale/2 - z_origin });
+        add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "O.amf").string(), Vec3d{ 0,0, zscale }, Vec3d{xyScale , xyScale, layer_height / 0.2}); // base: 0.2mm height
     }
 
     

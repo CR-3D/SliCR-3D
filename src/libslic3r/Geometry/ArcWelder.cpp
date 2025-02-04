@@ -79,7 +79,7 @@ Points arc_discretize(const Point &p1, const Point &p2, const double radius, con
     if (! is_ccw)
         angle_step *= -1.;
     for (size_t i = 1; i < num_steps; ++ i)
-        out.emplace_back(p1.rotated(angle_step * i, center.cast<coord_t>()));
+        out.emplace_back(p1.rotated(angle_step * i, Point::round(center)));
     out.emplace_back(p2);
     return out;
 }
@@ -99,7 +99,7 @@ Points arc_discretize(const Point &p1, const Point &p2, const double radius, con
     if (!is_ccw)
         angle_step *= -1.;
     for (size_t i = 1; i < num_steps; ++i)
-        out.emplace_back(p1.rotated(angle_step * i, center.cast<coord_t>()));
+        out.emplace_back(p1.rotated(angle_step * i, Point::round(center)));
     out.emplace_back(p2);
     return out;
 }
@@ -115,7 +115,7 @@ struct Circle
 static std::optional<Circle> try_create_circle(const Point &p1, const Point &p2, const Point &p3, const double max_radius)
 {
     if (auto center = Slic3r::Geometry::try_circle_center(p1.cast<double>(), p2.cast<double>(), p3.cast<double>(), SCALED_EPSILON); center) {
-        Point c = center->cast<coord_t>();
+        Point c = Point::round(*center);
         if (double r = c.distance_to(p1); r <= max_radius) {
             return std::make_optional<Circle>({c, float(r)});
         }
@@ -132,7 +132,7 @@ static bool foot_pt_on_segment(const Point &p1, const Point &p2, const Point &pt
     if (l2 > int64_t(SCALED_EPSILON)) {
         if (int64_t t = (pt - p1).cast<int64_t>().dot(v21);
             t >= int64_t(SCALED_EPSILON) && t < l2 - int64_t(SCALED_EPSILON)) {
-            out = p1 + ((double(t) / double(l2)) * v21.cast<double>()).cast<coord_t>();
+            out = p1 + Point::round((double(t) / double(l2)) * v21.cast<double>());
             return true;
         }
     }
@@ -291,7 +291,7 @@ static std::optional<Circle> try_create_circle(const Points::const_iterator begi
                 if (std::optional<Vec2d> opt_center = ArcWelder::arc_fit_center_gauss_newton_ls(first_point, last_point,
                         center_point, fpts.begin(), fpts.end(), 3);
                     opt_center) {
-                    out->center = opt_center->cast<coord_t>();
+                    out->center = Point::round(*opt_center);
                     out->radius = (out->radius > 0 ? 1.f : -1.f) * (*opt_center - first_point).norm();
                 }
                 if (! circle_approximation_sufficient_from_first_last(*out, begin, end, tolerance))
@@ -336,7 +336,7 @@ static std::optional<Circle> try_create_circle(const Points::const_iterator begi
                     if (sideness < 0) {
                         // Calculate the intersection point.
                         Vec2d p = c.cast<double>() + vd * double(d) / ld;
-                        point_on_bisector = p.cast<coord_t>();
+                        point_on_bisector = Point::round(p);
                         break;
                     } 
                     if (sideness == 0) {
@@ -377,7 +377,7 @@ static std::optional<Circle> try_create_circle(const Points::const_iterator begi
             if (opt_center) {
                 // Fitted radius must not be excessively large. If so, it is better to fit with a line segment.
                 if (const double r2 = (*opt_center - first_point).squaredNorm(); r2 < max_radius * max_radius) {
-                    circle->center = opt_center->cast<coord_t>();
+                    circle->center = Point::round(*opt_center);
                     circle->radius = (circle->radius > 0 ? 1.f : -1.f) * sqrt(r2);
                     if (circle_approximation_sufficient_from_first_last(*circle, begin, end, tolerance)) {
                         out = circle;
@@ -485,6 +485,19 @@ public:
     double angle;
     Orientation direction { Orientation::Unknown };
 };
+
+
+Orientation arc_orientation(const Point &from, const Point &to, const Point &center, float radius) {
+    float length1 = arc_length<Vec2crd, Vec2crd, Vec2crd, float>(from, to, center, true);
+    float length2 = arc_length<Vec2crd, Vec2crd, Vec2crd, float>(from, to, center, false);
+    if (length1 == length2 || radius == 0) {
+        return Orientation::Unknown;
+    } else if ((radius > 0 && length1 < length2) || (radius < 0 && length1 > length2)) {
+        return Orientation::CCW;
+    } else {
+        return Orientation::CW;
+    }
+}
 
 // Return orientation of a polyline with regard to the center.
 // Successive points are expected to take less than a PI angle step.
@@ -821,12 +834,12 @@ Path fit_path(const Points &src_in, double tolerance, double fit_circle_percent_
                     const Vec2d    center    = arc_center(seg_start.point.cast<double>(), seg_end.point.cast<double>(), double(seg_end.radius), seg_end.ccw());
                     assert(seg_start.point == *begin);
                     assert(seg_end.point == *std::prev(end));
-                    assert(arc_orientation(center.cast<coord_t>(), begin, end) == arc->direction);
+                    assert(arc_orientation(Point::round(center), begin, end) == arc->direction);
                     for (auto it = std::next(begin); it != end; ++ it) {
                         Point  ptstart = *std::prev(it);
                         Point  ptend   = *it;
                         Point  closest_point;
-                        if (foot_pt_on_segment(ptstart, ptend, center.cast<coord_t>(), closest_point)) {
+                        if (foot_pt_on_segment(ptstart, ptend, Point::round(center), closest_point)) {
                             double distance_from_center = (closest_point.cast<double>() - center).norm();
                             assert(std::abs(distance_from_center - std::abs(seg_end.radius)) < tolerance + SCALED_EPSILON);
                         }
@@ -834,7 +847,7 @@ Path fit_path(const Points &src_in, double tolerance, double fit_circle_percent_
                         double len   = v.norm();
                         auto num_segments = std::min<size_t>(10, ceil(2. * len / fit_circle_percent_tolerance));
                         for (size_t i = 0; i < num_segments; ++ i) {
-                            Point p = ptstart + (v * (double(i) / double(num_segments))).cast<coord_t>();
+                            Point p = ptstart + Point::round(v * (double(i) / double(num_segments)));
                             assert(i == 0 || inside_arc_wedge(
                                 seg_start.point.cast<double>(),
                                 seg_end.point.cast<double>(),
@@ -867,7 +880,7 @@ Path fit_path(const Points &src_in, double tolerance, double fit_circle_percent_
         double len   = v.norm();
         auto num_segments = std::min<size_t>(10, ceil(2. * len / fit_circle_percent_tolerance));
         for (size_t i = 0; i <= num_segments; ++ i) {
-            Point p = start + (v * (double(i) / double(num_segments))).cast<coord_t>();
+            Point p = start + Point::round(v * (double(i) / double(num_segments)));
             PathSegmentProjection proj = point_to_path_projection(out, p);
             assert(proj.valid());
             assert(proj.distance2 < sqr(tolerance + SCALED_EPSILON));
@@ -974,7 +987,7 @@ double clip_end(Path &path, coordf_t distance)
             Vec2d  v    = (path.back().point - last.point).cast<coordf_t>();
             double lsqr = v.squaredNorm();
             if (lsqr > sqr(distance + SCALED_EPSILON)) {
-                path.push_back({ last.point + (v * (distance / sqrt(lsqr))).cast<coord_t>() });
+                path.push_back({ last.point + Point::round(v * (distance / sqrt(lsqr))) });
                 // Length to go is zero.
                 return 0;
             }
@@ -993,8 +1006,8 @@ double clip_end(Path &path, coordf_t distance)
                 if (last.ccw())
                     angle *= -1.;
                 path.push_back({
-                    last.point.rotated(angle * (distance / len),
-                        arc_center(path.back().point.cast<double>(), last.point.cast<double>(), double(last.radius), last.ccw()).cast<coord_t>()),
+                    last.point.rotated(angle * (distance / len), Point::round(
+                        arc_center(path.back().point.cast<double>(), last.point.cast<double>(), double(last.radius), last.ccw()))),
                     last.radius, last.orientation });
 #ifdef _DEBUG
                 path.back().length = segment_length<coordf_t>(path[path.size()-2], path.back());
@@ -1071,7 +1084,7 @@ PathSegmentProjection point_to_path_projection(const Path &path, const Point &po
                     if (double d2 = sqr(rtest - r); d2 < out.distance2) {
                         if (rtest > SCALED_EPSILON) {
                             // Project vp to the arc.
-                            out.point = center + (vp.cast<double>() * (r / rtest)).cast<coord_t>();
+                            out.point = center + Point::round(vp.cast<double>() * (r / rtest));
                             if (out.point.coincides_with_epsilon(prev)) {
                                 out.point = prev;
                             } else if (out.point.coincides_with_epsilon(it->point)) {

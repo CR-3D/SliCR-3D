@@ -41,7 +41,7 @@ std::optional<Point> sample_path_point_at_distance_from_start(const SmoothPath &
                     Vec2d  v    = (point - prev_point).cast<double>();
                     double lsqr = v.squaredNorm();
                     if (lsqr > sqr(distance))
-                        return std::make_optional<Point>(prev_point + (v * (distance / sqrt(lsqr))).cast<coord_t>());
+                        return std::make_optional<Point>(prev_point + Point::round(v * (distance / sqrt(lsqr))));
                     distance -= sqrt(lsqr);
                 } else {
                     // Circular segment
@@ -49,8 +49,8 @@ std::optional<Point> sample_path_point_at_distance_from_start(const SmoothPath &
                     double len = std::abs(it->radius) * angle;
                     if (len > distance) {
                         // Rotate the segment end point in reverse towards the start point.
-                        return std::make_optional<Point>(prev_point.rotated(- angle * (distance / len),
-                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<coord_t>()));
+                        return std::make_optional<Point>(prev_point.rotated(- angle * (distance / len), Point::round(
+                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()))));
                     }
                     distance -= len;
                 }
@@ -78,7 +78,7 @@ std::optional<Point> sample_path_point_at_distance_from_end(const SmoothPath &pa
                     Vec2d  v = (point - prev_point).cast<double>();
                     double lsqr = v.squaredNorm();
                     if (lsqr > sqr(distance))
-                        return std::make_optional<Point>(prev_point + (v * (distance / sqrt(lsqr))).cast<coord_t>());
+                        return std::make_optional<Point>(prev_point + Point::round(v * (distance / sqrt(lsqr))));
                     distance -= sqrt(lsqr);
                 }
                 else {
@@ -87,8 +87,8 @@ std::optional<Point> sample_path_point_at_distance_from_end(const SmoothPath &pa
                     double len = std::abs(it->radius) * angle;
                     if (len > distance) {
                         // Rotate the segment end point in reverse towards the start point.
-                        return std::make_optional<Point>(prev_point.rotated(-angle * (distance / len),
-                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<coord_t>()));
+                        return std::make_optional<Point>(prev_point.rotated(-angle * (distance / len), Point::round(
+                            Geometry::ArcWelder::arc_center(prev_point.cast<float>(), point.cast<float>(), it->radius, it->ccw()).cast<coord_t>())));
                     }
                     distance -= len;
                 }

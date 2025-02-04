@@ -376,7 +376,7 @@ private:
     int                         m_config_type;
 
     // Change an option on m_config, possibly call ModelConfig::touch().
-	void 	change_opt_value(const t_config_option_key& opt_key, bool enable, const boost::any& value, int opt_index = 0);
+	void 	change_opt_value(const t_config_option_key& opt_key, bool enable, const boost::any& value, int opt_index = -1);
 };
 
 //  Static text shown among the options.

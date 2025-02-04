@@ -1101,7 +1101,7 @@ std::pair<OG_CustomCtrl*, bool*> ConfigOptionsGroup::get_custom_ctrl_with_blinki
 }
 
 // Change an option on m_config, possibly call ModelConfig::touch().
-void ConfigOptionsGroup::change_opt_value(const t_config_option_key& opt_key, bool enable, const boost::any& value, int opt_index /*= 0*/)
+void ConfigOptionsGroup::change_opt_value(const t_config_option_key& opt_key, bool enable, const boost::any& value, int opt_index /*= -1*/)
 {
     if (m_config_mutable) {
         ConfigOption *opt = m_config_mutable->option(opt_key);

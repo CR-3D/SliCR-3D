@@ -290,11 +290,13 @@ Points filter_convex_concave_points_by_angle_threshold(const Points &poly,
 
 Points Polygon::convex_points(double min_angle, double max_angle) const
 {
+    assert(size() > 2);
     return filter_convex_concave_points_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return (cross2(v1, v2) >= 0.); });
 }
 
 Points Polygon::concave_points(double min_angle, double max_angle) const
 {
+    assert(size() > 2);
     return filter_convex_concave_points_by_angle_threshold(this->points, min_angle, max_angle, [](const Vec2d &v1, const Vec2d &v2){ return (cross2(v1, v2) <= 0.); });
 }
 

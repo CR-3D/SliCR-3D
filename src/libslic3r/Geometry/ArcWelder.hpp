@@ -429,6 +429,8 @@ Orientation arc_orientation(
     const Points::const_iterator begin,
     const Points::const_iterator end);
 
+Orientation arc_orientation(const Point &from, const Point &to, const Point &center, float radius);
+
 // Single segment of a smooth path.
 struct Segment
 {

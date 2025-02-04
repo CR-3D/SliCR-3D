@@ -64,6 +64,8 @@ inline uint16_t operator "" _u(unsigned long long value)
 }
 
 using coordf_t = double;
+using distf_t = double;
+using distsqrf_t = double;
 
 // Scaling factor for a conversion from coord_t to coordf_t: 10e-6
 // This scaling generates a following fixed point representation with for a 32bit integer:

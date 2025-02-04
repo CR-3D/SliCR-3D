@@ -55,6 +55,7 @@ private:
     int m_front_buffer_fan_speed = 1;
     int m_back_buffer_fan_speed = 1;
     BufferData m_current_kickstart{"",-1,0};
+    float m_current_kickstart_duration = 0;
 
     //buffer
     std::list<BufferData> m_buffer;
@@ -97,7 +98,7 @@ private:
     void _print_in_middle_G1(BufferData& line_to_split, float nb_sec, const std::string& line_to_write);
     void _remove_slow_fan(int16_t min_speed, float past_sec);
     void write_buffer_data();
-    std::string _set_fan(int16_t speed);
+    std::string _set_fan(int16_t speed, std::string_view comment);
 };
 
 } // namespace Slic3r

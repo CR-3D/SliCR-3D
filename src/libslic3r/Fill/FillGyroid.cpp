@@ -60,7 +60,7 @@ static inline Polyline make_wave(
         point(1) = std::clamp(double(point.y()), 0., height);
         if (vertical)
             std::swap(point(0), point(1));
-        polyline.points.emplace_back((point * scaleFactor).cast<coord_t>());
+        polyline.points.push_back(Point::round(point * scaleFactor));
     }
 
     return polyline;
