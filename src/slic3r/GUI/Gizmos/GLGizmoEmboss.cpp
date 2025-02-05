@@ -720,7 +720,7 @@ bool GLGizmoEmboss::on_init()
     m_shortcut_key = WXK_CONTROL_T;
 
     // initialize text styles
-    m_style_manager.init(wxGetApp().app_config.get());
+    m_style_manager.init(wxGetApp().app_config);
 
     // Set rotation gizmo upwardrotate
     m_rotate_gizmo.set_angle(PI / 2);

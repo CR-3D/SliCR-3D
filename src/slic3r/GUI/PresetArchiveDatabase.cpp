@@ -1,9 +1,11 @@
 #include "PresetArchiveDatabase.hpp"
 
 #include "slic3r/Utils/Http.hpp"
+
 #include "slic3r/GUI/format.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/Plater.hpp"
+
 #include "slic3r/Utils/PresetUpdaterWrapper.hpp"
 #include "slic3r/GUI/Field.hpp"
 #include "libslic3r/Utils.hpp"
@@ -184,12 +186,7 @@ bool add_authorization_header(Http& http)
 {
     if (wxApp::GetInstance() == nullptr || ! GUI::wxGetApp().plater())
         return false;
-    /*
-    const std::string access_token = GUI::wxGetApp().plater()->get_user_account()->get_access_token();
-    if (!access_token.empty()) {
-        http.header("Authorization", "Bearer " + access_token);
-    }
-	*/
+
     return true;
 }
 
@@ -883,13 +880,13 @@ namespace {
 bool sync_inner(std::string& manifest, PresetUpdaterUIStatus* ui_status)
 {
 	bool ret = false;
-	// TODO: add repo_url
-    std::string repo_url = "http://files.cr3d.de/updates/SliCR-3D";
-    std::string url = "http://files.cr3d.de/updates/SliCR-3D/v1/repos/CR3D/ArchiveRepositoryManifest.json";
-
+    const std::string url = "https://preset-repo-api.prusa3d.com/v1/repos";
+	//std::string url = Utils::ServiceConfig::instance().preset_repo_repos_url();
     auto http = Http::get(std::move(url));
-
-    http.timeout_max(30)
+    if (!add_authorization_header(http))
+        return false;
+    http
+		.timeout_max(30)
 		.on_error([&](std::string body, std::string error, unsigned http_status) {
 			BOOST_LOG_TRIVIAL(error) << "Failed to get online archive source manifests: "<< body << " ; " << error << " ; " << http_status;
             ui_status->set_error(error);

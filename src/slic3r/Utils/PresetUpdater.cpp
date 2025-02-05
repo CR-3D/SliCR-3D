@@ -189,7 +189,7 @@ PresetUpdater::priv::priv()
 	, vendor_path(fs::path(Slic3r::data_dir()) / "vendor")
 	//, cancel(false)
 {
-	set_download_prefs(GUI::wxGetApp().app_config.get());
+	set_download_prefs(GUI::wxGetApp().app_config);
 	// Install indicies from resources. Only installs those that are either missing or older than in resources.
 	check_install_indices();
 	// Load indices from the cache directory.
@@ -981,14 +981,18 @@ bool PresetUpdater::priv::perform_updates(Updates &&updates, const SharedArchive
 			// Throw when parsing invalid configuration. Only valid configuration is supposed to be provided over the air.
 			bundle.load_configbundle(update.source.string(), PresetBundle::LoadConfigBundleAttribute::LoadSystem, ForwardCompatibilitySubstitutionRule::Disable);
 
-			BOOST_LOG_TRIVIAL(info) << format("Deleting %1% conflicting presets", bundle.fff_prints.size() + bundle.filaments.size() + bundle.printers.size());
+			BOOST_LOG_TRIVIAL(info) << format("Deleting %1% conflicting presets",
+                                              bundle.fff_prints.size() + bundle.filaments.size() +
+                                                  bundle.printers.size());
 
 			auto preset_remover = [](const Preset &preset) {
 				BOOST_LOG_TRIVIAL(info) << '\t' << preset.file;
 				fs::remove(preset.file);
 			};
 
-			for (const auto &preset : bundle.fff_prints)    { preset_remover(preset); }
+			for (const auto &preset : bundle.fff_prints) {
+                preset_remover(preset);
+            }
 			for (const auto &preset : bundle.filaments) { preset_remover(preset); }
 			for (const auto &preset : bundle.printers)  { preset_remover(preset); }
 
@@ -1007,7 +1011,7 @@ bool PresetUpdater::priv::perform_updates(Updates &&updates, const SharedArchive
 			};
 
 			for (const auto &name : bundle.obsolete_presets.fff_prints) {
-                obsolete_remover("print", name);
+                obsolete_remover("prints", name);
             }
 			for (const auto &name : bundle.obsolete_presets.filaments) { obsolete_remover("filament", name); }
 			for (const auto &name : bundle.obsolete_presets.sla_prints) { obsolete_remover("sla_print", name); } 
@@ -1071,7 +1075,7 @@ PresetUpdater::~PresetUpdater()
 
 void PresetUpdater::sync_blocking(const VendorMap& vendors, const SharedArchiveRepositoryVector& repositories, PresetUpdaterUIStatus* ui_status)
 {
-	p->set_download_prefs(GUI::wxGetApp().app_config.get());
+	p->set_download_prefs(GUI::wxGetApp().app_config);
 	if (!p->enabled_config_update) { return; }
 
 	this->p->clear_cache_vendor();
@@ -1092,14 +1096,13 @@ static bool reload_configs_update_gui()
 		return false;
 
 	// Reload global configuration
-	auto* app_config = GUI::wxGetApp().app_config.get();
+	auto* app_config = GUI::wxGetApp().app_config;
 	// System profiles should not trigger any substitutions, user profiles may trigger substitutions, but these substitutions
 	// were already presented to the user on application start up. Just do substitutions now and keep quiet about it.
 	// However throw on substitutions in system profiles, those shall never happen with system profiles installed over the air.
-    GUI::wxGetApp().preset_bundle->load_presets(*app_config,
-                                                ForwardCompatibilitySubstitutionRule::EnableSilentDisableSystem);
-    GUI::wxGetApp().load_current_presets();
-    GUI::wxGetApp().plater()->set_bed_shape();
+	GUI::wxGetApp().preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSilentDisableSystem);
+	GUI::wxGetApp().load_current_presets();
+	GUI::wxGetApp().plater()->set_bed_shape();
 
 	return true;
 }

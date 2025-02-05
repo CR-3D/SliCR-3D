@@ -35,7 +35,7 @@ std::string SavePresetDialog::Item::get_init_preset_name(const std::string &suff
 {
     PresetBundle*     preset_bundle = dynamic_cast<SavePresetDialog*>(m_parent)->get_preset_bundle();
     if (!preset_bundle)
-        preset_bundle = wxGetApp().preset_bundle.get();
+        preset_bundle = wxGetApp().preset_bundle;
     m_presets = &preset_bundle->get_presets(m_type); // FIXME: dangerous, please use shared_ptr in preset_bundle & here.
 
     const Preset& sel_preset = m_presets->get_selected_preset();

@@ -955,7 +955,7 @@ void PageMaterials::reload_presets()
 
 	list_printer->append(_L("(All)"), &EMPTY);
 
-    const AppConfig* app_config = wxGetApp().app_config.get();
+    const AppConfig* app_config = wxGetApp().app_config;
     if (materials->technology == T_FFF && app_config->get("no_templates") == "0")
         list_printer->append(_L("(Templates)"), &TEMPLATES);
 
@@ -1480,7 +1480,8 @@ PageCustom::PageCustom(ConfigWizard *parent)
     auto *label = new wxStaticText(this, wxID_ANY, _L("Custom profile name:"));
 
     wxBoxSizer* profile_name_sizer = new wxBoxSizer(wxVERTICAL);
-    profile_name_editor = new SavePresetDialog::Item{ this, profile_name_sizer, default_profile_name, wxGetApp().preset_bundle.get()};
+    profile_name_editor = new SavePresetDialog::Item{this, profile_name_sizer, default_profile_name,
+                                                     wxGetApp().preset_bundle};
     profile_name_editor->Enable(false);
 
     cb_custom->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &) {
@@ -1498,7 +1499,7 @@ PageUpdate::PageUpdate(ConfigWizard *parent)
     , version_check(true)
     , preset_update(true)
 {
-    const AppConfig *app_config = wxGetApp().app_config.get();
+    const AppConfig *app_config = wxGetApp().app_config;
     auto boldfont = wxGetApp().bold_font();
 
     auto *box_slic3r = new wxCheckBox(this, wxID_ANY, _L("Check for application updates"));
@@ -1623,7 +1624,7 @@ void Worker::set_path_name(const std::string& name)
 PageDownloader::PageDownloader(ConfigWizard* parent)
     : ConfigWizardPage(parent, _L("Downloads from URL"), _L("Downloads"))
 {
-    const AppConfig *app_config = wxGetApp().app_config.get();
+    const AppConfig *app_config = wxGetApp().app_config;
     auto boldfont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     boldfont.SetWeight(wxFONTWEIGHT_BOLD);
 
@@ -1697,7 +1698,10 @@ bool DownloaderUtils::Worker::perform_registration_linux = false;
 
 bool DownloaderUtils::Worker::perform_download_register(const std::string& path)
 {
-    boost::filesystem::path aux_dest (path);
+    /*
+    boost::filesystem::path aux_dest (GUI::into_u8(path_name()));
+    if (!path.empty())
+        aux_dest = boost::filesystem::path(path);
     boost::system::error_code ec;
     boost::filesystem::path chosen_dest = boost::filesystem::absolute(aux_dest, ec);
     if(ec)
@@ -1706,15 +1710,12 @@ bool DownloaderUtils::Worker::perform_download_register(const std::string& path)
     if (chosen_dest.empty() || !boost::filesystem::is_directory(chosen_dest, ec) || ec) {
         std::string err_msg = GUI::format("%1%\n\n%2%",_L("Chosen directory for downloads does not exist.") ,chosen_dest.string());
         BOOST_LOG_TRIVIAL(error) << err_msg;
-        show_error(/*m_parent*/ nullptr, err_msg);
+       // show_error(m_parent, err_msg);
         return false;
     }
     BOOST_LOG_TRIVIAL(info) << "Downloader registration: Directory for downloads: " << chosen_dest.string();
     wxGetApp().app_config->set("url_downloader_dest", chosen_dest.string());
-    return perform_url_register();
-}
-bool DownloaderUtils::Worker::perform_url_register()
-{
+    */
 #ifdef _WIN32
     // Registry key creation for "prusaslicer://" URL
 
@@ -1728,8 +1729,8 @@ bool DownloaderUtils::Worker::perform_url_register()
     //std::string key_string = "\"" + binary_string + "\" \"%1\"";
     std::string key_string = "\"" + binary_string + "\" \"--single-instance\" \"%1\"";
 
-    wxRegKey key_first(wxRegKey::HKCU, "Software\\Classes\\prusaslicer");
-    wxRegKey key_full(wxRegKey::HKCU, "Software\\Classes\\prusaslicer\\shell\\open\\command");
+    wxRegKey key_first(wxRegKey::HKCU, "Software\\Classes\\" SLIC3R_APP_PROG_ID);
+    wxRegKey key_full(wxRegKey::HKCU, "Software\\Classes\\" SLIC3R_APP_PROG_ID "\\shell\\open\\command");
     if (!key_first.Exists()) {
         key_first.Create(false);
     }
@@ -1738,12 +1739,12 @@ bool DownloaderUtils::Worker::perform_url_register()
     if (!key_full.Exists()) {
         key_full.Create(false);
     }
-    //key_full = "\"C:\\Program Files\\Prusa3D\\PrusaSlicer\\prusa-slicer-console.exe\" \"%1\"";
+    //key_full = "\"C:\\Program Files\\Prusa3D\\" SLIC3R_APP_PROG_ID "\\" SLIC3R_APP_CMD "-console.exe\" \"%1\"";
     key_full = key_string;
 #elif __APPLE__
     // Apple registers for custom url in info.plist thus it has to be already registered since build.
     // The url will always trigger opening of prusaslicer and we have to check that user has allowed it. (GUI_App::MacOpenURL is the triggered method)
-#elif defined(__linux__) && defined(SLIC3R_DESKTOP_INTEGRATION) 
+#else 
     // the performation should be called later during desktop integration
     perform_registration_linux = true;
 #endif
@@ -1769,7 +1770,7 @@ void DownloaderUtils::Worker::deregister()
 }
 
 bool DownloaderUtils::Worker::on_finish() {
-    AppConfig *app_config = wxGetApp().app_config.get();
+    AppConfig *app_config = wxGetApp().app_config;
     bool ac_value = app_config->get_bool("downloader_url_registered");
     BOOST_LOG_TRIVIAL(debug) << "PageDownloader::on_finish_downloader ac_value " << ac_value << " downloader_checked " << downloader_checked;
     if (ac_value && downloader_checked) {
@@ -1921,7 +1922,7 @@ PageVendors::PageVendors(ConfigWizard* parent, std::string repo_id /*= wxEmptySt
                 
                 // Check if some of preset doesn't exist as a user_preset
                 // to avoid rewrite those user_presets by new installed system presets
-                const PresetCollection& presets = wizard_p()->bundles.at(vendor->id).preset_bundle.get()->printers;
+                const PresetCollection& presets = wizard_p()->bundles.at(vendor->id).preset_bundle->printers;
                 for (const Preset& preset : presets)
                     if (!preset.is_default && boost::filesystem::exists(preset.file)) {
                         user_presets_list += " * " + from_u8(preset.name) + "\n";
@@ -2568,6 +2569,7 @@ void ConfigWizard::priv::load_pages()
     index->clear();
 
     index->add_page(page_welcome);
+
     index->add_page(page_update_manager);
 
     if (is_config_from_archive) {
@@ -2606,19 +2608,10 @@ void ConfigWizard::priv::load_pages()
                 }
             }
 
-            index->add_page(page_custom);
-            if (page_custom->custom_wanted()) {
-                index->add_page(page_firmware);
-                index->add_page(page_bed);
-                index->add_page(page_bvolume);
-                index->add_page(page_diams);
-                index->add_page(page_temps);
-            }
-
             // Filaments & Materials
             if (any_fff_selected) { index->add_page(page_filaments); }
             // Filaments page if only custom printer is selected 
-            const AppConfig *app_config = wxGetApp().app_config.get();
+            const AppConfig* app_config = wxGetApp().app_config;
             if (!any_fff_selected && (custom_printer_selected || custom_printer_in_bundle) && (app_config->get("no_templates") == "0")) {
                 update_materials(T_ANY);
                 index->add_page(page_filaments);
@@ -2686,7 +2679,7 @@ void ConfigWizard::priv::load_vendors()
     bundles = BundleMap::load();
 
     // Load up the set of vendors / models / variants the user has had enabled up till now
-    AppConfig *app_config = wxGetApp().app_config.get();
+    AppConfig *app_config = wxGetApp().app_config;
     if (! app_config->legacy_datadir()) {
         appconfig_new.set_vendors(*app_config);
     } else {
@@ -2804,7 +2797,6 @@ void ConfigWizard::priv::set_start_page(ConfigWizard::StartPage start_page)
             btn_next->SetFocus();
             break;
     }
-    btn_finish->Enable();
 }
 
 ConfigWizard::priv::Repository* ConfigWizard::priv::get_repo(const std::string& repo_id)
@@ -3346,7 +3338,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
         return ptAny;
     };
     // Prusa printers are considered first, then 3rd party.
-    if (preferred_pt = get_preferred_printer_technology("CR3D", bundles.prusa_bundle());
+    if (preferred_pt = get_preferred_printer_technology("PrusaResearch", bundles.prusa_bundle());
         preferred_pt == ptAny || (preferred_pt == ptSLA && suppress_sla_printer)) {
         for (const auto& bundle : bundles) {
             if (bundle.second.is_prusa_bundle) { continue; }
@@ -3487,7 +3479,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
         return std::string();
     };
     // Prusa printers are considered first, then 3rd party.
-    if (preferred_model = get_preferred_printer_model("CR3D", bundles.prusa_bundle(), preferred_variant);
+    if (preferred_model = get_preferred_printer_model("PrusaResearch", bundles.prusa_bundle(), preferred_variant);
         preferred_model.empty()) {
         for (const auto& bundle : bundles) {
             if (bundle.second.is_prusa_bundle) { continue; }
@@ -3687,7 +3679,7 @@ void ConfigWizard::priv::set_config_updated_from_archive(bool load_installed_pri
 {
     if (run_preset_updater)  {   
         // TRN: Progress dialog title
-        wxGetApp().get_preset_updater_wrapper()->wizard_sync(wxGetApp().preset_bundle.get(),
+        wxGetApp().get_preset_updater_wrapper()->wizard_sync(wxGetApp().preset_bundle,
                                                              wxGetApp().app_config->orig_version(), q, true,
                                                              _L("Updating Configuration sources"));
         // We have now probably changed data. We need to rebuild database from which wizards constructs.
@@ -3855,8 +3847,8 @@ void ConfigWizard::priv::load_pages_from_archive()
 
         const bool is_already_added_repo = std::find(repositories.begin(), repositories.end(), data.id) != repositories.end();
 
-        if (is_already_added_repo || (!is_selected_arch && !any_installed_vendor))
-            continue;
+//        if (is_already_added_repo || (!is_selected_arch && !any_installed_vendor))
+           // continue;
 
         if (!vendors.empty())
         {
@@ -3985,6 +3977,7 @@ ConfigWizard::ConfigWizard(wxWindow *parent)
     wxGetApp().SetWindowVariantForButton(p->btn_cancel);
 
     p->add_page(p->page_welcome = new PageWelcome(this));
+
     p->add_page(p->page_update_manager = new PageUpdateManager(this));
 
     // other pages will be loaded later after confirm repositories selection
@@ -4120,7 +4113,7 @@ bool ConfigWizard::run(RunReason reason, StartPage start_page)
 
     if (ShowModal() == wxID_OK) {
         bool apply_keeped_changes = false;
-        if (!p->apply_config(app.app_config.get(), app.preset_bundle.get(), app.get_preset_updater_wrapper(),
+        if (!p->apply_config(app.app_config, app.preset_bundle, app.get_preset_updater_wrapper(),
                              apply_keeped_changes))
             return false;
 
@@ -4140,6 +4133,8 @@ bool ConfigWizard::run(RunReason reason, StartPage start_page)
 
 void ConfigWizard::update_login()
 {
+
+   // wxGetApp().get_preset_updater_wrapper()->wizard_sync(wxGetApp().preset_bundle, wxGetApp().app_config->orig_version(), this, false, _L("Updating Configuration sources"));
 
 }
 

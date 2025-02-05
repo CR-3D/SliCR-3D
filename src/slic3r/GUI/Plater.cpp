@@ -3073,7 +3073,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                         }
                         
                         Preset::normalize(config);
-                        PresetBundle *preset_bundle = wxGetApp().preset_bundle.get();
+                        PresetBundle *preset_bundle = wxGetApp().preset_bundle;
                         preset_bundle->load_config_model(filename.string(), std::move(config));
                         q->notify_about_installed_presets();
 
@@ -6228,7 +6228,7 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
                                      it_snapshot->timestamp)) {
         if (printer_technology_changed) {
             // Switch to the other printer technology. Switch to the last printer active for that particular technology.
-            AppConfig *app_config = wxGetApp().app_config.get();
+            AppConfig *app_config = wxGetApp().app_config;
             app_config->set("presets", "printer",
                             (new_printer_technology == ptFFF) ? m_last_fff_printer_profile_name :
                             m_last_sla_printer_profile_name);

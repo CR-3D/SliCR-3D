@@ -917,7 +917,7 @@ void GUI_App::post_init() {
         CallAfter([this] {
             // preset_updater->sync downloads profile updates and than via event checks updates and incompatible presets. We need to run it on startup.
             // start before cw so it is canceled by cw if needed?
-            this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle.get());
+            this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle);
             bool cw_showed = this->config_wizard_startup();
             this->app_version_check(true);
 
@@ -1011,6 +1011,13 @@ bool GUI_App::init_opengl() {
     return initialized;
 }
 
+GUI_App::~GUI_App()
+{
+    delete app_config;
+    delete preset_bundle;
+}
+
+
 // gets path to PrusaSlicer.ini, returns semver from first line comment
 static std::optional<Semver> parse_semver_from_ini(std::string path)
 {
@@ -1073,7 +1080,7 @@ void GUI_App::init_app_config() {
     }
 
     if (!app_config) {
-        app_config.reset(new AppConfig(is_editor() ? AppConfig::EAppMode::Editor : AppConfig::EAppMode::GCodeViewer));
+        app_config = new AppConfig(is_editor() ? AppConfig::EAppMode::Editor : AppConfig::EAppMode::GCodeViewer);
 #ifdef _M_ARM64
         AppConfig::HardwareType hard_cpu = AppConfig::HardwareType::hCpuOther; // TODO for x86 if needed
         AppConfig::HardwareType hard_gpu = AppConfig::HardwareType::hGpuOther;
@@ -1457,15 +1464,14 @@ bool GUI_App::on_init_inner() {
         scrn->SetText(_L("Loading configuration") + dots);
     }
 
-    preset_bundle.reset(nullptr);
-    PresetBundle* new_preset_bundle = new PresetBundle();
+    preset_bundle = new PresetBundle();
 
     // just checking for existence of Slic3r::data_dir is not enough : it may be an empty directory
     // supplied as argument to --datadir; in that case we should still run the wizard
-    new_preset_bundle->setup_directories();
+    preset_bundle->setup_directories();
     
     if (! older_data_dir_path.empty()) {
-        new_preset_bundle->import_newer_configs(older_data_dir_path);
+        preset_bundle->import_newer_configs(older_data_dir_path);
     }
 
     if (is_editor()) {
@@ -1518,18 +1524,19 @@ bool GUI_App::on_init_inner() {
     std::string delayed_error_load_presets;
     wxImage::AddHandler(new wxJPEGHandler());
     // Suppress the '- default -' presets.
-    new_preset_bundle->set_default_suppressed(app_config->get_bool("no_defaults"));
+    preset_bundle->set_default_suppressed(app_config->get_bool("no_defaults"));
     try {
         // Enable all substitutions (in both user and system profiles), but log the substitutions in user profiles only.
         // If there are substitutions in system profiles, then a "reconfigure" event shall be triggered, which will force
         // installation of a compatible system preset, thus nullifying the system preset substitutions.
-        init_params->preset_substitutions = new_preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSystemSilent);
+        init_params->preset_substitutions =
+            preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSystemSilent);
     } catch (const std::exception &ex) {
         delayed_error_load_presets = ex.what(); 
     }
 
     //now that new_preset_bundle is initialized, we can publish it
-    preset_bundle.reset(new_preset_bundle);
+   // preset_bundle.reset(new_preset_bundle);
 
 #ifdef WIN32
 #if !wxVERSION_EQUAL_OR_GREATER_THAN(3, 1, 3)
@@ -1548,7 +1555,7 @@ bool GUI_App::on_init_inner() {
     if (!delayed_error_load_presets.empty())
         show_error(nullptr, delayed_error_load_presets);
 
-    mainframe = new MainFrame(get_app_font_pt_size(app_config.get()));
+    mainframe = new MainFrame(get_app_font_pt_size(app_config));
     // hide settings tabs after first Layout
     if (is_editor())
         mainframe->select_tab(MainFrame::TabPosition::tpPlater, true);
@@ -2296,7 +2303,7 @@ void GUI_App::recreate_GUI(const wxString &msg_name) {
     this->init_app_config();
 
     MainFrame *old_main_frame = mainframe;
-    mainframe = new MainFrame(get_app_font_pt_size(app_config.get()));
+    mainframe = new MainFrame(get_app_font_pt_size(app_config));
     if (is_editor())
         // hide settings tabs after first Layout
         mainframe->select_tab(MainFrame::TabPosition::tpPlater, true);
@@ -3706,7 +3713,7 @@ bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage
     // First part is to download neccessary data.
     // That is done on worker thread while nice modal progress is shown.
     // TRN: Progress dialog title
-    get_preset_updater_wrapper()->wizard_sync(preset_bundle.get(), app_config->orig_version(), mainframe,
+    get_preset_updater_wrapper()->wizard_sync(preset_bundle, app_config->orig_version(), mainframe,
                                               reason == ConfigWizard::RunReason::RR_USER,
                                               _L("Opening Configuration Wizard"));
     // Then the wizard itself will start and that also takes time.
@@ -3725,11 +3732,13 @@ bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage
     if (res) {
         load_current_presets();
 
-        // #ysFIXME - delete after testing: This part of code looks redundant. All checks are inside ConfigWizard::priv::apply_config() 
-        if (get_current_printer_technology() == ptSLA)
-            may_switch_to_SLA_preset(_L("Configuration is editing from ConfigWizard"));
-    }
+        for (Tab* tab : tabs_list) {
+            if (tab->type() == Preset::TYPE_PRINTER) {
 
+                break;
+            }
+        }
+    }
     return res;
 }
 
@@ -3919,9 +3928,9 @@ bool GUI_App::check_updates(const bool verbose)
     PresetUpdater::UpdateResult updater_result;
     if (verbose)
     {
-         updater_result = get_preset_updater_wrapper()->check_updates_on_user_request(preset_bundle.get(), app_config->orig_version(), mainframe);
+         updater_result = get_preset_updater_wrapper()->check_updates_on_user_request(preset_bundle, app_config->orig_version(), mainframe);
     } else {
-        updater_result = get_preset_updater_wrapper()->check_updates_on_startup(app_config.get()->orig_version());
+        updater_result = get_preset_updater_wrapper()->check_updates_on_startup(app_config->orig_version());
     }
 	if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
 		mainframe->Close();

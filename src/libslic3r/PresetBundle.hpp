@@ -77,6 +77,7 @@ public:
     VendorMap                   vendors;
 
     struct ObsoletePresets {
+        //    std::vector<std::string> prints;
         std::vector<std::string> fff_prints;
         std::vector<std::string> sla_prints;
         std::vector<std::string> filaments;

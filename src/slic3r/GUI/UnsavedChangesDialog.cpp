@@ -1542,7 +1542,7 @@ FullCompareDialog::FullCompareDialog(const wxString& option_name, const wxString
 
 static PresetCollection* get_preset_collection(Preset::Type type, PresetBundle* preset_bundle = nullptr) {
     if (!preset_bundle)
-        preset_bundle = wxGetApp().preset_bundle.get();
+        preset_bundle = wxGetApp().preset_bundle;
     return  type == Preset::Type::TYPE_FFF_PRINT        ? &preset_bundle->fff_prints :
             type == Preset::Type::TYPE_SLA_PRINT        ? &preset_bundle->sla_prints :
             type == Preset::Type::TYPE_FFF_FILAMENT     ? &preset_bundle->filaments :
@@ -1671,7 +1671,7 @@ void DiffPresetDialog::create_buttons()
 
 
     auto enable_transfer = [this](const Preset::Type& type) {
-        const Preset& main_edited_preset = get_preset_collection(type, wxGetApp().preset_bundle.get())->get_edited_preset();
+        const Preset& main_edited_preset = get_preset_collection(type, wxGetApp().preset_bundle)->get_edited_preset();
         if (main_edited_preset.is_dirty)
             return main_edited_preset.name == get_right_preset_name(type);
         return true;

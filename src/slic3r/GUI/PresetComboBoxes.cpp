@@ -82,7 +82,7 @@ PresetComboBox::PresetComboBox(wxWindow* parent, Preset::Type preset_type, const
     m_type(preset_type),
     m_last_selected(wxNOT_FOUND),
     m_em_unit(em_unit(this)),
-    m_preset_bundle(preset_bundle ? preset_bundle : wxGetApp().preset_bundle.get())
+    m_preset_bundle(preset_bundle ? preset_bundle : wxGetApp().preset_bundle)
 {
     switch (m_type)
     {
@@ -122,7 +122,7 @@ PresetComboBox::PresetComboBox(Tab *parent, const wxSize &size) :
     m_type(parent->type()),
     m_last_selected(wxNOT_FOUND),
     m_em_unit(em_unit(this)),
-    m_preset_bundle(parent->m_preset_bundle ? parent->m_preset_bundle : wxGetApp().preset_bundle.get())
+    m_preset_bundle(parent->m_preset_bundle ? parent->m_preset_bundle : wxGetApp().preset_bundle)
 {
     m_collection = parent->get_presets();
     assert(m_collection != nullptr);
