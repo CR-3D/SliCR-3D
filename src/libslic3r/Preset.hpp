@@ -39,6 +39,7 @@ public:
     std::vector<PrinterTechnology>  technologies;
     std::string                     id;
     std::string                     repo_id;
+    std::string                     repo_prefix;
     Semver                          config_version;
     std::string                     config_update_url;
     std::string                     changelog_url;
@@ -246,6 +247,10 @@ public:
 
     // Sort lexicographically by a preset name. The preset name shall be unique across a single PresetCollection.
     bool                operator<(const Preset &other) const { return this->name < other.name; }
+
+    // Returns id without trimmed prefix if present and vendor has any.
+    std::string         trim_vendor_repo_prefix(const std::string& id) const;
+    std::string         trim_vendor_repo_prefix(const std::string& id, const VendorProfile* vendor_profile) const;
 
     static const std::vector<std::string>&  print_options();
     static const std::vector<std::string>&  filament_options();

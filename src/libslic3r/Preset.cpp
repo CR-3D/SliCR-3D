@@ -159,7 +159,7 @@ VendorProfile VendorProfile::from_ini(const ptree &tree, const boost::filesystem
         res.config_version = std::move(*config_version);
     }
 
-    // Load URLs
+ // Load URLs
     const auto config_update_url = vendor_section.find("config_update_url");
     if (config_update_url != vendor_section.not_found()) {
         res.config_update_url = config_update_url->second.data();
@@ -168,6 +168,22 @@ VendorProfile VendorProfile::from_ini(const ptree &tree, const boost::filesystem
     const auto changelog_url = vendor_section.find("changelog_url");
     if (changelog_url != vendor_section.not_found()) {
         res.changelog_url = changelog_url->second.data();
+    }
+
+    const auto repo_id = vendor_section.find("repo_id");
+    if (repo_id != vendor_section.not_found()) {
+        res.repo_id = repo_id->second.data();
+    } else {
+        // For backward compatibility assume all profiles without repo_id are from "prod" repo
+        // DK: "No, dont!"
+        res.repo_id = "";
+    }
+
+    const auto repo_prefix = vendor_section.find("repo_prefix");
+    if (repo_prefix != vendor_section.not_found()) {
+         res.repo_prefix = repo_prefix->second.data();
+    } else {
+        res.repo_prefix = "";
     }
 
     //get family column size
@@ -466,6 +482,24 @@ void Preset::set_visible_from_appconfig(const AppConfig &app_config)
 			is_visible = false;
     }
 }
+
+std::string Preset::trim_vendor_repo_prefix(const std::string& id) const
+{
+    return Preset::trim_vendor_repo_prefix(id, this->vendor);
+}
+std::string Preset::trim_vendor_repo_prefix(const std::string& id, const VendorProfile* vendor_profile) const
+{
+    if (!vendor_profile) {
+        return id;
+    }
+    std::string res = id;
+    if (boost::algorithm::starts_with(res, vendor_profile->repo_prefix)) {
+        boost::algorithm::erase_head(res, vendor_profile->repo_prefix.size());
+        boost::algorithm::trim_left(res);
+    }
+    return res;
+}
+
 
 static std::vector<std::string> s_Preset_print_options {
         "print_version",
