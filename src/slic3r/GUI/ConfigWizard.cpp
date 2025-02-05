@@ -2692,7 +2692,7 @@ void ConfigWizard::priv::load_vendors()
 
                 const auto &model = needle->second.first;
                 const auto &variant = needle->second.second;
-                appconfig_new.set_variant("PrusaResearch", model, variant, true);
+                appconfig_new.set_variant("CR3D", model, variant, true);
             }
     }
 
@@ -3338,7 +3338,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
         return ptAny;
     };
     // Prusa printers are considered first, then 3rd party.
-    if (preferred_pt = get_preferred_printer_technology("PrusaResearch", bundles.prusa_bundle());
+    if (preferred_pt = get_preferred_printer_technology("CR3D", bundles.prusa_bundle());
         preferred_pt == ptAny || (preferred_pt == ptSLA && suppress_sla_printer)) {
         for (const auto& bundle : bundles) {
             if (bundle.second.is_prusa_bundle) { continue; }
@@ -3479,7 +3479,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
         return std::string();
     };
     // Prusa printers are considered first, then 3rd party.
-    if (preferred_model = get_preferred_printer_model("PrusaResearch", bundles.prusa_bundle(), preferred_variant);
+    if (preferred_model = get_preferred_printer_model("CR3D", bundles.prusa_bundle(), preferred_variant);
         preferred_model.empty()) {
         for (const auto& bundle : bundles) {
             if (bundle.second.is_prusa_bundle) { continue; }
