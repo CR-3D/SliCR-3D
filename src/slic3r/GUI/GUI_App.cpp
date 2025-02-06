@@ -3529,7 +3529,7 @@ void GUI_App::OSXStoreOpenFiles(const wxArrayString &fileNames) {
         m_app_mode = EAppMode::GCodeViewer;
         unlock_lockfile(get_instance_hash_string() + ".lock", data_dir() + "/cache/");
         if (app_config)
-            app_config.reset();
+            app_config->reset();
         init_app_config();
     }
     wxApp::OSXStoreOpenFiles(fileNames);
