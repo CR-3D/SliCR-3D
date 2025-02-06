@@ -22,7 +22,7 @@ deps/usr/*
 # MacOS Ignores
 .DS_Store
 /resources/scripts/shell/ftp_config
-
+/resources/resources/*
 
 deps/build-linux/*
 **/.idea/
