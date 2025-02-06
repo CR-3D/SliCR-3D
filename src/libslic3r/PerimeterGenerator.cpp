@@ -4722,11 +4722,17 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                             no_last_gapfill), resolution)), "purple", scale_t(0.03));
                 svg.Close();
             }
-                        append(gaps, ensure_valid(diff_ex(
-                            offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 10),
-                            no_last_gapfill), resolution));  // safety offset
-                    } else {
-            {
+               append(gaps, ensure_valid(diff_ex(
+                   offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 10),
+                   offset_ex(*all_next_onion, 0.5f * params.get_perimeter_spacing() + 30,
+                   (params.use_round_perimeters() ? ClipperLib::JoinType::jtRound : ClipperLib::JoinType::jtMiter),
+                   (params.use_round_perimeters() ? params.get_min_round_spacing() : 3)))));
+               
+           if (perimeter_idx == 1) {
+               append(gaps, ensure_valid(diff_ex(
+                   offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 30),
+                   no_last_gapfill), resolution));  // safety offset
+           } else {
                 static int aodfjiaz = 0;
                 std::stringstream stri;
                 stri << params.layer->id() << "_gap_fill_"<<perimeter_idx<<"_int_" << (aodfjiaz++) << ".svg";
