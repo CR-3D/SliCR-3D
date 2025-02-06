@@ -1,4 +1,4 @@
-min_slic3r_version = 2.8.0-alpha0
+min_slic3r_version = 2.6.0
 2.0.3 Rat Rig official Idex release + minor updates to print settings and filament paramethers
 2.0.2 Fixed bed model and texture sizes.
 2.0.1 RatRig official update, V-Core 4 added, PunkFil filament line
