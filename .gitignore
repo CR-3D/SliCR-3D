@@ -28,3 +28,4 @@ deps/build-linux/*
 **/.idea/
 .pkg_cache
 CMakeUserPresets.json
+resources/scripts/shell/ftp_credentials.conf
