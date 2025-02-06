@@ -23,3 +23,6 @@ min_slic3r_version = 2.6.0
 0.0.22 updated wipe_tower settings
 0.0.23 fixed wipe_tower error -> x to y
 0.0.24 changed max_gcode_per_second to 0
+0.0.25 since here we integrating new preset_updater
+min_slic3r_version = 2.7.0
+0.0.30 new preset_updater done, make this as fixed version
