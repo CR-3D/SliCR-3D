@@ -400,7 +400,7 @@ void combochecklist_set_flags(wxComboCtrl* comboCtrl, unsigned int flags)
 
 AppConfig* get_app_config()
 {
-    return wxGetApp().app_config.get();
+    return wxGetApp().app_config;
 }
 
 wxString from_u8(const std::string &str)

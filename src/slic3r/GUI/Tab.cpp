@@ -150,7 +150,7 @@ void Tab::create_preset_tab()
     SetDoubleBuffered(true);
 #endif //__WINDOWS__
 
-    m_preset_bundle = wxGetApp().preset_bundle.get();
+    m_preset_bundle = wxGetApp().preset_bundle;
     // Index of the last icon inserted into m_treectrl (need for init, as init will create isons)
     m_icon_count = -1;
     init();

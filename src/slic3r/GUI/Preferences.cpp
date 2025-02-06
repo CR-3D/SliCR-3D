@@ -564,6 +564,7 @@ void PreferencesDialog::build()
 			L("If enabled, Slic3r downloads updates of built-in system presets in the background. These updates are downloaded "
 			  "into a separate temporary location. When a new preset version becomes available it is offered at application startup."),
 			app_config->get_bool("preset_update"));
+        app_config->set("preset_update", "1");
 
 		append_bool_option(m_tabid_2_optgroups.back().back(), "no_defaults",
 			L("Suppress \" - default - \" presets"),

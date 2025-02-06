@@ -18,6 +18,21 @@ namespace Slic3r {
 	// simple download
 	bool get_file_from_web(const std::string& url, const boost::filesystem::path& target_path);
 
+struct HttpRetryOpt
+{
+    // if set to zero, no retries at all
+    std::chrono::milliseconds initial_delay;
+    std::chrono::milliseconds max_delay;
+    // if set to zero, retries forever
+    size_t max_retries{0};
+
+	static const HttpRetryOpt& no_retry();
+    static const HttpRetryOpt& default_retry();
+
+    static constexpr size_t MAX_RETRY_DELAY_MS = 4 * 64000;
+    static constexpr size_t MAX_RETRIES = 16;
+};
+
 /// Represetns a Http request
 class Http : public std::enable_shared_from_this<Http> {
 private:
@@ -51,6 +66,8 @@ public:
 	typedef std::function<void(Progress, bool& /* cancel */)> ProgressFn;
 
 	typedef std::function<void(std::string/* address */)> IPResolveFn;
+    //<bool - false if canceled(int - attempt number, unsigned - ms to next attempt, 0 if last)>
+    typedef std::function<bool(int, unsigned)> RetryFn;
 
 	Http(Http &&other);
 
@@ -132,8 +149,15 @@ public:
 	// Called if curl_easy_getinfo resolved just used IP address.
 	Http& on_ip_resolve(IPResolveFn fn);
 
+    Http& on_retry(RetryFn fn);
+
+	Http& cookie_file(const std::string& file_path);
+	Http& cookie_jar(const std::string& file_path);
+	Http& set_referer(const std::string& referer);
+
 	// Starts performing the request in a background thread
-	Ptr perform();
+	Ptr perform(const HttpRetryOpt& retry_opts = HttpRetryOpt::no_retry());
+
 	// Starts performing the request on the current thread
 	void perform_sync();
 	// Cancels a request in progress

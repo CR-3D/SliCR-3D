@@ -129,6 +129,7 @@
 #include "../Utils/FixModelByWin10.hpp"
 #include "../Utils/UndoRedo.hpp"
 #include "../Utils/PresetUpdater.hpp"
+#include "../Utils/PresetUpdaterWrapper.hpp"
 #include "../Utils/Process.hpp"
 #include "../Utils/Repetier.hpp"
 #include "RemovableDriveManager.hpp"
@@ -2690,7 +2691,10 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
     if (wxGetApp().is_editor()) {
         this->q->Bind(EVT_EJECT_DRIVE_NOTIFICAION_CLICKED, [this](EjectDriveNotificationClickedEvent&) { this->q->eject_drive(); });
         this->q->Bind(EVT_EXPORT_GCODE_NOTIFICAION_CLICKED, [this](ExportGcodeNotificationClickedEvent&) { this->q->export_gcode(true); });
-        this->q->Bind(EVT_PRESET_UPDATE_AVAILABLE_CLICKED, [](PresetUpdateAvailableClickedEvent&) {  wxGetApp().get_preset_updater()->on_update_notification_confirm(); });
+        this->q->Bind(EVT_PRESET_UPDATE_AVAILABLE_CLICKED, [](PresetUpdateAvailableClickedEvent&) {
+            GUI_App &app = wxGetApp();
+            app.get_preset_updater_wrapper()->on_update_notification_confirm();
+        });
         this->q->Bind(EVT_REMOVABLE_DRIVE_EJECTED, [this, q](RemovableDriveEjectEvent &evt) {
             if (evt.data.second) {
                 q->show_action_buttons();
@@ -3069,7 +3073,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                         }
                         
                         Preset::normalize(config);
-                        PresetBundle *preset_bundle = wxGetApp().preset_bundle.get();
+                        PresetBundle *preset_bundle = wxGetApp().preset_bundle;
                         preset_bundle->load_config_model(filename.string(), std::move(config));
                         q->notify_about_installed_presets();
 
@@ -6224,7 +6228,7 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
                                      it_snapshot->timestamp)) {
         if (printer_technology_changed) {
             // Switch to the other printer technology. Switch to the last printer active for that particular technology.
-            AppConfig *app_config = wxGetApp().app_config.get();
+            AppConfig *app_config = wxGetApp().app_config;
             app_config->set("presets", "printer",
                             (new_printer_technology == ptFFF) ? m_last_fff_printer_profile_name :
                             m_last_sla_printer_profile_name);

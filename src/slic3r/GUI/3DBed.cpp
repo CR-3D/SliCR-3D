@@ -578,7 +578,7 @@ void Bed3D::init_contourlines()
 // return the print bed model.
 std::tuple<Bed3D::Type, std::string, std::string> Bed3D::detect_type(const Pointfs& shape)
 {
-   PresetBundle* bundle = wxGetApp().preset_bundle.get();
+   PresetBundle* bundle = wxGetApp().preset_bundle;
    
     if (bundle != nullptr) {
         const Preset* curr = &bundle->printers.get_selected_preset();

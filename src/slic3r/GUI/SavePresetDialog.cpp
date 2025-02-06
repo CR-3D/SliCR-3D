@@ -35,7 +35,7 @@ std::string SavePresetDialog::Item::get_init_preset_name(const std::string &suff
 {
     PresetBundle*     preset_bundle = dynamic_cast<SavePresetDialog*>(m_parent)->get_preset_bundle();
     if (!preset_bundle)
-        preset_bundle = wxGetApp().preset_bundle.get();
+        preset_bundle = wxGetApp().preset_bundle;
     m_presets = &preset_bundle->get_presets(m_type); // FIXME: dangerous, please use shared_ptr in preset_bundle & here.
 
     const Preset& sel_preset = m_presets->get_selected_preset();
@@ -125,13 +125,17 @@ SavePresetDialog::Item::Item(Preset::Type type, const std::string& suffix, wxBox
     update();
 }
 
-SavePresetDialog::Item::Item(wxWindow* parent, wxBoxSizer* sizer, const std::string& def_name, PrinterTechnology pt /*= ptFFF*/):
-    m_preset_name(def_name),
-    m_printer_technology(pt),
-    m_parent(parent),
-    m_valid_bmp(new wxStaticBitmap(m_parent, wxID_ANY, *get_bmp_bundle("tick_mark"))),
-    m_valid_label(new wxStaticText(m_parent, wxID_ANY, ""))
-{
+SavePresetDialog::Item::Item(wxWindow *parent,
+                             wxBoxSizer *sizer,
+                             const std::string &def_name,
+                             PresetBundle *preset_bundle,
+                             PrinterTechnology pt /*= ptFFF*/)
+    : m_preset_name(def_name)
+    , m_preset_bundle(preset_bundle)
+    , m_printer_technology(pt)
+    , m_parent(parent)
+    , m_valid_bmp(new wxStaticBitmap(m_parent, wxID_ANY, *get_bmp_bundle("tick_mark")))
+    , m_valid_label(new wxStaticText(m_parent, wxID_ANY, "")) {
     m_valid_label->SetFont(wxGetApp().bold_font());
 
     wxBoxSizer* input_name_sizer = new wxBoxSizer(wxHORIZONTAL);

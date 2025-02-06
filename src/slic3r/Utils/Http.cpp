@@ -167,6 +167,7 @@ struct Http::priv
 	Http::ErrorFn errorfn;
 	Http::ProgressFn progressfn;
 	Http::IPResolveFn ipresolvefn;
+    Http::RetryFn retryfn;
 
 	priv(const std::string &url);
 	~priv();
@@ -407,7 +408,6 @@ void Http::priv::http_perform()
 		::curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postfields.c_str());
 		::curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, postfields.size());
 	}
-
 	CURLcode res = ::curl_easy_perform(curl);
 
     putFile.reset();
@@ -629,7 +629,29 @@ Http& Http::on_ip_resolve(IPResolveFn fn)
 	return *this;
 }
 
-Http::Ptr Http::perform()
+Http& Http::on_retry(RetryFn fn)
+{
+	if (p) { p->retryfn = std::move(fn); }
+	return *this;
+}
+
+Http& Http::cookie_file(const std::string& file_path)
+{
+	if (p) {
+		::curl_easy_setopt(p->curl, CURLOPT_COOKIEFILE, file_path.c_str());
+	}
+	return *this;
+}
+
+Http& Http::cookie_jar(const std::string& file_path)
+{
+	if (p) {
+		::curl_easy_setopt(p->curl, CURLOPT_COOKIEJAR, file_path.c_str());
+	}
+	return *this;
+}
+
+Http::Ptr Http::perform(const HttpRetryOpt& retry_opts)
 {
 	auto self = std::make_shared<Http>(std::move(*this));
 

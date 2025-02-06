@@ -26,7 +26,7 @@
 
 #include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/PresetBundle.hpp"
-#include "slic3r/Utils/PresetUpdater.hpp"
+#include "slic3r/Utils/PresetUpdaterWrapper.hpp"
 #include "BedShapeDialog.hpp"
 #include "GUI.hpp"
 #include "SavePresetDialog.hpp"
@@ -74,7 +74,7 @@ struct Bundle
 {
 	std::unique_ptr<PresetBundle> preset_bundle;
 	VendorProfile* vendor_profile{ nullptr };
-	bool is_in_resources{ false };
+	//bool is_in_resources{ false };
     BundleLocation location;
 	bool is_prusa_bundle{ false };
 
@@ -82,7 +82,7 @@ struct Bundle
 	Bundle(Bundle&& other);
 
 	// Returns false if not loaded. Reason for that is logged as boost::log error.
-	bool load(fs::path source_path, bool ais_in_resources, bool ais_prusa_bundle = false);
+	bool load(fs::path source_path, BundleLocation location, bool is_prusa_bundle = false);
 
 	const std::string& vendor_id() const { return vendor_profile->id; }
 };
@@ -97,7 +97,8 @@ struct BundleMap : std::map<std::string /* = vendor ID */, Bundle>
 
 struct Materials;
 
-
+class RepositoryUpdateUIManager;
+class ConfigWizardWebViewPage;
 
 struct PrinterPickerEvent;
 
@@ -120,6 +121,7 @@ struct PrinterPicker: wxPanel
     };
 
     const std::string vendor_id;
+    const std::string vendor_repo_id;
     std::vector<Checkbox*> cboxes;
     std::vector<Checkbox*> cboxes_alt;
 
@@ -183,6 +185,15 @@ struct PageWelcome: ConfigWizardPage
     virtual void set_run_reason(ConfigWizard::RunReason run_reason) override;
 };
 
+struct PageUpdateManager : ConfigWizardPage
+{
+    std::unique_ptr<RepositoryUpdateUIManager>  manager;
+    wxStaticText*                               warning_text    { nullptr };
+    bool                                        is_active       { false };
+
+    PageUpdateManager(ConfigWizard* parent);
+};
+
 struct PagePrinters: ConfigWizardPage
 {
     std::vector<PrinterPicker *> printer_pickers;
@@ -193,8 +204,7 @@ struct PagePrinters: ConfigWizardPage
         wxString title,
         wxString shortname,
         const VendorProfile &vendor,
-        uint32_t indent, 
-        Technology technology);
+        unsigned indent, Technology technology);
 
     void select_all(bool select, bool alternates = false);
     int get_width() const;
@@ -202,6 +212,10 @@ struct PagePrinters: ConfigWizardPage
     std::set<std::string> get_selected_models();
 
     std::string get_vendor_id() const { return printer_pickers.empty() ? "" : printer_pickers[0]->vendor_id; }
+    std::string get_vendor_repo_id() const { return printer_pickers.empty() ? "" : printer_pickers[0]->vendor_repo_id; }
+
+    // unselect all printers in appconfig_new and bundles
+    void unselect_all_presets();
 
     virtual void set_run_reason(ConfigWizard::RunReason run_reason) override;
 
@@ -473,7 +487,7 @@ struct PageMode: ConfigWizardPage
 
 struct PageVendors: ConfigWizardPage
 {
-    PageVendors(ConfigWizard *parent);
+    PageVendors(ConfigWizard *parent, std::string repos_id = std::string(), std::string name = std::string());
 };
 
 struct PageFirmware: ConfigWizardPage
@@ -536,6 +550,7 @@ public:
     size_t active_item() const { return item_active; }
     ConfigWizardPage* active_page() const;
     bool active_is_last() const { return item_active < items.size() && item_active == last_page; }
+    size_t pages_cnt()    const { return items.size(); }
 
     void go_prev();
     void go_next();
@@ -598,8 +613,8 @@ struct ConfigWizard::priv
     PresetAliases aliases_fff;    // Map of alias to material presets
     PresetAliases aliases_sla;    // Map of alias to material presets
     std::unique_ptr<DynamicPrintConfig> custom_config;           // Backing for custom printer definition
-    bool any_fff_selected;        // Used to decide whether to display Filaments page
-    bool any_sla_selected;        // Used to decide whether to display SLA Materials page
+    bool any_fff_selected { false };        // Used to decide whether to display Filaments page
+    bool any_sla_selected { false };        // Used to decide whether to display SLA Materials page
     bool custom_printer_selected { false }; // New custom printer is requested
     bool custom_printer_in_bundle { false }; // Older custom printer already exists when wizard starts
     // Set to true if there are none FFF printers on the main FFF page. If true, only SLA printers are shown (not even custom printers)
@@ -618,6 +633,8 @@ struct ConfigWizard::priv
     wxButton *btn_cancel = nullptr;
 
     PageWelcome      *page_welcome = nullptr;
+    ConfigWizardWebViewPage *page_login = nullptr;
+    PageUpdateManager*page_update_manager = nullptr;
     PageMaterials    *page_filaments = nullptr;
     PageMaterials    *page_sla_materials = nullptr;
     PageCustom       *page_custom = nullptr;
@@ -628,14 +645,6 @@ struct ConfigWizard::priv
     PageFilesAssociation* page_files_association = nullptr;
 #endif // _WIN32
     PageMode         *page_mode = nullptr;
-#ifdef ALLOW_PRUSA_FIRST
-    PagePrinters     *page_fff = nullptr;
-    PagePrinters     *page_msla = nullptr;
-    PageVendors      *page_vendors = nullptr;
-    Pages3rdparty     pages_3rdparty;
-#else
-    std::vector<PagePrinters*> pages_vendors;
-#endif
 
     // Custom setup pages
     PageFirmware     *page_firmware = nullptr;
@@ -643,6 +652,22 @@ struct ConfigWizard::priv
     PageDiameters    *page_diams = nullptr;
     PageTemperatures *page_temps = nullptr;
     PageBuildVolume* page_bvolume = nullptr;
+
+    std::vector<PagePrinters*>  pages_fff;
+    std::vector<PagePrinters*>  pages_msla;
+
+    struct Repository {
+        bool operator==(const std::string& other_id_name) const { return other_id_name == this->id_name; }
+
+        std::string     id_name;
+        PageVendors*    vendors_page{ nullptr };
+        Pages3rdparty   printers_pages;
+    };
+    std::vector<Repository>     repositories;
+
+    bool                        installed_multivendors_repos();
+
+    bool                        is_config_from_archive{ false };
 
     // Pointers to all pages (regardless or whether currently part of the ConfigWizardIndex)
     std::vector<ConfigWizardPage*> all_pages;
@@ -661,9 +686,7 @@ struct ConfigWizard::priv
     void add_page(ConfigWizardPage *page);
     void enable_next(bool enable);
     void set_start_page(ConfigWizard::StartPage start_page);
-#ifdef ALLOW_PRUSA_FIRST
-    void create_3rdparty_pages();
-#endif
+    void create_vendor_printers_page(const std::string& repo_id, const VendorProfile* vendor, bool install = false, bool from_single_vendor_repo = false);
     void set_run_reason(RunReason run_reason);
     void update_materials(Technology technology);
 
@@ -671,13 +694,15 @@ struct ConfigWizard::priv
     void on_printer_pick(PagePrinters *page, const PrinterPickerEvent &evt);
     void select_default_materials_for_printer_model(const VendorProfile::PrinterModel &printer_model, Technology technology);
     void select_default_materials_for_printer_models(Technology technology, const std::set<const VendorProfile::PrinterModel*> &printer_models);
-#ifdef ALLOW_PRUSA_FIRST
     void on_3rdparty_install(const VendorProfile *vendor, bool install);
-#endif
 
+    bool can_finish();
+    bool can_go_next();
+    bool can_show_next();
+    bool can_select_all();
     bool on_bnt_finish();
     bool check_and_install_missing_materials(Technology technology, const std::string &only_for_model_id = std::string());
-    bool apply_config(AppConfig *app_config, PresetBundle *preset_bundle, const PresetUpdater *updater, bool& apply_keeped_changes);
+    bool apply_config(AppConfig *app_config, PresetBundle *preset_bundle, const PresetUpdaterWrapper *updater, bool& apply_keeped_changes);
     // #ys_FIXME_alise
     void update_presets_in_config(const std::string& section, const std::string& alias_key, bool add);
 //#ifdef __linux__
@@ -687,6 +712,17 @@ struct ConfigWizard::priv
     bool check_sla_selected();        // Used to decide whether to display SLA Materials page
 
     int em() const { return index->em(); }
+    void set_config_updated_from_archive(bool load_installed_printers, bool run_preset_updater);
+
+    Repository* get_repo(const std::string& repo_id);
+
+    // Fills vendors_for_repo in respect to repo_id
+    // and return true if any of vendors_for_repo is installed (is in app_config)
+    bool any_installed_vendor_for_repo(const std::string& repo_id, std::vector<const VendorProfile*>& );
+
+    bool can_clear_printer_pages();
+    void clear_printer_pages();
+    void load_pages_from_archive();
 };
 
 }

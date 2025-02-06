@@ -120,6 +120,12 @@ set(SLIC3R_GUI_SOURCES
     GUI/format.hpp
     GUI/FreeCADDialog.cpp
     GUI/FreeCADDialog.hpp
+    GUI/UpdatesUIManager.hpp
+    GUI/UpdatesUIManager.cpp
+    GUI/PresetArchiveDatabase.hpp
+    GUI/PresetArchiveDatabase.cpp
+    Utils/PresetUpdaterWrapper.cpp
+    Utils/PresetUpdaterWrapper.hpp
     GUI/GLShadersManager.hpp
     GUI/GLShadersManager.cpp
     GUI/GLShader.cpp
@@ -417,6 +423,8 @@ set(SLIC3R_GUI_SOURCES
     Utils/Bonjour.hpp
     Utils/PresetUpdater.cpp
     Utils/PresetUpdater.hpp
+    Utils/PresetUpdaterWrapper.cpp
+    Utils/PresetUpdaterWrapper.hpp
     Utils/Process.cpp
     Utils/Process.hpp
     Utils/RaycastManager.cpp

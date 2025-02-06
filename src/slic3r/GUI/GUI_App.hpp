@@ -41,7 +41,7 @@ namespace Slic3r {
 
 class AppConfig;
 class PresetBundle;
-class PresetUpdater;
+class PresetUpdaterWrapper;
 class ModelObject;
 class PrintHostJobQueue;
 class Model;
@@ -187,7 +187,7 @@ public:
     bool initialized() const { return m_initialized; }
 
     explicit GUI_App(EAppMode mode = EAppMode::Editor);
-
+    ~GUI_App() override;
     EAppMode get_app_mode() const { return m_app_mode; }
     bool is_editor() const { return m_app_mode == EAppMode::Editor; }
     bool is_gcode_viewer() const { return m_app_mode == EAppMode::GCodeViewer; }
@@ -376,13 +376,13 @@ public:
     // Parameters extracted from the command line to be passed to GUI after initialization.
     GUI_InitParams *init_params{nullptr};
 
-    std::unique_ptr<AppConfig> app_config;
-
-    std::unique_ptr<PresetBundle> preset_bundle;
+    AppConfig*      app_config{ nullptr };
+    PresetBundle*   preset_bundle{ nullptr };
+    MainFrame*      mainframe{ nullptr };
+    Plater*         plater_{ nullptr };
+	PresetUpdaterWrapper*  get_preset_updater_wrapper() { return m_preset_updater_wrapper.get(); }
 
     std::unique_ptr<PresetUpdater> preset_updater;
-    MainFrame *mainframe{nullptr};
-    Plater *plater_{nullptr};
     Sidebar *sidebar_{nullptr};
     std::mutex not_modal_dialog_mutex;
     wxDialog *not_modal_dialog = nullptr;
@@ -477,7 +477,8 @@ private:
     bool m_check_for_application_update = false;
 
     void app_version_check(bool from_user = false);
-
+    std::unique_ptr<PresetUpdaterWrapper> m_preset_updater_wrapper; 
+    ConfigWizard* m_config_wizard {nullptr};
     bool m_datadir_redefined{false};
     bool m_wifi_config_dialog_shown{false};
 };

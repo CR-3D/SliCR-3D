@@ -132,3 +132,4 @@ src/slic3r/Utils/OctoPrint.cpp
 src/slic3r/Utils/PresetUpdater.cpp
 src/slic3r/Utils/Process.cpp
 src/slic3r/Utils/Repetier.cpp
+src/slic3r/Utils/PresetUpdaterWrapper.cpp
