@@ -1784,7 +1784,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                         break;
                     } else if (*ptr == 'A' && print.config().gcode_flavor.value == gcfKlipper) {
                         // ACTIVATE_EXTRUDER for klipper (if used)
-                        if (std::string::npos != start_gcode.find("ACTIVATE_EXTRUDER", size_t(ptr - start_gcode.data()))) {
+                        if (std::string::npos != start_gcode.find("T", size_t(ptr - start_gcode.data()))) {
                             find = true;
                             break;
                         }
