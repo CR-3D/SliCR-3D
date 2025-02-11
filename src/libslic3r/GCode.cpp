@@ -4771,6 +4771,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
             assert(!path.polyline.get_point(i - 1).coincides_with_epsilon(path.polyline.get_point(i)));
 
     split_at_seam_pos(loop_to_seam, is_hole_loop);
+    const Point seam_pos = loop_to_seam.first_point();
     const coordf_t full_loop_length = loop_to_seam.length();
     const bool is_full_loop_ccw = loop_to_seam.polygon().is_counter_clockwise();
     //after that point, loop_to_seam can be modified by 'paths', so don't use it anymore
@@ -4951,6 +4952,13 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         gcode += extrude_path(path, description, speed);
     }
 
+    // print seam tag with seam position (only for external perimeter & overhangs)
+    if (original_loop.paths.front().role().is_external_perimeter())
+    {
+        Vec2d seam_gcode_point = point_to_gcode(seam_pos);
+        gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Seam) + ":" +
+            to_string_nozero(seam_gcode_point.x(), 3) + ":" + to_string_nozero(seam_gcode_point.y(), 3) + "\n";
+    }
     // reset acceleration
     m_writer.set_acceleration((uint16_t)floor(get_default_acceleration(m_config) + 0.5));
 

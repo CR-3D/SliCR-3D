@@ -56,6 +56,7 @@ const std::vector<std::string> GCodeProcessor::Reserved_Tags = {
     "WIPE_END",
     "HEIGHT:",
     "WIDTH:",
+    "SEAM",
     "LAYER_CHANGE",
     "LAYER_CHANGE_TRAVEL",
     "LAYER_CHANGE_RETRACTION_START",
@@ -1115,6 +1116,8 @@ void GCodeProcessor::reset()
     m_use_volumetric_e = false;
     m_last_default_color_id = 0;
 
+    m_seam.reset();
+
     m_options_z_corrector.reset();
 
     m_spiral_vase_active = false;
@@ -2093,6 +2096,27 @@ void GCodeProcessor::process_tags(const std::string_view comment, bool producers
     // wipe end tag
     if (boost::starts_with(comment, reserved_tag(ETags::Wipe_End))) {
         m_wiping = false;
+        return;
+    }
+
+    // seam tag
+    if (boost::starts_with(comment, reserved_tag(ETags::Seam))) {
+        std::string_view first_part = comment.substr(reserved_tag(ETags::Seam).size() + 1);
+        size_t pos_separator = first_part.find(":");
+        assert(pos_separator != std::string::npos);
+        if (pos_separator == std::string::npos) {
+            return;
+        }
+        std::string_view second_part = first_part.substr(pos_separator + 1);
+        first_part = first_part.substr(0, pos_separator);
+        double seam_x, seam_y;
+        bool ok = parse_number(first_part, seam_x);
+        ok = ok && parse_number(second_part, seam_y);
+        assert(!m_seam);
+        m_seam = m_end_position;
+        (*m_seam)[0] = seam_x;
+        (*m_seam)[1] = seam_y;
+        (*m_seam)[3] = 0;
         return;
     }
 
@@ -3128,7 +3152,18 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
         }
     }
 
-    if (m_seams_detector.is_active()) {
+    if (m_seam) {
+        // use tag for easy seam detection
+        AxisCoords end_position = m_end_position;
+        m_end_position = *m_seam;
+        store_move_vertex(EMoveType::Seam);
+        m_end_position = end_position;
+        // seam already set, deactivate detector to avoid double detection.
+        if (m_seams_detector.is_active()) {
+            m_seams_detector.activate(false);
+        }
+        m_seam.reset();
+    } else if (m_seams_detector.is_active()) {
         // check for seam starting vertex
         if (type == EMoveType::Extrude && m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter && !m_seams_detector.has_first_vertex())
             m_seams_detector.set_first_vertex(m_result.moves.back().position - m_extruder_offsets[m_extruder_id]);
@@ -3151,8 +3186,7 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
 
             m_seams_detector.activate(false);
         }
-    }
-    else if (type == EMoveType::Extrude && m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter) {
+    } else if (type == EMoveType::Extrude && m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter) {
         m_seams_detector.activate(true);
         m_seams_detector.set_first_vertex(m_result.moves.back().position - m_extruder_offsets[m_extruder_id]);
     }

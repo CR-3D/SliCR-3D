@@ -196,6 +196,7 @@ namespace Slic3r {
             Wipe_End,
             Height,
             Width,
+            Seam,
             Layer_Change,
             Layer_Change_Travel,
             Layer_Change_Retraction_Start,
@@ -630,6 +631,7 @@ namespace Slic3r {
         float m_temperature;
         bool m_use_volumetric_e;
         SeamsDetector m_seams_detector;
+        std::optional<AxisCoords> m_seam;
         OptionsZCorrector m_options_z_corrector;
         size_t m_last_default_color_id;
         bool m_spiral_vase_active;
