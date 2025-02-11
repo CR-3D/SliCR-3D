@@ -666,6 +666,11 @@ void MenuFactory::append_menu_item_add_svg(wxMenu *menu, ModelVolumeType type, b
     append_menu_itemm_add_(_L("SVG"), GLGizmosManager::Svg, menu, type, is_submenu_item);
 }
 
+enum class CustomWindowIDs {
+    ID_SUPPORT_MENU = wxID_HIGHEST + 1,
+    ID_BRIM_PATCH_MENU = wxID_HIGHEST + 2,
+};
+
 void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
 {
     wxMenu* menu = menu_type == mtObjectFFF ? &m_object_menu : menu_type == mtObjectSLA ? &m_sla_object_menu : nullptr;
@@ -742,16 +747,28 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
     }
     {
         // SUPPORT enforcer & blocker
+       
+       if (!m_object_menu.FindItem(static_cast<int>(CustomWindowIDs::ID_SUPPORT_MENU))) {
+        
         wxMenu* sub_menu_both = new wxMenu;
         auto& item_block = ADD_VOLUME_MENU_ITEMS[int(ModelVolumeType::SUPPORT_BLOCKER)];
         auto& item_enforce = ADD_VOLUME_MENU_ITEMS[int(ModelVolumeType::SUPPORT_ENFORCER)];
+        
         wxMenu* sub_menu_block = new wxMenu;
         append_submenu_add_generic(sub_menu_both, sub_menu_block, ModelVolumeType::SUPPORT_BLOCKER);
         append_submenu(sub_menu_both, sub_menu_block, wxID_ANY, _L("Blocker"), "", item_block.second, selected_func, m_parent);
+        
         wxMenu* sub_menu_enforce = new wxMenu;
         append_submenu_add_generic(sub_menu_both, sub_menu_enforce, ModelVolumeType::SUPPORT_ENFORCER);
         append_submenu(sub_menu_both, sub_menu_enforce, wxID_ANY, _L("Enforcer"), "", item_enforce.second, selected_func, m_parent);
-        append_submenu(menu, sub_menu_both, wxID_ANY, _L("Add support blocker/enforcer"), "", item_enforce.second, selected_func, m_parent);
+        
+        append_submenu(menu, sub_menu_both,
+                       static_cast<int>(CustomWindowIDs::ID_SUPPORT_MENU),
+                       _L("Add support blocker/enforcer"), "",
+                       item_enforce.second,
+                       selected_func,
+                       m_parent);
+       }
     }
     if (menu_type != mtObjectSLA) {
         // SEAM
@@ -767,6 +784,8 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
         append_submenu(menu, sub_menu_both, wxID_ANY, _L("Add seam position"), "", "add_brim", selected_func, m_parent);
     }
     if (menu_type != mtObjectSLA) {
+          if (!m_object_menu.FindItem(static_cast<int>(CustomWindowIDs::ID_BRIM_PATCH_MENU))) {
+       
         // Brim: patch or blocker
         wxMenu* sub_menu_both = new wxMenu;
         auto& item_patch = ADD_VOLUME_MENU_ITEMS[int(ModelVolumeType::BRIM_PATCH)];
@@ -784,10 +803,20 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
                 [this](wxCommandEvent&) { obj_list()->load_generic_subobject(L("Square"), ModelVolumeType::BRIM_NEGATIVE); },
                 item_blocker.second, nullptr,
                 [this]() { return obj_list()->is_instance_or_object_selected(); }, m_parent);
+
         wxMenu* sub_menu_blocker = new wxMenu;
         append_submenu_add_generic(sub_menu_both, sub_menu_blocker, ModelVolumeType::BRIM_NEGATIVE);
         append_submenu(sub_menu_both, sub_menu_blocker, wxID_ANY, _L("Other blockers "), "", "", selected_func, m_parent);
-        append_submenu(menu, sub_menu_both, wxID_ANY, _L("Add Brim patch/blocker"), "", "add_brim", selected_func, m_parent);
+        
+        append_submenu(menu,
+                       sub_menu_both,
+                       static_cast<int>(CustomWindowIDs::ID_BRIM_PATCH_MENU),
+                       _L("Add Brim patch/blocker"),
+                       "",
+                       "add_brim",
+                       selected_func,
+                       m_parent);
+       }
     }
 }
 

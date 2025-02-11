@@ -1461,7 +1461,7 @@ bool GUI_App::on_init_inner() {
 #ifndef __linux__
         wxYield();
 #endif
-        scrn->SetText(_L("Loading configuration") + dots);
+        //scrn->SetText(_L("Loading configuration") + dots);
     }
 
     preset_bundle = new PresetBundle();
