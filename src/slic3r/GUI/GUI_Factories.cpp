@@ -816,7 +816,7 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
                        "add_brim",
                        selected_func,
                        m_parent);
-       }
+        }
     }
 }
 

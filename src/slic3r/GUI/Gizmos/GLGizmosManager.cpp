@@ -197,7 +197,7 @@ bool GLGizmosManager::open_gizmo(EType type)
       return true;
    }
       
-    if (m_gizmos[idx]->is_actionable() && activate_gizmo(type)) {
+    if ((m_gizmos[idx]->is_actionable() || m_gizmos[idx]->is_activable()) && activate_gizmo(type)) {
       if (!selection.is_text())
         m_gizmos[idx]->trigger_action();
         // remove update data into gizmo itself
