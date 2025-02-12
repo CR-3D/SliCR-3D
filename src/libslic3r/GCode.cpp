@@ -7936,7 +7936,7 @@ std::string GCodeGenerator::toolchange(uint16_t extruder_id, double print_z) {
     if (toolchange_gcode.empty() && m_writer.multiple_extruders) { // !custom_gcode_changes_tool(toolchange_gcode_parsed, m_writer.toolchange_prefix(), extruder_id) && !no_toolchange)
         gcode += toolchange_command;
     } else {
-        // user provided his own toolchange gcode, no need to do anything
+        // user provided his own toolchange gcode, no need to write anything
     }
     if (m_enable_cooling_markers) {
         gcode += ";_TOOLCHANGE " + std::to_string(extruder_id) + "\n";

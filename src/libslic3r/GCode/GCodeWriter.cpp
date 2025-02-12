@@ -212,7 +212,7 @@ std::string GCodeWriter::set_pressure_advance(double pa) const {
     std::string gcode;
     if (FLAVOR_IS(gcfKlipper)) {
         gcode = std::string("SET_PRESSURE_ADVANCE ADVANCE=") + to_string_nozero(pa, 4);
-        if (tool_id >= 0) {
+        if (tool_id >= 0 && !this->config.single_extruder_multi_material.value) {
             if (this->config.tool_name.size() > tool_id && !this->config.tool_name.get_at(tool_id).empty()) {
                 gcode += std::string(" EXTRUDER=") + this->config.tool_name.get_at(tool_id);
             } else {
@@ -508,10 +508,10 @@ std::string GCodeWriter::update_progress(uint32_t num, uint32_t tot, bool allow_
 
 std::string GCodeWriter::toolchange_prefix() const
 {
-    return FLAVOR_IS(gcfMakerWare) ? "M135 T" :
-           FLAVOR_IS(gcfSailfish) ? "M108 T" :
-           FLAVOR_IS(gcfKlipper) ? "ACTIVATE_EXTRUDER EXTRUDER=" :
-           "T";
+    return FLAVOR_IS(gcfMakerWare)                                                  ? "M135 T" :
+        FLAVOR_IS(gcfSailfish)                                                      ? "M108 T" :
+        FLAVOR_IS(gcfKlipper) && !this->config.single_extruder_multi_material.value ? "ACTIVATE_EXTRUDER EXTRUDER=" :
+                                                                                      "T";
 }
 
 std::string GCodeWriter::toolchange(uint16_t tool_id)
@@ -540,9 +540,11 @@ std::string GCodeWriter::toolchange(uint16_t tool_id)
 
     // return the toolchange command
     // if we are running a single-extruder setup, just set the extruder and return nothing
+    // no, still output TX to let the firmware know to change the filament
     std::ostringstream gcode;
     if (this->multiple_extruders) {
-        if (FLAVOR_IS(gcfKlipper)) {
+        // if klipper and not in single_extruder_multi_material, then you need to select the extruder by name.
+        if (FLAVOR_IS(gcfKlipper) && !this->config.single_extruder_multi_material.value) {
             //check if we can use the tool_name field or not
             if (tool_id > 0 && tool_id < this->config.tool_name.size() && !this->config.tool_name.get_at(tool_id).empty()
                 // NOTE: this will probably break if there's more than 10 tools, as it's relying on the
@@ -551,14 +553,15 @@ std::string GCodeWriter::toolchange(uint16_t tool_id)
                 gcode << this->toolchange_prefix() << this->config.tool_name.get_at(tool_id);
             } else {
                 gcode << this->toolchange_prefix() << "extruder";
-                if (tool_id > 0)
+                if (tool_id > 0) {
                     gcode << tool_id;
+                }
             }
         } else {
             gcode << this->toolchange_prefix() << tool_id;
         }
         if (this->config.gcode_comments)
-            gcode << " ; change extruder";
+            gcode << (this->config.single_extruder_multi_material.value ? " ; change filament" : " ; change extruder");
         gcode << "\n";
         gcode << this->reset_e(true);
     }
