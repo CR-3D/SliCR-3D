@@ -165,7 +165,6 @@ echo "\nbrew --prefix libiconv:\n"
 brew --prefix libiconv
 echo "\nbrew --prefix zstd:\n"
 brew --prefix zstd
-export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix zstd)/lib/
 # not enough to fix the issue on cross-compiling
 #if [[ -n "$BUILD_ARCH" ]]
 #then
@@ -224,15 +223,25 @@ then
     echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.15\" ${BUILD_ARCH} "
     pushd deps/build > /dev/null
     cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" $BUILD_ARGS
-
-    echo -e "\n ... done\n"
+    if [ $? -eq 0 ]
+    then
+        echo -e "\n ... done\n"
+    else
+        echo -e "\n ... fail\n"
+        exit 1 # terminate and indicate error
+    fi
 
     echo -e "[4/9] Building dependencies ...\n"
 
     # make deps
     make -j$NCORES
-
-    echo -e "\n ... done\n"
+    if [ $? -eq 0 ]
+    then
+        echo -e "\n ... done\n"
+    else
+        echo -e "\n ... fail\n"
+        exit 1 # terminate and indicate error
+    fi
 
     echo -e "[5/9] Renaming wxscintilla library ...\n"
 
@@ -296,14 +305,26 @@ then
     # cmake
     pushd build > /dev/null
     cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
-    echo -e "\n ... done"
+    if [ $? -eq 0 ]
+    then
+        echo -e "\n ... done\n"
+    else
+        echo -e "\n ... fail\n"
+        exit 1 # terminate and indicate error
+    fi
 
     # make Slic3r
     if [[ -z "$BUILD_XCODE" ]]
     then
         echo -e "\n[6/9] Building Slicer ...\n"
         make -j$NCORES Slic3r
-        echo -e "\n ... done"
+        if [ $? -eq 0 ]
+        then
+            echo -e "\n ... done\n"
+        else
+            echo -e "\n ... fail\n"
+            exit 1 # terminate and indicate error
+        fi
     fi
 
     echo -e "\n[7/9] Generating language files ...\n"
@@ -313,9 +334,14 @@ then
         make gettext_make_pot
     fi
     make gettext_po_to_mo
+    if [ $? -eq 0 ]
+    then
+        echo -e "\n ... done\n"
+    else
+        echo -e "\n ... fail\n"
+        exit 1 # terminate and indicate error
+    fi
 
-    popd  > /dev/null
-    echo -e "\n ... done"
     popd  > /dev/null
 
     echo "> ls ROOT"
@@ -334,7 +360,19 @@ then
     chmod 755 $ROOT/build/src/BuildMacOSImage.sh
     pushd build  > /dev/null
     echo "> $ROOT/build/src/BuildMacOSImage.sh -i ${BUILD_IMG_ARCH}"
-    $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH
+    if [[ -n "$BUILD_DOWNLOAD_DEP" ]]
+    then
+        $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH
+    else
+        $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH -z
+    fi
+    if [ $? -eq 0 ]
+    then
+        echo -e "\n BuildMacOSImage done\n"
+    else
+        echo -e "\n BuildMacOSImage fail\n"
+#        exit 1 # terminate and indicate error
+    fi
     popd  > /dev/null
     echo "> ls ROOT"
     ls -al $ROOT

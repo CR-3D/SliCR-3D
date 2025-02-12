@@ -76,10 +76,38 @@ done
         # copy bin and do not let it lower case
         cp -f bin/@SLIC3R_APP_CMD@ pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
         chmod u+x pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        cp /usr/local/opt/zstd/lib/libzstd.1.dylib pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/libzstd.1.dylib
-
+        
+        echo "otool -L exefile:"
+        otool -L pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        echo "END otool"
+        
+        #copy libzstd
+        ZSDT_FILE=
+        echo "libzstd:\n"
+        ls -al /opt/homebrew/opt/zstd/lib/libzstd*.dylib
+        ls -al /usr/local/opt/zstd/lib/libzstd*.dylib
+        ZSDT_PATH=$(ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
+        if [ -z "${ZSDT_FILE}" ]
+        then
+            # try with homebrew
+            ZSDT_PATH=$(ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
+        fi
+        ZSTD_FILE=$(basename ${ZSDT_PATH})
+        echo "zstd var:'"$ZSDT_PATH"' : "$ZSTD_FILE;
+        cp $ZSDT_PATH pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/$ZSTD_FILE
+        ls -al pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/
+        install_name_tool -change $ZSDT_PATH @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        install_name_tool -change /opt/homebrew/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        
+        echo "otool -L exefile now:"
+        otool -L pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        echo "END otool"
+        
 #     } &> $ROOT/Build.log # Capture all command output
     echo -e "\n ... done\n"
+
+DMG_NAME=@SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
@@ -91,26 +119,28 @@ echo -e "\n[9/9] Creating .tgz and DMG Image for distribution..."
 
     # create dmg
     hdiutil create -ov -fs HFS+ -volname "@SLIC3R_APP_KEY@" -srcfolder "pack/@SLIC3R_APP_KEY@" temp.dmg
-    hdiutil convert temp.dmg -format UDZO -o @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
+    hdiutil convert temp.dmg -format UDZO -o $DMG_NAME
     rm -f temp.dmg
-    popd
+    
   } &> $ROOT/Build.log # Capture all command output
 
   # check if evrything went well
-  if [ -e $OS_NAME.dmg ]; then
+  if [ -e $OS_NAME ]; then
       echo -e "\n ... done\n"
   else
       # something went wrong, publish log
       echo -e "\n ... fail\n"
+      ls -al
       cat $ROOT/Build.log
   fi
 fi
 
-if [[ -e $OS_NAME.dmg ]]
+if [[ -e $DMG_NAME ]]
 then
-
+  echo -e "\nsuccess, returning.\n"
+  exit 0
 else
-echo -e "\n[9/9 (bis)] Creating .tgz and DMG Image for distribution... again"
+  echo -e "\n[9/9 (bis)] Creating .tgz and DMG Image for distribution... again"
   {
     echo killing...; sudo pkill -9 XProtect >/dev/null || true;
     echo waiting...; while pgrep XProtect; do sleep 3; done;
@@ -120,18 +150,19 @@ echo -e "\n[9/9 (bis)] Creating .tgz and DMG Image for distribution... again"
 
     # create dmg
     hdiutil create -ov -fs HFS+ -volname "@SLIC3R_APP_KEY@" -srcfolder "pack/@SLIC3R_APP_KEY@" temp.dmg
-    hdiutil convert temp.dmg -format UDZO -o @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
+    hdiutil convert temp.dmg -format UDZO -o $DMG_NAME
     rm -f temp.dmg
-    popd
   } &> $ROOT/Build.log # Capture all command output
 
   # check if evrything went well
-  if [ -e $OS_NAME.dmg ]; then
+  if [ -e $DMG_NAME ]; then
       echo -e "\n ... done\n"
   else
       # something went wrong, publish log
       echo -e "\n ... fail\n"
+      ls -al
       cat $ROOT/Build.log
+      exit 1 # terminate and indicate error
   fi
 fi
 
