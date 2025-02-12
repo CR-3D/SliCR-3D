@@ -833,8 +833,8 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
 	}
 
     if (this->set_value(opt_key, value, enabled, false)) {
-        assert(config.option(opt_short_key));
-        on_change_OG(opt_key, config.option(opt_short_key)->is_enabled(opt_index), get_value(opt_key));
+        // assert(config.option(opt_short_key)); // extruder_count: not a real config item
+        on_change_OG(opt_key, config.has(opt_short_key) ? config.option(opt_short_key)->is_enabled(opt_index) : true, get_value(opt_key));
     }
 }
 
