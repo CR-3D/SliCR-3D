@@ -5177,7 +5177,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
                             }
                             assert(polys.front().closest_point(pt_inside) != nullptr &&
                                    std::abs(polys.front().closest_point(pt_inside)->distance_to_square(pt_inside) -
-                                            best_dist_sqr) < SCALED_EPSILON);
+                                            best_dist_sqr) < SCALED_EPSILON * SCALED_EPSILON);
                         } else {
                             polys = { original_polygon };
                         }
@@ -5528,7 +5528,7 @@ std::string GCodeGenerator::extrude_path(const ExtrusionPath &path, const std::s
     }
 
     // if the path is too small to be printed, put in the queue to be merge with the next one.
-    const coordf_t scaled_min_length = this->config().gcode_min_length.is_enabled() ?
+    const distf_t scaled_min_length = this->config().gcode_min_length.is_enabled() ?
         scale_d(this->config().gcode_min_length.get_abs_value(m_current_perimeter_extrusion_width)) :
         0;
     if (scaled_min_length > 0 && simplifed_path.length() < scaled_min_length) {
@@ -5542,31 +5542,69 @@ std::string GCodeGenerator::extrude_path(const ExtrusionPath &path, const std::s
     // simplify with gcode_resolution (not used yet). Simplify by junction deviation before the g1/sec count, to be able to use that decimation to reduce max_gcode_per_second triggers.
     // But as it can be visible on cylinders, should only be called if a max_gcode_per_second trigger may come.
     const coordf_t scaled_min_resolution = scale_d(this->config().gcode_min_resolution.get_abs_value(m_current_perimeter_extrusion_width));
-    const int32_t max_gcode_per_second = (false /*disabled*/&& this->config().max_gcode_per_second.is_enabled()) ?
+    const int32_t max_gcode_per_second = (this->config().max_gcode_per_second.is_enabled()) ?
         this->config().max_gcode_per_second.value :
         0;
     double fan_speed;
+    //if (max_gcode_per_second > 0) {
+    //    // if (broken) max_gcode_per_second is used, simplify the segment with it
+    //    const int32_t gcode_buffer_window = this->config().gcode_command_buffer.value;
+    //    double speed = _compute_speed_mm_per_sec(path, speed_mm_per_sec, fan_speed, nullptr);
+    //    coordf_t scaled_mean_length = scale_d(speed / max_gcode_per_second);
+
+    //    // set at least 2 buffer space, to not over-erase first lines.
+    //    if (gcode_buffer_window > 2 && gcode_buffer_window - m_last_command_buffer_used < 2) {
+    //        m_last_command_buffer_used = gcode_buffer_window - 2;
+    //    }
+
+    //    // simplify
+    //    m_last_command_buffer_used = simplifed_path.polyline.simplify_straits(scaled_min_resolution,
+    //                                                                            scaled_min_length,
+    //                                                                            scaled_mean_length,
+    //                                                                            gcode_buffer_window,
+    //                                                                            m_last_command_buffer_used);
+    //} else if (scaled_min_length > 0) {
+    //    // else, simplify with the simple algo only
+    //    simplifed_path.polyline.simplify_straits(scaled_min_resolution, scaled_min_length);
+    //}
+    // old 2.5 way
+    distf_t current_scaled_min_length = scaled_min_length;
     if (max_gcode_per_second > 0) {
-        // if (broken) max_gcode_per_second is used, simplify the segment with it
-        const int32_t gcode_buffer_window = this->config().gcode_command_buffer.value;
-        double speed = _compute_speed_mm_per_sec(path, speed_mm_per_sec, fan_speed, nullptr);
-        coordf_t scaled_mean_length = scale_d(speed / max_gcode_per_second);
-
-        // set at least 2 buffer space, to not over-erase first lines.
-        if (gcode_buffer_window > 2 && gcode_buffer_window - m_last_command_buffer_used < 2) {
-            m_last_command_buffer_used = gcode_buffer_window - 2;
-        }
-
-        // simplify
-        m_last_command_buffer_used = simplifed_path.polyline.simplify_straits(scaled_min_resolution,
-                                                                                scaled_min_length,
-                                                                                scaled_mean_length,
-                                                                                gcode_buffer_window,
-                                                                                m_last_command_buffer_used);
-    } else if (scaled_min_length > 0) {
-        // else, simplify with the simple algo only
-        simplifed_path.polyline.simplify_straits(scaled_min_resolution, scaled_min_length);
+        current_scaled_min_length = std::max(current_scaled_min_length, scale_d(_compute_speed_mm_per_sec(path, speed_mm_per_sec, fan_speed, nullptr)) / max_gcode_per_second);
     }
+    if (current_scaled_min_length > 0 && !simplifed_path.polyline.has_arc() && !config().spiral_vase) {
+        // it's an alternative to simplifed_path.simplify(scale_(this->config().min_length)); with more enphasis on
+        // the segment length that on the feature detail. because tolerance = min_length /10, douglas_peucker will
+        // erase more points if angles are shallower than 6° and then the '_plus' will kick in to keep a bit more. if
+        // angles are all bigger than 6°, then the douglas_peucker will do all the work.
+        // NOTE: okay to use set_points() as i have checked against the absence of arc.
+        bool can_simplify = true;
+        if (simplifed_path.polyline.size() < 3) {
+            can_simplify = false;
+        }
+        if (simplifed_path.polyline.size() < 4 &&
+            simplifed_path.polyline.front().coincides_with_epsilon(simplifed_path.polyline.back())) {
+            // polygon
+            can_simplify = false;
+        }
+        for (int i = 1; i < simplifed_path.polyline.size(); ++i)
+            assert(!simplifed_path.polyline.get_point(i - 1).coincides_with_epsilon(
+                simplifed_path.polyline.get_point(i)));
+        if (can_simplify) {
+            ExtrusionPath old_path = simplifed_path;
+            simplifed_path.polyline = ArcPolyline(
+                MultiPoint::_douglas_peucker_plus(simplifed_path.polyline.to_polyline().points,
+                                                  std::max(scaled_min_resolution, current_scaled_min_length / 20),
+                                                  current_scaled_min_length));
+            for (int i = 1; i < simplifed_path.polyline.size(); ++i)
+                assert(!simplifed_path.polyline.get_point(i - 1).coincides_with_epsilon(
+                    simplifed_path.polyline.get_point(i)));
+            if (simplifed_path.size() <= 1) {
+                simplifed_path = old_path;
+            }
+        }
+    }
+    // end old 2.5 way
 
     for(int i=1;i<simplifed_path.polyline.size();++i)
         assert(!simplifed_path.polyline.get_point(i - 1).coincides_with_epsilon(simplifed_path.polyline.get_point(i)));
@@ -6247,7 +6285,7 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
     return gcode;
 }
 
-double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, const double set_speed, double &fan_speed, std::string *comment) {
+double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, const double set_speed, double &fan_speed, std::string *comment) const {
 
     float factor = 1;
     double speed = set_speed;
