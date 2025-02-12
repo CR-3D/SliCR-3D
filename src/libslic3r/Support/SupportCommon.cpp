@@ -49,10 +49,10 @@ void remove_bridges_from_contacts(
     const Layer         &lower_layer,
     const LayerRegion   &layerm,
     float                fw, 
-    Polygons            &contact_polygons)
+    ExPolygons          &contact_polygons)
 {
     // compute the area of bridging perimeters
-    Polygons bridges;
+    ExPolygons bridges;
     {
         coordf_t nozzle_diameter = scale_t(print_config.nozzle_diameter.get_at(layerm.region().config().perimeter_extruder-1));
         // Surface supporting this layer, expanded by 0.5 * nozzle_diameter, as we consider this kind of overhang to be sufficiently supported.
@@ -99,23 +99,25 @@ void remove_bridges_from_contacts(
                             supported[j] = true;
                 if (supported[0] && supported[1])
                     // Offset a polyline into a thick line.
-                    polygons_append(bridges, offset(polyline, w));
+                    append(bridges, to_expolygons(offset(polyline, w)));
             }
-        bridges = union_(bridges);
+        bridges = union_ex(bridges);
     }
     // remove the entire bridges and only support the unsupported edges
     //FIXME the brided regions are already collected as layerm.bridged. Use it?
-    for (const Surface &surface : layerm.fill_surfaces())
-        if (surface.has_pos_bottom() && surface.has_mod_bridge() && surface.bridge_angle >= 0.0)
-            polygons_append(bridges, surface.expolygon);
+    for (const Surface &surface : layerm.fill_surfaces()) {
+        if (surface.has_pos_bottom() && surface.has_mod_bridge() && surface.bridge_angle >= 0.0) {
+            bridges.push_back(surface.expolygon);
+        }
+    }
     //FIXME add the gap filled areas. Extrude the gaps with a bridge flow?
     // Remove the unsupported ends of the bridges from the bridged areas.
     //FIXME add supports at regular intervals to support long bridges!
-    bridges = diff(bridges,
+    bridges = diff_ex(bridges,
             // Offset unsupported edges into polygons.
             offset(layerm.unsupported_bridge_edges(), scale_(SUPPORT_MATERIAL_MARGIN), SUPPORT_SURFACES_OFFSET_PARAMETERS));
     // Remove bridged areas from the supported areas.
-    contact_polygons = diff(contact_polygons, bridges, ApplySafetyOffset::Yes);
+    contact_polygons = diff_ex(contact_polygons, bridges, ApplySafetyOffset::Yes);
 
     #ifdef SLIC3R_DEBUG
         static int iRun = 0;

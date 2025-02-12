@@ -25,7 +25,7 @@ void remove_bridges_from_contacts(
     const Layer         &lower_layer,
     const LayerRegion   &layerm,
     float                fw, 
-    Polygons            &contact_polygons);
+    ExPolygons          &contact_polygons);
 
 // Turn some of the base layers into base interface layers.
 // For soluble interfaces with non-soluble bases, print maximum two first interface layers with the base

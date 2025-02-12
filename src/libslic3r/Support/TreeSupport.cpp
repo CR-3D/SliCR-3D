@@ -194,41 +194,65 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
 }
 #endif
 
+
+ExPolygons to_expolys(Polygons polys) {
+    ExPolygons ex_polys;
+    ex_polys.assign(polys.size(), ExPolygon());
+    for (size_t idx = 0; idx < polys.size(); ++idx) {
+        polys[idx].make_counter_clockwise();
+        ex_polys[idx].contour = polys[idx];
+    }
+    return ex_polys;
+}
+
 [[nodiscard]] static const std::vector<Polygons> generate_overhangs(const TreeSupportSettings &settings, const PrintObject &print_object, std::function<void()> throw_on_cancel)
 {
     const size_t num_raft_layers   = settings.raft_layers.size();
     const size_t num_object_layers = print_object.layer_count();
     const size_t num_layers        = num_object_layers + num_raft_layers;
-    std::vector<Polygons> out(num_layers, Polygons{});
+    std::vector<ExPolygons> out(num_layers, ExPolygons{});
 
     const PrintConfig       &print_config           = print_object.print()->config();
     const PrintObjectConfig &config                 = print_object.config();
     const bool               support_auto           = config.support_material.value && config.support_material_auto.value;
     const int                support_enforce_layers = config.support_material_enforce_layers.value;
-    std::vector<Polygons>    enforcers_layers{ print_object.slice_support_enforcers() };
-    std::vector<Polygons>    blockers_layers{ print_object.slice_support_blockers() };
-    print_object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER, enforcers_layers);
-    print_object.project_and_append_custom_facets(false, EnforcerBlockerType::BLOCKER, blockers_layers);
+    std::vector<ExPolygons>  enforcers_layers{ print_object.slice_support_enforcers() };
+    std::vector<ExPolygons>  blockers_layers{ print_object.slice_support_blockers() };
+    std::vector<Polygons>    enforcers_custom_facets = print_object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER);
+    std::vector<Polygons>    blockers_custom_facets = print_object.project_and_append_custom_facets(false, EnforcerBlockerType::BLOCKER);
     const int                support_threshold      = config.support_material_threshold.value;
     const bool               support_threshold_auto = support_threshold == 0;
     // +1 makes the threshold inclusive
     double                   tan_threshold          = support_threshold_auto ? 0. : tan(M_PI * double(support_threshold + 1) / 180.);
     //FIXME this is a fudge constant!
     auto                     enforcer_overhang_offset = scaled<double>(config.support_tree_tip_diameter.value);
+    const size_t num_overhang_layers = support_auto ?
+        num_object_layers :
+        std::min(num_object_layers,
+                 std::max(size_t(support_enforce_layers),
+                          std::max(enforcers_layers.size(), enforcers_custom_facets.size())));
 
-    size_t num_overhang_layers = support_auto ? num_object_layers : std::min(num_object_layers, std::max(size_t(support_enforce_layers), enforcers_layers.size()));
+    assert(enforcers_custom_facets.size() == num_overhang_layers);
+    assert(blockers_custom_facets.size() == num_overhang_layers);
+    if (enforcers_layers.empty())
+        enforcers_layers.resize(num_overhang_layers);
+    if (blockers_layers.empty())
+        blockers_layers.resize(num_overhang_layers);
+    assert(enforcers_layers.size() == num_overhang_layers);
+    assert(blockers_layers.size() == num_overhang_layers);
+
     tbb::parallel_for(tbb::blocked_range<LayerIndex>(1, num_overhang_layers),
-        [&print_object, &config, &print_config, &enforcers_layers, &blockers_layers, 
+        [&print_object, &config, &print_config, &enforcers_layers, &enforcers_custom_facets, &blockers_layers, &blockers_custom_facets,
          support_auto, support_enforce_layers, support_threshold_auto, tan_threshold, enforcer_overhang_offset, num_raft_layers, &throw_on_cancel, &out]
         (const tbb::blocked_range<LayerIndex> &range) {
         for (LayerIndex layer_id = range.begin(); layer_id < range.end(); ++ layer_id) {
             const Layer   &current_layer  = *print_object.get_layer(layer_id);
             const Layer   &lower_layer    = *print_object.get_layer(layer_id - 1);
             // Full overhangs with zero lower_layer_offset and no blockers applied.
-            Polygons       raw_overhangs;
+            ExPolygons     raw_overhangs;
             bool           raw_overhangs_calculated = false;
             // Final overhangs.
-            Polygons       overhangs;
+            ExPolygons     overhangs;
             // For how many layers full overhangs shall be supported.
             const bool     enforced_layer = layer_id < support_enforce_layers;
             if (support_auto || enforced_layer) {
@@ -244,27 +268,58 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
                 } else
                     lower_layer_offset = scaled<float>(lower_layer.height / tan_threshold);
                 overhangs = lower_layer_offset == 0 ?
-                    diff(current_layer.lslices(), lower_layer.lslices()) :
-                    diff(current_layer.lslices(), offset(lower_layer.lslices(), lower_layer_offset));
+                    diff_ex(current_layer.lslices(), lower_layer.lslices()) :
+                    diff_ex(current_layer.lslices(), offset_ex(lower_layer.lslices(), lower_layer_offset));
                 if (lower_layer_offset == 0) {
                     raw_overhangs = overhangs;
                     raw_overhangs_calculated = true;
                 }
-                if (! (enforced_layer || blockers_layers.empty() || blockers_layers[layer_id].empty()))
-                    overhangs = diff(overhangs, blockers_layers[layer_id], ApplySafetyOffset::Yes);
+            if(!overhangs.empty()){
+                ExPolygons block;
+                append(block, blockers_layers[layer_id]);
+                append(block, union_ex(blockers_custom_facets[layer_id]));
+            SVG::export_expolygons(
+                debug_out_path("%d-overhangs_areas.svg", layer_id),
+                {
+                    {current_layer.lslices(), {"gray", scale_t(0.015)}},
+                    {(overhangs), {"yellow", scale_t(0.011)}},
+                    {(block), {"red", scale_t(0.009)}},
+                    {diff_ex(overhangs, block), {"blue", scale_t(0.006)}},
+                    {diff_ex(overhangs, block, ApplySafetyOffset::Yes), {"purple", scale_t(0.003)}},
+                }
+            );
+            }
+            assert(blockers_layers.size() == blockers_custom_facets.size());
+            if (!enforced_layer && (!blockers_layers.empty() || !blockers_custom_facets.empty()) &&
+                (!blockers_layers[layer_id].empty() || !blockers_custom_facets[layer_id].empty())) {
+                append(blockers_layers[layer_id], union_ex(blockers_custom_facets[layer_id]));
+                overhangs = diff_ex(overhangs, blockers_layers[layer_id]/*, ApplySafetyOffset::Yes //note: safety offset o*/);
+                //just to be safe
+                //overhangs = offset2_ex(overhangs, - EPSILON *10, EPSILON *10); 
+            }
                 if (config.dont_support_bridges) {
                     for (const LayerRegion *layerm : current_layer.regions())
                         remove_bridges_from_contacts(print_config, lower_layer, *layerm, 
                             float(layerm->flow(frExternalPerimeter).scaled_width()), overhangs);
                 }
             }
+            if(!overhangs.empty())
+            SVG::export_expolygons(
+                debug_out_path("%d-overhangs_without_bridges_areas.svg", layer_id),
+                {
+                    {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                    {union_ex(overhangs), {"yellow", scale_t(0.045)}},
+                }
+            );
             //check_self_intersections(overhangs, "generate_overhangs1");
-            if (! enforcers_layers.empty() && ! enforcers_layers[layer_id].empty()) {
+            assert(enforcers_custom_facets.size() == enforcers_layers.size());
+            if (!(enforcers_layers.empty() && enforcers_custom_facets.empty()) && !(enforcers_layers[layer_id].empty() && enforcers_custom_facets[layer_id].empty())) {
+                append(enforcers_layers[layer_id], union_ex(enforcers_custom_facets[layer_id]));
                 // Has some support enforcers at this layer, apply them to the overhangs, don't apply the support threshold angle.
                 //enforcers_layers[layer_id] = union_(enforcers_layers[layer_id]);
                 //check_self_intersections(enforcers_layers[layer_id], "generate_overhangs - enforcers");
                 //check_self_intersections(to_polygons(lower_layer.lslices()), "generate_overhangs - lowerlayers");
-                if (Polygons enforced_overhangs = intersection(raw_overhangs_calculated ? raw_overhangs : diff(current_layer.lslices(), lower_layer.lslices()), enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
+                if (ExPolygons enforced_overhangs = intersection_ex(raw_overhangs_calculated ? raw_overhangs : diff_ex(current_layer.lslices(), lower_layer.lslices()), enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
                     ! enforced_overhangs.empty()) {
                     //FIXME this is a hack to make enforcers work on steep overhangs.
                     //check_self_intersections(enforced_overhangs, "generate_overhangs - enforced overhangs1");
@@ -272,7 +327,7 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
                     //check_self_intersections(to_polygons(union_ex(enforced_overhangs)), "generate_overhangs - enforced overhangs11");
                     //check_self_intersections(offset(union_ex(enforced_overhangs),
                     //FIXME enforcer_overhang_offset is a fudge constant!
-                    enforced_overhangs = diff(offset(union_ex(enforced_overhangs), enforcer_overhang_offset),
+                    enforced_overhangs = diff_ex(offset_ex(enforced_overhangs, enforcer_overhang_offset),
                         lower_layer.lslices());
 #ifdef TREESUPPORT_DEBUG_SVG
 //                    if (! intersecting_edges(enforced_overhangs).empty()) 
@@ -284,11 +339,28 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
                               { { union_ex(enforced_overhangs) }, { "enforced_overhangs", "red",  "black", "", scaled<coord_t>(0.1f), 0.5f } } });
                     }
 #endif // TREESUPPORT_DEBUG_SVG
+            SVG::export_expolygons(
+                debug_out_path("%d-forced-overhangs.svg", current_layer.id()),
+                {
+                    {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                    {(overhangs), {"yellow", scale_t(0.045)}},
+                    {(enforced_overhangs), {"blue", scale_t(0.035)}},
+                    {(overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs)), {"green", scale_t(0.025)}},
+                }
+            );
                     //check_self_intersections(enforced_overhangs, "generate_overhangs - enforced overhangs2");
-                    overhangs = overhangs.empty() ? std::move(enforced_overhangs) : union_(overhangs, enforced_overhangs);
+                    overhangs = overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs);
                     //check_self_intersections(overhangs, "generate_overhangs - enforcers");
                 }
-            }   
+            }
+            if(!overhangs.empty())
+            SVG::export_expolygons(
+                debug_out_path("%d-overhangs_register.svg", layer_id),
+                {
+                    {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                    {(overhangs), /*ExPolygonAttributes*/{"red", scale_t(0.045)}},
+                }
+            );
             out[layer_id + num_raft_layers] = std::move(overhangs);
             throw_on_cancel();
         }
@@ -310,7 +382,7 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
                 //FIXME this is a hack to make enforcers work on steep overhangs.
                 //FIXME enforcer_overhang_offset is a fudge constant!
                 enforced_overhangs = offset(union_ex(enforced_overhangs), enforcer_overhang_offset);
-                overhangs = overhangs.empty() ? std::move(enforced_overhangs) : union_(overhangs, enforced_overhangs);
+                overhangs = overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs);
             }
         }   
 #endif
@@ -318,8 +390,25 @@ static std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> group_me
         throw_on_cancel();
     }
 #endif
+    for (size_t lidx =0;lidx < out.size(); lidx++) {
+        ExPolygons &overhang = out[lidx];
+        if(overhang.empty()) continue;
+        assert( lidx < print_object.layers().size());
+        ExPolygons slice = print_object.layers()[lidx]->lslices();
+        SVG::export_expolygons(
+            debug_out_path("%d-overhangs_areas_final.svg", lidx),
+            {
+                {slice, {"gray", scale_t(0.05)}},
+                {(overhang), /*ExPolygonAttributes*/{"red", scale_t(0.045)}},
+            }
+        );
+    }
 
-    return out;
+    std::vector<Polygons> polysout;
+    for (ExPolygons expolys : out) {
+        polysout.push_back(to_polygons(expolys));
+    }
+    return polysout;
 }
 
 /*!
@@ -3456,8 +3545,7 @@ static void generate_support_areas(Print &print,
 
         //FIXME generating overhangs just for the furst mesh of the group.
         assert(processing.second.size() == 1);
-        std::vector<Polygons>        overhangs = generate_overhangs(config, *print.get_object(processing.second.front()), throw_on_cancel);
-
+        std::vector<Polygons>      overhangs = generate_overhangs(config, *print.get_object(processing.second.front()), throw_on_cancel);
         // ### Precalculate avoidances, collision etc.
         size_t num_support_layers = precalculate(print, overhangs, processing.first, processing.second, volumes, throw_on_cancel);
         bool   has_support = num_support_layers > 0;

@@ -1157,13 +1157,39 @@ std::vector<Polygons> PrintObjectSupportMaterial::buildplate_covered(const Print
 struct SupportAnnotations
 {
     SupportAnnotations(const PrintObject &object, const std::vector<Polygons> &buildplate_covered) :
-        enforcers_layers(object.slice_support_enforcers()),
-        blockers_layers(object.slice_support_blockers()),
+        enforcers_layers(),
+        blockers_layers(),
         buildplate_covered(buildplate_covered)
     {
-        // Append custom supports.
-        object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER, enforcers_layers);
-        object.project_and_append_custom_facets(false, EnforcerBlockerType::BLOCKER, blockers_layers);
+        // Append custom supports to object's generated ones.
+        std::vector<ExPolygons> enforcers = object.slice_support_enforcers();
+        std::vector<Polygons> custom_enforcers = object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER);
+        const size_t layer_count = std::max(enforcers.size(), custom_enforcers.size());
+        assert(enforcers.empty() || enforcers.size() == layer_count);
+        assert(custom_enforcers.empty() || custom_enforcers.size() == layer_count);
+        enforcers_layers.resize(layer_count);
+        for (size_t layer_id = 0; layer_id < layer_count; ++layer_id) {
+            if (layer_id < enforcers.size()) {
+                append(enforcers_layers[layer_id], std::move(to_polygons(enforcers[layer_id])));
+            }
+            if (layer_id < custom_enforcers.size()) {
+                append(enforcers_layers[layer_id], std::move(custom_enforcers[layer_id]));
+            }
+        }
+        
+        std::vector<ExPolygons> blockers = object.slice_support_blockers();
+        std::vector<Polygons> custom_blockers = object.project_and_append_custom_facets(false, EnforcerBlockerType::BLOCKER);
+        assert(blockers.empty() || blockers.size() == layer_count);
+        assert(custom_blockers.empty() || custom_blockers.size() == layer_count);
+        blockers_layers.resize(layer_count);
+        for (size_t layer_id = 0; layer_id < layer_count; ++layer_id) {
+            if (layer_id < blockers.size()) {
+                append(blockers_layers[layer_id], std::move(to_polygons(blockers[layer_id])));
+            }
+            if (layer_id < custom_blockers.size()) {
+                append(blockers_layers[layer_id], std::move(custom_blockers[layer_id]));
+            }
+        }
     }
 
     std::vector<Polygons>         enforcers_layers;
@@ -1274,17 +1300,17 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
                     // Overhang defined by half the extrusion width.
                     0.5f * fw);
             // Overhang polygons for this layer and region.
-            Polygons diff_polygons;
+            ExPolygons diff_polygons;
             for(auto &srf : layerm->slices().surfaces) srf.expolygon.assert_valid();
-            Polygons layerm_polygons = to_polygons(layerm->slices().surfaces);
-            assert_valid(layerm_polygons);
+            const ExPolygons layerm_expolygons = to_expolygons(layerm->slices().surfaces);
+            assert_valid(layerm_expolygons);
             if (lower_layer_offset == 0.f) {
                 // Support everything.
-                diff_polygons = diff(layerm_polygons, lower_layer_polygons);
+                diff_polygons = diff_ex(layerm_expolygons, lower_layer_polygons);
                 if (buildplate_only) {
                     // Don't support overhangs above the top surfaces.
                     // This step is done before the contact surface is calculated by growing the overhang region.
-                    diff_polygons = diff(diff_polygons, annotations.buildplate_covered[layer_id]);
+                    diff_polygons = diff_ex(diff_polygons, annotations.buildplate_covered[layer_id]);
                 }
                 ensure_valid(diff_polygons, resolution);
             } else if (support_auto) {
@@ -1292,32 +1318,32 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
                 //FIXME cache the lower layer offset if this layer has multiple regions.
 #if 0
                 //FIXME this solution will trigger stupid supports for sharp corners, see GH #4874
-                diff_polygons = opening(
-                    diff(layerm_polygons,
+                diff_polygons = opening_ex(
+                    diff_ex(layerm_expolygons,
                             // Likely filtering out thin regions from the lower layer, that will not be covered by perimeters, thus they
                             // are not supporting this layer.
                             // However this may lead to a situation where regions at the current layer that are narrow thus not extrudable will generate unnecessary supports.
                             // For example, see GH issue #3094
-                            opening(lower_layer_polygons, 0.5f * fw, lower_layer_offset + 0.5f * fw, SUPPORT_SURFACES_OFFSET_PARAMETERS)), 
+                            opening_ex(lower_layer_polygons, 0.5f * fw, lower_layer_offset + 0.5f * fw, SUPPORT_SURFACES_OFFSET_PARAMETERS)), 
                     //FIXME This opening is targeted to reduce very thin regions to support, but it may lead to
                     // no support at all for not so steep overhangs.
                     0.1f * fw);
 #else
                 diff_polygons = 
-                    diff(layerm_polygons,
-                            expand(lower_layer_polygons, lower_layer_offset, SUPPORT_SURFACES_OFFSET_PARAMETERS));
+                    diff_ex(layerm_expolygons,
+                            expand_ex(lower_layer_polygons, lower_layer_offset, SUPPORT_SURFACES_OFFSET_PARAMETERS));
 #endif
                 if (buildplate_only && ! annotations.buildplate_covered[layer_id].empty()) {
                     // Don't support overhangs above the top surfaces.
                     // This step is done before the contact surface is calculated by growing the overhang region.
-                    diff_polygons = diff(diff_polygons, annotations.buildplate_covered[layer_id]);
+                    diff_polygons = diff_ex(diff_polygons, annotations.buildplate_covered[layer_id]);
                 }
                 if (! diff_polygons.empty()) {
                     // Offset the support regions back to a full overhang, restrict them to the full overhang.
                     // This is done to increase size of the supporting columns below, as they are calculated by 
                     // propagating these contact surfaces downwards.
-                    diff_polygons = diff(
-                        intersection(expand(diff_polygons, lower_layer_offset, SUPPORT_SURFACES_OFFSET_PARAMETERS), layerm_polygons),
+                    diff_polygons = diff_ex(
+                        intersection_ex(offset_ex(diff_polygons, lower_layer_offset, SUPPORT_SURFACES_OFFSET_PARAMETERS), layerm_expolygons),
                         lower_layer_polygons);
                 }
                 //FIXME add user defined filtering here based on minimal area or minimum radius or whatever.
@@ -1333,8 +1359,8 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
                 // spanning just the projection between the two slices.
                 // Subtracting them as they are may leave unwanted narrow
                 // residues of diff_polygons that would then be supported.
-                diff_polygons = diff(diff_polygons,
-                    expand(union_(annotations.blockers_layers[layer_id]), float(1000.*SCALED_EPSILON)));
+                diff_polygons = diff_ex(diff_polygons,
+                    offset_ex(union_ex(annotations.blockers_layers[layer_id]), float(1000.*SCALED_EPSILON)));
                 ensure_valid(diff_polygons, resolution);
             }
 
@@ -1396,10 +1422,10 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
                         slices_margin.polygons);
                 }
 #else
-                diff_polygons = ensure_valid(diff(diff_polygons, slices_margin.polygons), resolution);
+                diff_polygons = ensure_valid(diff_ex(diff_polygons, slices_margin.polygons), resolution);
 #endif
             }
-            polygons_append(contact_polygons, diff_polygons);
+            polygons_append(contact_polygons, to_polygons(diff_polygons));
 
             assert_valid(contact_polygons);
             assert_valid(overhang_polygons);

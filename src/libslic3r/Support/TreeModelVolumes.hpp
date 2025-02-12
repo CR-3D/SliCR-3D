@@ -485,7 +485,7 @@ private:
     /*!
      * \brief Storage for areas that should be avoided, like support blocker or previous generated trees.
      */
-    std::vector<Polygons> m_anti_overhang;
+    std::vector<ExPolygons> m_anti_overhang;
     /*!
      * \brief Radii that can be ignored by ceilRadius as they will never be requested, sorted.
      */

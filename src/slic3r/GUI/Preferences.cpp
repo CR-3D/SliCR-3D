@@ -102,6 +102,12 @@ namespace Slic3r {
 
 namespace GUI {
 
+wxIcon icon_from_bitmap(const wxBitmap &bitmap) {
+    wxIcon temp_icon;
+    temp_icon.CopyFromBitmap(bitmap);
+    return temp_icon;
+}
+
 PreferencesDialog::PreferencesDialog(wxWindow* parent) :
     DPIDialog(parent, wxID_ANY, _L("Preferences"), wxDefaultPosition, 
               wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER, "preferences")
@@ -113,6 +119,14 @@ PreferencesDialog::PreferencesDialog(wxWindow* parent) :
 
     wxSize sz = GetSize();
     bool is_scrollbar_shown = false;
+
+    wxBitmapBundle* bmp_cog = get_bmp_bundle("cog");
+    wxIconBundle cog_icon;
+    cog_icon.AddIcon(icon_from_bitmap(bmp_cog->GetBitmap(wxSize(16,16))));
+    cog_icon.AddIcon(icon_from_bitmap(bmp_cog->GetBitmap(wxSize(32,32))));
+    cog_icon.AddIcon(icon_from_bitmap(bmp_cog->GetBitmap(wxSize(48,48))));
+    cog_icon.AddIcon(icon_from_bitmap(bmp_cog->GetBitmap(wxSize(64,64))));
+    SetIcons(cog_icon);
 
     const size_t pages_cnt = tabs->GetPageCount();
     for (size_t tab_id = 0; tab_id < pages_cnt; tab_id++) {
@@ -256,73 +270,74 @@ void PreferencesDialog::create_options_tab(const wxString& title)
 }
 
 
-std::shared_ptr<ConfigOptionsGroup> PreferencesDialog::create_options_group(const wxString& title, wxBookCtrlBase* tabs, int page_idx)
-{
-
-	std::shared_ptr<ConfigOptionsGroup> optgroup = std::make_shared<ConfigOptionsGroup>((wxPanel*)tabs->GetPage(page_idx), title, true);
-	optgroup->title_width = 40;
-	optgroup->label_width = 40;
-	optgroup->set_config_category_and_type(title, int(Preset::TYPE_PREFERENCES));
-	optgroup->m_on_change = [this, tabs, optgroup](t_config_option_key opt_key, bool enabled, boost::any value) {
+std::shared_ptr<ConfigOptionsGroup> PreferencesDialog::create_options_group(const wxString &title,
+                                                                            wxBookCtrlBase *tabs,
+                                                                            int page_idx) {
+    std::shared_ptr<ConfigOptionsGroup> optgroup = std::make_shared<ConfigOptionsGroup>((wxPanel *) tabs->GetPage(
+                                                                                            page_idx),
+                                                                                        title, true);
+    optgroup->title_width = 40;
+    optgroup->label_width = 40;
+    optgroup->set_config_category_and_type(title, int(Preset::TYPE_PREFERENCES));
+    optgroup->m_on_change = [this, tabs, optgroup](t_config_option_key opt_key, bool enabled, boost::any value) {
         assert(enabled);
-		Field* field = optgroup->get_field(opt_key);
-		if (auto it = m_values.find(opt_key); it != m_values.end()) { //TODO: test that
-			m_values.erase(it); // we shouldn't change value, if some of those parameters were selected, and then deselected
-			return;
-		}
-		//very special cases
-		if (opt_key == "default_action_on_close_application" || opt_key == "default_action_on_select_preset" || opt_key == "default_action_on_new_project")
-			m_values[opt_key] = boost::any_cast<bool>(value) ? "none" : "discard";
-		else if (opt_key == "default_action_on_dirty_project")
-			m_values[opt_key] = boost::any_cast<bool>(value) ? "" : "0";
-		else if ("ui_layout" == opt_key) {
-			std::vector<std::string> splitted;
-			boost::split(splitted, boost::any_cast<std::string>(value), boost::is_any_of(":"));
-			m_values[opt_key] = splitted[0];
-		} else if (field) {
-			//common cases
-			if (field->m_opt.type == coBool) {
-				m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
-			} else if (field->m_opt.type == coInt) {
-				m_values[opt_key] = std::to_string(boost::any_cast<int>(value));
-			} else if (field->m_opt.type == coString && field->m_opt.gui_type == ConfigOptionDef::GUIType::color) {
-				std::string str_color = boost::any_cast<std::string>(value);
-				if (str_color.size() >= 6 && str_color.size() <= 7) {
-					m_values[opt_key] = str_color[0] == '#' ? str_color.substr(1) : str_color;
-				}
-			} else if (field->m_opt.type == coString || field->m_opt.type == coStrings) {
-				m_values[opt_key] = boost::any_cast<std::string>(value);
-			} else if (field->m_opt.type == coEnum) {
+        Field *field = optgroup->get_field(opt_key);
+        // very special cases
+        if (opt_key == "use_custom_toolbar_size") {
+            m_icon_size_sizer->ShowItems(boost::any_cast<bool>(value));
+            refresh_og(m_optkey_to_optgroup["use_custom_toolbar_size"]);
+            get_app_config()->set("use_custom_toolbar_size", boost::any_cast<bool>(value) ? "1" : "0");
+            wxGetApp().plater()->get_current_canvas3D()->render();
+            return;
+        } else if (opt_key == "tabs_as_menu") {
+            bool disable_new_layout = boost::any_cast<bool>(value);
+            m_rb_new_settings_layout_mode->Show(!disable_new_layout);
+            if (disable_new_layout && m_rb_new_settings_layout_mode->GetValue()) {
+                m_rb_new_settings_layout_mode->SetValue(false);
+                m_rb_old_settings_layout_mode->SetValue(true);
+            }
+            refresh_og(m_optkey_to_optgroup["tabs_as_menu"]);
+        } else if (opt_key == "default_action_on_close_application" || opt_key == "default_action_on_select_preset" ||
+                   opt_key == "default_action_on_new_project") {
+            m_values[opt_key] = boost::any_cast<bool>(value) ? "none" : "discard";
+        } else if (opt_key == "default_action_on_dirty_project") {
+            m_values[opt_key] = boost::any_cast<bool>(value) ? "" : "0";
+        } else if ("ui_layout" == opt_key) {
+            std::vector<std::string> splitted;
+            boost::split(splitted, boost::any_cast<std::string>(value), boost::is_any_of(":"));
+            m_values[opt_key] = splitted[0];
+        } else if (field) {
+            // common cases
+            if (field->m_opt.type == coBool) {
+                // we shouldn't change value, if some of those parameters were selected, and then deselected
+                if (auto it = m_values.find(opt_key); it != m_values.end()) {
+                    m_values.erase(it);
+                    return;
+                } else {
+                    m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
+                }
+            } else if (field->m_opt.type == coInt) {
+                m_values[opt_key] = std::to_string(boost::any_cast<int>(value));
+            } else if (field->m_opt.type == coString && field->m_opt.gui_type == ConfigOptionDef::GUIType::color) {
+                std::string str_color = boost::any_cast<std::string>(value);
+                if (str_color.size() >= 6 && str_color.size() <= 7) {
+                    m_values[opt_key] = str_color[0] == '#' ? str_color.substr(1) : str_color;
+                }
+            } else if (field->m_opt.type == coString || field->m_opt.type == coStrings) {
+                m_values[opt_key] = boost::any_cast<std::string>(value);
+            } else if (field->m_opt.type == coEnum) {
                 int value_idx = boost::any_cast<int32_t>(value);
-                assert( int(field->m_opt.enum_def->values().size()) > value_idx && value_idx >= 0);
+                assert(int(field->m_opt.enum_def->values().size()) > value_idx && value_idx >= 0);
                 if (int(field->m_opt.enum_def->values().size()) > value_idx && value_idx >= 0) {
                     m_values[opt_key] = field->m_opt.enum_def->value(value_idx);
-				}
-			}
-		} else {
-			assert(false);
-			m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
-		}
-
-		if (opt_key == "use_custom_toolbar_size") {
-			m_icon_size_sizer->ShowItems(boost::any_cast<bool>(value));
-			refresh_og(m_optkey_to_optgroup["use_custom_toolbar_size"]);
-			get_app_config()->set("use_custom_toolbar_size", boost::any_cast<bool>(value) ? "1" : "0");
-			wxGetApp().plater()->get_current_canvas3D()->render();
-			return;
-		}
-		if (opt_key == "tabs_as_menu") {
-			bool disable_new_layout = boost::any_cast<bool>(value);
-			m_rb_new_settings_layout_mode->Show(!disable_new_layout);
-			if (disable_new_layout && m_rb_new_settings_layout_mode->GetValue()) {
-				m_rb_new_settings_layout_mode->SetValue(false);
-				m_rb_old_settings_layout_mode->SetValue(true);
-			}
-			refresh_og(m_optkey_to_optgroup["tabs_as_menu"]);
-		}
-
-	};
-	return optgroup;
+                }
+            }
+        } else {
+            assert(false);
+            m_values[opt_key] = boost::any_cast<bool>(value) ? "1" : "0";
+        }
+    };
+    return optgroup;
 }
 
 static void activate_options_tab(std::shared_ptr<ConfigOptionsGroup> optgroup, int padding = 20)
@@ -1559,7 +1574,9 @@ void PreferencesDialog::create_icon_size_slider(wxWindow* tab, std::shared_ptr<C
         win->SetBackgroundStyle(wxBG_STYLE_PAINT);
     }
 
-	opt_grp->parent()->GetSizer()->Add(m_icon_size_sizer, 0, wxEXPAND | wxALL, em);
+    // opt_grp->parent()->GetSizer()->Add(m_icon_size_sizer, 0, wxEXPAND | wxALL, em);
+    wxBoxSizer *parent_sizer = static_cast<wxBoxSizer *>(tab->GetSizer());
+    parent_sizer->Add(m_icon_size_sizer, 0, wxEXPAND | wxALL, 3);
 }
 
 void PreferencesDialog::create_settings_mode_widget(wxWindow* tab, std::shared_ptr<ConfigOptionsGroup> opt_grp)

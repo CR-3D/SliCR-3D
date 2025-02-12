@@ -112,6 +112,12 @@ public:
         ExPolygonAttributes() : ExPolygonAttributes("gray", "black", "blue") {}
         ExPolygonAttributes(const std::string &color) :
             ExPolygonAttributes(color, color, color) {}
+        ExPolygonAttributes(
+            const std::string &color,
+            const coord_t width,
+            float opacity = 0.5f) :
+            ExPolygonAttributes(color, color, color, width, opacity)
+            {}
 
         ExPolygonAttributes(
             const std::string &color_fill,

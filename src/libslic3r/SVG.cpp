@@ -385,8 +385,11 @@ void SVG::export_expolygons(const char *path, const std::vector<std::pair<Slic3r
     bbox.merge(Point(std::max(bbox.min.x() + legend_size.x(), bbox.max.x()), bbox.max.y() + legend_size.y()));
 
     SVG svg(path, bbox);
-    for (const auto &exp_with_attr : expolygons_with_attributes)
-        svg.draw(exp_with_attr.first, exp_with_attr.second.color_fill, exp_with_attr.second.fill_opacity);
+    for (const auto &exp_with_attr : expolygons_with_attributes) {
+        if(exp_with_attr.second.fill_opacity > 0) {
+            svg.draw(exp_with_attr.first, exp_with_attr.second.color_fill, exp_with_attr.second.fill_opacity);
+        }
+    }
     for (const auto &exp_with_attr : expolygons_with_attributes) {
         if (exp_with_attr.second.outline_width > 0) {
             std::string color_contour = exp_with_attr.second.color_contour;

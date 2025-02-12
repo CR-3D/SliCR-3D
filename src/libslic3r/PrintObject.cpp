@@ -1411,6 +1411,8 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "raft_layer_height"
                 || opt_key == "perimeter_generator"
                 || opt_key == "slice_closing_radius"
+                || opt_key == "slice_merge_dent"
+                || opt_key == "slice_merge_min_width"
                 || opt_key == "slicing_mode"
                 || opt_key == "support_material_contact_distance_type"
                 || opt_key == "support_material_contact_distance"
@@ -1610,6 +1612,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "first_layer_min_speed"
                 || opt_key == "first_layer_speed"
                 || opt_key == "first_layer_speed_over_raft"
+                || opt_key == "first_layer_strong_start"
                 || opt_key == "gap_fill_acceleration"
                 || opt_key == "gap_fill_flow_match_perimeter"
                 || opt_key == "gap_fill_speed"
@@ -5087,10 +5090,11 @@ static void project_triangles_to_slabs(SpanOfConstPtrs<Layer> layers, const inde
     }
 }
 
-void PrintObject::project_and_append_custom_facets(
-        bool seam, EnforcerBlockerType type, std::vector<Polygons>& out) const
+std::vector<Polygons> PrintObject::project_and_append_custom_facets(
+        bool seam, EnforcerBlockerType type) const
 {
-    for (const ModelVolume* mv : this->model_object()->volumes)
+    std::vector<Polygons> out;
+    for (const ModelVolume* mv : this->model_object()->volumes) {
         if (mv->is_model_part()) {
             const indexed_triangle_set custom_facets = seam
                     ? mv->seam_facets.get_facets_strict(*mv, type)
@@ -5115,6 +5119,8 @@ void PrintObject::project_and_append_custom_facets(
                 }
             }
         }
+    }
+    return out;
 }
 
 const Layer* PrintObject::get_layer_at_printz(coordf_t print_z) const {

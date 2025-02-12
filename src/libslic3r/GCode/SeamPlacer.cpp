@@ -462,7 +462,8 @@ PolylineWithEnds extract_perimeter_polylines(const Layer *layer, const SeamPosit
         SeamPosition configured_seam_preference;
         PerimeterGeneratorType perimeter_type = PerimeterGeneratorType::Classic;
     public:
-        bool also_overhangs = false;
+        // set to true to resolve some issues. when overhangs cut a loop in two, it can fail to go to the right spot.
+        bool also_overhangs = true; // false;
         bool also_thin_walls = false;
         PerimeterCopy(std::vector<const LayerRegion*>& regions_out, PolylineWithEnds* polys, SeamPosition configured_seam)
             : m_corresponding_regions_out(regions_out), configured_seam_preference(configured_seam), polylines(polys) {
@@ -503,22 +504,17 @@ PolylineWithEnds extract_perimeter_polylines(const Layer *layer, const SeamPosit
                 bool current_collected = false;
                 for (const ExtrusionPath &path : loop.paths) {
                     current_collected = false;
-                    if (path.role() == ExtrusionRole::ExternalPerimeter) {
-                        if(!previous_collected)
-                            polys.emplace_back(false, false, is_ccw ? PolylineWithEnd::PolyDir::CCW : PolylineWithEnd::PolyDir::CW);
-                        path.collect_points(polys.back().points);
-                        assert(polys.back().size() > 1);
-                        count_paths_collected++;
-                        current_collected = true;
-                    }
-                    if ( path.role().is_overhang() &&
-                        also_overhangs) { // TODO find a way to search for external overhangs only
-                        if(!previous_collected)
-                            polys.emplace_back(false, false, is_ccw ? PolylineWithEnd::PolyDir::CCW : PolylineWithEnd::PolyDir::CW);
-                        path.collect_points(polys.back().points);
-                        assert(polys.back().size() > 1);
-                        count_paths_collected++;
-                        current_collected = true;
+                    if (path.role().is_external_perimeter()) {
+                        if (!path.role().is_overhang() || also_overhangs) {
+                            if (!previous_collected)
+                                polys.emplace_back(false, false,
+                                                   is_ccw ? PolylineWithEnd::PolyDir::CCW :
+                                                            PolylineWithEnd::PolyDir::CW);
+                            path.collect_points(polys.back().points);
+                            assert(polys.back().size() > 1);
+                            count_paths_collected++;
+                            current_collected = true;
+                        }
                     }
                     //if (path.role() == ExtrusionRole::erThinWall && also_thin_walls) {
                     //    path.collect_points(p); // TODO: 2.7: reactivate when it's possible to distinguish between thinwalltravel & thinextrusions
@@ -583,9 +579,10 @@ PolylineWithEnds extract_perimeter_polylines(const Layer *layer, const SeamPosit
                 ex_entity->visit(visitor);
                 if (polylines.empty()) {
                     // can happen if the external is fully an overhang
+                    bool old = visitor.also_overhangs;
                     visitor.also_overhangs = true;
                     ex_entity->visit(visitor);
-                    visitor.also_overhangs = false;
+                    visitor.also_overhangs = old;
                     if (polylines.empty()) {
                         // shouldn't happen
                         assert(ex_entity->role() == ExtrusionRole::ThinWall || layer_region->region().config().perimeter_generator == PerimeterGeneratorType::Arachne); // no loops
@@ -962,9 +959,14 @@ struct SeamComparator {
         }
 
         //avoid overhangs
+        float overhang_penalty_a = 0.f;
+        float overhang_penalty_b = 0.f;
         if ((a.overhang > a.perimeter.flow_width / 4 && b.overhang == 0.0f) ||
             (b.overhang > b.perimeter.flow_width / 4 && a.overhang == 0.0f)) {
             return a.overhang < b.overhang;
+        } else if (a.overhang > 0 || b.overhang > 0) {
+            overhang_penalty_a = std::clamp(2 * (a.overhang - a.perimeter.flow_width / 8) / a.perimeter.flow_width, 0.f, 3.f);
+            overhang_penalty_b = std::clamp(2 * (b.overhang - b.perimeter.flow_width / 8) / b.perimeter.flow_width, 0.f, 3.f);
         }
 
         // prefer hidden points (more than 0.5 mm inside)
@@ -987,11 +989,11 @@ struct SeamComparator {
         }
 
         // the penalites are kept close to range [0-1.x] however, it should not be relied upon
-        float penalty_a = 2 * a.overhang / a.perimeter.flow_width
+        float penalty_a = overhang_penalty_a
                 + visibility_importance * a.visibility
                 + angle_importance * compute_angle_penalty(a.local_ccw_angle)
                 + travel_importance * distance_penalty_a;
-        float penalty_b = 2 * b.overhang / b.perimeter.flow_width
+        float penalty_b = overhang_penalty_b
                 + visibility_importance * b.visibility
                 + angle_importance * compute_angle_penalty(b.local_ccw_angle)
                 + travel_importance * distance_penalty_b;
@@ -1945,10 +1947,11 @@ Point SeamPlacer::place_seam(const Layer *layer, const ExtrusionLoop &loop, cons
         seam_index = perimeter.seam_index;
     } else {
         seam_index =
+            // only recompute for spNearest, spCost and spCustom, as these are the only one that uses the current position to compute the seam ( see is_first_better).
                 (po->config().seam_position.value == spNearest || po->config().seam_position.value == spCost || po->config().seam_position.value == spCustom) ?
-                        pick_nearest_seam_point_index(layer_perimeters.points, perimeter.start_index,
-                                unscaled<float>(last_pos), *po) :
-                        perimeter.seam_index;
+                        pick_nearest_seam_point_index(layer_perimeters.points, perimeter.start_index, unscaled<float>(last_pos), *po)
+                        : perimeter.seam_index
+            ;
         seam_position = layer_perimeters.points[seam_index].position;
     }
 

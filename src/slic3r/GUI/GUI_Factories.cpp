@@ -690,9 +690,15 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
             menu->Destroy(item_id);
     }
 
-    // Update "Height range Modifier" item (delete old & create new)
-    if (const auto range_id = menu->FindItem(_L("Height range Modifier")); range_id != wxNOT_FOUND)
-        menu->Destroy(range_id);
+    //also destroy combined menus & the ones taht aren't in ADD_VOLUME_MENU_ITEMS
+    wxString combined_support_str = _L("Add support blocker/enforcer");
+    wxString combined_brim_str = _L("Add Brim patch/blocker");
+    wxString combined_seam_str  =_L("Add seam position");
+    for (const wxString &item_name : {combined_support_str, combined_brim_str, combined_seam_str}) {
+        int item_id = menu->FindItem(item_name);
+        if (item_id != wxNOT_FOUND)
+            menu->Destroy(item_id);
+    }
 
     if (wxGetApp().get_mode() == comSimple && !get_app_config()->get_bool("objects_always_expert")) {
         //append_menu_item_add_text(menu, ModelVolumeType::NEGATIVE_VOLUME, false);
@@ -761,14 +767,7 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
         wxMenu* sub_menu_enforce = new wxMenu;
         append_submenu_add_generic(sub_menu_both, sub_menu_enforce, ModelVolumeType::SUPPORT_ENFORCER);
         append_submenu(sub_menu_both, sub_menu_enforce, wxID_ANY, _L("Enforcer"), "", item_enforce.second, selected_func, m_parent);
-        
-        append_submenu(menu, sub_menu_both,
-                       static_cast<int>(CustomWindowIDs::ID_SUPPORT_MENU),
-                       _L("Add support blocker/enforcer"), "",
-                       item_enforce.second,
-                       selected_func,
-                       m_parent);
-       }
+        append_submenu(menu, sub_menu_both, wxID_ANY, combined_support_str, "", item_enforce.second, selected_func, m_parent);
     }
     if (menu_type != mtObjectSLA) {
         // SEAM
@@ -781,7 +780,7 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
         append_menu_item(sub_menu_both, wxID_ANY, _L("Seam cylinder attractor (from top to bottom)"), "",
                 [this](wxCommandEvent&) { obj_list()->load_generic_subobject(L("SmallCylinder"), ModelVolumeType::SEAM_POSITION_CENTER_Z); },
                 item_cylinder.second, nullptr, selected_func, m_parent);
-        append_submenu(menu, sub_menu_both, wxID_ANY, _L("Add seam position"), "", "add_brim", selected_func, m_parent);
+        append_submenu(menu, sub_menu_both, wxID_ANY, combined_seam_str, "", "add_brim", selected_func, m_parent);
     }
     if (menu_type != mtObjectSLA) {
           if (!m_object_menu.FindItem(static_cast<int>(CustomWindowIDs::ID_BRIM_PATCH_MENU))) {
@@ -807,16 +806,7 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
         wxMenu* sub_menu_blocker = new wxMenu;
         append_submenu_add_generic(sub_menu_both, sub_menu_blocker, ModelVolumeType::BRIM_NEGATIVE);
         append_submenu(sub_menu_both, sub_menu_blocker, wxID_ANY, _L("Other blockers "), "", "", selected_func, m_parent);
-        
-        append_submenu(menu,
-                       sub_menu_both,
-                       static_cast<int>(CustomWindowIDs::ID_BRIM_PATCH_MENU),
-                       _L("Add Brim patch/blocker"),
-                       "",
-                       "add_brim",
-                       selected_func,
-                       m_parent);
-        }
+        append_submenu(menu, sub_menu_both, wxID_ANY, combined_brim_str, "", "add_brim", selected_func, m_parent);
     }
 }
 

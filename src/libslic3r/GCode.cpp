@@ -4773,6 +4773,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
             assert(!path.polyline.get_point(i - 1).coincides_with_epsilon(path.polyline.get_point(i)));
 
     split_at_seam_pos(loop_to_seam, is_hole_loop);
+    const Point seam_pos = loop_to_seam.first_point();
     const coordf_t full_loop_length = loop_to_seam.length();
     const bool is_full_loop_ccw = loop_to_seam.polygon().is_counter_clockwise();
     //after that point, loop_to_seam can be modified by 'paths', so don't use it anymore
@@ -4952,6 +4953,10 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         assert(!path.can_reverse());
         gcode += extrude_path(path, description, speed);
     }
+
+    // print seam tag with seam position
+    Vec2d seam_gcode_point = point_to_gcode(seam_pos);
+    gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Seam) + ":" + to_string_nozero(seam_gcode_point.x(),3) + ":" + to_string_nozero(seam_gcode_point.y(),3) + "\n";
 
     // reset acceleration
     m_writer.set_acceleration((uint16_t)floor(get_default_acceleration(m_config) + 0.5));
@@ -7639,7 +7644,7 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
               !(m_config.enforce_retract_first_layer && m_layer_index == 0)) &&
              m_config.fill_density.value > 0) ||
             m_config.avoid_crossing_perimeters) {
-            assert(m_last_object_layer == m_layer ||
+            assert(m_last_object_layer == m_layer || dynamic_cast<const Layer*>(m_layer) ||
                 (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z + EPSILON));
             assert(m_last_object_layer);
             if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {

@@ -144,13 +144,13 @@ TreeModelVolumes::TreeModelVolumes(
             [&](const tbb::blocked_range<size_t> &range) {
             for (size_t layer_idx = range.begin(); layer_idx < range.end(); ++ layer_idx) {
                 if (layer_idx < coord_t(additional_excluded_areas.size()))
-                    append(m_anti_overhang[layer_idx], additional_excluded_areas[layer_idx]);
+                    append(m_anti_overhang[layer_idx], union_ex(additional_excluded_areas[layer_idx]));
     //          if (SUPPORT_TREE_AVOID_SUPPORT_BLOCKER)
     //              append(m_anti_overhang[layer_idx], storage.support.supportLayers[layer_idx].anti_overhang);
     //FIXME block wipe tower
     //          if (storage.primeTower.enabled)
     //              append(m_anti_overhang[layer_idx], layer_idx == 0 ? storage.primeTower.outer_poly_first_layer : storage.primeTower.outer_poly);
-                m_anti_overhang[layer_idx] = union_(m_anti_overhang[layer_idx]);
+                m_anti_overhang[layer_idx] = union_ex(m_anti_overhang[layer_idx]);
             }
         });
     }
@@ -519,7 +519,7 @@ void TreeModelVolumes::calculateCollision(const coord_t radius, const LayerIndex
                                 append(collisions, offset(union_ex(collision_areas_original), radius + required_range_x, ClipperLib::jtMiter, 1.2));
                             }
                         collisions = processing_last_mesh && layer_idx < int(anti_overhang.size()) ? 
-                                union_(collisions, offset(union_ex(anti_overhang[layer_idx]), radius, ClipperLib::jtMiter, 1.2)) : 
+                                union_(collisions, offset(anti_overhang[layer_idx], radius, ClipperLib::jtMiter, 1.2)) : 
                                 union_(collisions);
                         auto &dst = data[layer_idx];
                         if (processing_last_mesh) {
@@ -547,7 +547,7 @@ void TreeModelVolumes::calculateCollision(const coord_t radius, const LayerIndex
                         Polygons placable = diff(
                             // Inflate the surface to sit on by the separation distance to increase chance of a support being placed on a sloped surface.
                             offset(below, xy_distance), 
-                            layer_idx_below < int(anti_overhang.size()) ? union_(current, anti_overhang[layer_idx_below]) : current);
+                            layer_idx_below < int(anti_overhang.size()) ? union_(current, to_polygons(anti_overhang[layer_idx_below])) : current);
                         auto &dst     = data_placeable[layer_idx];
                         if (processing_last_mesh) {
                             if (! dst.empty())

@@ -1689,12 +1689,12 @@ void PrintObject::slice_volumes()
     BOOST_LOG_TRIVIAL(debug) << "Slicing volumes - make_slices in parallel - end";
 }
 
-std::vector<Polygons> PrintObject::slice_support_volumes(const ModelVolumeType model_volume_type) const
+std::vector<ExPolygons> PrintObject::slice_support_volumes(const ModelVolumeType model_volume_type) const
 {
     auto it_volume     = this->model_object()->volumes.begin();
     auto it_volume_end = this->model_object()->volumes.end();
     for (; it_volume != it_volume_end && (*it_volume)->type() != model_volume_type; ++ it_volume) ;
-    std::vector<Polygons> slices;
+    std::vector<ExPolygons> slices;
     if (it_volume != it_volume_end) {
         // Found at least a single support volume of model_volume_type.
         std::vector<float> zs = zs_from_layers(this->layers());
@@ -1708,17 +1708,15 @@ std::vector<Polygons> PrintObject::slice_support_volumes(const ModelVolumeType m
             if ((*it_volume)->type() == model_volume_type) {
                 std::vector<ExPolygons> slices2 = slice_volume(*(*it_volume), zs, params, throw_on_cancel_callback);
                 if (slices.empty()) {
-                    slices.reserve(slices2.size());
-                    for (ExPolygons &src : slices2)
-                        slices.emplace_back(to_polygons(std::move(src)));
+                    slices = std::move(slices2);
                 } else if (!slices2.empty()) {
                     if (merge_layers.empty())
                         merge_layers.assign(zs.size(), false);
                     for (size_t i = 0; i < zs.size(); ++ i) {
                         if (slices[i].empty())
-                            slices[i] = to_polygons(std::move(slices2[i]));
+                            slices[i] = std::move(slices2[i]);
                         else if (! slices2[i].empty()) {
-                            append(slices[i], to_polygons(std::move(slices2[i])));
+                            append(slices[i], std::move(slices2[i]));
                             merge_layers[i] = true;
                             merge = true;
                         }
@@ -1726,7 +1724,7 @@ std::vector<Polygons> PrintObject::slice_support_volumes(const ModelVolumeType m
                 }
             }
         if (merge) {
-            std::vector<Polygons*> to_merge;
+            std::vector<ExPolygons*> to_merge;
             to_merge.reserve(zs.size());
             for (size_t i = 0; i < zs.size(); ++ i) {
                 if (merge_layers[i]) {
@@ -1735,7 +1733,7 @@ std::vector<Polygons> PrintObject::slice_support_volumes(const ModelVolumeType m
             }
             Slic3r::parallel_for(size_t(0), to_merge.size(),
                 [&to_merge](const size_t i) {
-                        *to_merge[i] = union_(*to_merge[i]);
+                        *to_merge[i] = union_ex(*to_merge[i]);
             });
         }
     }

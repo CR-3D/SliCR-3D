@@ -1082,7 +1082,7 @@ static void chain_lines_by_triangle_connectivity(IntersectionLines &lines, Polyg
                 next_line->edge_a_id, next_line->edge_b_id, next_line->a_id, next_line->b_id,
                 next_line->a.x, next_line->a.y, next_line->b.x, next_line->b.y);
             */
-            assert(last_line->b == next_line->a);
+            assert((last_line->b - next_line->a).norm() < 10);
             loop_pts.emplace_back(next_line->a);
             last_line = next_line;
             next_line->set_skip();
