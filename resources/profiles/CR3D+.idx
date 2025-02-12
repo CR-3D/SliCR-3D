@@ -5,3 +5,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.4 updated start_gcode
 0.0.5 disabled gcode verbose
 0.0.6 updated wipe_tower to match normal profiles.
+0.0.7 added repo_id
