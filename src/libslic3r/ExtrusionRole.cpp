@@ -18,11 +18,10 @@ GCodeExtrusionRole extrusion_role_to_gcode_extrusion_role(ExtrusionRole role)
 {
     assert(role != ExtrusionRole::Mixed);
     if (role == ExtrusionRole::None)                return GCodeExtrusionRole::None;
-    if (role.is_perimeter()) {
-        return role.is_bridge() ? GCodeExtrusionRole::OverhangPerimeter :
-               role.is_external() ? GCodeExtrusionRole::ExternalPerimeter : 
-                                    GCodeExtrusionRole::Perimeter;
-    }
+    if (role == ExtrusionRole::ExternalPerimeter)   return GCodeExtrusionRole::ExternalPerimeter;
+    if (role == ExtrusionRole::Perimeter)           return GCodeExtrusionRole::Perimeter;
+    if (role == ExtrusionRole::OverhangExternalPerimeter) return GCodeExtrusionRole::OverhangPerimeter;
+    if (role == ExtrusionRole::OverhangPerimeter)   return GCodeExtrusionRole::OverhangPerimeter;
     if (role == ExtrusionRole::InternalInfill)      return GCodeExtrusionRole::InternalInfill;
     if (role == ExtrusionRole::SolidInfill)         return GCodeExtrusionRole::SolidInfill;
     if (role == ExtrusionRole::TopSolidInfill)      return GCodeExtrusionRole::TopSolidInfill;
@@ -118,8 +117,10 @@ std::string role_to_code(ExtrusionRole role)
         return L("IPeri");
     else if (role == ExtrusionRole::ExternalPerimeter)
         return L("EPeri");
-    else if (role.is_overhang())
+    else if (role == ExtrusionRole::OverhangPerimeter)
         return L("OPeri");
+    else if (role == ExtrusionRole::OverhangExternalPerimeter)
+        return L("OEPeri");
     else if (role == ExtrusionRole::InternalInfill)
         return L("IFill");
     else if (role == ExtrusionRole::SolidInfill)
