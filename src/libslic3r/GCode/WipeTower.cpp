@@ -188,7 +188,8 @@ public:
                 float e_speed = e / (((len == 0.f) ? std::abs(e) : len) / f * 60.f);
                 f /= std::max(1.f, e_speed / m_filpar[m_current_tool].max_e_speed);
                 if (len > 0 && m_filpar[m_current_tool].max_speed > 0) {
-                    f = std::min(f, m_filpar[m_current_tool].max_speed);
+                    // don't forget to go from speed (mm/s) to Feedrate (mm/min)
+                    f = std::min(f, m_filpar[m_current_tool].max_speed * 60.f);
                 }
             }
             gcode += set_format_F(f);
@@ -1345,12 +1346,12 @@ void WipeTower::toolchange_Wipe(
     if (this->m_config->filament_max_speed.get_at(this->m_current_tool) > 0) {
         max_speed = float(this->m_config->filament_max_speed.get_at(this->m_current_tool));
     }
-    float target_speed = m_speed;
+    float target_speed = m_speed; //mm/s
     if (is_first_layer() && m_first_layer_speed > 0)
         target_speed = m_first_layer_speed;
     if (target_speed <= 0)
         target_speed = m_infill_speed;
-    target_speed = std::min(max_speed, target_speed * 60.f);
+    target_speed = std::min(max_speed, target_speed);
     float wipe_speed = std::min(max_speed, float(m_config->wipe_tower_wipe_starting_speed.get_abs_value(target_speed)));
     if (wipe_speed <= 0) {
         wipe_speed = target_speed;
@@ -1422,14 +1423,14 @@ WipeTower::ToolChangeResult WipeTower::finish_layer()
 
 	// Slow down on the 1st layer.
     bool first_layer = is_first_layer();
-	float speed_factor = 1.f;
-    float feedrate = m_speed;
+	float speed_factor = 60.f;
+    float print_speed = m_speed;
     if (first_layer && m_first_layer_speed > 0)
-        feedrate = m_first_layer_speed;
-    if (feedrate <= 0)
-        feedrate = m_infill_speed;
-    feedrate *= 60.f;
+        print_speed = m_first_layer_speed;
+    if (print_speed <= 0)
+        print_speed = m_infill_speed;
     speed_factor *= get_speed_reduction();
+    float feedrate = m_speed * speed_factor;
 	float current_depth = m_layer_info->depth - m_layer_info->toolchanges_depth();
     box_coordinates fill_box(Vec2f(m_perimeter_width, m_layer_info->depth-(current_depth-m_perimeter_width)),
                              m_wipe_tower_width - 2 * m_perimeter_width, current_depth-m_perimeter_width);
