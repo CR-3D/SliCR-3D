@@ -750,7 +750,7 @@ void Sidebar::priv::hide_rich_tip(wxButton* btn)
 // Sidebar / public
 
 Sidebar::Sidebar(Plater *parent)
-    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(42 * wxGetApp().em_unit(), -1)), p(new priv(parent))
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(std::max(20, get_app_config()->get_int("side_panel_width")) * wxGetApp().em_unit(), -1)), p(new priv(parent))
 {
     SetFont(wxGetApp().normal_font());
     p->scrolled = new wxScrolledWindow(this);
@@ -1003,11 +1003,18 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox** combo, const int extr_i
         auto opt = wxGetApp().preset_bundle->printers.get_edited_preset().config.option<ConfigOptionStrings>("tool_name");
         assert(opt);
         std::string tool_name = opt? opt->get_at(extr_idx) : nullptr;
-        if (tool_name.size() > 10) {
-            tool_name = tool_name.substr(0,7) + std::string("... ");
+        int size_panel = get_app_config()->get_int("side_panel_width");
+        size_t max_letters  = size_t(std::max(4, size_panel/4));
+        if (tool_name.size() > max_letters) {
+            if (max_letters > 6) {
+                tool_name = tool_name.substr(0, max_letters-3) + std::string("... ");
+            } else {
+                tool_name = tool_name.substr(0, max_letters);
+            }
         }
         (*combo)->label = new wxStaticText(p->presets_panel, wxID_ANY, tool_name.empty() ? "" : ( tool_name + std::string(": ")));
         (*combo)->label->SetFont(wxGetApp().small_font());
+        (*combo)->label->SetToolTip(tool_name); //doesn't work in msw because static text doesn't get mouse event
         combo_and_btn_sizer->Add((*combo)->label, 0, wxALIGN_LEFT | wxEXPAND | wxRIGHT, 4);
     }
     combo_and_btn_sizer->Add(*combo, 1, wxEXPAND);

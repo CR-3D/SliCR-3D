@@ -177,6 +177,9 @@ void AppConfig::set_defaults()
         if (get("font_size").empty())
             set("font_size", "0");
 
+        if (get("side_panel_width").empty())
+            set("side_panel_width", "42");
+
         if (get("gcodeviewer_decimals").empty())
             set("gcodeviewer_decimals", "2");
 

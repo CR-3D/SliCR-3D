@@ -983,7 +983,13 @@ void PreferencesDialog::build()
 			L("Show layer area on the scroll bar"),
 			L("Add the layer area (the number just below the layer id) next to a widget of the layer double-scrollbar."),
 			app_config->get_bool("show_layer_area_doubleslider"));
-	}
+		
+        append_int_option(m_tabid_2_optgroups.back().back(), "side_panel_width", L("Side Panel Width"),
+                          L("The width of the right panel, where the objects , presets and slicing information are "
+                            "displayeed. It's in 'display unit'."),
+                          6, app_config->get_int("side_panel_width"));
+        m_values_need_restart.push_back("side_panel_width");
+    }
 
 	append_int_option(m_tabid_2_optgroups.back().back(), "gcodeviewer_decimals",
 		L("Decimals for gcode viewer colors"),
