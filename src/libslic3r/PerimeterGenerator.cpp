@@ -3524,18 +3524,36 @@ void PerimeterGenerator::process(// Input:
         }
 
         if (overhang_speed_enabled || overhang_flow_enabled || overhang_dynamic_enabled || overhang_extra_enabled) {
-            ExPolygons simplified_storage;
-            const ExPolygons *simplified = lower_slices;
-            //simplify the lower slices if too high (means low number) resolution (we can be very aggressive here)
+            coord_t offset_unprintable = scale_t(this->params.overhang_flow.nozzle_diameter()*0.75);
             assert_valid(*lower_slices);
+            ExPolygons lower_slices_storage = offset2_ex(*lower_slices, -offset_unprintable, offset_unprintable);
+            const ExPolygons *simplified = &lower_slices_storage;
+            //simplify the lower slices if too high (means low number) resolution (we can be very aggressive here)
             if (get_resolution(0, false, &srf_to_use) < min_feature / 2) {
-                for (const ExPolygon& expoly : *lower_slices) {
+                ExPolygons simplified_storage;
+                for (const ExPolygon& expoly : *simplified) {
                     expoly.simplify(min_feature, simplified_storage);
                 }
-                if (!simplified_storage.empty()) {
-                    simplified = &simplified_storage;
-                }
+                lower_slices_storage = simplified_storage;
+            } else {
+                ensure_valid(lower_slices_storage, std::max(SCALED_EPSILON * 2, get_resolution(0, false, &srf_to_use)));
             }
+            //{
+            //    static int isaqsdsdfsdfqzfn = 0;
+            //    std::stringstream stri;
+            //    stri << params.layer->id() << "_compute_overhang_" <<this->slices->surfaces.size()<<"_" <<isaqsdsdfsdfqzfn++ << ".svg";
+            //    SVG svg(stri.str());
+            //    for(auto &surface : this->slices->surfaces)
+            //        svg.draw(surface.expolygon, "grey");
+            //    svg.draw(srf_to_use.expolygon, "green");
+            //    svg.draw(to_polylines(*lower_slices), "blue", scale_t(0.045));
+            //    svg.draw(to_polylines(offset_ex(*lower_slices, -scale_t(this->params.overhang_flow.nozzle_diameter()*0.75))), "cyan", scale_t(0.035));
+            //    svg.draw(to_polylines(offset_ex(*lower_slices, -scale_t(this->params.overhang_flow.nozzle_diameter()))), "teal", scale_t(0.03));
+            //    svg.draw(to_polylines(lower_slices_storage), "purple", scale_t(0.02));
+            //    svg.draw(to_polylines(offset(*simplified, (coordf_t)(overhangs_width_speed_110 + SCALED_EPSILON - params.get_ext_perimeter_width() / 2))), "yellow", scale_t(0.015));
+            //    svg.draw(to_polylines(offset(*simplified,(coordf_t)(overhangs_width_flow_110 + SCALED_EPSILON - params.get_ext_perimeter_width() / 2))), "orange", scale_t(0.01));
+            //    svg.Close();
+            //}
             //for overhangs detection
             if (overhang_speed_enabled && (overhangs_width_speed < overhangs_width_flow || !overhang_flow_enabled)) {
                 params.lower_slices_bridge_speed_small = offset(*simplified, (coordf_t)(overhangs_width_speed_90 + SCALED_EPSILON - params.get_ext_perimeter_width() / 2));
@@ -5294,6 +5312,7 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
     public:
         ChangeFlow(coordf_t resolution) : resolution_sqr(resolution * resolution) {}
         float percent_extrusion;
+        bool no_seam = false;
         std::vector<ExtrusionPath> paths;
         const Point* first_point = nullptr;
         coordf_t resolution_sqr;
@@ -5310,6 +5329,7 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                     travel.attributes_mutable().width = paths.back().width();
                     travel.attributes_mutable().height = paths.back().height();
                     travel.attributes_mutable().mm3_per_mm = 0;
+                    travel.attributes_mutable().no_seam = no_seam;
                     travel.polyline.append(last_point);
                     travel.polyline.append(pt);
                     paths.push_back(travel);
@@ -5327,6 +5347,7 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                         ExtrusionPath travel(ExtrusionAttributes(path.role(), ExtrusionFlow(0, path.width(), path.height())), false);
                         travel.polyline.append(*first_point);
                         travel.polyline.append(path.first_point());
+                        travel.attributes_mutable().no_seam = no_seam;
                         paths.push_back(travel);
                     }
                 }
@@ -5334,6 +5355,7 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
             }
             path.attributes_mutable().mm3_per_mm *= percent_extrusion;
             path.attributes_mutable().width *= percent_extrusion;
+            path.attributes_mutable().no_seam = no_seam;
             paths.push_back(path);
         }
         virtual void use(ExtrusionPath3D &path3D) override { assert(false); /*shouldn't happen*/ }
@@ -5478,7 +5500,6 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
             bool point_moved = false;
             if (first_part.size() <= 1 || first_part.length() < SCALED_EPSILON) {
                 assert(first_part.size() == 2);
-                assert(searcher.search_result.loop->paths.size() > 1);
                 //not long enough, move point to first point and destroy it
                 // idx_path_before will be replaced anyway by poly_after
                 assert(!searcher.search_result.loop->paths[idx_path_before].empty());
@@ -5560,6 +5581,9 @@ void PerimeterGenerator::_merge_thin_walls(const Parameters &params, ExtrusionEn
                 searcher.search_result.loop->visit(loop_assert_visitor);
 #endif
             } else {
+                //make these thin wall un-seamable
+                change_flow.no_seam = true;
+
                 //first add the return path
                 //ExtrusionEntityCollection tws_second = tws; // this does a deep copy
                 change_flow.first_point = &poly_after.front(); // end at the start of the next path

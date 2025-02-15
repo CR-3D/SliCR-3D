@@ -169,7 +169,9 @@ struct ExtrusionAttributes : ExtrusionFlow
 
     // What is the role / purpose of this extrusion?
     ExtrusionRole   role{ ExtrusionRole::None };
-    // OVerhangAttributes are currently computed for perimeters if dynamic overhangs are enabled.
+    // set to true to prevent seam on this path.
+    bool no_seam = false;
+    // OVerhangAttributes are currently computed for perimeters if dynamic overhangs are enabled. 
     // They are used to control fan and print speed in export.
     std::optional<OverhangAttributes> overhang_attributes;
 };

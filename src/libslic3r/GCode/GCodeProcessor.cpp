@@ -3156,16 +3156,13 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
 
     if (m_seam) {
         // use tag for easy seam detection
-        if (m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter) {
-            AxisCoords end_position = m_end_position;
-            m_end_position = *m_seam;
-            store_move_vertex(EMoveType::Seam);
-            m_end_position = end_position;
-            // seam already set, deactivate detector to avoid double detection.
-            assert(m_seams_detector.is_active());
-            if (m_seams_detector.is_active()) {
-                m_seams_detector.activate(false);
-            }
+        AxisCoords end_position = m_end_position;
+        m_end_position = *m_seam;
+        store_move_vertex(EMoveType::Seam);
+        m_end_position = end_position;
+        // seam already set, deactivate detector to avoid double detection.
+        if (m_seams_detector.is_active()) {
+            m_seams_detector.activate(false);
         }
         m_seam.reset();
     } else if (m_seams_detector.is_active()) {

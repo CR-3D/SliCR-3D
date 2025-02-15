@@ -212,7 +212,7 @@ std::string GCodeWriter::set_pressure_advance(double pa) const {
     std::string gcode;
     if (FLAVOR_IS(gcfKlipper)) {
         gcode = std::string("SET_PRESSURE_ADVANCE ADVANCE=") + to_string_nozero(pa, 4);
-        if (tool_id >= 0) {
+        if (tool_id >= 0 && !this->config.single_extruder_multi_material.value) {
             if (this->config.tool_name.size() > tool_id && !this->config.tool_name.get_at(tool_id).empty()) {
                 gcode += std::string(" EXTRUDER=") + this->config.tool_name.get_at(tool_id);
             } else {
@@ -540,6 +540,7 @@ std::string GCodeWriter::toolchange(uint16_t tool_id)
 
     // return the toolchange command
     // if we are running a single-extruder setup, just set the extruder and return nothing
+    // no, still output TX to let the firmware know to change the filament
     std::ostringstream gcode;
     if (this->multiple_extruders) {
         /*
@@ -552,16 +553,16 @@ std::string GCodeWriter::toolchange(uint16_t tool_id)
                 gcode << this->toolchange_prefix() << this->config.tool_name.get_at(tool_id);
             } else {
                 gcode << this->toolchange_prefix() << "extruder";
-                if (tool_id > 0)
+                if (tool_id > 0) {
                     gcode << tool_id;
+                }
             }
             */
             gcode << this->toolchange_prefix() << tool_id;
         }
         
         if (this->config.gcode_comments)
-            gcode << " ; change extruder";
-            
+            gcode << (this->config.single_extruder_multi_material.value ? " ; change filament" : " ; change extruder");
         gcode << "\n";
         gcode << this->reset_e(true);
         
