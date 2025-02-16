@@ -54,32 +54,12 @@
 </tbody>
 </table>
 
-<p><strong>this test is still in development, beta should work "ok" for now though.this page will be get updated along with it :)<br> your current print settings will need to be saved before clicking "generate" since it uses the saved values to create the model</strong></p>
-<p>note: this test will auto pull all your currently loaded config parameters and generate a model for you to print!<br> for to help with firmware speed/processing limitations it's reccomended to have most extrusion roles similar set to speeds.(but you don't have to!)</p>
+<p><span style="color: red; font-weight: bold;">This test is still in development. The beta version should work well, but your current print settings need to be saved before clicking "Generate" since they are used to create the model.</span></p>
 
-<h2>How to tune your printer for Pressure/Linear Advance</h2>
-<p>to get started</p>
-<ul>
-<li>select the number of tests to create, if you select more than 1 for now you will have to resize the window manually(click and drag the window from the bottom right)</li>
-<li>select the start/end/increment/ extrusion role values</li>
-<li>each row is the config for each base test model, eg; first row = externalPerimeter second row = firstLayer </li>
-<li>since each model will have it's own config one test model might be faster/slower than the others, this is expected and normal</li>
-<li>i will reccomend setting 'first_layer_speed' and 'first_layer_min_speed' to the same vales </li>
+<p>Note: This test will automatically pull all your currently saved configuration parameters and generate a model for you to print. For optimal results, depending if you're chasing speed/quality or a mix of both, it is recommended to keep similar speeds for most extrusion roles, (although this is not mandatory).</p>
 
-</ul>
-
-<p>what is this "verify" option?<br>
-you may notice there is the "verify" option in the extrusion role dropdown, this feature currently doesn't work.(you can still use it, but any role that has gap fill will be incorrect and the test for that role should be ignored!) <br>
-when i get it working, it's purpose is to make it easy to see what extrusion roles need it's PA values tuned. 
- it will create a model for each ER role, and assign that roles speed/acceleration/widths/spacing to the single model<br>
-you can then manually add the pressure advance command into the "per region g-code" box, slice and print it.
-</p>
-
-<h2>Advice</h2>
-<p>Before doing this test, it's preferable to tune everything else first!<br>i would reccomended setting XXXX to the same speeds, XXX to a slow speed, and everything else you can send it with.</p>
-<p>note: having large variance with ER speeds can reduce print quality/dimensional accuracy this is effect is mainly caused by the inner perimeter getting pulled closer to the external perimeter as it cools down, since each perimeter would be at different temperatues.</p>
-<p>i will reccomend setting 'first_layer_speed' and 'first_layer_min_speed' to the same vales </p>
-<p><strong>TODO add things about PA and setting first layer correctly<br>add notes about fan speed and disabling fan speed for this test, or do i have check box in GUI that would auto change relavent UI tab?</strong></p>
+<h2>How to Tune Your Printer for Pressure/Linear Advance</h2>
+<p>To get started:</p>
 <ul>
 <li>Select the number of tests to create, the <b>max</b> is <b>10</b>.</li>
 <li>Each row represents the config parameters for the selected extrusion role (e.g., first row = ExternalPerimeter, second row = FirstLayer).</li>
@@ -96,10 +76,10 @@ You can also inspect each 'base model' and view the object modifiers for each 90
 <ul>
 <li>BridgeInfill, InternalBridgeInfill, ThinWall, GapFill, Ironing</li>
 </ul>
-<p>What is the "Verify" option?<br>
-The "Verify" option is an experimental feature. It aims to create a 90° model for each extrusion role, applying specific settings related to that extrusion role. <br>
+<p>What is the "CheckAll" option?<br>
+The "CheckAll" option is an experimental feature. It aims to create a 90° model for each extrusion role, applying specific settings related to that extrusion role. <br>
 You need to <b>manually</b> add the pressure advance values into the "per region g-code" box.<br>
-However, it currently doesn't work perfectly. Occasionally the models get 'gap fill' and that will produce inaccurate results. Select the "verify" option to identify which extrusion roles need Pressure Advance tuning.</p>
+However, it currently doesn't work perfectly. Occasionally the models get 'gap fill' and that will produce inaccurate results. Select the "CheckAll" option to identify which extrusion roles need Pressure Advance tuning.</p>
 
 <h2>Known Bugs</h2>
 <ul>
