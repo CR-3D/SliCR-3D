@@ -14,15 +14,16 @@ group:freq_settings_event:no_title:no_search:
         setting:label_left:label_width$7:label$Infill_:full_width:fill_density
     end_line
     line:
-        setting:label_left:label_width$7:label$Perimeters_:perimeters
+        setting:label_width$7:label$Perimeters_:perimeters
+        setting:label_width$12:label$Layer Height_ :layer_height
     end_line
     line:Solid Layers
          setting:label_width$7:label$Solid Layers Top_ :top_solid_layers
-         setting:label_width$7:label$Bottom_ :bottom_solid_layers
+         setting:label_width$13:label$Bottom_ :bottom_solid_layers
     end_line
     line:
         setting:simple:script:float:depends$nozzle_diameter[0]:label_width$7:label$Tool [0]_:tooltip$Value for nozzle[0]:full_width:s_nozzle_diameter_1
-        setting:simple:script:float:depends$nozzle_diameter[1]:label_width$7:label$Tool [1]_:tooltip$Value for nozzle[1]:full_width:s_nozzle_diameter_2
+        setting:simple:script:float:depends$nozzle_diameter[1]:label_width$13:label$Tool [1]_:tooltip$Value for nozzle[1]:full_width:s_nozzle_diameter_2
     end_line
     line:
     preheat_printer
