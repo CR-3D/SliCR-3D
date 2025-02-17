@@ -232,8 +232,8 @@ ExPolygons to_expolys(Polygons polys) {
                  std::max(size_t(support_enforce_layers),
                           std::max(enforcers_layers.size(), enforcers_custom_facets.size())));
 
-    assert(enforcers_custom_facets.size() == num_overhang_layers);
-    assert(blockers_custom_facets.size() == num_overhang_layers);
+    assert(enforcers_custom_facets.size() == num_overhang_layers || enforcers_custom_facets.empty());
+    assert(blockers_custom_facets.size() == num_overhang_layers || blockers_custom_facets.empty());
     if (enforcers_layers.empty())
         enforcers_layers.resize(num_overhang_layers);
     if (blockers_layers.empty())
@@ -257,16 +257,18 @@ ExPolygons to_expolys(Polygons polys) {
             const bool     enforced_layer = layer_id < support_enforce_layers;
             if (support_auto || enforced_layer) {
                 float lower_layer_offset;
-                if (enforced_layer)
+                if (enforced_layer) {
                     lower_layer_offset = 0;
-                else if (support_threshold_auto) {
+                } else if (support_threshold_auto) {
                     float external_perimeter_width = 0;
-                    for (const LayerRegion *layerm : lower_layer.regions())
+                    for (const LayerRegion *layerm : lower_layer.regions()) {
                         external_perimeter_width += layerm->flow(frExternalPerimeter).scaled_width();
+                    }
                     external_perimeter_width /= lower_layer.region_count();
                     lower_layer_offset = float(0.5 * external_perimeter_width);
-                } else
+                } else {
                     lower_layer_offset = scaled<float>(lower_layer.height / tan_threshold);
+                }
                 overhangs = lower_layer_offset == 0 ?
                     diff_ex(current_layer.lslices(), lower_layer.lslices()) :
                     diff_ex(current_layer.lslices(), offset_ex(lower_layer.lslices(), lower_layer_offset));
@@ -274,46 +276,52 @@ ExPolygons to_expolys(Polygons polys) {
                     raw_overhangs = overhangs;
                     raw_overhangs_calculated = true;
                 }
-            if(!overhangs.empty()){
-                ExPolygons block;
-                append(block, blockers_layers[layer_id]);
-                append(block, union_ex(blockers_custom_facets[layer_id]));
-            SVG::export_expolygons(
-                debug_out_path("%d-overhangs_areas.svg", layer_id),
-                {
-                    {current_layer.lslices(), {"gray", scale_t(0.015)}},
-                    {(overhangs), {"yellow", scale_t(0.011)}},
-                    {(block), {"red", scale_t(0.009)}},
-                    {diff_ex(overhangs, block), {"blue", scale_t(0.006)}},
-                    {diff_ex(overhangs, block, ApplySafetyOffset::Yes), {"purple", scale_t(0.003)}},
+#ifdef TREESUPPORT_DEBUG_SVG
+                if (!overhangs.empty()) {
+                    ExPolygons block;
+                    append(block, blockers_layers[layer_id]);
+                    if (!blockers_custom_facets.empty())
+                        append(block, union_ex(blockers_custom_facets[layer_id]));
+                    SVG::export_expolygons(debug_out_path("%d-overhangs_areas.svg", layer_id),
+                                           {
+                                               {current_layer.lslices(), {"gray", scale_t(0.015)}},
+                                               {(overhangs), {"yellow", scale_t(0.011)}},
+                                               {(block), {"red", scale_t(0.009)}},
+                                               {diff_ex(overhangs, block), {"blue", scale_t(0.006)}},
+                                               {diff_ex(overhangs, block, ApplySafetyOffset::Yes),
+                                                {"purple", scale_t(0.003)}},
+                                           });
                 }
-            );
-            }
-            assert(blockers_layers.size() == blockers_custom_facets.size());
-            if (!enforced_layer && (!blockers_layers.empty() || !blockers_custom_facets.empty()) &&
-                (!blockers_layers[layer_id].empty() || !blockers_custom_facets[layer_id].empty())) {
-                append(blockers_layers[layer_id], union_ex(blockers_custom_facets[layer_id]));
-                overhangs = diff_ex(overhangs, blockers_layers[layer_id]/*, ApplySafetyOffset::Yes //note: safety offset o*/);
-                //just to be safe
-                //overhangs = offset2_ex(overhangs, - EPSILON *10, EPSILON *10); 
-            }
+#endif // TREESUPPORT_DEBUG_SVG
+                assert(blockers_layers.size() == blockers_custom_facets.size() || blockers_custom_facets.empty());
+                if (!enforced_layer && !(blockers_layers.empty() || blockers_custom_facets.empty()) &&
+                    !(blockers_layers[layer_id].empty() || blockers_custom_facets[layer_id].empty())) {
+                    append(blockers_layers[layer_id], union_ex(blockers_custom_facets[layer_id]));
+                    overhangs =
+                        diff_ex(overhangs,
+                                blockers_layers[layer_id] /*, ApplySafetyOffset::Yes //note: safety offset o*/);
+                    // just to be safe
+                    // overhangs = offset2_ex(overhangs, - EPSILON *10, EPSILON *10);
+                }
                 if (config.dont_support_bridges) {
                     for (const LayerRegion *layerm : current_layer.regions())
-                        remove_bridges_from_contacts(print_config, lower_layer, *layerm, 
-                            float(layerm->flow(frExternalPerimeter).scaled_width()), overhangs);
+                        remove_bridges_from_contacts(print_config, lower_layer, *layerm,
+                                                     float(layerm->flow(frExternalPerimeter).scaled_width()),
+                                                     overhangs);
                 }
             }
-            if(!overhangs.empty())
-            SVG::export_expolygons(
-                debug_out_path("%d-overhangs_without_bridges_areas.svg", layer_id),
-                {
-                    {current_layer.lslices(), {"gray", scale_t(0.05)}},
-                    {union_ex(overhangs), {"yellow", scale_t(0.045)}},
-                }
-            );
+#ifdef TREESUPPORT_DEBUG_SVG
+            if (!overhangs.empty()) {
+                SVG::export_expolygons(debug_out_path("%d-overhangs_without_bridges_areas.svg", layer_id),
+                                       {
+                                           {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                                           {union_ex(overhangs), {"yellow", scale_t(0.045)}},
+                                       });
+            }
+#endif // TREESUPPORT_DEBUG_SVG
             //check_self_intersections(overhangs, "generate_overhangs1");
-            assert(enforcers_custom_facets.size() == enforcers_layers.size());
-            if (!(enforcers_layers.empty() && enforcers_custom_facets.empty()) && !(enforcers_layers[layer_id].empty() && enforcers_custom_facets[layer_id].empty())) {
+            assert(enforcers_custom_facets.size() == enforcers_layers.size() || enforcers_custom_facets.empty());
+            if (!(enforcers_layers.empty() || enforcers_custom_facets.empty()) && !(enforcers_layers[layer_id].empty() || enforcers_custom_facets[layer_id].empty())) {
                 append(enforcers_layers[layer_id], union_ex(enforcers_custom_facets[layer_id]));
                 // Has some support enforcers at this layer, apply them to the overhangs, don't apply the support threshold angle.
                 //enforcers_layers[layer_id] = union_(enforcers_layers[layer_id]);
@@ -338,6 +346,15 @@ ExPolygons to_expolys(Polygons polys) {
                               { { lower_layer.lslices() },        { "lower_layer.lslices", "gray", 0.5f } },
                               { { union_ex(enforced_overhangs) }, { "enforced_overhangs", "red",  "black", "", scaled<coord_t>(0.1f), 0.5f } } });
                     }
+                    SVG::export_expolygons(
+                        debug_out_path("%d-forced-overhangs.svg", current_layer.id()),
+                        {
+                            {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                            {(overhangs), {"yellow", scale_t(0.045)}},
+                            {(enforced_overhangs), {"blue", scale_t(0.035)}},
+                            {(overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs)), {"green", scale_t(0.025)}},
+                        }
+                    );
 #endif // TREESUPPORT_DEBUG_SVG
             SVG::export_expolygons(
                 debug_out_path("%d-forced-overhangs.svg", current_layer.id()),
@@ -353,14 +370,15 @@ ExPolygons to_expolys(Polygons polys) {
                     //check_self_intersections(overhangs, "generate_overhangs - enforcers");
                 }
             }
-            if(!overhangs.empty())
-            SVG::export_expolygons(
-                debug_out_path("%d-overhangs_register.svg", layer_id),
-                {
-                    {current_layer.lslices(), {"gray", scale_t(0.05)}},
-                    {(overhangs), /*ExPolygonAttributes*/{"red", scale_t(0.045)}},
-                }
-            );
+#ifdef TREESUPPORT_DEBUG_SVG
+            if (!overhangs.empty()) {
+                SVG::export_expolygons(debug_out_path("%d-overhangs_register.svg", layer_id),
+                                       {
+                                           {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                                           {(overhangs), /*ExPolygonAttributes*/ {"red", scale_t(0.045)}},
+                                       });
+            }
+#endif // TREESUPPORT_DEBUG_SVG
             out[layer_id + num_raft_layers] = std::move(overhangs);
             throw_on_cancel();
         }
@@ -390,6 +408,7 @@ ExPolygons to_expolys(Polygons polys) {
         throw_on_cancel();
     }
 #endif
+#ifdef TREESUPPORT_DEBUG_SVG
     for (size_t lidx =0;lidx < out.size(); lidx++) {
         ExPolygons &overhang = out[lidx];
         if(overhang.empty()) continue;
@@ -403,6 +422,7 @@ ExPolygons to_expolys(Polygons polys) {
             }
         );
     }
+#endif // TREESUPPORT_DEBUG_SVG
 
     std::vector<Polygons> polysout;
     for (ExPolygons expolys : out) {

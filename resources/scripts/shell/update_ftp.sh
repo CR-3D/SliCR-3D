@@ -59,7 +59,7 @@ NEW_INI_FILENAME="${CONFIG_VERSION}.ini"
 cp "$RESOURCE_DIR/$INI_FILE" "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
 
 # Compress .idx file into vendor_indices.zip
-zip -j "$LOCAL_TMP_DIR/vendor_indices.zip" "$RESOURCE_DIR/$IDX_FILE"
+7z a -tzip "$LOCAL_TMP_DIR/vendor_indices.zip" "$RESOURCE_DIR/$IDX_FILE"
 
 # Ensure ZIP file was created
 if [[ ! -f "$LOCAL_TMP_DIR/vendor_indices.zip" ]]; then
@@ -74,17 +74,34 @@ SFTP_CR3D_DIR="$SFTP_BASE_DIR/$FILENAME_NO_EXT"  # Use the filename as the SFTP 
 
 echo "Uploading files to: $SFTP_CR3D_DIR on port $SFTP_PORT"
 
-# Upload files via SFTP
-if [[ -n "$SFTP_PASS" ]]; then
-    # Password-based authentication using sshpass
-    sshpass -p "$SFTP_PASS" sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
+OS_TYPE=$(uname)
+
+if [[ "$OS_TYPE" == "Darwin" || "$OS_TYPE" == "Linux" ]]; then
+    echo "Detected macOS/Linux. Using SFTP for file transfer."
+    
+    if [[ -n "$SFTP_PASS" ]]; then
+        # Password-based authentication using sshpass
+        sshpass -p "$SFTP_PASS" sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
 mkdir -p $SFTP_CR3D_DIR
 cd $SFTP_CR3D_DIR
 put "$LOCAL_TMP_DIR/vendor_indices.zip"
 put "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
 bye
 EOF
-else
+    else
+        # Key-based authentication (no password needed)
+        sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
+mkdir -p $SFTP_CR3D_DIR
+cd $SFTP_CR3D_DIR
+put "$LOCAL_TMP_DIR/vendor_indices.zip"
+put "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
+bye
+EOF
+    fi
+
+elif [[ "$OS_TYPE" == CYGWIN* || "$OS_TYPE" == MINGW* || "$OS_TYPE" == MSYS* ]]; then
+    echo "Detected Windows. Using SFTP for file transfer."
+    
     # Key-based authentication (no password needed)
     sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
 mkdir -p $SFTP_CR3D_DIR
@@ -93,6 +110,10 @@ put "$LOCAL_TMP_DIR/vendor_indices.zip"
 put "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
 bye
 EOF
+
+else
+    echo "Unsupported OS: $OS_TYPE"
+    exit 1
 fi
 
 # Cleanup
