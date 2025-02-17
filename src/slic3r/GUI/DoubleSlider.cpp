@@ -802,8 +802,8 @@ wxString Control::get_label(int tick, LabelType label_type/* = ltHeightWithLayer
         //assert(m_layers_times.size() == m_values.size() - 1 || m_layers_times.size()  == m_values.size() || m_layers_times.empty());
         //assert(m_layers_values.empty());
     }
-    const size_t layer_number = is_preview_not_gcode ? value + 1 : value;
-    const size_t time_idx = is_preview_not_gcode ? value : value - 1;
+    const size_t layer_number = is_preview_not_gcode ? value : value + 1;
+    const size_t time_idx = is_preview_not_gcode ? value : value;
 
     // When "Print Settings -> Multiple Extruders -> No sparse layer" is enabled, then "Smart" Wipe Tower is used for wiping.
     // As a result, each layer with tool changes is splited for min 3 parts: first tool, wiping, second tool ...

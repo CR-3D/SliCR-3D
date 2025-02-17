@@ -181,23 +181,25 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 
     // Set enum value
     // set Field for notify_release to its value
-    std::vector<std::pair<std::string, t_config_enum_values>> enums = {
-        {"notify_release", s_keys_map_NotifyReleaseMode},
-        {"auto_switch_preview", s_keys_map_AutoSwitchPreview},
-        {"suppress_hyperlinks", s_keys_map_SuppressHyperlinks},
-    };
-    for (auto key2map : enums) {
-        if (m_optkey_to_optgroup.find(key2map.first) != m_optkey_to_optgroup.end()) {
-            if (auto field = m_optkey_to_optgroup[key2map.first]->get_field(key2map.first); field != nullptr) {
-                std::string current_value = wxGetApp().app_config->get(key2map.first);
-                assert(key2map.second.find(current_value) != key2map.second.end());
-                boost::any val;
-                if (key2map.second.find(current_value) != key2map.second.end()) {
-                    val = int32_t(key2map.second.at(current_value));
-                } else {
-                    val = int32_t(key2map.second.begin()->second);
+    if (wxGetApp().is_editor()) {
+        std::vector<std::pair<std::string, t_config_enum_values>> enums = {
+            {"notify_release", s_keys_map_NotifyReleaseMode},
+            {"auto_switch_preview", s_keys_map_AutoSwitchPreview},
+            {"suppress_hyperlinks", s_keys_map_SuppressHyperlinks},
+        };
+        for (auto key2map : enums) {
+            if (m_optkey_to_optgroup.find(key2map.first) != m_optkey_to_optgroup.end()) {
+                if (auto field = m_optkey_to_optgroup[key2map.first]->get_field(key2map.first); field != nullptr) {
+                    std::string current_value = wxGetApp().app_config->get(key2map.first);
+                    assert(key2map.second.find(current_value) != key2map.second.end());
+                    boost::any val;
+                    if (key2map.second.find(current_value) != key2map.second.end()) {
+                        val = int32_t(key2map.second.at(current_value));
+                    } else {
+                        val = int32_t(key2map.second.begin()->second);
+                    }
+                    field->set_any_value(val, false);
                 }
-                field->set_any_value(val, false);
             }
         }
     }
@@ -802,12 +804,13 @@ void PreferencesDialog::build()
 
 
 #if defined(_WIN32) || defined(__APPLE__)
-	//m_tabid_2_optgroups.back().back()->append_separator();
-	
-	append_bool_option(m_tabid_2_optgroups.back().back(), "use_legacy_3DConnexion",
-		L("Enable support for legacy 3DConnexion devices"),
-		L("If enabled, the legacy 3DConnexion devices settings dialog is available by pressing CTRL+M"),
-		app_config->get_bool("use_legacy_3DConnexion"));
+    // m_tabid_2_optgroups.back().back()->append_separator();
+
+    append_bool_option(
+        m_tabid_2_optgroups.back().back(), "use_legacy_3DConnexion",
+        L("Enable support for legacy 3DConnexion devices"),
+        L("If enabled, the legacy 3DConnexion devices settings dialog is available by pressing CTRL+M"),
+        app_config->get_bool("use_legacy_3DConnexion"));
 #endif // _WIN32 || __APPLE__
 
 	append_bool_option(m_tabid_2_optgroups.back().back(), "compress_png_texture",
@@ -829,37 +832,38 @@ void PreferencesDialog::build()
 		  "If disabled, changes made using the sequential slider, in preview, apply to the whole gcode."),
 		app_config->get_bool("seq_top_layer_only"));
 
-    {
-        std::string suppress_hyperlinks_value = app_config->get("suppress_hyperlinks");
-        bool need_set = true;
-        if (app_config->get("suppress_hyperlinks") == "0") {
-            suppress_hyperlinks_value = "disable";
-        } else if (app_config->get("suppress_hyperlinks") == "1") {
-            suppress_hyperlinks_value = "confirm";
-        } else {
-            need_set = false;
+    if (is_editor) {
+        {
+            std::string suppress_hyperlinks_value = app_config->get("suppress_hyperlinks");
+            bool need_set = true;
+            if (app_config->get("suppress_hyperlinks") == "0") {
+                suppress_hyperlinks_value = "disable";
+            } else if (app_config->get("suppress_hyperlinks") == "1") {
+                suppress_hyperlinks_value = "confirm";
+            } else if (suppress_hyperlinks_value.empty()) {
+                suppress_hyperlinks_value = "confirm";
+            } else {
+                need_set = false;
+            }
+            if (need_set) {
+                app_config->set("suppress_hyperlinks", suppress_hyperlinks_value);
+            }
+            if (s_keys_map_SuppressHyperlinks.find(suppress_hyperlinks_value) == s_keys_map_SuppressHyperlinks.end()) {
+                assert(false);
+                suppress_hyperlinks_value = "confirm";
+            }
+            append_enum_option<SuppressHyperlinks>(m_tabid_2_optgroups.back().back(), "suppress_hyperlinks",
+                L("Allow to open hyperlink in browser"),
+                L("Sometimes an option is available to be opened in your browser, to have a link to documentation or a resource."
+                    "\nDo you want to disabled these links (Disable)?"
+                    "\nDo you want to have a confirm dialog (Confirm)?"
+                    "\nDo you prefer to allow these (Allow)?"),
+                new ConfigOptionEnum<SuppressHyperlinks>(static_cast<SuppressHyperlinks>(s_keys_map_SuppressHyperlinks.at(suppress_hyperlinks_value))),
+                { { "disable", L("Disable") },
+                    { "confirm", L("Confirm") },
+                    { "allow", L("Allow") }
+                });
         }
-        if (need_set) {
-            app_config->set("suppress_hyperlinks", suppress_hyperlinks_value);
-        }
-        if (s_keys_map_SuppressHyperlinks.find(suppress_hyperlinks_value) == s_keys_map_SuppressHyperlinks.end()) {
-            assert(false);
-            suppress_hyperlinks_value = "confirm";
-        }
-        append_enum_option<SuppressHyperlinks>(m_tabid_2_optgroups.back().back(), "suppress_hyperlinks",
-            L("Allow to open hyperlink in browser"),
-            L("Sometimes an option is available to be opened in your browser, to have a link to documentation or a resource."
-                "\nDo you want to disabled these links (Disable)?"
-                "\nDo you want to have a confirm dialog (Confirm)?"
-                "\nDo you prefer to allow these (Allow)?"),
-            new ConfigOptionEnum<SuppressHyperlinks>(static_cast<SuppressHyperlinks>(s_keys_map_SuppressHyperlinks.at(suppress_hyperlinks_value))),
-            { { "disable", L("Disable") },
-                { "confirm", L("Confirm") },
-                { "allow", L("Allow") }
-            });
-    }
-
-	if (is_editor) {
 		append_bool_option(m_tabid_2_optgroups.back().back(), "show_collapse_button",
 			L("Show sidebar collapse/expand button"),
 			L("If enabled, the button for the collapse sidebar will be appeared in top right corner of the 3D Scene"),
@@ -1004,11 +1008,10 @@ void PreferencesDialog::build()
 	activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
 
     if (is_editor) {
-
-        //create layout options
+        // create layout options
         assert(m_tabid_2_optgroups.size() - 1 == 2);
         create_settings_mode_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
-        //create ui_layout check
+        // create ui_layout check
         {
             m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Settings layout and colors"), tabs, 2));
             m_tabid_2_optgroups.back().back()->title_width = 0;
@@ -1016,84 +1019,91 @@ void PreferencesDialog::build()
             ConfigOptionDef def_combobox;
             def_combobox.label = "_";
             def_combobox.type = coString;
-            def_combobox.tooltip = L("Choose the gui package to use. It controls colors, settings layout, quick settings, tags (simple/expert).");
-            def_combobox.full_width = false; //true doesn't set the space for the search arrow (and add a line before for it but it fails).
+            def_combobox.tooltip = L("Choose the gui package to use. It controls colors, settings layout, quick "
+                                     "settings, tags (simple/expert).");
+            def_combobox.full_width =
+                false; // true doesn't set the space for the search arrow (and add a line before for it but it fails).
             def_combobox.width = 64;
-            //get all available configs
+            // get all available configs
             std::vector<std::string> enum_values;
-            for (const AppConfig::LayoutEntry& layout : get_app_config()->get_ui_layouts()) {
-                enum_values.push_back(layout.name+": "+layout.description);
+            for (const AppConfig::LayoutEntry &layout : get_app_config()->get_ui_layouts()) {
+                enum_values.push_back(layout.name + ": " + layout.description);
             }
             def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_values);
             def_combobox.gui_flags = "show_value";
 
             AppConfig::LayoutEntry selected = get_app_config()->get_ui_layout();
-            def_combobox.set_default_value(new ConfigOptionStrings{ selected.name+": "+ selected.description });
+            def_combobox.set_default_value(new ConfigOptionStrings{selected.name + ": " + selected.description});
             Option option = Option(def_combobox, "ui_layout");
             m_tabid_2_optgroups.back().back()->append_single_option_line(option);
             m_values_need_restart.push_back("ui_layout");
             m_optkey_to_optgroup["ui_layout"] = m_tabid_2_optgroups.back().back();
-            wxGetApp().sidebar().get_searcher().add_key("ui_layout", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
+            wxGetApp().sidebar().get_searcher().add_key("ui_layout", Preset::TYPE_PREFERENCES,
+                                                        m_tabid_2_optgroups.back().back()->config_category(),
+                                                        L("Preferences"), def_combobox);
             activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
         }
+    }
 
-        m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Splash screen"), tabs, 2));
+    m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Splash screen"), tabs, 2));
 
-        // Show/Hide splash screen
-        append_bool_option(m_tabid_2_optgroups.back().back(), "show_splash_screen",
-            L("Show splash screen"),
-            L("Show splash screen"),
-            app_config->get_bool("show_splash_screen"));
+    // Show/Hide splash screen
+    append_bool_option(m_tabid_2_optgroups.back().back(), "show_splash_screen",
+        L("Show splash screen"),
+        L("Show splash screen"),
+        app_config->get_bool("show_splash_screen"));
 
-        // splashscreen image
-        {
+    // splashscreen image
+    {
 
-            ConfigOptionDef def_combobox;
-            def_combobox.opt_key = is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer";
-            def_combobox.label = L("Splash screen image");
-            def_combobox.type = coString;
-            def_combobox.tooltip = L("Choose the image to use as splashscreen");
-            std::vector<std::pair<std::string,std::string>> enum_key_values = {
-                {"default", L("Default")}, 
-                {"icon", L("Icon")}, 
-                {"random", L("Random")}
-                };
-            //get all images in the spashscreen dir
-            for (const boost::filesystem::directory_entry& dir_entry : boost::filesystem::directory_iterator(boost::filesystem::path(Slic3r::resources_dir()) / "splashscreen")) {
-                if (dir_entry.path().has_extension() && std::set<std::string>{ ".jpg", ".JPG", ".jpeg" }.count(dir_entry.path().extension().string()) > 0) {
-                    enum_key_values.push_back({dir_entry.path().filename().string(), dir_entry.path().stem().string()});
-                }
+        ConfigOptionDef def_combobox;
+        def_combobox.opt_key = is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer";
+        def_combobox.label = L("Splash screen image");
+        def_combobox.type = coString;
+        def_combobox.tooltip = L("Choose the image to use as splashscreen");
+        std::vector<std::pair<std::string,std::string>> enum_key_values = {
+            {"default", L("Default")}, 
+            {"icon", L("Icon")}, 
+            {"random", L("Random")}
+            };
+        //get all images in the spashscreen dir
+        for (const boost::filesystem::directory_entry& dir_entry : boost::filesystem::directory_iterator(boost::filesystem::path(Slic3r::resources_dir()) / "splashscreen")) {
+            if (dir_entry.path().has_extension() && std::set<std::string>{ ".jpg", ".JPG", ".jpeg" }.count(dir_entry.path().extension().string()) > 0) {
+                enum_key_values.push_back({dir_entry.path().filename().string(), dir_entry.path().stem().string()});
             }
-            def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_key_values);
-            assert(def_combobox.enum_def->is_valid_open_enum());
-            std::string current_file_name = app_config->get(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
-            if (std::find(def_combobox.enum_def->values().begin(), def_combobox.enum_def->values().end(), current_file_name) == def_combobox.enum_def->values().end()) {
-                assert(false);
-                current_file_name = def_combobox.enum_def->values()[0];
-                app_config->set(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", current_file_name);
-            }
-            def_combobox.set_default_value(new ConfigOptionString{ current_file_name });
-            Option option = Option(def_combobox, is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
-            m_tabid_2_optgroups.back().back()->append_single_option_line(option);
-            m_optkey_to_optgroup[is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer"] = m_tabid_2_optgroups.back().back();
-            wxGetApp().sidebar().get_searcher().add_key(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
         }
-        append_bool_option(m_tabid_2_optgroups.back().back(), "restore_win_position",
-            L("Restore window position on start"),
-            L("If enabled, Slic3r will be open at the position it was closed"),
-            app_config->get_bool("restore_win_position"));
+        def_combobox.set_enum_values(ConfigOptionDef::GUIType::select_close, enum_key_values);
+        assert(def_combobox.enum_def->is_valid_open_enum());
+        std::string current_file_name = app_config->get(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
+        if (std::find(def_combobox.enum_def->values().begin(), def_combobox.enum_def->values().end(), current_file_name) == def_combobox.enum_def->values().end()) {
+            assert(false);
+            current_file_name = def_combobox.enum_def->values()[0];
+            app_config->set(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", current_file_name);
+        }
+        def_combobox.set_default_value(new ConfigOptionString{ current_file_name });
+        Option option = Option(def_combobox, is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer");
+        m_tabid_2_optgroups.back().back()->append_single_option_line(option);
+        m_optkey_to_optgroup[is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer"] = m_tabid_2_optgroups.back().back();
+        wxGetApp().sidebar().get_searcher().add_key(is_editor ? "splash_screen_editor" : "splash_screen_gcodeviewer", Preset::TYPE_PREFERENCES, m_tabid_2_optgroups.back().back()->config_category(), L("Preferences"), def_combobox);
+    }
+
+    append_bool_option(m_tabid_2_optgroups.back().back(), "restore_win_position",
+        L("Restore window position on start"),
+        L("If enabled, Slic3r will be open at the position it was closed"),
+        app_config->get_bool("restore_win_position"));
 
 #ifdef WIN32
-        // Clear Undo / Redo stack on new project
-        append_bool_option(m_tabid_2_optgroups.back().back(), "check_blacklisted_library",
-            L("Check for problematic dynamic libraries"),
-            L("Some software like (for example) ASUS Sonic Studio injects a DLL (library) that is known to create some instabilities."
-            " This option let Slic3r check at startup if they are loaded."),
-            app_config->get_bool("check_blacklisted_library"));
+    // Clear Undo / Redo stack on new project
+    append_bool_option(m_tabid_2_optgroups.back().back(), "check_blacklisted_library",
+        L("Check for problematic dynamic libraries"),
+        L("Some software like (for example) ASUS Sonic Studio injects a DLL (library) that is known to create some instabilities."
+        " This option let Slic3r check at startup if they are loaded."),
+        app_config->get_bool("check_blacklisted_library"));
 #endif
 
-        activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
+    activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
 
+    if (is_editor) {
 #if ENABLE_ENVIRONMENT_MAP
         // Add "Render" tab
         create_options_tab(L("Render"));
@@ -1143,45 +1153,47 @@ void PreferencesDialog::build()
         activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
     }
 #endif //_WIN32
+    
+    if (is_editor) {
+        m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Gui Colors"), tabs, 3));
+        //prusa hue : ~22, Susi hue: ~216, slic3r hue: ~55
+        // color prusa -> susie
+        //ICON 237, 107, 33 -> ed6b21 ; 2172eb
+        //DARK 237, 107, 33 -> ed6b21 ; 32, 113, 234 2071ea
+        //MAIN 253, 126, 66 -> fd7e42 ; 66, 141, 253 428dfd
+        //LIGHT 254, 177, 139 -> feac8b; 139, 185, 254 8bb9fe
+        //TEXT 1.0f, 0.49f, 0.22f, 1.0f ff7d38 ; 0.26f, 0.55f, 1.0f, 1.0f 428cff
 
-	m_tabid_2_optgroups.back().emplace_back(create_options_group(_L("Gui Colors"), tabs, 3));
-	//prusa hue : ~22, Susi hue: ~216, slic3r hue: ~55
-	// color prusa -> susie
-	//ICON 237, 107, 33 -> ed6b21 ; 2172eb
-	//DARK 237, 107, 33 -> ed6b21 ; 32, 113, 234 2071ea
-	//MAIN 253, 126, 66 -> fd7e42 ; 66, 141, 253 428dfd
-	//LIGHT 254, 177, 139 -> feac8b; 139, 185, 254 8bb9fe
-	//TEXT 1.0f, 0.49f, 0.22f, 1.0f ff7d38 ; 0.26f, 0.55f, 1.0f, 1.0f 428cff
+        // PS 237 107 33 ; SuSi 33 114 235
+        append_color_option(m_tabid_2_optgroups.back().back(), "color_light",
+            L("Platter icons Color template"),
+            _u8L("Color template used by the icons on the platter.") +" "+
+            _u8L("It may need a lighter color, as it's used to replace white on top of a dark background.") +"\n"+
+            _u8L("Slic3r(yellow): ccbe29, PrusaSlicer(orange): cc6429, SuperSlicer(blue): 3d83ed"),
+            app_config->get("color_light"));
 
-	// PS 237 107 33 ; SuSi 33 114 235
-	append_color_option(m_tabid_2_optgroups.back().back(), "color_light",
-		L("Platter icons Color template"),
-		_u8L("Color template used by the icons on the platter.") +" "+
-		_u8L("It may need a lighter color, as it's used to replace white on top of a dark background.") +"\n"+
-		_u8L("Slic3r(yellow): ccbe29, PrusaSlicer(orange): cc6429, SuperSlicer(blue): 3d83ed"),
-		app_config->get("color_light"));
+        // PS 253 126 66 ; SuSi 66 141 253
+        append_color_option(m_tabid_2_optgroups.back().back(), "color",
+            L("Main Gui color template"),
+            _u8L("Main color template.") +" "+
+            _u8L("If you use a color with higher than 80% saturation and/or value, these will be increased. If lower, they will be decreased.") +"\n"+
+            _u8L("Slic3r(yellow): ccbe29, PrusaSlicer(orange): cc6429, SuperSlicer(blue): 296acc"),
+            app_config->get("color"));
 
-	// PS 253 126 66 ; SuSi 66 141 253
-	append_color_option(m_tabid_2_optgroups.back().back(), "color",
-		L("Main Gui color template"),
-		_u8L("Main color template.") +" "+
-		_u8L("If you use a color with higher than 80% saturation and/or value, these will be increased. If lower, they will be decreased.") +"\n"+
-		_u8L("Slic3r(yellow): ccbe29, PrusaSlicer(orange): cc6429, SuperSlicer(blue): 296acc"),
-		app_config->get("color"));
+        // PS 254 172 139 ; SS 139 185 254
+        append_color_option(m_tabid_2_optgroups.back().back(), "color_dark",
+            L("Text color template"),
+            _u8L("This template will be used for drawing button text on hover.") +" "+
+            _u8L("It can be a good idea to use a bit darker color, as some hues can be a bit difficult to read.") +"\n"+
+            _u8L("Slic3r(yellow): ccbe29, PrusaSlicer(orange): cc6429, SuperSlicer(blue): 275cad"),
+            app_config->get("color_dark"));
 
-	// PS 254 172 139 ; SS 139 185 254
-	append_color_option(m_tabid_2_optgroups.back().back(), "color_dark",
-		L("Text color template"),
-		_u8L("This template will be used for drawing button text on hover.") +" "+
-		_u8L("It can be a good idea to use a bit darker color, as some hues can be a bit difficult to read.") +"\n"+
-		_u8L("Slic3r(yellow): ccbe29, PrusaSlicer(orange): cc6429, SuperSlicer(blue): 275cad"),
-		app_config->get("color_dark"));
+        activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
 
-	activate_options_tab(m_tabid_2_optgroups.back().back(), 3);
-
-	//create text options
-	create_settings_text_color_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
-	create_settings_mode_color_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
+        //create text options
+        create_settings_text_color_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
+        create_settings_mode_color_widget(tabs->GetPage(m_tabid_2_optgroups.size() - 1), m_tabid_2_optgroups.back().back());
+    }
 
 	// update alignment of the controls for all tabs
 	//update_ctrls_alignment();

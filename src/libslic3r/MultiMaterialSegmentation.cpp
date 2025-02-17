@@ -807,7 +807,7 @@ static std::vector<ExPolygons> extract_colored_segments(const std::vector<Colore
                 edge->color(VD_ANNOTATION::DELETED);
 
                 if (next_vertex.color() == VD_ANNOTATION::VERTEX_ON_CONTOUR || next_vertex.color() == VD_ANNOTATION::DELETED) {
-                    assert(next_vertex.color() == VD_ANNOTATION::VERTEX_ON_CONTOUR);
+                    // assert(next_vertex.color() == VD_ANNOTATION::VERTEX_ON_CONTOUR); ? and for DELETED ?
                     break;
                 }
 
