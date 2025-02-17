@@ -5049,7 +5049,7 @@ msgstr "Bei nahtlosen Stützen werden die Stützregionen mit Hilfe der morpholog
 
 #: src/slic3r/GUI/Plater.cpp:434 src/slic3r/GUI/Plater.cpp:564
 msgid "For support enforcers only"
-msgstr "Nur für Stützverstärker"
+msgstr "Aufmalstützen"
 
 #: src/slic3r/GUI/ConfigManipulation.cpp:142
 msgid ""
