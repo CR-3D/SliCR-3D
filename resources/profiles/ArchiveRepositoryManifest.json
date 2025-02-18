@@ -7,6 +7,15 @@
     "url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/",
     "index_url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/vendor_indices.zip"
   }, {
+    "name": "CR3D+",
+    "description": "CR3D+ printers",
+    "visibility": "",
+    "id": "cr3d+",
+    "url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/",
+    "index_url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/vendor_indices.zip",
+    "selected": 0
+  }, 
+  {
 	"name": "Other FFF",
 	"description": "FFF Printers by other vendors",
 	"visibility": "",
