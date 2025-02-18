@@ -3847,8 +3847,8 @@ void ConfigWizard::priv::load_pages_from_archive()
 
         const bool is_already_added_repo = std::find(repositories.begin(), repositories.end(), data.id) != repositories.end();
 
-//        if (is_already_added_repo || (!is_selected_arch && !any_installed_vendor))
-           // continue;
+        if (is_already_added_repo || (!is_selected_arch && !any_installed_vendor))
+            continue;
 
         if (!vendors.empty())
         {
