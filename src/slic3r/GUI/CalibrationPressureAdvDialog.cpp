@@ -1385,28 +1385,6 @@ std::pair<std::vector<double>, int> CalibrationPressureAdvDialog::calc_PA_values
     wxString erPaValue = dynamicExtrusionRole[id_item]->GetValue();
     std::locale::global(std::locale("C")); // Ensure "." is used as the decimal separator
 
-    //need to validate german/others localization issues with "," and "." getting swapped around.
-
-    /*std::locale loc("");
-    const std::numpunct<char>& np = std::use_facet<std::numpunct<char>>(loc);
-
-    // Get the locale-specific decimal and thousands separators
-    wxString decimal_sep = wxString::Format("%c", np.decimal_point());
-    wxString thousands_sep = wxString::Format("%c", np.thousands_sep());
-
-    // Replace the decimal separator with a dot
-    if (!decimal_sep.IsEmpty() ) {
-        firstPaValue.Replace(thousands_sep, decimal_sep);
-        startPaValue.Replace(thousands_sep, decimal_sep);
-        endPaValue.Replace(thousands_sep, decimal_sep);
-        paIncrementValue.Replace(thousands_sep, decimal_sep);
-        erPaValue.Replace(thousands_sep, decimal_sep);
-    }
-    */
-    
-    //maybe? will need to load in the correct 'acsii' character based on localization then swap ?
-    //any point idiot profing the input to stop crashing ? nothing stopping users typing in letters to force a crash...
-
     double first_pa = std::stod(firstPaValue.ToStdString());
     double start_pa = std::stod(startPaValue.ToStdString());
     double end_pa = std::stod(endPaValue.ToStdString());

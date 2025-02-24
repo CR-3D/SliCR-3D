@@ -4726,19 +4726,6 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         (params.use_round_perimeters() ? params.get_min_round_spacing() : 3));
                     if (perimeter_idx == 1) {
             {
-                static int aodfjiaz = 0;
-                std::stringstream stri;
-                stri << params.layer->id() << "_gap_fill_1_ext_" << (aodfjiaz++) << ".svg";
-                SVG svg(stri.str());
-                svg.draw(surface.expolygon, "grey");
-                svg.draw(to_polylines(last), "yellow", scale_t(0.05));
-                svg.draw(to_polylines(offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 10)), "orange", scale_t(0.045));
-                svg.draw(to_polylines(*all_next_onion), "green", scale_t(0.04));
-                svg.draw(to_polylines(no_last_gapfill), "teal", scale_t(0.035));
-                svg.draw(to_polylines(ensure_valid(diff_ex(
-                            offset_ex(last, -0.5f * params.get_ext_perimeter_spacing()),
-                            no_last_gapfill), resolution)), "purple", scale_t(0.03));
-                svg.Close();
             }
                append(gaps, ensure_valid(diff_ex(
                    offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 10),
@@ -4750,36 +4737,12 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                append(gaps, ensure_valid(diff_ex(
                    offset_ex(last, -0.5f * params.get_ext_perimeter_spacing() + 30),
                    no_last_gapfill), resolution));  // safety offset
-           } else {
-                static int aodfjiaz = 0;
-                std::stringstream stri;
-                stri << params.layer->id() << "_gap_fill_"<<perimeter_idx<<"_int_" << (aodfjiaz++) << ".svg";
-                SVG svg(stri.str());
-                svg.draw(surface.expolygon, "grey");
-                svg.draw(to_polylines(last), "yellow", scale_t(0.05));
-                svg.draw(to_polylines(offset_ex(last, -0.5f * params.get_perimeter_spacing())), "orange", scale_t(0.045));
-                svg.draw(to_polylines(*all_next_onion), "green", scale_t(0.04));
-                svg.draw(to_polylines(no_last_gapfill), "teal", scale_t(0.035));
-                svg.draw(to_polylines(ensure_valid(diff_ex(
-                            offset_ex(last, -0.5f * params.get_perimeter_spacing() + 10),
-                            no_last_gapfill), resolution)), "purple", scale_t(0.03));
-                svg.Close();
-            }
-                        append(gaps, ensure_valid(diff_ex(
+           }
+            append(gaps, ensure_valid(diff_ex(
                             offset_ex(last, -0.5f * params.get_perimeter_spacing()),
                             no_last_gapfill), resolution));  // safety offset
                     }
                 }
-            }
-            {
-                static int aodfjiaz = 0;
-                std::stringstream stri;
-                stri << params.layer->id() << "_perimeter_loop_" << (aodfjiaz++) << ".svg";
-                SVG svg(stri.str());
-                svg.draw(surface.expolygon, "grey");
-                svg.draw(to_polylines(last), "yellow");
-                svg.draw(to_polylines(next_onion), "green");
-                svg.Close();
             }
 
             if (next_onion.empty() && last_asynch.empty()) {
