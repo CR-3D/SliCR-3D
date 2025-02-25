@@ -2013,7 +2013,6 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
             std::max(params.ext_perimeter_flow.scaled_width() / 4, scale_t(params.print_config.resolution)),
             (is_external ? params.ext_perimeter_flow : params.perimeter_flow).scaled_width() / 10));
         //(const ThickPolyline& polyline, const ExtrusionRole role, const Flow& flow, const coord_t resolution_internal, const coord_t tolerance)
-        assert(paths.size() == 1);
         for (ExtrusionPath& path : paths) {
             //these variable_width paths aren't gapfill, they are proper perimeters
             path.set_can_reverse(is_loop);
