@@ -605,7 +605,6 @@ Flow support_material_flow(const PrintObject* object, float layer_height)
             extruder_id = object->default_region_config(object->print()->default_region_config()).infill_extruder - 1;
         }
     }
-
     double nzd = object->print()->config().nozzle_diameter.get_at(extruder_id);
     const ConfigOptionFloatOrPercent& width = (object->config().support_material_extrusion_width.value > 0) ? object->config().support_material_extrusion_width : object->config().extrusion_width;
     const ConfigOptionFloatOrPercent& spacing = (object->config().support_material_extrusion_width.value > 0) ? object->config().support_material_extrusion_width : object->config().extrusion_spacing;

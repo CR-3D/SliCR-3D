@@ -18,8 +18,8 @@ void MultiPoint::scale(double factor_x, double factor_y)
 {
     for (Point &pt : points)
     {
-        pt(0) = coord_t(pt(0) * factor_x);
-        pt(1) = coord_t(pt(1) * factor_y);
+		pt(0) = coord_t(pt(0) * factor_x);
+		pt(1) = coord_t(pt(1) * factor_y);
     }
 }
 
@@ -168,7 +168,7 @@ struct vis_node{
     // Effective area of this "node"
     double area;
     // Overloaded operator used to sort the binheap
-    // Greater area = "more important" node. So, this node is less than the
+    // Greater area = "more important" node. So, this node is less than the 
     // other node if it's area is less than the other node's area
     bool operator<(const vis_node& other) { return (this->area < other.area); }
 };
@@ -178,22 +178,22 @@ Points MultiPoint::visivalingam(const Points &pts, const double tolerance)
     assert(pts.size() >= 2);
      // Result object
     Points results;
-     // Lambda to calculate effective area spanned by a point and its immediate
+     // Lambda to calculate effective area spanned by a point and its immediate 
     // successor + predecessor.
     auto effective_area = [pts](const size_t& curr_pt_idx, const size_t& prev_pt_idx, const size_t& next_pt_idx)->coordf_t {
         const Point& curr = pts[curr_pt_idx];
         const Point& prev = pts[prev_pt_idx];
         const Point& next = pts[next_pt_idx];
         // Use point objects as vector-distances
-        const Vec2d curr_to_next = (next - curr).cast<double>();
-        const Vec2d prev_to_next = (prev - curr).cast<double>();
+		const Vec2d curr_to_next = (next - curr).cast<double>();
+		const Vec2d prev_to_next = (prev - curr).cast<double>();
         // Take cross product of these two vector distances
-        return 0.50 * abs(cross2(curr_to_next, prev_to_next));
+		return 0.50 * abs(cross2(curr_to_next, prev_to_next));
     };
      // We store the effective areas for each node
     std::vector<coordf_t> areas;
     areas.reserve(pts.size());
-     // Construct the initial set of nodes. We will make a heap out of the "heap" vector using
+     // Construct the initial set of nodes. We will make a heap out of the "heap" vector using 
     // std::make_heap. node_list is used later.
     std::vector<vis_node*> node_list;
     node_list.resize(pts.size());
@@ -206,7 +206,7 @@ Points MultiPoint::visivalingam(const Points &pts, const double tolerance)
         node_list[i] = new vis_node(i, i - 1, i + 1, area);
         heap.push_back(node_list[i]);
     }
-     // Call std::make_heap, which uses the < operator by default to make "heap" into
+     // Call std::make_heap, which uses the < operator by default to make "heap" into 
     // a binheap, sorted by the < operator we defind in the vis_node struct
     std::make_heap(heap.begin(), heap.end());
      // Start comparing areas. Set min_area to an outrageous value initially.
@@ -222,7 +222,7 @@ Points MultiPoint::visivalingam(const Points &pts, const double tolerance)
         assert(curr == node_list[curr->pt_idx]);
          // If the current pt'ss area is less than that of the previous pt's area
         // use the last pt's area instead. This ensures we don't elimate the current
-        // point without eliminating the previous
+        // point without eliminating the previous 
         min_area = std::max(min_area, curr->area);
          // Update prev
         vis_node* prev = node_list[curr->prev_idx];
@@ -442,12 +442,12 @@ bool MultiPoint3::remove_duplicate_points()
 }
 
 BoundingBox get_extents(const MultiPoint &mp)
-{
+{ 
     return BoundingBox(mp.points);
 }
 
 BoundingBox get_extents_rotated(const Points &points, double angle)
-{
+{ 
     BoundingBox bbox;
     if (! points.empty()) {
         double s = sin(angle);

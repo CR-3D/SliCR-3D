@@ -58,7 +58,7 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
                     if (const SquareLengthType l2 = v.squaredNorm(); l2 == 0) {
                         // Zero length segment, find the furthest point between anchor and floater.
                         for (auto it = std::next(anchor); it != floater; ++ it)
-                            if (SquareLengthType dist_sq = (point_getter(*it) - a).template cast<SquareLengthType>().squaredNorm();
+                            if (SquareLengthType dist_sq = (point_getter(*it) - a).template cast<SquareLengthType>().squaredNorm(); 
                                 dist_sq > max_dist_sq) {
                                 max_dist_sq  = dist_sq;
                                 furthest = it;
@@ -88,7 +88,7 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
                                 max_dist_sq  = dist_sq;
                                 furthest     = it;
                             }
-                        }
+                        }                        
                     }
                     // remove point if less than tolerance
                     take_floater = max_dist_sq <= tolerance_sq;
@@ -106,7 +106,7 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
                     floater = dpStack.back();
                     f = point_getter(*floater);
                 } else {
-                    // The furthest point is too far from the segment <anchor, floater>.
+                    // The furthest point is too far from the segment <anchor, floater>. 
                     // Divide recursively.
                     floater = furthest;
                     f = point_getter(*floater);

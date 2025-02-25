@@ -578,7 +578,6 @@ void Layer::restore_untyped_slices()
 {
     if (layer_needs_raw_backup(this)) {
         for (LayerRegion *layerm : m_regions) {
-            for(auto &poly : layerm->m_raw_slices) poly.assert_valid();
             layerm->m_slices.set(layerm->m_raw_slices, stPosInternal | stDensSparse);
             for(auto &srf : layerm->m_slices) srf.expolygon.assert_valid();
         }

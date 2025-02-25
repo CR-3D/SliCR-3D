@@ -115,9 +115,9 @@ class ExtrusionEntityReference final
 {
 public:
     ExtrusionEntityReference() = delete;
-    ExtrusionEntityReference(const ExtrusionEntity &extrusion_entity, bool flipped) :
+    ExtrusionEntityReference(const ExtrusionEntity &extrusion_entity, bool flipped) : 
         m_extrusion_entity(&extrusion_entity), m_flipped(flipped) {}
-    ExtrusionEntityReference operator=(const ExtrusionEntityReference &rhs)
+    ExtrusionEntityReference operator=(const ExtrusionEntityReference &rhs) 
         { m_extrusion_entity = rhs.m_extrusion_entity; m_flipped = rhs.m_flipped; return *this; }
 
     const ExtrusionEntity& extrusion_entity() const { return *m_extrusion_entity; }
@@ -136,7 +136,7 @@ using ExtrusionEntityReferences = std::vector<ExtrusionEntityReference>;
 struct ExtrusionFlow
 {
     ExtrusionFlow() = default;
-    ExtrusionFlow(double mm3_per_mm, float width, float height) :
+    ExtrusionFlow(double mm3_per_mm, float width, float height) : 
         mm3_per_mm{ mm3_per_mm }, width{ width }, height{ height } {}
     ExtrusionFlow(const Flow &flow) :
         mm3_per_mm(flow.mm3_per_mm()), width(flow.width()), height(flow.height()) {}
@@ -207,7 +207,7 @@ public:
         return *this;
     }
 
-    ExtrusionEntity* clone() const override { return new ExtrusionPath(*this); }
+	ExtrusionEntity* clone() const override { return new ExtrusionPath(*this); }
     // Create a new object, initialize it with this object using the move semantics.
     virtual ExtrusionPath* clone_move() override { return new ExtrusionPath(std::move(*this)); }
     void reverse() override { this->polyline.reverse(); }
@@ -240,8 +240,6 @@ public:
     ExtrusionAttributes& attributes_mutable() { return m_attributes; }
 
     void set_role(ExtrusionRole new_role) { m_attributes.role = new_role; }
-    bool is_force_no_extrusion() const { return m_no_extrusion; }
-
     // Produce a list of 2D polygons covered by the extruded paths, offsetted by the extrusion width.
     // Increase the offset by scaled_epsilon to achieve an overlap, so a union will produce no gaps.
     void polygons_covered_by_width(Polygons &out, const float scaled_epsilon) const override;
@@ -263,7 +261,6 @@ public:
 
 protected:
     void _inflate_collection(const Polylines &polylines, ExtrusionEntityCollection* collection) const;
-    bool m_no_extrusion = false;
 
     ExtrusionAttributes     m_attributes;
 };
@@ -325,7 +322,7 @@ public:
     virtual void visit(ExtrusionVisitor &visitor) override { visitor.use(*this); };
     virtual void visit(ExtrusionVisitorConst &visitor) const override { visitor.use(*this); };
 
-    void push_back(Point p, coord_t z_offset) {
+    void push_back(Point p, coord_t z_offset) { 
         assert(!polyline.has_arc());
         polyline.append(p);
         z_offsets.push_back(z_offset);
@@ -430,7 +427,7 @@ public:
     Polygons polygons_covered_by_width(const float scaled_epsilon = 0.f) const override{ Polygons out; this->polygons_covered_by_width(out, scaled_epsilon); return out; }
     Polygons polygons_covered_by_spacing(const float spacing_ratio, const float scaled_epsilon) const override { Polygons out; this->polygons_covered_by_spacing(out, spacing_ratio,  scaled_epsilon); return out; }
     void collect_polylines(ArcPolylines &dst) const override { ArcPolyline pl = this->as_polyline(); if (!pl.empty()) dst.emplace_back(std::move(pl)); }
-    void collect_points(Points &dst) const override {
+    void collect_points(Points &dst) const override { 
         size_t n = std::accumulate(paths.begin(), paths.end(), 0, [](const size_t n, const ExtrusionPath &p){ return n + p.polyline.size(); });
         dst.reserve(dst.size() + n);
         for (const ExtrusionPath &p : this->paths)
@@ -502,7 +499,7 @@ public:
     ExtrusionPaths paths;
     
     ExtrusionLoop(ExtrusionLoopRole role = elrDefault) : m_loop_role(role) , ExtrusionEntity(false) {}
-    ExtrusionLoop(const ExtrusionPaths &paths, ExtrusionLoopRole role = elrDefault) : paths(paths), m_loop_role(role), ExtrusionEntity(false) {
+    ExtrusionLoop(const ExtrusionPaths &paths, ExtrusionLoopRole role = elrDefault) : paths(paths), m_loop_role(role), ExtrusionEntity(false) { 
         assert(!this->paths.empty());
         assert(this->first_point().coincides_with_epsilon(this->paths.back().polyline.back()));
     }
@@ -531,7 +528,7 @@ public:
     void            reverse() override;
     const Point&    first_point() const override { return this->paths.front().polyline.front(); }
     const Point&    last_point() const override { assert(this->first_point() == this->paths.back().polyline.back()); return this->first_point(); }
-    // Is it really what you can call a middle point?:
+    // Is it really what you can call a middle point?: 
     const Point&    middle_point() const override { auto& path = this->paths[this->paths.size() / 2]; return path.polyline.middle(); }
     Polygon polygon() const;
     coordf_t length() const override;
@@ -567,7 +564,7 @@ public:
         { Polygons out; this->polygons_covered_by_spacing(out, spacing_ratio, scaled_epsilon); return out; }
     ArcPolyline as_polyline() const override;
     void   collect_polylines(ArcPolylines &dst) const override { ArcPolyline pl = this->as_polyline(); if (! pl.empty()) dst.emplace_back(std::move(pl)); }
-    void   collect_points(Points &dst) const override {
+    void   collect_points(Points &dst) const override { 
         size_t n = std::accumulate(paths.begin(), paths.end(), 0, [](const size_t n, const ExtrusionPath &p){ return n + p.polyline.size(); });
         dst.reserve(dst.size() + n);
         for (const ExtrusionPath &p : this->paths)
@@ -580,12 +577,12 @@ public:
     virtual void visit(ExtrusionVisitorConst &visitor) const override { visitor.use(*this); };
 
 #ifndef NDEBUG
-    bool validate() const {
-        assert(this->first_point() == this->paths.back().polyline.back());
-        for (size_t i = 1; i < paths.size(); ++ i)
-            assert(this->paths[i - 1].polyline.back() == this->paths[i].polyline.front());
-        return true;
-    }
+	bool validate() const {
+		assert(this->first_point() == this->paths.back().polyline.back());
+		for (size_t i = 1; i < paths.size(); ++ i)
+			assert(this->paths[i - 1].polyline.back() == this->paths[i].polyline.front());
+		return true;
+	}
 #endif /* NDEBUG */
 
 private:

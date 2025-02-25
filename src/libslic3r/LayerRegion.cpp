@@ -470,24 +470,6 @@ static Surfaces expand_merge_surfaces(
         shells = diff_ex(shells, expanded);
     if (expanded_into_sparse)
         sparse = diff_ex(sparse, expanded);
-    
-#ifdef _DEBUG
-        {
-            static int aodfjiaqsdz = 0;
-            std::stringstream stri;
-            stri << svg_name <<"_"<<(aodfjiaqsdz++) << ".svg";
-            SVG svg(stri.str());
-            for(auto&srf : surfaces)
-                svg.draw(srf.expolygon, "grey");
-            svg.draw(to_polylines(init_src), "green", scale_t(0.15));
-            svg.draw(to_polylines(init_shells), "blue", scale_t(0.14));
-            svg.draw(to_polylines(sparse_shells), "brown", scale_t(0.13));
-            svg.draw(to_polylines(expanded), "purple", scale_t(0.12));
-            svg.draw(to_polylines(shells), "cyan", scale_t(0.11));
-            svg.draw(to_polylines(sparse), "yellow", scale_t(0.10));
-            svg.Close();
-        }
-#endif
 
     Surface templ{ surface_type, {} };
     templ.bridge_angle = bridge_angle;
@@ -618,26 +600,6 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
         }
 #endif
     }
-#ifdef _DEBUG
-        {
-            static int aodfjiaqsdz = 0;
-            std::stringstream stri;
-            stri << this->layer()->id() << "_process_external_surfaces_1_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-            SVG svg(stri.str());
-            svg.draw(this->layer()->lslices(), "grey");
-            svg.draw_outline(to_polygons(init_shells), "black", scale_t(0.15));
-            svg.draw_outline(to_polygons(init_sparse), "white", scale_t(0.14));
-            svg.draw_outline(to_polygons(shells), "purple", scale_t(0.13));
-            svg.draw_outline(to_polygons(sparse), "pink", scale_t(0.12));
-            for(auto&srf : bridges.surfaces)
-                svg.draw_outline(to_polygons(srf.expolygon), "cyan", scale_t(0.11));
-            for (const Surface *srf : fill_surfaces().filter_by_types({stPosBottom | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "blue", scale_t(0.10));
-            for (const Surface *srf : fill_surfaces().filter_by_types({stPosTop | stDensSolid}))
-                svg.draw(to_polylines(srf->expolygon), "red", scale_t(0.09));
-            svg.Close();
-        }
-#endif
 
     Surfaces    bottoms = expand_merge_surfaces(m_fill_surfaces.surfaces, stPosBottom | stDensSolid, shells,
         RegionExpansionParameters::build(expansion_bottom, expansion_bottom/max_nr_expansion_steps , max_nr_expansion_steps), 
@@ -685,87 +647,6 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
     m_fill_surfaces.append(std::move(bridges.surfaces));
     m_fill_surfaces.append(std::move(bottoms));
     m_fill_surfaces.append(std::move(tops));
-    
-#ifdef _DEBUG
-    //assert each surface is not on top of each other (or almost)
-    for (auto &srf : m_fill_surfaces.surfaces) {
-        for (auto &srf2 : m_fill_surfaces.surfaces) {
-            if (&srf != &srf2) {
-                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
-                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
-                double area = 0;
-                for (auto &expoly : intersect) {
-                    area += expoly.area();
-                }
-                if (area > SCALED_EPSILON * SCALED_EPSILON) {
-                    static int aodfjiaqsdz = 0;
-                    std::stringstream stri;
-                    stri << this->layer()->id() << "_overlapping_fill_surfaces_" <<"_"<<(aodfjiaqsdz++) << ".svg";
-                    SVG svg(stri.str());
-                    svg.draw(this->layer()->lslices(), "grey");
-                    if ((srf.surface_type & stPosTop) == stPosTop)
-                        svg.draw_outline(to_polygons(srf), "red", scale_t(0.05));
-                    else if ((srf.surface_type & stPosTop) == stPosBottom)
-                        svg.draw_outline(to_polygons(srf), "blue", scale_t(0.05));
-                    else if (srf.surface_type == (stPosInternal | stDensSparse))
-                        svg.draw_outline(to_polygons(srf), "brown", scale_t(0.05));
-                    else if (srf.surface_type == (stPosInternal | stDensSolid))
-                        svg.draw_outline(to_polygons(srf), "purple", scale_t(0.05));
-                    else
-                        svg.draw_outline(to_polygons(srf), "green", scale_t(0.05));
-
-                    if ((srf2.surface_type & stPosTop) == stPosTop)
-                        svg.draw_outline(to_polygons(srf2), "orange", scale_t(0.03));
-                    else if ((srf2.surface_type & stPosTop) == stPosBottom)
-                        svg.draw_outline(to_polygons(srf2), "cryan", scale_t(0.03));
-                    else if (srf2.surface_type == (stPosInternal | stDensSparse))
-                        svg.draw_outline(to_polygons(srf2), "yellow", scale_t(0.03));
-                    else if (srf2.surface_type == (stPosInternal | stDensSolid))
-                        svg.draw_outline(to_polygons(srf2), "pink", scale_t(0.03));
-                    else
-                        svg.draw_outline(to_polygons(srf), "teal", scale_t(0.03));
-                    svg.draw(intersect, "black");
-                    svg.Close();
-                }
-                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
-            }
-        }
-    }
-#endif
-
-#ifdef _DEBUG
-    //assert each surface is not on top of each other (or almost)
-    for (auto &srf : m_fill_surfaces.surfaces) {
-        for (auto &srf2 : m_fill_surfaces.surfaces) {
-            if (&srf != &srf2) {
-                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
-                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
-                double area = 0;
-                for (auto &expoly : intersect) {
-                    area += expoly.area();
-                }
-                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
-            }
-        }
-    }
-#endif
-
-#ifdef _DEBUG
-    //assert each surface is not on top of each other (or almost)
-    for (auto &srf : m_fill_surfaces.surfaces) {
-        for (auto &srf2 : m_fill_surfaces.surfaces) {
-            if (&srf != &srf2) {
-                ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
-                intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
-                double area = 0;
-                for (auto &expoly : intersect) {
-                    area += expoly.area();
-                }
-                assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
-            }
-        }
-    }
-#endif
 
 #ifdef _DEBUG
     //assert each surface is not on top of each other (or almost)
@@ -1412,7 +1293,6 @@ void LayerRegion::elephant_foot_compensation_step(const float elephant_foot_comp
     Polygons tmp = intersection(this->slices().surfaces, trimming_polygons);
     append(tmp, diff(this->slices().surfaces, opening(this->slices().surfaces, elephant_foot_compensation_perimeter_step)));
     this->m_slices.set(union_ex(tmp), stPosInternal | stDensSparse);
-    for(auto &srf : this->m_slices) srf.expolygon.assert_valid();
     for(auto &srf : this->m_slices) srf.expolygon.assert_valid();
 }
 

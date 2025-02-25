@@ -460,7 +460,7 @@ void ExtrusionPrinter::use(const ExtrusionMultiPath3D &multipath3D)
     ss << "}";
 }
 void ExtrusionPrinter::use(const ExtrusionLoop &loop)
-{
+{ 
     ss << (json?"\"":"") << "ExtrusionLoop" << (json?"_":":") << role_to_code(loop.role())<<"_" << looprole_to_code(loop.loop_role()) << (json?"\":":"") << "{";
     if(!loop.can_reverse()) ss << (json?"\"":"") << "oriented" << (json?"\":":"=") << "true,";
     for (int i = 0; i < loop.paths.size(); i++) {

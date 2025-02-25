@@ -35,11 +35,12 @@ class ExtrusionEntityCollection : public ExtrusionEntity
 private:
     // set to tru to forbit to reorder and reverse all entities indie us.
     bool m_no_sort;
-    ExtrusionEntitiesPtr m_entities;     // we own these entities : TODO: use unique_ptr
 public:
     virtual ExtrusionEntityCollection* clone() const override { return new ExtrusionEntityCollection(*this); }
     // Create a new object, initialize it with this object using the move semantics.
     virtual ExtrusionEntityCollection* clone_move() override { return new ExtrusionEntityCollection(std::move(*this)); }
+    
+    ExtrusionEntitiesPtr m_entities;     // we own these entities : TODO: use unique_ptr
 
 
     /// Owned ExtrusionEntities and descendent ExtrusionEntityCollections.

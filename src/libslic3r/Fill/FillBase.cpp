@@ -272,7 +272,7 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
 
         } else {
             Polylines simple_polylines = this->fill_surface(surface, params);
-            //assert_valid(simple_polylines);
+            assert_valid(simple_polylines);
 
             if (simple_polylines.empty())
                 return;

@@ -507,10 +507,6 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
             }
     }
 
-    for (auto &srf : surface_fills) {
-        assert_valid(srf.expolygons);
-    }
-
     {
         const coord_t resolution = std::max(SCALED_EPSILON, scale_t(layer.object()->print()->config().resolution_internal.value));
         Polygons all_polygons;

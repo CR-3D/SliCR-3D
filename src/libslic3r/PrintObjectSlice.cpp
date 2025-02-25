@@ -1568,7 +1568,6 @@ void PrintObject::slice_volumes()
                         ensure_valid(expolygons, scaled_resolution);
                         assert_valid(expolygons);
                         layerm->m_slices.set(std::move(expolygons), stPosInternal | stDensSparse);
-                        for(auto &srf : layerm->slices().surfaces) srf.expolygon.assert_valid();
                     } else {
                         bool same_curve_smoothing = true;
                         for (size_t region_id = 1; same_curve_smoothing && region_id < layer->regions().size(); ++region_id) {
@@ -1611,7 +1610,6 @@ void PrintObject::slice_volumes()
                                 //store
                                 ensure_valid(slices, scaled_resolution);
                                 layerm->m_slices.set(std::move(slices), stPosInternal | stDensSparse);
-                                for(auto &srf : layerm->slices().surfaces) srf.expolygon.assert_valid();
                             }
                         }
                         //shrink

@@ -302,7 +302,7 @@ inline void surfaces_append(Surfaces &dst, ExPolygons &&src, SurfaceType surface
 { 
     dst.reserve(dst.size() + src.size());
     for (ExPolygon &expoly : src) {
-//        expoly.assert_valid();
+        expoly.assert_valid();
         dst.emplace_back(Surface(surfaceType, std::move(expoly)));
     }
     src.clear();

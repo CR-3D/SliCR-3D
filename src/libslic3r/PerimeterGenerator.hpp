@@ -213,6 +213,12 @@ public:
 
     coord_t     get_resolution(size_t perimeter_id, bool is_overhang, const Surface* srf) const;
 
+  static ExtrusionMultiPath thick_polyline_to_multi_path(const ThickPolyline &thick_polyline,
+                                                ExtrusionRole role,
+                                                const Flow &flow,
+                                                float tolerance,
+                                                float merge_tolerance);
+                                                
 private:
     ClipperLib_Z::Paths m_lower_slices_clipperpaths;
     // ClipperLib_Z::Paths _lower_slices_bridge_flow_small_clipperpaths;

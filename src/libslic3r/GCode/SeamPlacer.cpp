@@ -1312,7 +1312,7 @@ void SeamPlacer::calculate_overhangs_and_layer_embedding(const PrintObject *po) 
                         }
                     };
                     bool should_compute_layer_embedding = regions_with_perimeter > 1;
-                    std::unique_ptr<PerimeterDistancer> current_layer_distancer        = std::make_unique<PerimeterDistancer>(
+                    std::unique_ptr<PerimeterDistancer> current_layer_distancer = std::make_unique<PerimeterDistancer>(
                         to_unscaled_linesf(po->layers()[layer_idx]->lslices()));
 
                     for (SeamCandidate &perimeter_point : layers[layer_idx].points) {
