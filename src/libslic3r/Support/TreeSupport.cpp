@@ -242,12 +242,12 @@ ExPolygons to_expolys(Polygons polys) {
     assert(enforcers_layers.size() == num_overhang_layers);
     assert(blockers_layers.size() == num_overhang_layers);
 
-    Slic3r::not_parallel_for(1, num_overhang_layers,
-        [&print_object, &config, &print_config, &enforcers_layers, &enforcers_custom_facets, &blockers_layers, &blockers_custom_facets,
-         support_auto, support_enforce_layers, support_threshold_auto, tan_threshold, enforcer_overhang_offset, num_raft_layers, &throw_on_cancel, &out]
-        //(const tbb::blocked_range<LayerIndex> &range) {
-        //for (LayerIndex layer_id = range.begin(); layer_id < range.end(); ++ layer_id) {
-        (const size_t layer_id) { {
+tbb::parallel_for(tbb::blocked_range<int>(1, num_overhang_layers),
+    [&print_object, &config, &print_config, &enforcers_layers, &enforcers_custom_facets, &blockers_layers, &blockers_custom_facets,
+     support_auto, support_enforce_layers, support_threshold_auto, tan_threshold, enforcer_overhang_offset, num_raft_layers, &throw_on_cancel, &out]
+        (const tbb::blocked_range<int>& range) {
+        for (int layer_id = range.begin(); layer_id < range.end(); ++layer_id) {
+
             const Layer   &current_layer  = *print_object.get_layer(layer_id);
             const Layer   &lower_layer    = *print_object.get_layer(layer_id - 1);
             // Full overhangs with zero lower_layer_offset and no blockers applied.
@@ -346,6 +346,7 @@ ExPolygons to_expolys(Polygons polys) {
                     //FIXME enforcer_overhang_offset is a fudge constant!
                     enforced_overhangs = diff_ex(offset_ex(enforced_overhangs, enforcer_overhang_offset),
                         lower_layer.lslices());
+                        
 #ifdef TREESUPPORT_DEBUG_SVG
 //                    if (! intersecting_edges(enforced_overhangs).empty()) 
                     {
@@ -365,15 +366,7 @@ ExPolygons to_expolys(Polygons polys) {
                         }
                     );
 #endif // TREESUPPORT_DEBUG_SVG
-            SVG::export_expolygons(
-                debug_out_path("%d-forced-overhangs.svg", current_layer.id()),
-                {
-                    {current_layer.lslices(), {"gray", scale_t(0.05)}},
-                    {(overhangs), {"yellow", scale_t(0.045)}},
-                    {(enforced_overhangs), {"blue", scale_t(0.035)}},
-                    {(overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs)), {"green", scale_t(0.025)}},
-                }
-            );
+
                     //check_self_intersections(enforced_overhangs, "generate_overhangs - enforced overhangs2");
                     overhangs = overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs);
                     //check_self_intersections(overhangs, "generate_overhangs - enforcers");
