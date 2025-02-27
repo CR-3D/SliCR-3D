@@ -3384,8 +3384,16 @@ void TabFilament::toggle_options()
 { //TODO: check prusa changes
     if (!m_active_page)
         return;
+        const DynamicPrintConfig& print_config = m_preset_bundle->fff_prints.get_edited_preset().config;
+        const DynamicPrintConfig& filament_config = m_preset_bundle->filaments.get_edited_preset().config;
+        const DynamicPrintConfig& printer_config = m_preset_bundle->printers.get_edited_preset().config;
+            // Print config values
+        DynamicPrintConfig full_print_config;
+        full_print_config.apply(print_config);
+        full_print_config.apply(filament_config);
+        full_print_config.apply(printer_config);
 
-        m_config_manipulation.toggle_fff_filament_options(m_config);
+        m_config_manipulation.toggle_fff_filament_options(m_config, full_print_config);
 
         update_filament_overrides_page();
 }

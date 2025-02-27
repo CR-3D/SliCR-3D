@@ -63,7 +63,7 @@ public:
     void    toggle_print_fff_options(DynamicPrintConfig* config);
    
     // FFF filament
-    void    toggle_fff_filament_options(DynamicPrintConfig* config);
+    void    toggle_fff_filament_options(DynamicPrintConfig* config, DynamicPrintConfig &full_config);
     
     // FFF printer
     void    update_printer_fff_config(DynamicPrintConfig* config, const bool is_global_config = false);
