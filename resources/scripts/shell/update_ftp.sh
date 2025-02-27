@@ -58,8 +58,8 @@ fi
 NEW_INI_FILENAME="${CONFIG_VERSION}.ini"
 cp "$RESOURCE_DIR/$INI_FILE" "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
 
-# Compress .idx file into vendor_indices.zip
-7z a -tzip "$LOCAL_TMP_DIR/vendor_indices.zip" "$RESOURCE_DIR/$IDX_FILE"
+# Compress .idx file into vendor_indices.zip one folder back
+7z a -tzip "$LOCAL_TMP_DIR/vendor_indices.zip" "$RESOURCE_DIR/$IDX_FILE" "$RESOURCE_DIR/CR3D/CR3D.idx"
 
 # Ensure ZIP file was created
 if [[ ! -f "$LOCAL_TMP_DIR/vendor_indices.zip" ]]; then
@@ -67,12 +67,17 @@ if [[ ! -f "$LOCAL_TMP_DIR/vendor_indices.zip" ]]; then
     exit 1
 fi
 
-# Define correct remote SFTP paths based on filename
+# Define correct remote SFTP paths
 FILENAME_NO_EXT="${INI_FILE%.*}"  # Extract the filename without extension
 SFTP_BASE_DIR="/updates/SliCR-3D/v1/repos/cr3d-fff"
 SFTP_CR3D_DIR="$SFTP_BASE_DIR/$FILENAME_NO_EXT"  # Use the filename as the SFTP directory
 
-echo "Uploading files to: $SFTP_CR3D_DIR on port $SFTP_PORT"
+# Fix: Upload vendor_indices.zip **one folder back**
+VENDOR_ZIP_REMOTE_PATH="$SFTP_BASE_DIR/vendor_indices.zip"
+
+echo "Uploading:"
+echo " - $LOCAL_TMP_DIR/$NEW_INI_FILENAME --> $SFTP_CR3D_DIR/"
+echo " - $LOCAL_TMP_DIR/vendor_indices.zip --> $VENDOR_ZIP_REMOTE_PATH"
 
 OS_TYPE=$(uname)
 
@@ -84,8 +89,9 @@ if [[ "$OS_TYPE" == "Darwin" || "$OS_TYPE" == "Linux" ]]; then
         sshpass -p "$SFTP_PASS" sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
 mkdir -p $SFTP_CR3D_DIR
 cd $SFTP_CR3D_DIR
-put "$LOCAL_TMP_DIR/vendor_indices.zip"
 put "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
+cd $SFTP_BASE_DIR
+put "$LOCAL_TMP_DIR/vendor_indices.zip"
 bye
 EOF
     else
@@ -93,8 +99,9 @@ EOF
         sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
 mkdir -p $SFTP_CR3D_DIR
 cd $SFTP_CR3D_DIR
-put "$LOCAL_TMP_DIR/vendor_indices.zip"
 put "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
+cd $SFTP_BASE_DIR
+put "$LOCAL_TMP_DIR/vendor_indices.zip"
 bye
 EOF
     fi
@@ -106,8 +113,9 @@ elif [[ "$OS_TYPE" == CYGWIN* || "$OS_TYPE" == MINGW* || "$OS_TYPE" == MSYS* ]];
     sftp -oPort=$SFTP_PORT "$SFTP_USER@$SFTP_HOST" <<EOF
 mkdir -p $SFTP_CR3D_DIR
 cd $SFTP_CR3D_DIR
-put "$LOCAL_TMP_DIR/vendor_indices.zip"
 put "$LOCAL_TMP_DIR/$NEW_INI_FILENAME"
+cd $SFTP_BASE_DIR
+put "$LOCAL_TMP_DIR/vendor_indices.zip"
 bye
 EOF
 

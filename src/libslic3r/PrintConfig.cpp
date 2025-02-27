@@ -2390,8 +2390,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comAdvanced | comExpert;
     def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionFloats({0.02}));
-
+    def->set_default_value(disable_defaultoption(new ConfigOptionFloats({0.02})));
 
     // Orca: Adaptive pressure advance option and calibration values
     def = this->add("adaptive_pressure_advance", coBools);
