@@ -4625,6 +4625,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                 // look for thin walls
                 if (params.config.thin_walls) {
 
+                    /*
                     // detect edge case where a curve can be split in multiple small chunks.
                     if (allow_perimeter_anti_hysteresis && !special_area) {
                         std::vector<float> divs = { 2.1f, 1.9f, 2.2f, 1.75f, 1.5f }; //don't go too far, it's not possible to print thin wall after that
@@ -4642,6 +4643,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                             idx_div++;
                         }
                     }
+                        */
 
                     // the following offset2 ensures almost nothing in @thin_walls is narrower than $min_width
                     // (actually, something larger than that still may exist due to mitering or other causes)
@@ -4692,6 +4694,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                             }
                         }
                     }
+                    /*
                     // use perimeters to extrude area that can't be printed by thin walls
                     // it's a bit like re-add thin area into perimeter area.
                     // it can over-extrude a bit, but it's for a better good.
@@ -4722,6 +4725,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         //mask
                         next_onion = intersection_ex(next_onion_temp, last);
                     }
+                        */
                 }
                 if (params.spiral_vase && all_next_onion->size() > 1) {
                     assert(contour_count > 0);
