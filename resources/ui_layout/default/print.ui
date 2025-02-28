@@ -160,25 +160,7 @@ group:sidetext_width$5:Gap Fill
 	line:Gap Fill
 		setting:label$_:gap_fill_enabled
 	end_line
-	line:Gap Fill Last
-		setting:width$5:gap_fill_last
-	end_line
-	line:Gap Fill Extension
-		setting:label$_:gap_fill_extension
-	end_line
 
-	line:Gap Fill Threshold Min Width
-		setting:label$_:gap_fill_min_width
-	end_line
-	line:Gap Fill Threshold Max Width
-		setting:label$_:gap_fill_max_width
-	end_line
-	line:Gap Fill Min Area
-		setting:label$_:gap_fill_min_area
-	end_line
-	line:Gap Fill Min Length
-		setting:label$_:gap_fill_min_length
-	end_line
 
 group:sidetext_width$5:Advanced
 	setting:width$25:no_perimeter_unsupported_algo

@@ -145,7 +145,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "filament_wipe_advanced_pigment",
         "first_layer_bed_temperature",
         "full_fan_speed_layer",
-        "gap_fill_fan_speed",
         "gcode_ascii",
         "gcode_command_buffer",
         "gcode_comments",

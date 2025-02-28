@@ -346,57 +346,6 @@ coord_t Fill::_line_spacing_for_density(const FillParams& params) const
 //FIXME: add recent improvmeent from perimetergenerator: avoid thick gapfill
 void
 Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, ExtrusionEntitiesPtr& coll_out) const {
-
-    ThickPolylines polylines_gapfill;
-    double min = 0.4 * scale_(params.flow.nozzle_diameter()) * (1 - INSET_OVERLAP_TOLERANCE);
-    double max = 2. * params.flow.scaled_width();
-    // collapse 
-    //be sure we don't gapfill where the perimeters are already touching each other (negative spacing).
-    min = std::max(min, double(Flow::new_from_spacing((float)EPSILON, (float)params.flow.nozzle_diameter(), (float)params.flow.height(), 1, false).scaled_width()));
-    //ExPolygons gapfill_areas_collapsed = diff_ex(
-    //    offset2_ex(gapfill_areas, double(-min / 2), double(+min / 2)),
-    //    offset2_ex(gapfill_areas, double(-max / 2), double(+max / 2)),
-    //    true);
-    ExPolygons gapfill_areas_collapsed = offset2_ex(gapfill_areas, double(-min / 2), double(+min / 2));
-    double minarea = double(params.flow.scaled_width()) * double(params.flow.scaled_width());
-    if (params.config != nullptr) minarea = scale_d(params.config->gap_fill_min_area.get_abs_value(params.flow.width())) * double(params.flow.scaled_width());
-    for (const ExPolygon& ex : gapfill_areas_collapsed) {
-        //remove too small gaps that are too hard to fill.
-        //ie one that are smaller than an extrusion with width of min and a length of max.
-        if (ex.area() > minarea) {
-            Geometry::MedialAxis{ ex, params.flow.scaled_width() * 2, params.flow.scaled_width() / 5, coord_t(params.flow.height()) }.build(polylines_gapfill);
-        }
-    }
-    if (!polylines_gapfill.empty() && !params.role.is_bridge()) {
-        //test
-#ifdef _DEBUG
-        for (ThickPolyline poly : polylines_gapfill) {
-            for (coord_t width : poly.points_width) {
-                if (width > params.flow.scaled_width() * 2.2) {
-                    BOOST_LOG_TRIVIAL(error) << "ERRROR!!!! gapfill width = " << unscaled(width) << " > max_width = " << (params.flow.width() * 2) << "\n";
-                }
-            }
-        }
-#endif
-
-        ExtrusionEntitiesPtr gap_fill_entities =
-            Geometry::thin_variable_width(polylines_gapfill, ExtrusionRole::GapFill, params.flow,
-                                          scale_t(params.config->get_computed_value("resolution_internal")), true);
-
-        ////set role if needed
-        //if (params.role != ExtrusionRole::SolidInfill) {
-        //    ExtrusionSetRole set_good_role(params.role);
-        //    for(ExtrusionEntity *ptr : gap_fill_entities)
-        //        ptr->visit(set_good_role);
-        //}
-        //move them into the collection
-        if (!gap_fill_entities.empty()) {
-            ExtrusionEntityCollection* coll_gapfill = new ExtrusionEntityCollection();
-            coll_gapfill->set_can_sort_reverse(!this->no_sort(), !this->no_sort());
-            coll_gapfill->append(std::move(gap_fill_entities));
-            coll_out.push_back(coll_gapfill);
-        }
-    }
 }
 
 namespace NaiveConnect {

@@ -3142,6 +3142,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
+    /*
     def = this->add("gap_fill_extension", coFloatOrPercent);
     def->label = L("Extension");
     def->full_label = L("Gap fill: extra extension");
@@ -3254,7 +3255,7 @@ void PrintConfigDef::init_fff_params() {
     def->max = 100;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionPercent(80));
-
+*/
     def = this->add("gap_fill_speed", coFloatOrPercent);
     def->label = L("Gap fill");
     def->full_label = L("Gap fill speed");
@@ -9883,16 +9884,6 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "gcode_min_length",
 "gcode_min_resolution",
 "gap_fill_acceleration",
-"gap_fill_extension",
-"gap_fill_fan_speed",
-"gap_fill_flow_match_perimeter",
-"gap_fill_last",
-"gap_fill_infill",
-"gap_fill_min_area",
-"gap_fill_max_width",
-"gap_fill_min_length",
-"gap_fill_min_width",
-"gap_fill_overlap",
 "gcode_filename_illegal_char",
 "gcode_precision_e",
 "gcode_precision_xyz",

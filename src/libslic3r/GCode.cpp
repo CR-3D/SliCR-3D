@@ -6345,17 +6345,6 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
         } else if (path.role() == ExtrusionRole::GapFill) {
             speed = m_config.get_computed_value("gap_fill_speed");
             if(comment) *comment = "gap_fill_speed";
-            double max_ratio = m_config.gap_fill_flow_match_perimeter.get_abs_value(1.);
-            if (max_ratio > 0 && m_region) {
-                //compute intended perimeter flow
-                Flow fl = m_region->flow(*m_layer->object(), FlowRole::frPerimeter, m_layer->height, m_layer->id());
-                double max_vol_speed = fl.mm3_per_mm() * max_ratio * m_config.get_computed_value("perimeter_speed");
-                double current_vol_speed = path.mm3_per_mm() * speed;
-                if (max_vol_speed < current_vol_speed) {
-                    speed = max_vol_speed / path.mm3_per_mm();
-                    if(comment) *comment = "max_vol_speed (from " + (*comment) + ")";
-                }
-            }
         } else if (path.role() == ExtrusionRole::Ironing) {
             speed = m_config.get_computed_value("ironing_speed");
             if(comment) *comment = "ironing_speed";

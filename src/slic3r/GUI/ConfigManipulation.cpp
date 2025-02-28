@@ -76,7 +76,6 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
         && config->opt_bool("extra_perimeters_on_overhangs") == false
         && config->opt_bool("extra_perimeters_odd_layers") == false
         && config->opt_bool("overhangs_reverse") == false
-        && config->opt_bool("gap_fill_last") == false
         && config->opt_int("solid_infill_every_layers") == 0
         && config->opt_int("solid_over_perimeters") == 0
         && config->option("seam_notch_all")->get_float() == 0
@@ -128,8 +127,7 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
                 new_conf.set_key_value("extra_perimeters_odd_layers", new ConfigOptionBool(false));
             else if (this->local_config->get().optptr("overhangs_reverse"))
                 new_conf.set_key_value("overhangs_reverse", new ConfigOptionBool(false));
-            else if (this->local_config->get().optptr("gap_fill_last"))
-                new_conf.set_key_value("gap_fill_last", new ConfigOptionBool(false));
+
             else if (this->local_config->get().optptr("solid_infill_every_layers"))
                 new_conf.set_key_value("solid_infill_every_layers", new ConfigOptionInt(0));
             else if (this->local_config->get().optptr("solid_over_perimeters"))
@@ -153,7 +151,6 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             new_conf.set_key_value("extra_perimeters_on_overhangs", new ConfigOptionBool(false));
             new_conf.set_key_value("extra_perimeters_odd_layers", new ConfigOptionBool(false));
             new_conf.set_key_value("overhangs_reverse", new ConfigOptionBool(false));
-            new_conf.set_key_value("gap_fill_last", new ConfigOptionBool(false));
             new_conf.set_key_value("solid_infill_every_layers", new ConfigOptionInt(0));
             new_conf.set_key_value("solid_over_perimeters", new ConfigOptionInt(0));
             new_conf.set_key_value("seam_notch_all", new ConfigOptionFloatOrPercent(0, false));
@@ -406,12 +403,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
                                           config->option("seam_notch_outer")->get_float() != 0);
     toggle_field("seam_notch_angle", have_notch);
 
-    bool have_gap_fill = !have_arachne;
-    toggle_field("gap_fill_enabled", have_gap_fill);
-    for (auto el : { "gap_fill_extension", "gap_fill_last", "gap_fill_max_width", "gap_fill_min_area", "gap_fill_min_length", "gap_fill_min_width" })
-        toggle_field(el, config->opt_bool("gap_fill_enabled") && have_gap_fill);
     // gap fill  can appear in infill
-    //toggle_field("gap_fill_speed", have_perimeters && config->opt_bool("gap_fill_enabled"));
+    toggle_field("gap_fill_speed", have_perimeters && config->opt_bool("gap_fill_enabled"));
 
     for (auto el : { "fuzzy_skin_thickness", "fuzzy_skin_point_dist" })
         toggle_field(el, config->option<ConfigOptionEnum<FuzzySkinType>>("fuzzy_skin")->value != FuzzySkinType::None);

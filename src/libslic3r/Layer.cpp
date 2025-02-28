@@ -697,14 +697,6 @@ void Layer::make_perimeters()
                             && config.gap_fill_enabled          == other_config.gap_fill_enabled
                             && ((config.gap_fill_speed          == other_config.gap_fill_speed) || !config.gap_fill_enabled)
                             && config.gap_fill_acceleration     == other_config.gap_fill_acceleration
-                            && config.gap_fill_last             == other_config.gap_fill_last
-                            && config.gap_fill_flow_match_perimeter == other_config.gap_fill_flow_match_perimeter
-                            && config.gap_fill_extension         == other_config.gap_fill_extension
-                            && config.gap_fill_max_width         == other_config.gap_fill_max_width
-                            && config.gap_fill_min_area         == other_config.gap_fill_min_area
-                            && config.gap_fill_min_length         == other_config.gap_fill_min_length
-                            && config.gap_fill_min_width         == other_config.gap_fill_min_width
-                            && config.gap_fill_overlap          == other_config.gap_fill_overlap
                             && config.infill_dense              == other_config.infill_dense
                             && config.infill_dense_algo         == other_config.infill_dense_algo
                             && config.infill_overlap            == other_config.infill_overlap
