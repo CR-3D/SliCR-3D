@@ -9,3 +9,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.8 added new filaments, updated print and printer parameters.
 0.0.9 fixed latest profiles.
 0.0.10 fixed names
+0.0.11 top_infill to 100%

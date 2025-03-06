@@ -801,7 +801,7 @@ bool read_json_file_bambu(const std_path &temp_file,
 
         if (auto it = key_translation_map.find(opt_key); it != key_translation_map.end())
             opt_key = it->second;
-        PrintConfigDef::handle_legacy(opt_key, value, false);
+        //PrintConfigDef::handle_legacy(opt_key, value, false);
 
         complicated_convert(opt_key, value, key_values, good_key_values);
 
@@ -824,11 +824,11 @@ bool read_json_file_bambu(const std_path &temp_file,
             key = it->second;
         
         std::string check_val = values[0];
-        PrintConfigDef::handle_legacy(key, values[0], false);
+        //PrintConfigDef::handle_legacy(key, values[0], false);
         if (!key.empty()) {
             if (check_val != values[0]) {
                 for (size_t idx = 1; idx < values.size(); ++idx) {
-                    PrintConfigDef::handle_legacy(key, values[0], false);
+                   // PrintConfigDef::handle_legacy(key, values[0], false);
                     assert(!key.empty());
                 }
             }
@@ -909,7 +909,7 @@ bool read_json_file_bambu(const std_path &temp_file,
             settings_to_change.insert(result.begin(), result.end());
             if (!opt_key.empty())
                 //check if good this time
-                PrintConfigDef::handle_legacy(opt_key, value, false);
+                //PrintConfigDef::handle_legacy(opt_key, value, false);
             if (!opt_key.empty()) {
                 if (!config_def->has(opt_key)) {
                     if (config_substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable) {
@@ -979,7 +979,7 @@ bool convert_settings_from_bambu(std::map<std::string, std::string> bambu_settin
 
         if (auto it = key_translation_map.find(opt_key); it != key_translation_map.end())
             opt_key = it->second;
-        PrintConfigDef::handle_legacy(opt_key, value, false);
+        //PrintConfigDef::handle_legacy(opt_key, value, false);
         
         complicated_convert(opt_key, value, bambu_settings_serialized, good_key_values);
 
@@ -1030,7 +1030,7 @@ bool convert_settings_from_bambu(std::map<std::string, std::string> bambu_settin
         std::string         value   = entry.second;
         if (auto it = key_translation_map.find(opt_key); it != key_translation_map.end())
             opt_key = it->second;
-        PrintConfigDef::handle_legacy(opt_key, value, false);
+        //PrintConfigDef::handle_legacy(opt_key, value, false);
         
         complicated_convert(opt_key, value, bambu_settings_serialized, good_key_values);
 

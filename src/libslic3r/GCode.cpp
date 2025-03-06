@@ -7077,6 +7077,7 @@ void GCodeGenerator::_add_object_change_labels(std::string& gcode) {
         // if m_new_z_target, then the ramping lift will be written. if not, then there isn't anything to ensure a good z
         if(!m_new_z_target && BOOL_EXTRUDER_CONFIG(travel_ramping_lift) && m_spiral_vase_layer <= 0) {
             gcode += m_writer.get_travel_to_z_gcode(m_writer.get_position().z(), "ensure z is right");
+            m_writer.set_lift(0);
         }
     }
 }
@@ -7343,13 +7344,12 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
                 double layer_change_diff = m_layer->print_z - m_writer.get_unlifted_position().z();
                 // move layer_change_diff into lift & z_diff_layer_and_lift
                 z_diff_layer_and_lift += layer_change_diff;
-            } else {
-                // do a strait z-move (as we can't see the preious point.
-                gcode += m_writer.get_travel_to_z_gcode(m_layer->print_z, "strait z-move, as the travel is undefined.");
-                no_ramping = true;
             }
-        } else {
-            assert(!m_new_z_target);
+        }
+        if (travel.size() <= 1) {
+            // do a strait z-move (as we can't see the previous point.
+            gcode += m_writer.travel_to_z(m_layer->print_z, "strait z-move, as the travel is undefined.");
+            no_ramping = true;
         }
         // register get_extra_lift for our ramping lift (ramping lift + lift_min)
         if (m_writer.get_extra_lift() != 0) {

@@ -743,6 +743,7 @@ void AMFParserContext::endElement(const char * /* name */)
             // See https://github.com/prusa3d/PrusaSlicer/issues/7155. We'll revert it for now.
             //m_config_substitutions->substitutions = m_config->load_from_ini_string_commented(std::move(m_value[1].c_str()), m_config_substitutions->rule);
             ConfigBase::load_from_gcode_string_legacy(*m_config, std::move(m_value[1].c_str()), *m_config_substitutions);
+            //deserialize_maybe_from_prusa(ConfigBase::load_gcode_string_legacy(m_value[1].c_str()), *m_config, *config_substitutions, true, true);
         }
         else if (strncmp(m_value[0].c_str(), "slic3r.", 7) == 0) {
             const char *key = m_value[0].c_str() + 7;
@@ -763,7 +764,9 @@ void AMFParserContext::endElement(const char * /* name */)
                 if (config) {
                     std::string opt_key = key;
                     std::string value = m_value[1];
-                    PrintConfigDef::handle_legacy(opt_key, value, true);
+                    //FIXME: put them into a map, and do the handle & config deserialize after evrything is parsed.
+                    PrintConfigDef::handle_legacy_pair(opt_key, value, true);
+                    // PrintConfigDef::handle_legacy(opt_key, value, true);
                     if (opt_key.empty()) {
                         if (m_config_substitutions->rule != ForwardCompatibilitySubstitutionRule::Disable) {
                             m_config_substitutions->emplace(std::string(key), std::move(value));

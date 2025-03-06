@@ -11,6 +11,9 @@
 
 #include <boost/algorithm/string/trim_all.hpp>
 #include <boost/filesystem/path.hpp>
+#ifdef WIN32
+#include <boost/nowide/fstream.hpp>
+#endif
 
 #include "libslic3r/Config.hpp"
 #include "libslic3r/Semver.hpp"

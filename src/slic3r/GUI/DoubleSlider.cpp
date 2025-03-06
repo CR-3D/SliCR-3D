@@ -795,14 +795,17 @@ wxString Control::get_label(int tick, LabelType label_type/* = ltHeightWithLayer
         return str;
 
     // get the layer num (gcode can have 0, but not preview)
-    bool is_preview_not_gcode = m_layers_times.size()  == m_values.size();
+    bool is_preview_not_gcode = (m_layers_times.size() == 0) ? true : (m_layers_times.size() == m_values.size());
+    //m_layers_times.size() = 0 if we're on sliced preview tab
+
     if (m_is_wipe_tower) {
         is_preview_not_gcode = (m_layers_values.size() != m_values.size());
     } else {
         //assert(m_layers_times.size() == m_values.size() - 1 || m_layers_times.size()  == m_values.size() || m_layers_times.empty());
         //assert(m_layers_values.empty());
     }
-    const size_t layer_number = is_preview_not_gcode ? value : value + 1;
+    //is_preview_not_gcode = true then we're on sliced preview tab
+    const size_t layer_number = is_preview_not_gcode ? value + 1 : value;
     const size_t time_idx = is_preview_not_gcode ? value : value;
 
     // When "Print Settings -> Multiple Extruders -> No sparse layer" is enabled, then "Smart" Wipe Tower is used for wiping.
