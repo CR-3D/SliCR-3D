@@ -4765,7 +4765,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // won't be able to fill but we'd still remove from infill area
                     append(gaps, diff_ex(
                         offset(last,    - float(0.5 * good_spacing)),
-                        offset(offsets,   float(0.5 * good_spacing + 10))));  // safety offset
+                        offset(next_onion,   float(0.5 * good_spacing + 10))));  // safety offset
 
 
                 std::vector<ExPolygonAsynch> *touse = nullptr;
