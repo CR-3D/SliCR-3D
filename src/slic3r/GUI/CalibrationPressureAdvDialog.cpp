@@ -37,19 +37,6 @@ static wxSize get_screen_size(wxWindow* window)
 namespace Slic3r {
 namespace GUI {
 
-std::string replaceCommaWithDot(const std::string& input) {
-    std::string result = input;
-    size_t pos = 0;
-
-    // Replace all occurrences of ',' with '.'
-    while ((pos = result.find(',', pos)) != std::string::npos) {
-        result.replace(pos, 1, ".");
-        pos += 1; // Move past the replaced dot
-    }
-
-    return result;
-}
-
 //BUG: custom gcode ' between extrusion role changes' should that be before or after region gcode?
 // BUG: output error if first layer height is lower than base layer height
 //      this can cause the numbers to not "show up" on the preview because the z scale is calculated wrong.
@@ -150,11 +137,11 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
 
    std::unordered_map<std::string, std::string> er_width_ToOptionKey = {
     {"InternalInfill", "infill_extrusion_width"},
-    {"BridgeInfill", "external_perimeter_extrusion_width"},//special calc required
+    //{"BridgeInfill", "external_perimeter_extrusion_width"},//special calc required
     {"ExternalPerimeter", "external_perimeter_extrusion_width"},
-    {"GapFill", "external_perimeter_extrusion_width"},//special calc required
-    {"InternalBridgeInfill", "external_perimeter_extrusion_width"},//special calc required, TODO:find out where/how this is calculated
-    {"Ironing", "top_infill_extrusion_width"},//not fully suported
+    //{"GapFill", "external_perimeter_extrusion_width"},//special calc required
+    //{"InternalBridgeInfill", "external_perimeter_extrusion_width"},//special calc required, TODO:find out where/how this is calculated
+    //{"Ironing", "top_infill_extrusion_width"},//not fully suported
     {"OverhangPerimeter", "overhangs_width"},//special calc required, TODO:find out where/how this is calculated 'overhangs_width' is not the same width config as others, it considers this value when calculating flow
     {"Perimeter", "perimeter_extrusion_width"},
     {"SolidInfill", "solid_infill_extrusion_width"},
@@ -303,6 +290,8 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     }
     //what if defaults broken/not set for speed/accell too??
 
+    //double max_layer_heih = full_print_config.get_abs_value("min_layer_height", nozzle_diameter);
+    //double min_layer_height, max_layer_height = 0.0;
     // --- translate ---
     //bool autocenter = gui_app->app_config->get("autocenter") == "1";
     bool has_to_arrange = plat->config()->opt_float("init_z_rotate") != 0;
@@ -311,7 +300,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     std::vector < std::vector<ModelObject*>> pressure_tower;
     bool smooth_time = false;
 
-    std::string nozzle_diameter_str = replaceCommaWithDot(std::to_string(nozzle_diameter));
+    std::string nozzle_diameter_str = std::to_string(nozzle_diameter);
     nozzle_diameter_str.erase(nozzle_diameter_str.find_last_not_of('0') + 2, std::string::npos);
 
     
@@ -337,7 +326,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     double initial_number_y  = 4.0;    //size in y= 4.0 mm , model half y=2.0
     double initial_border_x  = 1.6;    //size in x= 1.6 mm , model half x=0.8
     double initial_border_y  = 21.0;   //size in y= 21.0 mm, model half y=10.5
-    double initial_point_xy  = 0.60;   //size in xy= 0.6mm , model half xy=0.3 'point' model origin is bottom right offset x=0.7 y= -1.7(center of model +x1,y2 for bottom right edges)
+    double initial_point_xy  = 0.60;   //size in xy= 0.6mm , model half xy=0.3 'point' model origin is center of the model (same as the numbers)
     double x_offset_90_bend  = 1.2;    //apex of 90° bend is offset from origin
 
 
@@ -561,7 +550,8 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
         double xy_scaled_border_y = er_width_to_scale_first_layer_border;               // mm
         double xy_scaled_number_x = initial_number_x * xyzScale * er_width_to_scale;    // mm
         double xy_scaled_number_y = initial_number_y * xyzScale * er_width_to_scale;    // mm
-        double xy_scaled_point_xy = initial_point_xy * xyzScale * er_width_to_scale;    // mm
+        double xy_scaled_point_x =  initial_point_xy * xyzScale * er_width_to_scale;    // mm
+        double xy_scaled_point_y =  initial_point_xy * xyzScale * 1.5 * er_width_to_scale;    // mm the 'point' model gets scaled a litte larger in y to help with gcode generation and actually printing it.
 
 
         double thickness_offset = 0.0;
@@ -580,7 +570,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
             if (selected_extrusion_role == "CheckAll") {
                 y_offset = 10.0 /* * nozzle_diameter*/;
                 for (size_t i = 0; i < sizeof(choice_extrusion_role) / sizeof(choice_extrusion_role[0]); i++) {
-                    er_role = choice_extrusion_role[i];
+                    er_role = choice_extrusion_role[nb_90_bends];// i don't know how this works correctly..
                     if (er_width_ToOptionKey.find(er_role) != er_width_ToOptionKey.end() && added_roles.find(er_role) == added_roles.end()) {
                         added_roles.insert(er_role);
                         role_found = true;
@@ -737,6 +727,8 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
                 if (nb_bends % 2 == 1){
                     continue;// Skip generating every second number
                 }
+                // if er_role == 'ThinWall' everything still gets printed. but the numbers will need to keep their "normal size" or get scaled differntly or load a new number model that's designed for 4 walls.
+                // i want the numbers for a thin wall to be scaled and printed as a thinwall... the detection for thin walls/overhangs might need to be fixed first?
 
                 Eigen::Vector3d bend_90_pos = bend_90_positions[nb_bends];
                 std::string pa_values_string = std::to_string(pa_values[nb_bends]);
@@ -744,26 +736,36 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
                 double xpos = bend_90_pos.x() + (xy_scaled_90_bend_x / 2) + (xy_scaled_number_x / 2) + nozzle_diameter;
                 //double ypos = bend_90_pos.y() + (xy_scaled_90_bend_y / 2) - (xy_scaled_number_y / 2)
                 double ypos = bend_90_pos.y() + (xy_scaled_90_bend_y / 2) - (xy_scaled_number_y / 2) + (nozzle_diameter * 3);
+                double space_numbers_distance_x = (xy_scaled_number_x / 2) + nozzle_diameter + (xy_scaled_number_x / 2);//space the numbers by this amount.
                 //double ypos = bend_90_pos.y() + (xy_scaled_90_bend_y / 2) - (xy_scaled_number_y / 2) + (er_width / 100 * 2);//TODO: perfect this position so it's centered with the notch on the 90_bend                                                                                                    
                                                                                                      //  will need to calculate that number sizing/positioning to offset it by.
 
                 for (size_t j = 0; j < pa_values_string.length(); ++j) {//not sure how the code will respond with a positive array list? ie ; 100.2 this moves decimal point thus breaking the code from loading model since "..3mf" not a real file
 
-                    if (pa_values_string[j] == '.') {
+                    //improvement: if j > 0 if 'std::isdigit(pa_values_string[j]' == '0' and if it's the same as j-1 don't re print the trailing 0's
+                    // should this be a choice box ?
+
+                    if (j != 0  ) {//don't apply the offset for first number
+                        xpos = xpos + space_numbers_distance_x;}
+                    if (pa_values_string[j] == '.') { //maybe if ! isdigit(pa_values_string[j]) if it's not a '.' it could be ',' part fix for localization issue. but also this character could be anything else..(it shouldn't though..) and it shouldn't be 'fixed' here..
+
+                        double right_edge_of_left_number = xpos + (xy_scaled_number_x / 2) - space_numbers_distance_x;//this can be simplified,values represent the inner edges of the numbers between the '.' model
+                        double left_edge_of_right_number = xpos + (xy_scaled_number_x / 2) + (nozzle_diameter * 2) + (xy_scaled_number_x / 2) - space_numbers_distance_x;
+                        double point_xpos = (right_edge_of_left_number + left_edge_of_right_number) / 2;
+
                         add_part(model.objects[objs_idx[id_item]],(boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_pressure" / "point.3mf").string(),
-                            Vec3d{ xpos - (xy_scaled_number_x / 2), ypos /* - xy_scaled_point_xy - xyzScale*/, z_scaled_model_height },// point gets moved to wrong position on all nozzle_sizes, guessing it's exported offset position doesn't get scaled with the model.
-                                /*scale*/Vec3d{ xyzScale * er_width_to_scale, xyzScale + (xyzScale / 2), z_scale_others * 2 }, false);;
+                            Vec3d{ point_xpos, ypos - (xy_scaled_number_y / 2) + (xy_scaled_point_y / 2), z_scaled_model_height },//FIXED: // point gets moved to wrong position on all nozzle_sizes, guessing it's exported offset position doesn't get scaled with the model.
+                                /*scale*/Vec3d{ xyzScale * er_width_to_scale, (xyzScale + (xyzScale / 2)) * er_width_to_scale, z_scale_others * 2 }, false);
+                        number_positions.push_back(Eigen::Vector3d(point_xpos, ypos - (xy_scaled_number_y / 2) + (xy_scaled_point_y / 2), z_scaled_model_height));
                         xpos -= (xy_scaled_number_x / 2);
 
                     } else if (std::isdigit(pa_values_string[j])) {
                         add_part(model.objects[objs_idx[id_item]],(boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_pressure" / (pa_values_string[j] + std::string(".3mf"))).string(),
-                            Vec3d{ xpos, ypos, z_scaled_model_height },// might need to re size the numbers a touch. they get marked as "thin walls"
-                                /*scale*/Vec3d{ xyzScale * er_width_to_scale, xyzScale * er_width_to_scale, z_scale_others * 2 }, false);;//TOCHECK: if any numbers get gapfill
+                            Vec3d{ xpos, ypos, z_scaled_model_height },
+                                /*scale*/Vec3d{ xyzScale * er_width_to_scale, xyzScale * er_width_to_scale, z_scale_others * 2 }, false);//TOCHECK: if any numbers get gapfill
+                        number_positions.push_back(Eigen::Vector3d(xpos, ypos, z_scaled_model_height));
+                        xpos = number_positions.back().x();
                     }
-
-                    Eigen::Vector3d modelPosition(xpos + (xy_scaled_number_x / 2) + nozzle_diameter + (xy_scaled_number_x / 2), ypos, z_scaled_model_height);
-                    number_positions.push_back(modelPosition);
-                    xpos = modelPosition.x();
                 }
             }
         }
@@ -773,6 +775,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     // => settings that are for object or region should be added to the model (see below, in the for loop), not here
     DynamicPrintConfig new_print_config = *print_config;
     DynamicPrintConfig new_printer_config = *printer_config;
+    //DynamicPrintConfig new_filament_config = *filament_config;
     //check if setting any config values to 45° breaks it. or it might be the default value for rotation adding part?
     new_print_config.set_key_value("avoid_crossing_perimeters", new ConfigOptionBool(false));
     new_print_config.set_key_value("complete_objects", new ConfigOptionBool(false)); //true is required for multi tests on single plate?
@@ -780,6 +783,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     new_print_config.set_key_value("first_layer_size_compensation", new ConfigOptionFloat(0));
     new_print_config.set_key_value("xy_inner_size_compensation", new ConfigOptionFloat(0));
     new_print_config.set_key_value("xy_outer_size_compensation", new ConfigOptionFloat(0));
+    //new_filament_config.set_key_value("filament_pressure_advance", new ConfigOptionFloat(0)); syntax for disable?
     new_print_config.set_key_value("print_custom_variables", new ConfigOptionString("calibration_print"));//created this as an extra check for when generating gcode to not include "feature_gcode"
                                                                                                           // unless i disable the "generate" button if the keywords are detected in the custom gcode ?
 
@@ -905,7 +909,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
             bool role_found = false;
             if (selected_extrusion_role == "CheckAll") {
                 for (size_t i = 0; i < sizeof(choice_extrusion_role) / sizeof(choice_extrusion_role[0]); i++) {
-                    er_role = choice_extrusion_role[num_part];
+                    er_role = choice_extrusion_role[num_part];// i don't know how this works correctly..
                     if (er_width_ToOptionKey.find(er_role) != er_width_ToOptionKey.end() && added_roles.find(er_role) == added_roles.end()) {
                         //er_role = er_role;
                         added_roles.insert(er_role);
@@ -952,8 +956,13 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
 
                 er_role = "defaults for " + er_role + " width spacing";
             }
-            er_width = std::round((er_width * 100 / nozzle_diameter) * 100.0) / 100.0;
-
+            if (er_role == choice_extrusion_role[11] || er_role == "ThinWall"){
+                er_width = default_er_width;//since the model gets scaled to thinwall size,it should use the default modifer? if it uses the thin_wall width modifer it fails to slice "ERROR:Layer height can't be greater than perimeter extrusion width"
+                er_width = std::round((default_er_width * 100 / nozzle_diameter) * 100.0) / 100.0;
+            }
+            else{
+                er_width = std::round((er_width * 100 / nozzle_diameter) * 100.0) / 100.0;
+            }
             double er_width_to_scale = magical_scaling(nozzle_diameter, er_width, filament_max_overlap, spacing_ratio, spacing_ratio_external, base_layer_height, er_spacing);
             if (infill_every_layers > 1 && selected_extrusion_role == "InternalInfill" && infill_dense == false) {
                 er_width_to_scale = magical_scaling(nozzle_diameter, er_width, filament_max_overlap, spacing_ratio, spacing_ratio_external, combined_layer_height, er_spacing);
@@ -1086,6 +1095,8 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     plat->on_config_change(new_print_config);
     this->gui_app->get_tab(Preset::TYPE_PRINTER)->load_config(new_printer_config);
     plat->on_config_change(new_printer_config);
+    //this->gui_app->get_tab(Preset::TYPE_MATERIAL)->load_config(new_filament_config);
+    //plat->on_config_change(new_filament_config);
     //enable it later as a safeguard?, shouldn't be needed though.
     //for (size_t obj_idx : objs_idx) { model.objects[obj_idx]->ensure_on_bed(); } // put at the correct z (kind of arrange-z))
     //for (size_t obj_idx : objs_idx) { model.objects[obj_idx]->center_around_origin();}

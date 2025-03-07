@@ -115,18 +115,22 @@ public:
 
 	~Semver() { ::semver_free(&ver); }
 
-	// const accessors
-	int 		maj()        const { return ver.counter_size > 0 ? ver.counters[0] : 0; }
-	int 		min()        const { return ver.counter_size > 1 ? ver.counters[1] : 0; }
-	//int 		counter()    const { return ver.counter_size > 2 ? ver.counters[2] : 0; }
-	//int 		patch() 	 const { return ver.counter_size > 3 ? ver.counters[3] : 0; }
-	const char*	prerelease() const { return ver.prerelease; }
-	const char*	metadata() 	 const { return ver.metadata; }
+    // const accessors
+    int maj() const { return ver.counter_size > 0 ? ver.counters[0] : 0; }
+    int min() const { return ver.counter_size > 1 ? ver.counters[1] : 0; }
+    int counter() const { return ver.counter_size > 2 ? ver.counters[2] : 0; }
+    int patch() const { return ver.counter_size > 3 ? ver.counters[3] : 0; }
+    bool has_maj() const { return ver.counter_size > 0; }
+    bool has_min() const { return ver.counter_size > 1; }
+    bool has_counter() const { return ver.counter_size > 2; }
+    bool has_patch() const { return ver.counter_size > 3; }
+    const char *prerelease() const { return ver.prerelease; }
+    const char *metadata() const { return ver.metadata; }
 	
 	// Setters
-	//void set_maj(int maj) { if(ver.counter_size > 0) ver.counters[0] = maj; }
-	//void set_min(int min) { if (ver.counter_size > 1) ver.counters[1] = min; }
-	//void set_counter(int count) { if (ver.counter_size > 2) ver.counters[2] = count; }
+	void set_maj(int maj) { if(ver.counter_size > 0) ver.counters[0] = maj; }
+	void set_min(int min) { if (ver.counter_size > 1) ver.counters[1] = min; }
+	void set_counter(int count) { if (ver.counter_size > 2) ver.counters[2] = count; }
 	void set_patch(int patch) { if (ver.counter_size > 3) ver.counters[3] = patch; }
     void set_metadata(std::optional<std::string> meta)
     {

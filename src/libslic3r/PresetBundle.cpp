@@ -1465,6 +1465,7 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                 auto parse_config_section = [&section, &alias_name, &renamed_from, &substitution_context, &path, &flags](DynamicPrintConfig &config) {
                     substitution_context.clear();
                     std::map<t_config_option_key, std::string> opts_deleted;
+                    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
                     for (auto &kvp : section.second) {
                         if (kvp.first == "alias")
                             alias_name = kvp.second.data();
@@ -1477,12 +1478,17 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                         // Throws on parsing error. For system presets, no substituion is being done, but an exception is thrown.
                         t_config_option_key opt_key = kvp.first;
                         std::string value =  kvp.second.data();
-                        PrintConfigDef::handle_legacy(opt_key, value, true);
+                        dict_opt[opt_key] = {opt_key, value};
+                    }
+                    PrintConfigDef::handle_legacy_map(dict_opt, true);
+                    for (auto &[saved_key, key_val] : dict_opt) {
+                        auto &[opt_key, value] = key_val;
+                        //PrintConfigDef::handle_legacy(opt_key, value, true);
                         // don't throw for an unknown key, just ignore it
                         if (!opt_key.empty()) {
                             config.set_deserialize(opt_key, value, substitution_context);
                         } else {
-                            opts_deleted[kvp.first] = value;
+                            opts_deleted[saved_key] = value;
                         }
                     }
                     if (flags.has(LoadConfigBundleAttribute::ConvertFromPrusa))
@@ -1612,12 +1618,16 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
             substitution_context.clear();
             try {
                 std::map<t_config_option_key, std::string> opts_deleted;
-                for (auto& kvp : section.second) {
+                std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
+                for (auto &kvp : section.second) {
                     std::string opt_key = kvp.first;
                     std::string value = kvp.second.data();
-                    PrintConfigDef::handle_legacy(opt_key, value, true);
+                }
+                PrintConfigDef::handle_legacy_map(dict_opt, true);
+                for (auto &[saved_key, key_val] : dict_opt) {
+                    auto &[opt_key, value] = key_val;
                     if (opt_key.empty()) {
-                        opts_deleted[kvp.first] = value;
+                        opts_deleted[saved_key] = value;
                     } else {
                         config.set_deserialize(opt_key, value, substitution_context);
                     }

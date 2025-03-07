@@ -168,7 +168,7 @@ BundleMap BundleMap::load()
                 // Fresh index should be in archive_dir, otherwise look for it in cache 
                 // Then if not in archive or cache - it could be 3rd party profile that user just copied to vendor folder (both ini and cache)
                 
-                fs::path idx_path (archive_dir / (id + ".idx"));
+                fs::path idx_path (cache_dir / (id + ".idx"));
                 if (!boost::filesystem::exists(idx_path)) {
                     BOOST_LOG_TRIVIAL(info) << format("Missing index %1% when loading bundle %2%. Going to search for it in cache folder.", idx_path.string(), id);
                     idx_path = fs::path(cache_dir / (id + ".idx"));

@@ -56,8 +56,35 @@
 
 namespace Slic3r {
 
-std::string toString(OptionCategory opt)
-{
+PrinterTechnology parse_printer_technology(const std::string &technology) {
+    if (technology == "FFF")
+        return PrinterTechnology::ptFFF;
+    else if (technology == "SLA")
+        return PrinterTechnology::ptSLA;
+    else if (technology == "SLS")
+        return PrinterTechnology::ptSLS;
+    else if (technology == "MILL")
+        return PrinterTechnology::ptMill;
+    else if (technology == "LASER")
+        return PrinterTechnology::ptLaser;
+    return PrinterTechnology::ptUnknown;
+}
+
+std::string to_string(PrinterTechnology tech) {
+    if (tech == PrinterTechnology::ptFFF)
+        return "FFF";
+    else if (tech == PrinterTechnology::ptSLA)
+        return "SLA";
+    else if (tech == PrinterTechnology::ptSLS)
+        return "SLS";
+    else if (tech == PrinterTechnology::ptMill)
+        return "MILL";
+    else if (tech == PrinterTechnology::ptLaser)
+        return "LASER";
+    return "Unknown";
+}
+
+std::string toString(OptionCategory opt) {
     switch (opt) {
     case OptionCategory::none: return "";
     case OptionCategory::perimeter: return L("Perimeters & Shell");
@@ -1128,7 +1155,7 @@ void ConfigBase::apply_only(const ConfigBase &other, const t_config_option_keys 
         const ConfigOption *other_opt = other.option(opt_key);
         if (other_opt == nullptr) {
             // The key was not found in the source config, therefore it will not be initialized!
-            //			printf("Not found, therefore not initialized: %s\n", opt_key.c_str());
+//          printf("Not found, therefore not initialized: %s\n", opt_key.c_str());
         } else {
             try {
                 my_opt->set(other_opt);
@@ -1230,15 +1257,21 @@ bool ConfigBase::set_deserialize_nothrow(const t_config_option_key &opt_key_src,
     // note: should be done BEFORE calling set_deserialize
     // Both opt_key and value may be modified by handle_legacy().
     // If the opt_key is no more valid in this version of Slic3r, opt_key is cleared by handle_legacy().
+#ifdef DEBUGINFO
     this->handle_legacy(opt_key, value);
     if (opt_key.empty()) {
         assert(false);
         // Ignore the option.
         return true;
     }
+#endif
     assert(opt_key == opt_key_src);
     assert(value == value_src);
-    return this->set_deserialize_raw(opt_key, value, substitutions_ctxt, append);
+    try {
+        return this->set_deserialize_raw(opt_key, value, substitutions_ctxt, append);
+    } catch (UnknownOptionException e) {
+        return true;
+    }
 }
 
 void ConfigBase::set_deserialize(const t_config_option_key &opt_key_src,
@@ -1653,14 +1686,18 @@ ConfigSubstitutions ConfigBase::load_from_ini_string_commented(std::string &&   
 ConfigSubstitutions ConfigBase::load(const boost::property_tree::ptree &  tree,
                                      ForwardCompatibilitySubstitutionRule compatibility_rule)
 {
+    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
+    for (const boost::property_tree::ptree::value_type &v : tree) {
+        dict_opt[v.first] = {v.first, v.second.get_value<std::string>()};
+    }
+    PrintConfigDef::handle_legacy_map(dict_opt, false);
     std::map<t_config_option_key, std::string> opt_deleted;
     ConfigSubstitutionContext substitutions_ctxt(compatibility_rule);
     for (const boost::property_tree::ptree::value_type &v : tree) {
-        t_config_option_key opt_key = v.first;
+        const t_config_option_key &saved_key = v.first;
+        assert(dict_opt.find(saved_key) != dict_opt.end());
+        const auto& [opt_key, value] = dict_opt.at(saved_key);
         try {
-            std::string value = v.second.get_value<std::string>();
-            t_config_option_key saved_key = opt_key;
-            PrintConfigDef::handle_legacy(opt_key, value, false);
             if (!opt_key.empty()) {
                 if (!PrintConfigDef::is_defined(opt_key)) {
                     if (substitutions_ctxt.rule != ForwardCompatibilitySubstitutionRule::Disable) {
@@ -1758,17 +1795,22 @@ size_t ConfigBase::load_from_gcode_string_legacy(ConfigBase &               conf
     // Walk line by line in reverse until a non-configuration key appears.
     const char *data_start = str;
     // boost::nowide::ifstream seems to cook the text data somehow, so less then the 64k of characters may be retrieved.
-    const char *end                 = data_start + strlen(str);
-    size_t      num_key_value_pairs = 0;
-    for (auto [key, value] : load_gcode_string_legacy(str)) {
+    const char *end = data_start + strlen(str);
+    size_t num_key_value_pairs = 0;
+    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
+    std::map<t_config_option_key, std::string> parsed_map = load_gcode_string_legacy(str);
+    for (const auto& [key, value] : parsed_map) {
+        dict_opt[key] = {key, value};
+    }
+    PrintConfigDef::handle_legacy_map(dict_opt, false);
+    for (auto& [saved_key, saved_value] : parsed_map) {
+        assert(dict_opt.find(saved_key) != dict_opt.end());
+        const auto& [opt_key, value] = dict_opt.at(saved_key);
         try {
-            std::string opt_key = key;
-            t_config_option_key saved_key = opt_key;
-            PrintConfigDef::handle_legacy(opt_key, value, false);
             if (!opt_key.empty()) {
                 if (!PrintConfigDef::is_defined(opt_key)) {
                     if (substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable) {
-                        substitutions.add(ConfigSubstitution(key, value));
+                        substitutions.add(ConfigSubstitution(saved_key, value));
                     }
                 } else {
                     config.set_deserialize(opt_key, value, substitutions);
@@ -1780,16 +1822,15 @@ size_t ConfigBase::load_from_gcode_string_legacy(ConfigBase &               conf
         } catch (UnknownOptionException & /* e */) {
             // log & ignore
             if (substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable)
-                substitutions.add(ConfigSubstitution(key, value));
-        } catch (BadOptionValueException &e) {
+                substitutions.add(ConfigSubstitution(saved_key, value));
+        } catch (BadOptionValueException & e) {
             if (substitutions.rule == ForwardCompatibilitySubstitutionRule::Disable)
                 throw e;
             // log the error
-            const ConfigDef *def = config.def();
-            if (def == nullptr)
-                throw e;
-            const ConfigOptionDef *optdef = def->get(key);
-            substitutions.emplace(optdef, std::move(value), ConfigOptionUniquePtr(optdef->default_value->clone()));
+            const ConfigDef* def = config.def();
+            if (def == nullptr) throw e;
+            const ConfigOptionDef* optdef = def->get(saved_key);
+            substitutions.emplace(optdef, std::move(saved_value), ConfigOptionUniquePtr(optdef->default_value->clone()));
         }
     }
 
@@ -1939,6 +1980,7 @@ ConfigSubstitutions ConfigBase::load_from_gcode_file(const std::string &filename
         if (! end_found)
             throw Slic3r::RuntimeError(format("Configuration block closing tag \"; (.+)r_config = end\" not found when reading %1%", filename));
         std::string key, value;
+        std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
         while (reader.getline(line)) {
             if (boost::algorithm::ends_with(line, "r_config = begin")) {
                 begin_found = true;
@@ -1951,25 +1993,28 @@ ConfigSubstitutions ConfigBase::load_from_gcode_file(const std::string &filename
                 value = line.substr(pos + 1);
                 boost::trim(key);
                 boost::trim(value);
-                try {
-                    std::string opt_key = key;
-                    PrintConfigDef::handle_legacy(opt_key, value, false);
-                    if (!opt_key.empty()) {
-                        if (!PrintConfigDef::is_defined(opt_key)) {
-                            if (substitutions_ctxt.rule != ForwardCompatibilitySubstitutionRule::Disable) {
-                                substitutions_ctxt.add(ConfigSubstitution(key, value));
-                            }
-                        } else {
-                            this->set_deserialize(opt_key, value, substitutions_ctxt);
-                            ++ key_value_pairs;
+                dict_opt[key] = {key, value};
+            }
+        }
+        PrintConfigDef::handle_legacy_map(dict_opt, false);
+        for (const auto &[saved_key, key_val] : dict_opt) {
+            const auto &[opt_key, value] = key_val;
+            try {
+                if (!opt_key.empty()) {
+                    if (!PrintConfigDef::is_defined(opt_key)) {
+                        if (substitutions_ctxt.rule != ForwardCompatibilitySubstitutionRule::Disable) {
+                            substitutions_ctxt.add(ConfigSubstitution(key, value));
                         }
                     } else {
-                        opt_deleted[key] = value;
+                        this->set_deserialize(opt_key, value, substitutions_ctxt);
+                        ++key_value_pairs;
                     }
-                } catch (UnknownOptionException & /* e */) {
-                    // ignore
-                    assert(false);
+                } else {
+                    opt_deleted[key] = value;
                 }
+            } catch (UnknownOptionException & /* e */) {
+                // ignore
+                assert(false);
             }
         }
         if (! begin_found) 
@@ -2033,15 +2078,18 @@ ConfigSubstitutions ConfigBase::load_from_binary_gcode_file(const std::string& f
     
     std::map<t_config_option_key, std::string> opt_deleted;
     // extracts data from block
-    for (const auto& [key, value] : slicer_metadata_block.raw_data) {
-        t_config_option_key test_key = key;
-        std::string test_val = value;
-        PrintConfigDef::handle_legacy(test_key, test_val, true);
-        if (test_key.empty()) {
-            opt_deleted[key] = test_val;
+    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
+    for (const auto &[key, value] : slicer_metadata_block.raw_data) {
+        dict_opt[key] = { key, value };
+    }
+    for (const auto &[saved_key, saved_value] : slicer_metadata_block.raw_data) {
+        assert(dict_opt.find(saved_key) != dict_opt.end());
+        const auto& [opt_key, value] = dict_opt.at(saved_key);
+        if (opt_key.empty()) {
+            opt_deleted[saved_key] = saved_value;
+        } else {
+            this->set_deserialize(opt_key, value, substitutions_ctxt);
         }
-
-        this->set_deserialize(key, value, substitutions_ctxt);
     }
 
     // Do legacy conversion on a completely loaded dictionary.
