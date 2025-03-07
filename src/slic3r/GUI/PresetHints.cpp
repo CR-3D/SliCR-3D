@@ -124,7 +124,6 @@ std::string PresetHints::cooling_description(const Preset &preset_fil, const Pre
     const int    bridge_fan_speed          = get_fan_speed(preset_fil, "bridge_fan_speed");
     const int    internal_bridge_fan_speed = get_fan_speed(preset_fil, "internal_bridge_fan_speed");
     const int    overhangs_fan_speed       = get_fan_speed(preset_fil, "overhangs_fan_speed");
-    const int    gap_fill_fan_speed        = get_fan_speed(preset_fil, "gap_fill_fan_speed");
     const int    disable_fan_first_layers  = preset_fil.config.opt_int("disable_fan_first_layers", 0);
     const int    full_fan_speed_layer      = preset_fil.config.opt_int("full_fan_speed_layer", 0);
     const float  slowdown_below_layer_time = preset_fil.config.opt_float("slowdown_below_layer_time", 0);
@@ -149,7 +148,6 @@ std::string PresetHints::cooling_description(const Preset &preset_fil, const Pre
     format_double_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Supports"), support_fan_speed, _L("Support interfaces"), supp_inter_fan_speed);
     format_double_fan_speed(out, min_fan_speed, default_fan_speed, _L("Bridges"), bridge_fan_speed, _L("Internal bridges"), internal_bridge_fan_speed);
     format_simple_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Perimeter overhangs"), overhangs_fan_speed);
-    format_simple_fan_min_speed(out, min_fan_speed, default_fan_speed, _L("Gap fills"), gap_fill_fan_speed);
     
     bool has_disable = false;
     if (disable_fan_first_layers > 1) {
