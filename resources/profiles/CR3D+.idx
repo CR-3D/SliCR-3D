@@ -12,3 +12,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.11 top_infill set to 100%
 0.0.12 fixed last update.
 0.0.13 set nozzle of c2-idex 0.4
+0.0.14 updated to work with 2.7.0
