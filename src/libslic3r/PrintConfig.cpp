@@ -9359,14 +9359,19 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
         /*
         if (value.find("nil") != std::string::npos) {
             const ConfigOptionDef *def = print_config_def.get(opt_key);
-            if (def->type != coString && def->type != coStrings) {
-                assert(def && def->can_be_disabled);
-                if (def && def->can_be_disabled) {
-                    ConfigOption *default_opt = def->default_value->clone();
-                    default_opt->set_enabled(false);
-                    value = default_opt->serialize();
-                    delete default_opt;
+            if (def) {
+                if (def->type != coString && def->type != coStrings) {
+                    assert(def && def->can_be_disabled);
+                    if (def && def->can_be_disabled) {
+                        ConfigOption *default_opt = def->default_value->clone();
+                        default_opt->set_enabled(false);
+                        value = default_opt->serialize();
+                        delete default_opt;
+                    }
                 }
+            } else {
+                // unknown key
+                opt_key.clear();
             }
         }
         */

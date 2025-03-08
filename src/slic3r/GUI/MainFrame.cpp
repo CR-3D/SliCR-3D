@@ -1236,7 +1236,7 @@ void MainFrame::show_printer_webview_tab(DynamicPrintConfig *dpc, bool uploaded)
         
         if (uploaded) {
             std::string print_host_port = dpc->opt_string("printhost_port");
-            url += "/#!/printer/" + print_host_port + "/camera";
+            //url += "/#!/printer/" + print_host_port + "/camera";
         }
                 
         load_printer_url(url);
