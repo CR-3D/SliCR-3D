@@ -1231,8 +1231,7 @@ void LayerRegion::prepare_fill_surfaces()
                     if (intersect.size() == 1 && cut.empty())
                         continue;
                     if (!intersect.empty()) {
-                        //not possible ot have multiple intersect no cut from a single expoly.
-                        assert(intersect.size() == 1);
+                        // not possible ot have no cut if the intersect size is > 1.
                         assert(!cut.empty());
                         intersect[0].assert_valid();
                         surface->expolygon = std::move(intersect[0]);

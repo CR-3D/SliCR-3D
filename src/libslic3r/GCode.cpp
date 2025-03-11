@@ -7076,8 +7076,8 @@ void GCodeGenerator::_add_object_change_labels(std::string& gcode) {
         // if ramping lift, the move_z may be removed by exclude object. so ensure it's at the right z
         // if m_new_z_target, then the ramping lift will be written. if not, then there isn't anything to ensure a good z
         if(!m_new_z_target && BOOL_EXTRUDER_CONFIG(travel_ramping_lift) && m_spiral_vase_layer <= 0) {
-            gcode += m_writer.get_travel_to_z_gcode(m_writer.get_position().z(), "ensure z is right");
-            m_writer.set_lift(0);
+            gcode += m_writer.get_travel_to_z_gcode(m_writer.get_position().z(), "ensure z is correct when starting this object");
+            //m_writer.set_lift(0); // don't remove lift, we used get_position, not get_unlifted_position()
         }
     }
 }
@@ -7328,7 +7328,6 @@ std::vector<coord_t> GCodeGenerator::get_travel_elevation(Polyline& travel, doub
 void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::string comment)
 {
     // Note: if last_pos is undefined, then travel.size() == 1
-
     // ramping travel?
     //TODO: ramp up for the first half, then ramp down.
     std::vector<coord_t> z_relative_travel;

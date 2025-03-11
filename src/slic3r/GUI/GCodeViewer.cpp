@@ -1428,6 +1428,9 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
         m_print = print;
     assert(&m_print->get() == &print);
 
+    // update decimal_precision, in case the gcodeviewer_decimals changed (it shouldn't)
+    this->decimal_precision = uint8_t(std::max(0, std::min(6, atoi(Slic3r::GUI::get_app_config()->get("gcodeviewer_decimals").c_str()))));
+
     // avoid processing if called with the same gcode_result
     // unless you changed the path merge mode
     if (m_last_result_id == gcode_result.id && ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
@@ -3290,7 +3293,7 @@ void GCodeViewer::refresh_render_paths(bool keep_sequential_current_first, bool 
     //fix error (all paths in m_buffers may be out of the m_layers_z_range)
     //FIXME better than this dumb stop-gap
     if (global_endpoints.first > global_endpoints.last) {
-        global_endpoints = { 0, m_moves_count };
+        global_endpoints = { 0, 0 };//m_moves_count };
         top_layer_endpoints = global_endpoints;
     }
 
@@ -3916,6 +3919,9 @@ void GCodeViewer::render_toolpaths()
             const int normal_id   = shader->get_attrib_location("v_normal");
             const int uniform_color = shader->get_uniform_location("uniform_color");
 
+            if (buffer.render_paths.empty()) {
+                continue;
+            }
             auto it_path = buffer.render_paths.begin();
             for (unsigned int ibuffer_id = 0; ibuffer_id < static_cast<unsigned int>(buffer.indices.size()); ++ibuffer_id) {
                 const IBuffer& i_buffer = buffer.indices[ibuffer_id];
@@ -4127,7 +4133,7 @@ void GCodeViewer::render_legend(float& legend_height)
 
     bool imperial_units = wxGetApp().app_config->get_bool("use_inches");
 
-    auto append_item = [icon_size, percent_bar_size, &imgui, imperial_units](EItemType type, const ColorRGBA& color, const std::string& label,
+    auto append_item = [icon_size, percent_bar_size, &imgui, imperial_units, decimal_preci = this->decimal_precision](EItemType type, const ColorRGBA& color, const std::string& label,
         bool visible = true, const std::string& time = "", float percent = 0.0f, float max_percent = 0.0f, const std::array<float, 4>& offsets = { 0.0f, 0.0f, 0.0f, 0.0f },
         double used_filament_m = 0.0, double used_filament_g = 0.0,
         std::function<void()> callback = nullptr) {
@@ -4202,9 +4208,11 @@ void GCodeViewer::render_legend(float& legend_height)
                 ::sprintf(buf, "%.1f%%", 100.0f * percent);
                 ImGui::TextUnformatted((percent > 0.0f) ? buf : "");
                 ImGui::SameLine(offsets[2]);
-                imgui.text(format("%1$.2f %2%", used_filament_m, (imperial_units ? inches : metres)));
+                std::string str_dist_m = Slic3r::to_string_nozero(used_filament_m, decimal_preci);
+                imgui.text(str_dist_m + " " + (imperial_units ? inches : metres));
                 ImGui::SameLine(offsets[3]);
-                imgui.text(format("%1$.2f %2%", used_filament_g, grams));
+                std::string str_weight_g = Slic3r::to_string_nozero(used_filament_g, decimal_preci);
+                imgui.text(str_weight_g + " " + grams);
             }
         }
         else {
@@ -4225,9 +4233,11 @@ void GCodeViewer::render_legend(float& legend_height)
             }
             else if (used_filament_m > 0.0) {
                 ImGui::SameLine(offsets[0]);
-                imgui.text(format("%1$.2f %2%", used_filament_m, (imperial_units ? inches : metres)));
+                std::string str_dist_m = Slic3r::to_string_nozero(used_filament_m, decimal_preci);
+                imgui.text(str_dist_m + " " + (imperial_units ? inches : metres));
                 ImGui::SameLine(offsets[1]);
-                imgui.text(format("%1$.2f %2%", used_filament_g, grams));
+                std::string str_weight_g = Slic3r::to_string_nozero(used_filament_g, decimal_preci);
+                imgui.text(str_weight_g + " " + grams);
             }
         }
 
@@ -4398,10 +4408,10 @@ void GCodeViewer::render_legend(float& legend_height)
 
         std::string longest_used_filament_string;
         for (double item : used_filaments_m) {
-            char buffer[64];
-            ::sprintf(buffer, imperial_units ? "%.2f in" : "%.2f m", item);
-            if (::strlen(buffer) > longest_used_filament_string.length())
-                longest_used_filament_string = buffer;
+            std::string str = Slic3r::to_string_nozero(item, this->decimal_precision);
+            if (str.size() + (imperial_units ? 3 : 2) > longest_used_filament_string.size()) {
+                longest_used_filament_string = str + (imperial_units ? " in" : " m");
+            }
         }
 
         offsets = calculate_offsets(labels, times, { "Extruder NNN", longest_used_filament_string }, icon_size);
@@ -4440,10 +4450,10 @@ void GCodeViewer::render_legend(float& legend_height)
         }
         std::string longest_used_filament_string;
         for (double item : used_filaments_m) {
-            char buffer[64];
-            ::sprintf(buffer, imperial_units ? "%.2f in" : "%.2f m", item);
-            if (::strlen(buffer) > longest_used_filament_string.length())
-                longest_used_filament_string = buffer;
+            std::string str = Slic3r::to_string_nozero(item, this->decimal_precision);
+            if (str.size() + (imperial_units ? 3 : 2) > longest_used_filament_string.size()) {
+                longest_used_filament_string = str + (imperial_units ? " in" : " m");
+            }
         }
         //i don't know why but it's too small without it
         longest_name += std::string("eee");

@@ -901,6 +901,14 @@ FirmwareDialog::FirmwareDialog(wxWindow *parent) :
 	p->port_picker->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { p->update_flash_enabled(); });
 
 	p->spoiler->Bind(wxEVT_COLLAPSIBLEPANE_CHANGED, [=](wxCollapsiblePaneEvent &evt) {
+		if (evt.GetCollapsed()) {
+			this->SetMinSize(wxSize(p->min_width, p->min_height));
+			const auto new_height = this->GetSize().GetHeight() - this->p->txt_stdout->GetSize().GetHeight();
+			this->SetSize(this->GetSize().GetWidth(), new_height);
+		} else {
+			this->SetMinSize(wxSize(p->min_width, p->min_height_expanded));
+		}
+
 		this->Layout();
 		this->p->fit_no_shrink();
 	});

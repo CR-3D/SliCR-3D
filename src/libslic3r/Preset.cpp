@@ -1,4 +1,9 @@
 ///|/ Copyright (c) SuperSlicer 2025 Durand rémi @supermerill
+///|/ Copyright (c) Prusa Research 2017 - 2024 Oleksandra Iushchenko @YuSanka, Lukáš Matěna @lukasmatena, Tomáš Mészáros @tamasmeszaros, Lukáš Hejl @hejllukas, Vojtěch Bubník @bubnikv, Pavel Mikuš @Godrak, David Kocík @kocikdav, Enrico Turri @enricoturri1966, Vojtěch Král @vojtechkral
+///|/ Copyright (c) 2021 Martin Budden
+///|/ Copyright (c) 2021 Ilya @xorza
+///|/ Copyright (c) 2019 John Drake @foxox
+///|/ Copyright (c) 2018 Martin Loidl @LoidlM
 ///|/
 ///|/ SuperSlicer is released under the terms of the AGPLv3 or higher
 ///|/
