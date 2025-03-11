@@ -1382,9 +1382,6 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     }
      this->m_throw_if_canceled();
 
-    //now that we have the layer count, init the status
-    print.set_status(int(0), std::string(L("Generating G-code layer %s / %s")), std::vector<std::string>{ std::to_string(0), std::to_string(layer_count()) }, PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
-
     m_enable_cooling_markers = true;
 
     m_volumetric_speed = DoExport::autospeed_volumetric_limit(print);
@@ -3254,22 +3251,6 @@ LayerResult GCodeGenerator::process_layer(
         return result;
 
     assert(layer_id < layer_count());
-
-    if (object_layer) {
-        if (single_object_instance_idx != size_t(-1)) {
-            size_t nb_layers = object_layer->object()->layer_count();
-            m_object_sequentially_printed.insert(object_layer->object());
-            print.set_status(int((layer.id() * 100) / nb_layers),
-                             std::string(L("Generating G-code layer %s / %s for object %s / %s")),
-                             std::vector<std::string>{std::to_string(layer.id()), std::to_string(nb_layers), std::to_string(m_object_sequentially_printed.size()), std::to_string(print.num_object_instances())},
-                             PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
-        } else {
-            print.set_status(int((layer.id() * 100) / layer_count()),
-                             std::string(L("Generating G-code layer %s / %s")),
-                             std::vector<std::string>{std::to_string(layer.id()), std::to_string(layer_count())},
-                             PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
-        }
-    }
 
     // Extract 1st object_layer and support_layer of this set of layers with an equal print_z.
     coordf_t             print_z       = layer.print_z;
