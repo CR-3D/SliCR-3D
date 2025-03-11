@@ -1181,6 +1181,7 @@ void LayerRegion::prepare_fill_surfaces()
         the only meaningful information returned by psPerimeters. */
     
     bool spiral_vase = this->layer()->object()->print()->config().spiral_vase;
+    coordf_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
 
     // if no solid layers are requested, turn top/bottom surfaces to internal
     // For Lightning infill, infill_only_where_needed is ignored because both
@@ -1231,9 +1232,10 @@ void LayerRegion::prepare_fill_surfaces()
                     if (intersect.size() == 1 && cut.empty())
                         continue;
                     if (!intersect.empty()) {
-                        // not possible ot have no cut if the intersect size is > 1.
+                        ensure_valid(intersect, scaled_resolution);
+                        ensure_valid(cut, scaled_resolution);
+                        //not possible to have empty cut with more than one intersect
                         assert(!cut.empty());
-                        intersect[0].assert_valid();
                         surface->expolygon = std::move(intersect[0]);
                         for (int i = 1; i < intersect.size(); i++) {
                             srfs_to_add.emplace_back(*surface, std::move(intersect[i]));
