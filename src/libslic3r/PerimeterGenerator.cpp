@@ -3452,6 +3452,7 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
     const int32_t peri_count = params.config.perimeters.value;
     const double max_perimeters_width = unscaled(double(params.get_ext_perimeter_width() + ext_perimeter_spacing * int(peri_count - int(1)))); 
     coord_t offset_top_surface = scale_t(params.config.external_infill_margin.get_abs_value(peri_count == 0 ? 0. : max_perimeters_width));
+    
     // if possible, try to not push the extra perimeters inside the sparse infill
     if (offset_top_surface > 0.9 * (peri_count <= 1 ? 0. : (ext_perimeter_spacing * (peri_count - 1))))
         offset_top_surface -= coord_t(0.9 * (peri_count <= 1 ? 0. : (ext_perimeter_spacing * (peri_count - 1))));
@@ -3541,7 +3542,9 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
     double infill_spacing_unscaled = params.config.infill_extrusion_width.get_abs_value(fill_nozzle_diameter);
     if (infill_spacing_unscaled == 0)
         infill_spacing_unscaled = Flow::auto_extrusion_width(frInfill, fill_nozzle_diameter);
-    fill_clip = offset_ex(orig_polygons, double(params.get_ext_perimeter_spacing() / 2) - scale_(infill_spacing_unscaled / 2));
+   
+   fill_clip = offset_ex(orig_polygons, float((coordf_t(params.ext_perimeter_spacing) / 2.) - params.config.infill_extrusion_width.get_abs_value(params.solid_infill_flow.nozzle_diameter()) / 2.));
+
 
     non_top_polygons = intersection_ex(inner_polygons, orig_polygons);
     // Made by BB/orca, but no comment. Plz test it and report the usefullness.
