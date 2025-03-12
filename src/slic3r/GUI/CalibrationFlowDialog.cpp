@@ -75,11 +75,11 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
     }
 
     std::vector<size_t> objs_idx = plat->load_files(std::vector<std::string>{
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.amf").string(),
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.amf").string(),
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.amf").string(),
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.amf").string(),
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.amf").string()}, true, false, false, false);
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.3mf").string(),
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.3mf").string(),
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.3mf").string(),
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.3mf").string(),
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "filament_flow_test_cube.3mf").string()}, true, false, false, false);
 
 
     assert(objs_idx.size() == 5);
