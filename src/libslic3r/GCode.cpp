@@ -6701,14 +6701,14 @@ std::pair<double, double> GCodeGenerator::_compute_acceleration(const ExtrusionP
 }
 
 void GCodeGenerator::cooldown_marker_init() {
-    if (_cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)].empty()) {
+    if (!_cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)].empty()) {
         std::string allow_speed_change = ";_EXTRUDE_SET_SPEED";
         //only change speed on external perimeter (and similar) speed if really necessary.
         std::string maybe_allow_speed_change = ";_EXTRUDE_SET_SPEED_MAYBE";
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::None)]                 = "";
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::Perimeter)]            = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)]    = maybe_allow_speed_change;
-        _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::OverhangPerimeter)]    = "";
+        _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::OverhangPerimeter)]    = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::InternalInfill)]       = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::SolidInfill)]          = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::TopSolidInfill)]       = allow_speed_change;
