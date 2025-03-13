@@ -919,6 +919,7 @@ private:
         void reset() { dirty = true; }
     };
     LegendResizer m_legend_resizer;
+    uint8_t decimal_precision = 2;
     PrintEstimatedStatistics m_print_statistics;
     PrintEstimatedStatistics::ETimeMode m_time_estimate_mode{ PrintEstimatedStatistics::ETimeMode::Normal };
 #if ENABLE_GCODE_VIEWER_STATISTICS

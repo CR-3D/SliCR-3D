@@ -3293,7 +3293,7 @@ void GCodeViewer::refresh_render_paths(bool keep_sequential_current_first, bool 
     //fix error (all paths in m_buffers may be out of the m_layers_z_range)
     //FIXME better than this dumb stop-gap
     if (global_endpoints.first > global_endpoints.last) {
-        global_endpoints = { 0, m_moves_count };
+        global_endpoints = { 0, 0 };//m_moves_count };
         top_layer_endpoints = global_endpoints;
     }
 
@@ -3919,6 +3919,9 @@ void GCodeViewer::render_toolpaths()
             const int normal_id   = shader->get_attrib_location("v_normal");
             const int uniform_color = shader->get_uniform_location("uniform_color");
 
+            if (buffer.render_paths.empty()) {
+                continue;
+            }
             auto it_path = buffer.render_paths.begin();
             for (unsigned int ibuffer_id = 0; ibuffer_id < static_cast<unsigned int>(buffer.indices.size()); ++ibuffer_id) {
                 const IBuffer& i_buffer = buffer.indices[ibuffer_id];
