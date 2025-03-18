@@ -351,7 +351,7 @@ void Node::convertToPolylines(size_t long_line_idx, Polylines &output) const
         output[long_line_idx].points.push_back(m_p);
         return;
     }
-    size_t first_child_idx = safe_rand(m_children.size());
+    size_t first_child_idx = safe_rand(int(m_children.size() - 1)); // int safe_rand(int max) is inclusive
     m_children[first_child_idx]->convertToPolylines(long_line_idx, output);
     output[long_line_idx].points.push_back(m_p);
 
