@@ -1164,11 +1164,11 @@ struct SupportAnnotations
         // Append custom supports to object's generated ones.
         std::vector<ExPolygons> enforcers = object.slice_support_enforcers();
         std::vector<Polygons> custom_enforcers = object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER);
-        const size_t layer_count = std::max(enforcers.size(), custom_enforcers.size());
-        assert(enforcers.empty() || enforcers.size() == layer_count);
-        assert(custom_enforcers.empty() || custom_enforcers.size() == layer_count);
-        enforcers_layers.resize(layer_count);
-        for (size_t layer_id = 0; layer_id < layer_count; ++layer_id) {
+        const size_t enforcer_layer_count = std::max(enforcers.size(), custom_enforcers.size());
+        assert(enforcers.empty() || enforcers.size() == enforcer_layer_count);
+        assert(custom_enforcers.empty() || custom_enforcers.size() == enforcer_layer_count);
+        enforcers_layers.resize(enforcer_layer_count);
+        for (size_t layer_id = 0; layer_id < enforcer_layer_count; ++layer_id) {
             if (layer_id < enforcers.size()) {
                 append(enforcers_layers[layer_id], std::move(to_polygons(enforcers[layer_id])));
             }
@@ -1179,10 +1179,11 @@ struct SupportAnnotations
         
         std::vector<ExPolygons> blockers = object.slice_support_blockers();
         std::vector<Polygons> custom_blockers = object.project_and_append_custom_facets(false, EnforcerBlockerType::BLOCKER);
-        assert(blockers.empty() || blockers.size() == layer_count);
-        assert(custom_blockers.empty() || custom_blockers.size() == layer_count);
-        blockers_layers.resize(layer_count);
-        for (size_t layer_id = 0; layer_id < layer_count; ++layer_id) {
+        const size_t blocker_layer_count = std::max(blockers.size(), custom_blockers.size());
+        assert(blockers.empty() || blockers.size() == blocker_layer_count);
+        assert(custom_blockers.empty() || custom_blockers.size() == blocker_layer_count);
+        blockers_layers.resize(blocker_layer_count);
+        for (size_t layer_id = 0; layer_id < blocker_layer_count; ++layer_id) {
             if (layer_id < blockers.size()) {
                 append(blockers_layers[layer_id], std::move(to_polygons(blockers[layer_id])));
             }
