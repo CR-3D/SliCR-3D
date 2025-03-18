@@ -7057,7 +7057,8 @@ void GCodeGenerator::_add_object_change_labels(std::string& gcode) {
         // if ramping lift, the move_z may be removed by exclude object. so ensure it's at the right z
         // if m_new_z_target, then the ramping lift will be written. if not, then there isn't anything to ensure a good z
         if(!m_new_z_target && BOOL_EXTRUDER_CONFIG(travel_ramping_lift) && m_spiral_vase_layer <= 0) {
-            gcode += m_writer.get_travel_to_z_gcode(m_writer.get_position().z(), "ensure z is right");
+            gcode += m_writer.get_travel_to_z_gcode(m_writer.get_position().z(), "ensure z is correct when starting this object");
+            //m_writer.set_lift(0); // don't remove lift, we used get_position, not get_unlifted_position()
         }
     }
 }
@@ -7308,7 +7309,6 @@ std::vector<coord_t> GCodeGenerator::get_travel_elevation(Polyline& travel, doub
 void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::string comment)
 {
     // Note: if last_pos is undefined, then travel.size() == 1
-
     // ramping travel?
     //TODO: ramp up for the first half, then ramp down.
     std::vector<coord_t> z_relative_travel;
@@ -7324,13 +7324,12 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
                 double layer_change_diff = m_layer->print_z - m_writer.get_unlifted_position().z();
                 // move layer_change_diff into lift & z_diff_layer_and_lift
                 z_diff_layer_and_lift += layer_change_diff;
-            } else {
-                // do a strait z-move (as we can't see the preious point.
-                gcode += m_writer.get_travel_to_z_gcode(m_layer->print_z, "strait z-move, as the travel is undefined.");
-                no_ramping = true;
             }
-        } else {
-            assert(!m_new_z_target);
+        }
+        if (travel.size() <= 1) {
+            // do a strait z-move (as we can't see the previous point.
+            gcode += m_writer.travel_to_z(m_layer->print_z, "strait z-move, as the travel is undefined.");
+            no_ramping = true;
         }
         // register get_extra_lift for our ramping lift (ramping lift + lift_min)
         if (m_writer.get_extra_lift() != 0) {

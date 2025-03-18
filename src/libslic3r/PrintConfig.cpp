@@ -1887,21 +1887,9 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("This string is edited by a Dialog and contains extusion multiplier for different speeds.");
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionGraphs(GraphData(0, 10, GraphData::GraphType::LINEAR,
-                                                            {{10, 1.},
-                                                             {20, 1.},
-                                                             {30, 1.},
-                                                             {40, 1.},
-                                                             {60, 1.},
-                                                             {80, 1.},
-                                                             {120, 1.},
-                                                             {160, 1.},
-                                                             {240, 1.},
-                                                             {320, 1.},
-                                                             {480, 1.},
-                                                             {640, 1.},
-                                                             {960, 1.},
-                                                             {1280, 1.}})));
+    def->set_default_value(new ConfigOptionGraphs({ GraphData(0,10, GraphData::GraphType::LINEAR,
+        {{10,1.},{20,1.},{30,1.},{40,1.},{60,1.},{80,1.},{120,1.},{160,1.},{240,1.},{320,1.},{480,1.},{640,1.},{960,1.},{1280,1.}}
+    )}));
     def->graph_settings = std::make_shared<GraphSettings>();
     def->graph_settings->title = L("Extrusion multiplier per extrusion speed");
     def->graph_settings->description = L(
@@ -3887,7 +3875,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionString(""));
 
     def = this->add("feature_gcode", coString);
-    def->label = L("After layer change G-code");
+    def->label = L("After extrusion type change in G-code");
     def->category = OptionCategory::customgcode;
     def->tooltip = L(
         "This custom code is inserted at every extrusion type change."
@@ -4545,16 +4533,15 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
                                           GraphData::GraphType::SPLINE};
 
-    def = this->add("overhangs_dynamic_speed", coGraph);
-    def->label = L("Dynamic overhang speeds");
-    def->category = OptionCategory::speed;
-    def->tooltip = L(
-        "Overhang size is expressed as a percentage of overlap of the extrusion with the previous layer:"
-        " 100% would be full overlap (no overhang), while 0% represents full overhang (floating extrusion, bridge)."
-        " Speeds for overhang sizes in between are calculated via linear interpolation,"
-        " as a percentage between the (external) perimeter speed and the overhang speed."
-        "\nNote that the speeds generated to gcode will never exceed the max volumetric speed value.");
-    def->sidetext = L("mm/s");
+    def             = this->add("overhangs_dynamic_speed", coGraph);
+    def->label      = L("Dynamic overhang speeds");
+    def->category   = OptionCategory::speed;
+    def->tooltip    = L("Overhang size is expressed as a percentage of overlap of the extrusion with the previous layer:"
+                        " 100% would be full overlap (no overhang), while 0% represents full overhang (floating extrusion, bridge)."
+                        " Speeds for overhang sizes in between are calculated via linear interpolation,"
+                        " as a percentage between the the overhang speed and the (external) perimeter speed."
+                        "\nNote that the speeds generated to gcode will never exceed the max volumetric speed value.");
+    def->sidetext   = L("mm/s");
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
     def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::LINEAR,
@@ -5410,10 +5397,11 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionBools{false});
 
-    // why not reuse rretract_lift ? because it's a max? My current impl enforced the lift, so it's okay for me to
-    // remove it. def = this->add("travel_max_lift", coFloats); def->label = L("Maximum ramping lift"); def->tooltip =
-    // L("Maximum lift height of the ramping lift. It may not be reached if the next position " "is close to the old
-    // one.");
+    // why not reuse retract_lift ? because it's a max? My current impl enforced the lift, so it's okay for me to remove it.
+    // def = this->add("travel_max_lift", coFloats);
+    // def->label = L("Maximum ramping lift");
+    // def->tooltip = L("Maximum lift height of the ramping lift. It may not be reached if the next position "
+                     // "is close to the old one.");
     // def->sidetext = L("mm");
     // def->min = 0;
     // def->max_literal = {1000, false};
@@ -6854,18 +6842,19 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(100, true));
 
-    def = this->add("threads", coInt);
-    def->label = L("Threads");
-    def->tooltip = L("Threads are used to parallelize long-running tasks. Optimal threads number "
-                     "is slightly above the number of available cores/processors.");
-    def->readonly = true;
-    def->min = 1;
-    def->mode = comExpert | comPrusa; // note: hidden setting (and should be a preference)
-    {
-        int threads = (unsigned int) boost::thread::hardware_concurrency();
-        def->set_default_value(new ConfigOptionInt(threads > 0 ? threads : 2));
-        def->cli = ConfigOptionDef::nocli;
-    }
+    // put it in Preferences if you want it.
+    //def = this->add("threads", coInt);
+    //def->label = L("Threads");
+    //def->tooltip = L("Threads are used to parallelize long-running tasks. Optimal threads number "
+    //               "is slightly above the number of available cores/processors.");
+    //def->readonly = true;
+    //def->min = 1;
+    //def->mode = comExpert | comPrusa; // note: hidden setting (and should be a preference)
+    //{
+    //    int threads = (unsigned int)boost::thread::hardware_concurrency();
+    //    def->set_default_value(new ConfigOptionInt(threads > 0 ? threads : 2));
+    //    def->cli = ConfigOptionDef::nocli;
+    //}
 
     def = this->add("time_cost", coFloat);
     def->label = L("Time cost");
@@ -6929,7 +6918,7 @@ void PrintConfigDef::init_fff_params() {
                      "'X' replaced by the extruder number.");
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionStrings(""));
+    def->set_default_value(new ConfigOptionStrings({""}));
 
     def = this->add("firmware_name", coStrings);
     def->label = L("Firmware name");
@@ -7569,7 +7558,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->precision = 8;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloat(0.005));
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
     def = this->add("init_z_rotate", coFloat);
     def->label = L("Preferred orientation");
@@ -8815,13 +8804,17 @@ void PrintConfigDef::init_sla_params() {
 }
 
 // Ignore the following obsolete configuration keys:
-static std::set<std::string> PrintConfigDef_ignore = {
-    "clip_multipart_objects", "duplicate_x", "duplicate_y", "gcode_arcs", "multiply_x", "multiply_y",
-    "support_material_tool", "acceleration", "adjust_overhang_flow", "standby_temperature", "scale", "rotate",
-    "duplicate", "duplicate_grid", "start_perimeters_at_concave_points", "start_perimeters_at_non_overhang",
-    "randomize_start", "seal_position", "vibration_limit", "bed_size", "print_center", "g0", "threads",
-    "pressure_advance", "wipe_tower_per_color_wipe", "cooling", "serial_port", "serial_speed",
+static std::set<t_config_option_key> PrintConfigDef_ignore = {
+    "clip_multipart_objects",
+    "duplicate_x", "duplicate_y", "gcode_arcs", "multiply_x", "multiply_y",
+    "support_material_tool", "acceleration", "adjust_overhang_flow",
+    "standby_temperature", "scale", "rotate", "duplicate", "duplicate_grid",
+    "start_perimeters_at_concave_points", "start_perimeters_at_non_overhang", "randomize_start",
+    "seal_position", "vibration_limit", "bed_size",
+    "print_center", "g0", "threads", "pressure_advance", "wipe_tower_per_color_wipe",
+    "cooling", "serial_port", "serial_speed",
     "exact_last_layer_height",
+    "threads",
     // Introduced in some PrusaSlicer 2.3.1 alpha, later renamed or removed.
     "fuzzy_skin_perimeter_mode", "fuzzy_skin_shape",
     // replaced by brim_per_object, but can't translate the value as the old one is only used for complete_objects
@@ -8838,297 +8831,448 @@ static std::set<std::string> PrintConfigDef_ignore = {
     "travel_max_lift", "filament_travel_max_lift", // removed, using retract_lift also for rampping lift instead.
     "small_area_infill_flow_compensation",
 };
+namespace Handle_legacy_tools {
 
-void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &value, bool remove_unkown_keys) {
+std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>>::iterator last_search_result;
+
+typedef std::pair<t_config_option_key, std::string> KVEntry;
+inline void for_ech_entry(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+                          std::initializer_list<t_config_option_key> &&list,
+                          const std::function<void(t_config_option_key &opt_key, std::string &value)> &do_something) {
+    for (const t_config_option_key &key : list) {
+        if (auto last_search_result = dict.find(key); last_search_result != dict.end() && last_search_result->second.first == key) {
+            do_something(last_search_result->second.first, last_search_result->second.second);
+        }
+    }
+}
+inline void for_ech_entry(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+                          const std::set<t_config_option_key> &list,
+                          const std::function<void(t_config_option_key &opt_key, std::string &value)> &do_something) {
+    for (const t_config_option_key &key : list) {
+        if (last_search_result = dict.find(key); last_search_result != dict.end() && last_search_result->second.first == key) {
+            do_something(last_search_result->second.first, last_search_result->second.second);
+        }
+    }
+}
+inline bool has(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+                 const t_config_option_key &opt_key) {
+    last_search_result = dict.find(opt_key);
+    // exists and not already deleted/changed
+    return last_search_result != dict.end() && last_search_result->second.first == opt_key;
+}
+inline bool has(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+                  const t_config_option_key &&opt_key,
+                  const std::string &&value) {
+    last_search_result = dict.find(opt_key);
+    return last_search_result != dict.end() && last_search_result->second.first == opt_key && last_search_result->second.second == value;
+}
+//inline KVEntry &get(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+//                    const t_config_option_key &&opt_key) {
+//    assert(dict.find(opt_key) != dict.end());
+//    return dict.at(opt_key);
+//}
+//inline void set(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+//                const t_config_option_key &&opt_key,
+//                t_config_option_key &&new_key,
+//                std::string &&new_val) {
+//    assert(dict.find(opt_key) != dict.end());
+//    KVEntry &entry = dict.at(opt_key);
+//    entry.first = std::move(new_key);
+//    entry.second = std::move(new_val);
+//}
+//inline void set(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+//                const t_config_option_key &&opt_key,
+//                t_config_option_key &&new_key) {
+//    assert(dict.find(opt_key) != dict.end());
+//    KVEntry &entry = dict.at(opt_key);
+//    entry.first = std::move(new_key);
+//}
+
+inline void set(t_config_option_key &&new_key,
+                std::string &&new_val) {
+    last_search_result->second.first = std::move(new_key);
+    last_search_result->second.second = std::move(new_val);
+}
+
+inline std::string &value() {
+    return last_search_result->second.second;
+}
+
+//inline std::string &value(
+//    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>>::iterator &it) {
+//    return it->second.second;
+//}
+//
+//inline std::string &value(
+//    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+//                    const t_config_option_key &&opt_key) {
+//    assert(dict.find(opt_key) != dict.end());
+//    return dict.at(opt_key).second;
+//}
+
+inline t_config_option_key &opt_key() {
+    return last_search_result->second.first;
+}
+
+//inline t_config_option_key &opt_key(
+//    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>>::iterator &it) {
+//    return it->second.first;
+//}
+//
+//inline t_config_option_key &opt_key(
+//    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict,
+//                    const t_config_option_key &&opt_key) {
+//    assert(dict.find(opt_key) != dict.end());
+//    return dict.at(opt_key).first;
+//}
+
+//inline void erase(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>>::iterator &it) {
+//    it->second.first = "";
+//    it->second.second = "";
+//}
+
+const std::vector<std::pair<t_config_option_key, t_config_option_key>> widths_2_spacings_for_phony_fix =
+    {{"extrusion_width", "extrusion_spacing"},
+     {"perimeter_extrusion_width", "perimeter_extrusion_spacing"},
+     {"external_perimeter_extrusion_width", "external_perimeter_extrusion_spacing"},
+     {"first_layer_extrusion_width", "first_layer_extrusion_spacing"},
+     {"infill_extrusion_width", "infill_extrusion_spacing"},
+     {"solid_infill_extrusion_width", "solid_infill_extrusion_spacing"},
+     {"top_infill_extrusion_width", "top_infill_extrusion_spacing"}};
+
+inline void erase() {
+    last_search_result->second.first = "";
+}
+
+void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict, bool remove_unkown_keys)
+{
+    using namespace std::literals;
+    typedef t_config_option_key Key;
+    typedef std::string Val;
     // handle legacy options (other than aliases)
-    if (opt_key == "extrusion_width_ratio" || opt_key == "bottom_layer_speed_ratio" ||
-        opt_key == "first_layer_height_ratio") {
-        boost::replace_first(opt_key, "_ratio", "");
-        if (opt_key == "bottom_layer_speed")
-            opt_key = "first_layer_speed";
-        try {
-            float v = boost::lexical_cast<float>(value);
-            if (v != 0)
-                value = boost::lexical_cast<std::string>(v * 100) + "%";
-        } catch (boost::bad_lexical_cast &) { value = "0"; }
+    for_ech_entry(dict, {"extrusion_width_ratio", "bottom_layer_speed_ratio", "first_layer_height_ratio"},
+                  [](Key &opt_key, Val &value) {
+                boost::replace_first(opt_key, "_ratio", "");
+                if (opt_key == "bottom_layer_speed")
+                    opt_key = "first_layer_speed";
+                try {
+                    float v = boost::lexical_cast<float>(value);
+                    if (v != 0)
+                        value = to_string_nozero(v * 100, 2) + "%";
+                } catch (boost::bad_lexical_cast &) { value = "0"; }
+            });
+    if (has(dict, "infill_only_where_needed"s, "0"s)) {
+        erase();
     }
-    if ("infill_only_where_needed" == opt_key && "0" == value) {
-        opt_key = "";
-        value = "";
+    if (has(dict, "gcode_flavor")) {
+        if (value() == "makerbot")
+            value() = "makerware";
+        else if (value() == "marlinfirmware")
+            // the "new" marlin firmware flavor used to be called "marlinfirmware" for some time during PrusaSlicer 2.4.0-alpha development.
+            value() = "marlin2";
     }
-    if (opt_key == "gcode_flavor") {
-        if (value == "makerbot")
-            value = "makerware";
-        else if (value == "marlinfirmware")
-            // the "new" marlin firmware flavor used to be called "marlinfirmware" for some time during
-            // PrusaSlicer 2.4.0-alpha development.
-            value = "marlin2";
-    } else if (opt_key == "host_type" && value == "mainsail") {
+    if (has(dict, "host_type"s, "mainsail"s)) {
         // the "mainsail" key (introduced in 2.6.0-alpha6) was renamed to "moonraker" (in 2.6.0-rc1).
-        value = "moonraker";
-    } else if (opt_key == "fill_density" && value.find("%") == std::string::npos) {
+        set("host_type", "moonraker");
+    }
+    if (has(dict, "fill_density") && value().find("%") == std::string::npos) {
         try {
             // fill_density was turned into a percent value
-            float v = boost::lexical_cast<float>(value);
-            value = boost::lexical_cast<std::string>(v * 100) + "%";
-        } catch (boost::bad_lexical_cast &) {}
+            float v = boost::lexical_cast<float>(value());
+            value() = to_string_nozero(v * 100, 2) + "%";
+        } catch (boost::bad_lexical_cast &) { erase(); }
     }
-    if (opt_key == "randomize_start" && value == "1") {
-        opt_key = "seam_position";
-        value = "random";
+    if (has(dict, "randomize_start", "1")) {
+        set("seam_position", "random");
     }
-    if (opt_key == "bed_size" && !value.empty()) {
-        opt_key = "bed_shape";
+    if (has(dict, "bed_size") && !value().empty()) {
+        opt_key() = "bed_shape";
         ConfigOptionPoint p;
-        p.deserialize(value, ForwardCompatibilitySubstitutionRule::Disable);
+        p.deserialize(value(), ForwardCompatibilitySubstitutionRule::Disable);
         std::ostringstream oss;
         oss << "0x0," << p.value(0) << "x0," << p.value(0) << "x" << p.value(1) << ",0x" << p.value(1);
-        value = oss.str();
+        value() = oss.str();
     }
-
-    // if ((opt_key == "perimeter_acceleration" && value == "25")
-    //     || (opt_key == "infill_acceleration" && value == "50")) {
-    //     /*  For historical reasons, the world's full of configs having these very low values;
-    //         to avoid unexpected behavior we need to ignore them. Banning these two hard-coded
-    //         values is a dirty hack and will need to be removed sometime in the future, but it
-    //         will avoid lots of complaints for now. */
-    //     value = "0";
-    // } // i think it's time now.
-    // TODO: change defautl from 0 (no forbidden) to 100% for all speed & acceleration
-    // if ("0" == value && ("infill_acceleration" == opt_key || "solid_infill_acceleration" == opt_key ||
-    //     "top_solid_infill_acceleration" == opt_key || "bridge_acceleration" == opt_key ||
-    //     "default_acceleration" == opt_key || "perimeter_acceleration" == opt_key || "overhangs_speed" == opt_key ||
-    //     "ironing_speed" == opt_key || "perimeter_speed" == opt_key || "infill_speed" == opt_key ||
-    //     "bridge_speed" == opt_key || "support_material_speed" == opt_key || "max_print_speed" == opt_key)) {
-    //     // 100% is the same, and easier to understand.
-    //     value = "100%";
-    // }
-    if (opt_key == "support_material_pattern" && value == "pillars") {
+    //if ((opt_key == "perimeter_acceleration" && value == "25")
+    //    || (opt_key == "infill_acceleration" && value == "50")) {
+    //    /*  For historical reasons, the world's full of configs having these very low values;
+    //        to avoid unexpected behavior we need to ignore them. Banning these two hard-coded
+    //        values is a dirty hack and will need to be removed sometime in the future, but it
+    //        will avoid lots of complaints for now. */
+    //    value = "0";
+    //} // i think it's time now.
+    //TODO: change defautl from 0 (no forbidden) to 100% for all speed & acceleration
+    //if ("0" == value && ("infill_acceleration" == opt_key || "solid_infill_acceleration" == opt_key ||
+    //    "top_solid_infill_acceleration" == opt_key || "bridge_acceleration" == opt_key ||
+    //    "default_acceleration" == opt_key || "perimeter_acceleration" == opt_key || "overhangs_speed" == opt_key ||
+    //    "ironing_speed" == opt_key || "perimeter_speed" == opt_key || "infill_speed" == opt_key ||
+    //    "bridge_speed" == opt_key || "support_material_speed" == opt_key || "max_print_speed" == opt_key)) {
+    //    // 100% is the same, and easier to understand.
+    //    value = "100%";
+    //}
+    if (has(dict, "support_material_pattern", "pillars")) {
         // Slic3r PE does not support the pillars. They never worked well.
-        value = "rectilinear";
+        value() = "rectilinear";
     }
-    if (opt_key == "skirt_height" && value == "-1") {
+    if (has(dict, "skirt_height"s, "-1"s)) {
         // PrusaSlicer no more accepts skirt_height == -1 to print a draft shield to the top of the highest object.
         // A new "draft_shield" enum config value is used instead.
-        opt_key = "draft_shield";
-        value = "enabled";
-    } else if (opt_key == "draft_shield" && (value == "1" || value == "0")) {
+        set("draft_shield"s, "enabled"s);
+    }
+    if (has(dict, "draft_shield") && (value() == "1" || value() == "0")) {
         // draft_shield used to be a bool, it was turned into an enum in PrusaSlicer 2.4.0.
-        value = value == "1" ? "enabled" : "disabled";
-    } else if (("label_printed_objects" == opt_key || "gcode_label_objects" == opt_key) &&
-               (value == "1" || value == "0")) {
+        value() = value() == "1" ? "enabled" : "disabled";
+    }
+    for_ech_entry(dict, {"label_printed_objects", "gcode_label_objects"},
+                  [](Key &opt_key, Val &value) {
         // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
         // and enum since PrusaSlicer 2.6.2.
-        value = value == "1" ? "octoprint" : "disabled";
-    } else if (opt_key == "octoprint_host") {
-        opt_key = "print_host";
+        if ((value == "1" || value == "0"))
+            value = value == "1" ? "octoprint" : "disabled";
+    });
+    if (has(dict, "octoprint_host"s)) {
+        opt_key() = "print_host"s;
     }
-    if (opt_key == "octoprint_cafile") {
-        opt_key = "printhost_cafile";
+    if (has(dict, "octoprint_cafile"s)) {
+        opt_key() = "printhost_cafile"s;
     }
-    if (opt_key == "octoprint_apikey") {
-        opt_key = "printhost_apikey";
+    if (has(dict, "octoprint_apikey"s)) {
+        opt_key() = "printhost_apikey"s;
     }
-    if (opt_key == "elefant_foot_compensation") {
-        opt_key = "first_layer_size_compensation";
-        float v = boost::lexical_cast<float>(value);
+    if (has(dict, "elefant_foot_compensation"s)) {
+        float v = boost::lexical_cast<float>(value());
+        opt_key() = "first_layer_size_compensation";
         if (v > 0)
-            value = boost::lexical_cast<std::string>(-v);
+            value() = to_string_nozero(-v, 5);
     }
-    if ("elefant_foot_min_width" == opt_key) {
-        opt_key = "elephant_foot_min_width";
+    if (has(dict, "elefant_foot_min_width"s)) {
+        opt_key() = "elephant_foot_min_width"s;
     }
-    if (opt_key == "thumbnails") {
-        if (value.empty())
-            value = "0x0,0x0";
+    if (has(dict, "thumbnails"s)) {
+        if (value().empty())
+            value() = "0x0,0x0";
     }
-    if (opt_key == "z_steps_per_mm") {
-        opt_key = "z_step";
-        float v = boost::lexical_cast<float>(value);
+    if (has(dict, "z_steps_per_mm"s)) {
+        float v = boost::lexical_cast<float>(value());
+        opt_key() = "z_step";
         if (v > 0)
-            value = boost::lexical_cast<std::string>(1 / v);
+            value() = to_string_nozero(1/v, 5);
     }
-    if (opt_key == "infill_not_connected") {
-        opt_key = "infill_connection";
-        if (value == "1")
-            value = "notconnected";
+    if (has(dict, "infill_not_connected"s) ) {
+        opt_key() = "infill_connection";
+        if (value() == "1")
+            value() = "notconnected";
         else
-            value = "connected";
+            value() = "connected";
     }
-    if (opt_key == "preset_name") {
-        opt_key = "preset_names";
+    if (has(dict, "preset_name"s)) {
+        opt_key() = "preset_names"s;
     }
-    if (opt_key == "ensure_vertical_shell_thickness") {
-        if (value == "1") {
-            value = "enabled_old";
-        } else if (value == "0") {
-            value = "disabled";
-        } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value) == enum_keys_map.end()) {
-            assert(value == "0" || value == "1");
+    if (has(dict, "ensure_vertical_shell_thickness"s)) {
+        if (value() == "1") {
+            value() = "enabled_old";
+        } else if (value() == "0") {
+            value() = "disabled";
+        } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) {
+            assert(value() == "0" || value() == "1");
             // Values other than 0/1 are replaced with "partial" for handling values from different slicers.
-            value = "partial";
+            value() = "partial";
         }
     }
-    if (opt_key == "seam_travel") {
-        if (value == "1") {
-            opt_key = "seam_travel_cost";
-            value = "200%";
+    if (has(dict, "seam_travel"s)) {
+        if (value() == "1") {
+            opt_key() = "seam_travel_cost";
+            value() = "200%";
         } else {
-            opt_key = "";
+            erase();
         }
     }
-    if (opt_key == "seam_position") {
-        if (value == "hidden") {
-            value = "cost";
-        } else if ("near" == value || "nearest" == value) {
-            value = "cost";
-            // FIXME can we change the cost?
+    if (has(dict, "seam_position"s)) {
+        if (value() == "hidden") {
+            value() = "cost";
+        } else if ("near" == value() || "nearest" == value()) {
+            value() = "cost";
+            // we change the cost
+            dict["seam_angle_cost"] = {"seam_angle_cost", "50%"};
+            dict["seam_travel_cost"] = {"seam_travel_cost", "50%"};
         }
     }
-    if (opt_key == "perimeter_loop_seam") {
-        if (value == "hidden") {
-            value = "nearest";
+    if (has(dict, "perimeter_loop_seam"s)) {
+        if (value() == "hidden") {
+            value() = "nearest";
         }
     }
-    if (opt_key == "overhangs") {
-        opt_key = "overhangs_width_speed";
-        if (value == "1")
-            value = "50%";
-        else
-            value = "!50%";
+    if (has(dict, "overhangs"s)) {
+        opt_key() = "overhangs_width_speed";
+        if (value() == "1") {
+            value() = "50%";
+            dict["overhangs_width"] = {"overhangs_width", "50%"};
+        } else {
+            value() = "!50%";
+            dict["overhangs_width"] = {"overhangs_width", "!50%"};
+        }
     }
-    if (opt_key == "print_machine_envelope") {
-        opt_key = "machine_limits_usage";
-        if (value == "1")
-            value = "emit_to_gcode";
+    if (has(dict, "print_machine_envelope"s)) {
+        opt_key() = "machine_limits_usage";
+        if (value() == "1")
+            value() = "emit_to_gcode";
         else
-            value = "time_estimate_only";
+            value() = "time_estimate_only";
     }
-    if (opt_key == "retract_lift_not_last_layer") {
-        opt_key = "retract_lift_top";
-        if (value == "1")
-            value = "Not on top";
+    if (has(dict, "retract_lift_not_last_layer"s)) {
+        opt_key() = "retract_lift_top";
+        if (value() == "1")
+            value() = "Not on top";
         else
-            value = "All surfaces";
+            value() = "All surfaces";
     }
-    if ("gcode_precision_e" == opt_key) {
-        if (value.find(",") != std::string::npos)
-            value = value.substr(0, value.find(","));
+    if (has(dict, "gcode_precision_e"s)) {
+        if (value().find(",") != std::string::npos)
+            value() = value().substr(0, value().find(","));
         try {
-            int val = boost::lexical_cast<int>(value);
+            int val = boost::lexical_cast<int>(value());
             if (val > 0)
-                value = boost::lexical_cast<std::string>(val);
-        } catch (boost::bad_lexical_cast &) { value = "5"; }
+                value() = to_string_nozero(val, 5);
+        }
+        catch (boost::bad_lexical_cast&) {
+            value() = "5";
+        }
     }
-    if ("first_layer_min_speed" == opt_key && value.back() == '%')
-        value = value.substr(0, value.length() - 1); // no percent.
-    if (!value.empty() && value.back() != '%' &&
-        std::set<std::string>{"bridge_flow_ratio", "bridge_flow_ratio", "over_bridge_flow_ratio",
-                              "fill_top_flow_ratio", "first_layer_flow_ratio"}
-                .count(opt_key) > 0) {
-        // need percent
-        try {
-            float val = boost::lexical_cast<float>(value);
-            if (val < 2)
-                value = boost::lexical_cast<std::string>(val * 100) + "%";
-            else
-                value = "100%";
-        } catch (boost::bad_lexical_cast &) { value = "100%"; }
-    }
-    if ("thick_bridges" == opt_key) {
-        opt_key = "bridge_type";
-        if (value == "1")
-            value = "nozzle";
-        else
-            value = "flow";
-    }
-    if ("sla_archive_format" == opt_key) {
-        opt_key = "output_format";
-    }
+    if (has(dict, "first_layer_min_speed") && !value().empty() && value().back() == '%')
+        value() = value().substr(0, value().length() - 1); //no percent.
+    
+    for_ech_entry(dict, {"bridge_flow_ratio", "bridge_flow_ratio", "over_bridge_flow_ratio", "fill_top_flow_ratio", "first_layer_flow_ratio"},
+                  [](Key &opt_key, Val &value) {
+        // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
+        // and enum since PrusaSlicer 2.6.2.
+        if (!value.empty() && value.back() != '%') {
+            // need percent
+            try {
+                float val = boost::lexical_cast<float>(value);
+                if (val < 2)
+                    value = to_string_nozero(val * 100, 2) + "%";
+                else
+                    value = "100%";
+            } catch (boost::bad_lexical_cast &) { value = "100%"; }
+        }
+    });
+    //if (has(dict, "thick_bridges"s)) {
+    //    assert(dict.find("bridge_type") == dict.end());
+    //    assert(dict.find("bridge_overlap") == dict.end());
+    //    assert(dict.find("bridge_overlap_min") == dict.end());
+    //    opt_key() = "bridge_type"s;
+    //    if (value() == "1") {
+    //        value() = "nozzle";
+    //        dict["bridge_overlap_min"] = {"bridge_overlap_min", "80%"};
+    //        dict["bridge_overlap"] = {"bridge_overlap", "95%"};
+    //    } else {
+    //        value() = "flow";
+    //        dict["bridge_overlap_min"] = {"bridge_overlap_min", "60%"};
+    //        dict["bridge_overlap"] = {"bridge_overlap", "75%"};
+    //    }
+    //}
+    //if (has(dict, "sla_archive_format"s)) {
+    //    opt_key() = "output_format"s;
+    //}
 
     // In PrusaSlicer 2.3.0-alpha0 the "monotonic" infill was introduced, which was later renamed to "monotonous".
-    if (value == "monotonous" &&
-        (opt_key == "top_fill_pattern" || opt_key == "bottom_fill_pattern" || opt_key == "fill_pattern" ||
-         opt_key == "solid_fill_pattern" || opt_key == "bridge_fill_pattern" ||
-         opt_key == "support_material_interface_pattern")) {
-        value = "monotonic";
-    }
-    // some changes has occurs between rectilineargapfill and monotonicgapfill. Set them at the right value for each type
-    if (value == "rectilineargapfill" && (opt_key == "top_fill_pattern" || opt_key == "bottom_fill_pattern"))
-        value = "monotonicgapfill";
-    if (opt_key == "fill_pattern" || opt_key == "support_material_interface_pattern" ||
-        opt_key == "support_material_top_interface_pattern" ||
-        opt_key == "support_material_bottom_interface_pattern") {
+    for_ech_entry(dict, {"top_fill_pattern", "bottom_fill_pattern", "fill_pattern", "solid_fill_pattern", "bridge_fill_pattern", "support_material_interface_pattern"},
+                  [](Key &opt_key, Val &value) {
+        // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
+        // and enum since PrusaSlicer 2.6.2.
+        if (value == "monotonous") {
+            value = "monotonic";
+        }
+    });
+
+    // some changes has occurs between rectilineargapfill and monotonicgapfill. Set them at the right value() for each type
+    for_ech_entry(dict, {"top_fill_pattern", "bottom_fill_pattern"},
+                  [](Key &opt_key, Val &value) {
+        // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
+        // and enum since PrusaSlicer 2.6.2.
+        if (value == "rectilineargapfill") {
+            value = "monotonicgapfill";
+        }
+    });
+    for_ech_entry(dict, {"fill_pattern", "support_material_interface_pattern", "support_material_top_interface_pattern", "support_material_bottom_interface_pattern"},
+                  [](Key &opt_key, Val &value) {
+        // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
+        // and enum since PrusaSlicer 2.6.2.
         if (value == "rectilineargapfill") {
             value = "rectilinear";
         } else if (value == "monotonicgapfill") {
             value = "monotonic";
         }
+    });
+    //in ps 2.4, the raft_first_layer_density is now more powerful than the support_material_solid_first_layer, also it always does the perimeter.
+    if (has(dict, "support_material_solid_first_layer"s)) {
+        opt_key() = "raft_first_layer_density"s;
+        value() = "100";
     }
-    // in ps 2.4, the raft_first_layer_density is now more powerful than the support_material_solid_first_layer, also
-    // it always does the perimeter.
-    if ("support_material_solid_first_layer" == opt_key) {
-        opt_key = "raft_first_layer_density";
-        value = "100";
-    }
-    if (boost::starts_with(opt_key, "thin_perimeters") && value == "1") {
-        value = "100%";
-    }
-
-    // prusa
-    if ("gcode_flavor" == opt_key) {
-        if ("reprap" == value)
-            value = "sprinter";
-    }
-
-    if (PrintConfigDef_ignore.find(opt_key) != PrintConfigDef_ignore.end()) {
-        opt_key = "";
-        return;
-    }
-
-    if ("fan_always_on" == opt_key) {
-        if (value != "1") {
-            // min_fan_speed is already converted to default_fan_speed, just has to deactivate it if not always_on
-            opt_key = "default_fan_speed"; // note: maybe this doesn't works, as default_fan_speed can also get its
-                                           // value from min_fan_speed
-            value = "0";
-        } else {
-            opt_key = "";
+    // thin perimeters are now a threshold instead of a bool
+    for_ech_entry(dict, {"thin_perimeters", "thin_perimeters_all"},
+                  [](Key &opt_key, Val &value) {
+        if (value == "1") {
+            value = "100%";
         }
-        return;
+    });
+
+    // prusa renamed "sprinter" "reprap"
+    if (has(dict, "gcode_flavor"s)) {
+        if ("reprap" == value())
+            value() = "sprinter";
     }
-    if ("arc_fitting" == opt_key) {
-        if (value == "1")
-            value = "bambu";
-        else if (value == "0")
-            value = "disabled";
+    
+    // remove ignored entries
+    for_ech_entry(dict, PrintConfigDef_ignore,
+                  [](Key &opt_key, Val &value) {
+        erase();
+    });
+
+    if (has(dict, "fan_always_on"s)) {
+        if (value() != "1") {
+            //min_fan_speed is already converted to default_fan_speed, just has to deactivate it if not always_on
+            opt_key() = "default_fan_speed"s; // note: maybe this doesn't works, as default_fan_speed can also get its value() from min_fan_speed
+            value() = "0";
+        } else {
+            erase();
+        }
+    }
+    if (has(dict, "arc_fitting"s)) {
+        if (value() == "1")
+            value() = "bambu";
+        else if (value() == "0")
+            value() = "disabled";
     }
 
-    if (!print_config_def.has(opt_key)) {
-        // check the aliases
-        for (const auto &entry : print_config_def.options) {
-            for (const std::string &alias : entry.second.aliases) {
-                if (alias == opt_key) {
-                    // translate
-                    opt_key = entry.first;
-                    goto use_alias;
+    // it's not needed to check aliases, because they are taken care of in deserialize().
+    // still need as some things check for def and emit a ConfigSubstitutionContext
+    for (auto it = dict.begin(); it != dict.end(); ++it) {
+        if (!it->second.first.empty() && !print_config_def.has(it->second.first)) {
+            // check the aliases
+            for (const auto &entry : print_config_def.options) {
+                for (const std::string &alias : entry.second.aliases) {
+                    if (alias == it->second.first) {
+                        // translate
+                        it->second.first = entry.first;
+                        goto use_alias;
+                    }
                 }
             }
-        }
-        if (remove_unkown_keys) {
-            opt_key = "";
-        }
-    use_alias:;
-        if (!print_config_def.has(opt_key)) {
-            return;
+            if (remove_unkown_keys) {
+                it->second.first = "";
+            }
+        use_alias:;
         }
     }
 
-    // fan speed: activate disable.
-    if (opt_key.find("_fan_speed") != std::string::npos) {
-        if ("max_fan_speed" != opt_key && "filament_toolchange_part_fan_speed" != opt_key &&
-            "min_fan_speed" != opt_key && "overhangs_dynamic_fan_speed" != opt_key &&
-            "enable_dynamic_fan_speeds" != opt_key && opt_key.find("overhang_fan_speed_") == std::string::npos) {
+    //fan speed: activate disable.
+    assert(!has(dict, "bridge_internal_fan_speed"s));
+    for_ech_entry(dict, {
+        "bridge_fan_speed"s, "default_fan_speed"s, "min_fan_speed"s/* this is default_fan_speed's alias*/, "external_perimeter_fan_speed"s,
+        "gap_fill_fan_speed"s, "infill_fan_speed"s, "internal_bridge_fan_speed"s, "overhangs_fan_speed"s,
+        "perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
+                  [](Key &opt_key, Val &value) {
             assert(print_config_def.get(opt_key) && print_config_def.get(opt_key)->type == coInts);
             // if vector, split it.
             ConfigOptionInts opt_decoder;
@@ -9147,65 +9291,168 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
                 }
             }
             value = opt_decoder.serialize();
+    });
+    for(auto it = dict.begin(); it != dict.end(); ++it){
+        std::string &opt_key = it->second.first;
+        if (opt_key.empty()) {
+            continue;
         }
-    }
-    if ("0" == value) {
-        if ("max_layer_height" == opt_key) {value = "!75%";}
-        if ("gcode_min_length" == opt_key) {value = "!0";}
-        if ("max_gcode_per_second" == opt_key) {value = "!0";}
-        if ("print_temperature" == opt_key) {value = "!0";}
-        if ("print_first_layer_temperature" == opt_key) {value = "!0";}
-    }
-    if (value == "-1") {
-        if ("overhangs_bridge_threshold" == opt_key) {value = "!0";}
-        if ("overhangs_bridge_upper_layers" == opt_key) {value = "!2";}
-        if ("perimeters_hole" == opt_key) {value = "!0";}
-        if ("support_material_bottom_interface_layers" == opt_key) {value = "!0";}
-        if ("print_retract_length" == opt_key) {value = "!200";}
-        if ("print_retract_lift" == opt_key) {value = "!200";}
-    }
-    // nil-> disabled
-    if (value.find("e+") != std::string::npos) {
-        const ConfigOptionDef *def = print_config_def.get(opt_key);
-        if (def && def->can_be_disabled) {
-            ConfigOption *default_opt = def->default_value->clone();
-            default_opt->deserialize(value);
-            float max_value = std::numeric_limits<int32_t>::max() / 2;
-            switch (default_opt->type()) {
-            case coInt:
-            case coPercent:
-            case coFloat:
-            case coFloatOrPercent:
-            case coInts:
-            case coPercents:
-            case coFloats:
-            case coFloatsOrPercents: {
-                for (size_t idx = 0; idx < default_opt->size(); idx++) {
-                    if (std::abs(default_opt->get_float(idx)) > std::numeric_limits<int>::max() / 2) {
-                        default_opt->set(def->default_value.get(), idx);
-                        default_opt->set_enabled(false, idx);
-                    }
+        std::string &value = it->second.second;
+        //array?
+        if ("max_layer_height" == opt_key) {
+            bool changed = false;
+            std::vector<std::string> value_array;
+            boost::split(value_array, value, boost::is_any_of(","), boost::token_compress_off);
+            for (std::string &val : value_array) {
+                if ("0" == val) {
+                    val = "!75%";
+                    changed = true;
                 }
-            } break;
-            default:;
             }
-            value = default_opt->serialize();
-            delete default_opt;
+            if (changed) {
+                value = "";
+                for (std::string &val : value_array) {
+                    if (!value.empty()) {
+                        value += ",";
+                    }
+                    value += val;
+                }
+            }
         }
-    }
-    // nil-> disabled
-    if (value.find("nil") != std::string::npos) {
-        const ConfigOptionDef *def = print_config_def.get(opt_key);
-        if (def->type != coString && def->type != coStrings) {
-            assert(def && def->can_be_disabled);
+        // 0-> disabled
+        if ("0" == value) {
+            if ("max_gcode_per_second" == opt_key) {
+                value = "!0";
+            }
+            if ("gcode_min_length" == opt_key) {
+                value = "!0";
+            }
+            if ("print_temperature" == opt_key) {
+                value = "!0";
+            }
+            if ("print_first_layer_temperature" == opt_key) {
+                value = "!0";
+            }
+        }
+        //-1-> disabled
+        if (value == "-1") {
+            if (opt_key == "overhangs_bridge_threshold"s) {
+                value = "!0";
+            }
+            if (opt_key == "overhangs_bridge_upper_layers"s) {
+                value = "!2";
+            }
+            if (opt_key == "perimeters_hole"s) {
+                value = "!0";
+            }
+            if (opt_key == "support_material_bottom_interface_layers"s) {
+                value = "!0";
+            }
+            if (opt_key == "print_retract_length"s) {
+                value = "!200";
+            }
+            if (opt_key == "print_retract_lift"s) {
+                value = "!200";
+            }
+        }
+        // nil-> disabled
+        if (value.find("e+") != std::string::npos) {
+            const ConfigOptionDef *def = print_config_def.get(opt_key);
             if (def && def->can_be_disabled) {
                 ConfigOption *default_opt = def->default_value->clone();
-                default_opt->set_enabled(false);
+                default_opt->deserialize(value);
+                float max_value = std::numeric_limits<int32_t>::max() / 2;
+                switch (default_opt->type()) {
+                case coInt:
+                case coPercent:
+                case coFloat:
+                case coFloatOrPercent:
+                case coInts:
+                case coPercents:
+                case coFloats:
+                case coFloatsOrPercents: {
+                    for (size_t idx = 0; idx < default_opt->size(); idx++) {
+                        if (std::abs(default_opt->get_float(idx)) > std::numeric_limits<int>::max() / 2) {
+                            default_opt->set(def->default_value.get(), idx);
+                            default_opt->set_enabled(false, idx);
+                        }
+                    }
+                } break;
+                default:;
+                }
                 value = default_opt->serialize();
                 delete default_opt;
             }
         }
+        // nil-> disabled
+        if (value.find("nil") != std::string::npos) {
+            const ConfigOptionDef *def = print_config_def.get(opt_key);
+            if (def) {
+                if (def->type != coString && def->type != coStrings) {
+                    assert(def && def->can_be_disabled);
+                    if (def && def->can_be_disabled) {
+                        ConfigOption *default_opt = def->default_value->clone();
+                        default_opt->set_enabled(false);
+                        value = default_opt->serialize();
+                        delete default_opt;
+                    }
+                }
+            } else {
+                // unknown key
+                opt_key.clear();
+            }
+        }
     }
+    //phony
+    for (const auto &width_2_spacing : widths_2_spacings_for_phony_fix) {
+        if (has(dict, width_2_spacing.first)) {
+            const std::string &width_value = value();
+            if (!has(dict, width_2_spacing.second)) {
+                if (!width_value.empty()) {
+                    // we have a width => phony spacing
+                    dict[width_2_spacing.second] = {width_2_spacing.second, ""};
+                } else {
+                    // can't compute it... put 0
+                    dict[width_2_spacing.second] = {width_2_spacing.second, "0"};
+                }
+            } else {
+                const std::string &spacing_value = value();
+                if (width_value.empty() && spacing_value.empty()) {
+                    // all phony => set width to 0
+                    dict[width_2_spacing.first] = {width_2_spacing.first, "0"};
+                } else if (!width_value.empty() && !spacing_value.empty()) {
+                    // no phony => set width to phony
+                    dict[width_2_spacing.first] = {width_2_spacing.first, ""};
+                }
+            }
+        } else if (has(dict, width_2_spacing.second)) {
+            const std::string &spacing_value = value();
+            if (!spacing_value.empty()) {
+                // we have a spacing => phony width
+                dict[width_2_spacing.first] = {width_2_spacing.first, ""};
+            } else {
+                    // can't compute it... put 0
+                dict[width_2_spacing.first] = {width_2_spacing.first, "0"};
+            }
+        }
+    }
+
+}
+} // namespace Handle_gacy_tools
+
+void PrintConfigDef::handle_legacy_map(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict, bool remove_unkown_keys)
+{
+    Handle_legacy_tools::_handle_legacy(dict, remove_unkown_keys);
+}
+
+void PrintConfigDef::handle_legacy_pair(t_config_option_key &opt_key, std::string &value, bool remove_unkown_keys)
+{
+    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict;
+    dict[opt_key] = {opt_key, value};
+    Handle_legacy_tools::_handle_legacy(dict, remove_unkown_keys);
+    value = dict[opt_key].second;
+    // erase opt_key last, as we need it to get the value
+    opt_key = dict[opt_key].first;
 }
 
 // Called after a config is loaded as a whole.
@@ -9263,11 +9510,13 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::ma
         }
     }
     for (const t_config_option_key &opt_key : to_erase) {
-        useful_items.erase(opt_key);
+        opt_deleted.erase(opt_key);
     }
-    if (useful_items.find("enable_dynamic_overhang_speeds") != useful_items.end()) {
+    if (useful_items.find("enable_dynamic_overhang_speeds") != useful_items.end() ||
+        useful_items.find("overhang_speed_0") != useful_items.end()) {
         ConfigOptionBool enable_dynamic_overhang_speeds;
-        enable_dynamic_overhang_speeds.deserialize(useful_items["enable_dynamic_overhang_speeds"]);
+        if (useful_items.find("enable_dynamic_overhang_speeds") != useful_items.end())
+            enable_dynamic_overhang_speeds.deserialize(useful_items["enable_dynamic_overhang_speeds"]);
         std::vector<ConfigOptionFloatOrPercent> values;
         values.resize(4);
         values[0].deserialize(useful_items["overhang_speed_0"]);
@@ -9301,10 +9550,8 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::ma
         // extract values
         Pointfs graph_curve;
         for (int x = 0; x < values.size(); ++x) {
-            double speed = std::clamp(values[x].value, min, max);
-            if (values[x].percent) {
-                speed = values[x].get_abs_value(external_perimeter_speed);
-            }
+            double speed = values[x].get_abs_value(external_perimeter_speed);
+            speed = std::clamp(speed, min, max);
             double percent = (speed - min) / (max - min);
             if (min == external_perimeter_speed) {
                 percent = 1 - percent;
@@ -9317,29 +9564,71 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::ma
             graph_curve.push_back(Vec2d(100, 100));
         }
         opt.value = GraphData(graph_curve);
-        opt.set_enabled(enable_dynamic_overhang_speeds.value);
+        if (useful_items.find("enable_dynamic_overhang_speeds") != useful_items.end())
+            opt.set_enabled(enable_dynamic_overhang_speeds.value);
         config.set_key_value("overhangs_dynamic_speed", opt.clone());
     }
-    if (useful_items.find("enable_dynamic_fan_speeds") != useful_items.end()) {
+    if (useful_items.find("enable_dynamic_fan_speeds") != useful_items.end() ||
+        useful_items.find("overhang_fan_speed_0") != useful_items.end()) {
+        // note: there can be a enable_dynamic_fan_speeds and no overhang_fan_speed_X (if it's disabled)
+        // note: there can be a overhang_fan_speed_0 but no overhang_fan_speed_1/2/3
         ConfigOptionBools enable_dynamic_fan_speeds;
-        enable_dynamic_fan_speeds.deserialize(useful_items["enable_dynamic_fan_speeds"]);
+        if(useful_items.find("enable_dynamic_fan_speeds") != useful_items.end())
+            enable_dynamic_fan_speeds.deserialize(useful_items["enable_dynamic_fan_speeds"]);
         auto *external_perimeter_fan_speed = config.option<ConfigOptionInts>("external_perimeter_fan_speed");
         auto *perimeter_fan_speed = config.option<ConfigOptionInts>("perimeter_fan_speed");
         auto *default_fan_speed = config.option<ConfigOptionInts>("default_fan_speed");
         std::vector<ConfigOptionFloats> values;
         values.resize(4);
-        values[0].deserialize(useful_items["overhang_fan_speed_0"]);
-        values[1].deserialize(useful_items["overhang_fan_speed_1"]);
-        values[2].deserialize(useful_items["overhang_fan_speed_2"]);
-        values[3].deserialize(useful_items["overhang_fan_speed_3"]);
+        if(useful_items.find("overhang_fan_speed_0") != useful_items.end())
+            values[0].deserialize(useful_items["overhang_fan_speed_0"]);
+        if(useful_items.find("overhang_fan_speed_1") != useful_items.end())
+            values[1].deserialize(useful_items["overhang_fan_speed_1"]);
+        if(useful_items.find("overhang_fan_speed_2") != useful_items.end())
+            values[2].deserialize(useful_items["overhang_fan_speed_2"]);
+        if(useful_items.find("overhang_fan_speed_3") != useful_items.end())
+            values[3].deserialize(useful_items["overhang_fan_speed_3"]);
         ConfigOptionGraphs opt;
         opt.set_can_be_disabled();
         std::vector<GraphData> graph_data;
+        //ensure same size
+        if (enable_dynamic_fan_speeds.size() <  values[0].size()) {
+            for (size_t extruder_id = 0; extruder_id < values[0].size(); extruder_id++) {
+                enable_dynamic_fan_speeds.set_at(true, extruder_id);
+            }
+        }
+        assert(enable_dynamic_fan_speeds.size() >= values[0].size());
+        assert(values[0].size() >= values[1].size());
+        assert(values[1].size() >= values[2].size());
+        assert(values[2].size() >= values[3].size());
+        const size_t overhang_fan_speed_size = enable_dynamic_fan_speeds.size();
+        for (size_t extruder_id = 0; extruder_id < overhang_fan_speed_size; extruder_id++) {
+            double default_value = 0;
+            if (values[0].size() <= extruder_id) {
+                assert(!enable_dynamic_fan_speeds.get_at(extruder_id));
+                assert(values[0].size() == extruder_id);
+                values[0].set_at(default_value, extruder_id);
+            } else {
+                default_value = values[0].get_at(extruder_id);
+            }
+            if (values[1].size() <= extruder_id) {
+                assert(values[1].size() == extruder_id);
+                values[1].set_at(default_value, extruder_id);
+            } else {
+                default_value = values[1].get_at(extruder_id);
+            }
+            if (values[2].size() <= extruder_id) {
+                assert(values[2].size() == extruder_id);
+                values[2].set_at(default_value, extruder_id);
+            } else {
+                default_value = values[2].get_at(extruder_id);
+            }
+            if (values[3].size() <= extruder_id) {
+                assert(values[3].size() == extruder_id);
+                values[3].set_at(default_value, extruder_id);
+            }
+        }
         // while there is a value
-        assert(enable_dynamic_fan_speeds.size() == values[0].size());
-        assert(values[0].size() == values[1].size());
-        assert(values[0].size() == values[2].size());
-        assert(values[0].size() == values[3].size());
         for(int idx = 0 ;idx < enable_dynamic_fan_speeds.size(); ++idx) {
             // extract values
             Pointfs graph_curve;
@@ -9402,8 +9691,7 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::ma
     //}
 }
 
-
-bool PrintConfigDef::is_defined(t_config_option_key &opt_key) { return print_config_def.has(opt_key); }
+bool PrintConfigDef::is_defined(const t_config_option_key &opt_key) { return print_config_def.has(opt_key); }
 
 // this is for extra things to add / modify from prusa that can't be handled otherwise.
 // after handle_legacy
@@ -9457,11 +9745,31 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
             output["brim_ears"] = "1";
         }
     }
-    if ("support_material_contact_distance" == 0) {
-        output["support_material_contact_distance_type"] = "none";
+    if ("thick_bridges" == opt_key) {
+        opt_key = "bridge_type";
+        if (value == "1") {
+            value = "nozzle";
+            output["bridge_overlap_min"] = "80%";
+            output["bridge_overlap"] = "95%";
+        } else {
+            value = "flow";
+            output["bridge_overlap_min"] = "60%";
+            output["bridge_overlap"] = "75%";
+        }
+    }
+    if ("support_material_contact_distance" == opt_key) {
+        if ("0" == value) {
+            output["support_material_contact_distance_type"] = "none";
+        } else {
+            output["support_material_contact_distance_type"] = "plane";
+        }
     }
     if (opt_key == "seam_position") {
         if ("cost" == value) { // eqauls to "near" == value || "nearest" == value
+            output["seam_angle_cost"] = "50%";
+            output["seam_travel_cost"] = "50%";
+        } else if ("nearest" == value) {
+            value = "cost";
             output["seam_angle_cost"] = "50%";
             output["seam_travel_cost"] = "50%";
         }
@@ -9475,14 +9783,15 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
     if ("first_layer_height" == opt_key) {
         if (!value.empty() && value.back() == '%') {
             // A first_layer_height isn't a % of layer_height but from nozzle_diameter now!
-            // can't really convert right now, so put it at a safe value liek 50%.
+            // can't really convert right now, so put it at a safe value like 50%.
             value = "50%";
         }
     }
     if ("resolution" == opt_key && value == "0") {
         value = "0.0125";
     }
-    if ("gcode_resolution" == opt_key) {
+    // can't transfert from print config to printer config (unless there is both)
+    if ("gcode_resolution" == opt_key && all_conf.has("nozzle_diameter")) {
         output["gcode_min_resolution"] = value;
     }
     if (("brim_width" == opt_key || "brim_width_interior" == opt_key) && all_conf.option("brim_separation")) {
@@ -9490,7 +9799,7 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
         float val = boost::lexical_cast<float>(value);
         if (val > 0) {
             val += all_conf.option("brim_separation")->get_float();
-            value = boost::lexical_cast<std::string>(val);
+            value = to_string_nozero(val, 5);
         }
     }
     if ("fill_pattern" == opt_key && "alignedrectilinear" == value) {
@@ -9500,9 +9809,15 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
         value = "rectilinear";
     }
     if ("fan_always_on" == opt_key) {
-        // min_fan_speed is already converted to default_fan_speed, just has to deactivate it if not always_on
-        if (value != "1")
-            output["default_fan_speed"] = "0";
+        opt_key = "";
+        //min_fan_speed is already converted to default_fan_speed, just has to deactivate it if not always_on
+        if (value != "1") {
+            if (all_conf.option("default_fan_speed")) {
+                output["default_fan_speed"] = std::string("!") + all_conf.option("default_fan_speed")->serialize();
+            } else {
+                output["default_fan_speed"] = "!0";
+            }
+        }
     }
     if ("bridge_angle" == opt_key && "0" == value) {
         value = "!0";
@@ -9558,12 +9873,18 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
     static const std::vector<std::pair<std::string, std::string>> custom_gcode_replace =
         {{"[temperature]", "{temperature+extruder_temperature_offset}"},
          {"{temperature}", "{temperature+extruder_temperature_offset}"},
-         {"{temperature[initial_extruder]}",
-          "{temperature[initial_extruder]+extruder_temperature_offset[initial_extruder]}"},
+         {"[temperature[initial_tool]]", "{temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"{temperature[initial_tool]}", "{temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"[temperature[initial_extruder]]", "{temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"{temperature[initial_extruder]}", "{temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
          {"[first_layer_temperature]", "{first_layer_temperature+extruder_temperature_offset}"},
          {"{first_layer_temperature}", "{first_layer_temperature+extruder_temperature_offset}"},
-         {"{first_layer_temperature[initial_extruder]}",
-          "{first_layer_temperature[initial_extruder]+extruder_temperature_offset[initial_extruder]}"}};
+         {"[first_layer_temperature[initial_tool]]", "{first_layer_temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"[first_layer_temperature[initial_extruder]]", "{first_layer_temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"{first_layer_temperature[initial_tool]}", "{first_layer_temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"{first_layer_temperature[initial_extruder]}", "{first_layer_temperature[initial_tool]+extruder_temperature_offset[initial_tool]}"},
+         {"!is_nil(", "is_enabled("},
+         {"is_nil(", "!is_enabled("}};
 
     static const std::set<t_config_option_key> custom_gcode_keys =
         {"template_custom_gcode", "toolchange_gcode", "before_layer_gcode",
@@ -9584,14 +9905,6 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
 // keys that needs to go through from_prusa before beeing deserialized.
 const std::unordered_set<std::string> prusa_import_to_review_keys = {"thumbnails"};
 
-const std::vector<std::pair<t_config_option_key, t_config_option_key>> prusa_import_widths_2_spacings_for_phony_fix =
-    {{"extrusion_width", "extrusion_spacing"},
-     {"perimeter_extrusion_width", "perimeter_extrusion_spacing"},
-     {"external_perimeter_extrusion_width", "external_perimeter_extrusion_spacing"},
-     {"first_layer_extrusion_width", "first_layer_extrusion_spacing"},
-     {"infill_extrusion_width", "infill_extrusion_spacing"},
-     {"solid_infill_extrusion_width", "solid_infill_extrusion_spacing"},
-     {"top_infill_extrusion_width", "top_infill_extrusion_spacing"}};
 
 template<typename CONFIG_CLASS>
 void _convert_from_prusa(CONFIG_CLASS &conf, const DynamicPrintConfig &global_config, bool with_phony) {
@@ -9625,7 +9938,7 @@ void _convert_from_prusa(CONFIG_CLASS &conf, const DynamicPrintConfig &global_co
 
     // set phony entries
     if (with_phony) {
-        for (auto &[opt_key_width, opt_key_spacing] : prusa_import_widths_2_spacings_for_phony_fix) {
+        for (auto & [opt_key_width, opt_key_spacing] : Handle_legacy_tools::widths_2_spacings_for_phony_fix) {
             // if prusa has defined a width, or if the conf has a default spacing that need to be overwritten
             if (conf.option(opt_key_width) != nullptr || conf.option(opt_key_spacing) != nullptr) {
                 ConfigOption *opt_new = print_config_def.get(opt_key_spacing)->default_value.get()->clone();
@@ -9658,28 +9971,42 @@ void _deserialize_maybe_from_prusa(const std::map<t_config_option_key, std::stri
                                            bool                                       with_phony,
                                            bool                                       check_prusa)
 {
+    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> dict_opt;
     std::map<t_config_option_key, std::string> deleted_keys;
-    std::vector<std::pair<t_config_option_key, std::string>> unknown_keys;
+    std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> unknown_keys;
+    for (const auto &[my_key, value] : settings) {
+        dict_opt[my_key] = {my_key, value};
+    }
+    PrintConfigDef::handle_legacy_map(dict_opt);
     const ConfigDef *def = config.def();
-    for (const auto &[key, value] : settings) {
+    for (const auto &[key, pair] : dict_opt) {
         try {
-            t_config_option_key opt_key = key;
-            std::string opt_value = value;
-            PrintConfigDef::handle_legacy(opt_key, opt_value, false);
-            if (!opt_key.empty()) {
+            const t_config_option_key &opt_key = key;
+            const std::string &opt_value = pair.second;
+            if (!pair.first.empty()) {
                 if (!def->has(opt_key) ||
                     (check_prusa && prusa_import_to_review_keys.find(opt_key) != prusa_import_to_review_keys.end())) {
-                    unknown_keys.emplace_back(key, value);
+                    unknown_keys[key] = {key, opt_value/*should be old value, before handle_legacy*/}; 
                 } else {
                     config.set_deserialize(opt_key, opt_value, config_substitutions);
+                    if (auto it = settings.find(key); config_substitutions.rule == ForwardCompatibilitySubstitutionRule::Enable && it != settings.end() && it->second != opt_value) {
+                        const ConfigOptionDef *optdef = def->get(opt_key);
+                        if (optdef != nullptr) {
+                            ConfigSubstitution substitution(optdef, settings.at(key), ConfigOptionUniquePtr(config.option(opt_key)->clone()));
+                            substitution.old_name = key;
+                            config_substitutions.add(std::move(substitution));
+                        } else {
+                            config_substitutions.add(ConfigSubstitution(key, opt_value));
+                        }
+                    }
                 }
             } else {
-                deleted_keys[key] = value;
+                deleted_keys[key] = opt_value/*should be old value, before handle_legacy*/;
             }
         } catch (UnknownOptionException & /* e */) {
             // log & ignore
             if (config_substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable)
-                config_substitutions.add(ConfigSubstitution(key, value));
+                config_substitutions.add(ConfigSubstitution(key, pair.second/*should be old value, before handle_legacy*/));
             assert(false);
         } catch (BadOptionValueException &e) {
             if (config_substitutions.rule == ForwardCompatibilitySubstitutionRule::Disable)
@@ -9689,28 +10016,40 @@ void _deserialize_maybe_from_prusa(const std::map<t_config_option_key, std::stri
             if (def == nullptr)
                 throw e;
             const ConfigOptionDef *optdef = def->get(key);
-            config_substitutions.emplace(optdef,std::string(value), ConfigOptionUniquePtr(optdef->default_value->clone()));
+            config_substitutions.emplace(optdef,std::string(pair.second/*should be old value, before handle_legacy*/), ConfigOptionUniquePtr(optdef->default_value->clone()));
         }
     }
+    // TODO: add composite substitutions into config_substitutions
     config.handle_legacy_composite(deleted_keys);
+    if (config_substitutions.rule == ForwardCompatibilitySubstitutionRule::Enable) {
+        for (const auto &[key, value] : deleted_keys) {
+            if (key != "threads") {
+                config_substitutions.add(ConfigSubstitution(key, value));
+            }
+        }
+    }
     // from prusa: try again with from_prusa before handle_legacy
     if (check_prusa) {
-        std::map<t_config_option_key, std::string> settings_to_change;
-        for (auto& [key, value] : unknown_keys) {
-            t_config_option_key                        opt_key = key;
-            std::map<t_config_option_key, std::string> result  = PrintConfigDef::from_prusa(opt_key, value, global_config);
-            settings_to_change.insert(result.begin(), result.end());
-            if (!opt_key.empty())
-                //check if good this time
-                PrintConfigDef::handle_legacy(opt_key, value, false);
-            if (!opt_key.empty()) {
-                if (!def->has(opt_key)) {
+        dict_opt.clear();
+        for (auto &[key, pair] : unknown_keys) {
+            std::map<t_config_option_key, std::string> result = PrintConfigDef::from_prusa(pair.first, pair.second, global_config);
+            if (!pair.first.empty())
+                dict_opt[pair.first] = { pair.first, pair.second };
+            for (auto &[k, v] : result) {
+                dict_opt[k] = { k, v };
+            }
+        }
+        PrintConfigDef::handle_legacy_map(dict_opt);
+        for (auto &[key, pair] : dict_opt) {
+            bool substitution_handle = false;
+            if (!pair.first.empty()) {
+                if (!def->has(pair.first)) {
                     if (config_substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable) {
-                        config_substitutions.add(ConfigSubstitution(key, value));
+                        config_substitutions.add(ConfigSubstitution(key, pair.second));
                     }
                 } else {
                     try {
-                        config.set_deserialize(opt_key, value, config_substitutions);
+                        config.set_deserialize(pair.first, pair.second, config_substitutions);
                     } catch (BadOptionValueException &e) {
                         if (config_substitutions.rule == ForwardCompatibilitySubstitutionRule::Disable)
                             throw e;
@@ -9718,17 +10057,26 @@ void _deserialize_maybe_from_prusa(const std::map<t_config_option_key, std::stri
                         if (def == nullptr)
                             throw e;
                         const ConfigOptionDef *optdef = def->get(key);
-                        config_substitutions.emplace(optdef, std::string(value), ConfigOptionUniquePtr(optdef->default_value->clone()));
+                        if (optdef != nullptr) {
+                            config_substitutions.emplace(optdef, std::string(pair.second), ConfigOptionUniquePtr(optdef->default_value->clone()));
+                        } else {
+                            config_substitutions.add(ConfigSubstitution(key, pair.second));
+                        }
                     }
+                }
+            } else if (def != nullptr && !config_substitutions.rule == ForwardCompatibilitySubstitutionRule::Disable) {
+                const ConfigOptionDef *optdef = def->get(key);
+                if (optdef != nullptr) {
+                    config_substitutions.emplace(optdef, std::string(pair.second), ConfigOptionUniquePtr(optdef->default_value->clone()));
+                } else {
+                    config_substitutions.add(ConfigSubstitution(key, pair.second));
                 }
             }
         }
-        for (const auto &entry : settings_to_change)
-            config.set_deserialize(entry.first, entry.second, config_substitutions);
     } else {
-        for (const auto& [key, value] : unknown_keys) {
+        for (const auto& [key, pair] : unknown_keys) {
             if (config_substitutions.rule != ForwardCompatibilitySubstitutionRule::Disable) {
-                config_substitutions.add(ConfigSubstitution(key, value));
+                config_substitutions.add(ConfigSubstitution(key, pair.second));
             }
         }
     }
@@ -9736,7 +10084,7 @@ void _deserialize_maybe_from_prusa(const std::map<t_config_option_key, std::stri
     // set phony entries
     if (with_phony) {
         const ConfigDef *def = config.def();
-        for (auto & [opt_key_width, opt_key_spacing] : prusa_import_widths_2_spacings_for_phony_fix) {
+        for (auto & [opt_key_width, opt_key_spacing] : Handle_legacy_tools::widths_2_spacings_for_phony_fix) {
             const ConfigOption *opt_width = config.option(opt_key_width);
             const ConfigOption *opt_spacing = config.option(opt_key_spacing);
             if (opt_width && opt_spacing) {
@@ -10154,8 +10502,7 @@ std::map<std::string, std::string> PrintConfigDef::to_prusa(t_config_option_key 
                !all_conf.option<ConfigOptionBool>("gap_fill_enabled")->value) {
         value = "0";
     } else if ("bridge_flow_ratio" == opt_key && all_conf.has("bridge_flow_ratio")) {
-        value = boost::lexical_cast<std::string>(
-            all_conf.option<ConfigOptionPercent>("bridge_flow_ratio")->get_abs_value(1));
+        value = to_string_nozero(all_conf.option<ConfigOptionPercent>("bridge_flow_ratio")->get_abs_value(1), 5);
     } else if ("overhangs_width" == opt_key) {
         opt_key = "overhangs";
         if ((!value.empty() && value.front() == '!') || !all_conf.is_enabled("overhangs_width_speed")) {
@@ -10182,28 +10529,25 @@ std::map<std::string, std::string> PrintConfigDef::to_prusa(t_config_option_key 
                     val += all_conf.option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
                     val -= all_conf.get_computed_value("layer_height", 0);
                 }
-                value = boost::lexical_cast<std::string>(val);
+                value = to_string_nozero(val, 5);
             }
         } catch (...) {}
     } else if ("support_material_contact_distance_bottom" == opt_key) {
-        opt_key = "support_material_bottom_contact_distance";
-        // default : get the top value or 0.2 if a %
-        if (value.find("%") != std::string::npos)
-            value = "0.2";
-        try { // avoid most useless cheks and multiple corners cases with this try catch
-            SupportZDistanceType dist_type = all_conf
-                                                 .option<ConfigOptionEnum<SupportZDistanceType>>(
-                                                     "support_material_contact_distance_type")
-                                                 ->value;
-            if (SupportZDistanceType::zdNone == dist_type) {
-                value = "0";
-            } else {
-                double val = all_conf.option<ConfigOptionFloatOrPercent>("support_material_contact_distance_bottom")
-                                 ->get_abs_value(all_conf.option<ConfigOptionFloats>("nozzle_diameter")->get_at(0));
-                if (SupportZDistanceType::zdFilament == dist_type) { // not exact but good enough effort
-                    val += all_conf.option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
-                    val -= all_conf.get_computed_value("layer_height", 0);
-                }
+            opt_key = "support_material_bottom_contact_distance";
+            //default : get the top value or 0.2 if a %
+            if (value.find("%") != std::string::npos)
+                value = "0.2";
+            try { //avoid most useless cheks and multiple corners cases with this try catch
+                SupportZDistanceType dist_type = all_conf.option<ConfigOptionEnum<SupportZDistanceType>>("support_material_contact_distance_type")->value;
+                if (SupportZDistanceType::zdNone == dist_type) {
+                    value = "0";
+                } else {
+                    double val = all_conf.option<ConfigOptionFloatOrPercent>("support_material_contact_distance_bottom")->get_abs_value(all_conf.option<ConfigOptionFloats>("nozzle_diameter")->get_at(0));
+                    if (SupportZDistanceType::zdFilament == dist_type) { // not exact but good enough effort
+                        val += all_conf.option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
+                        val -= all_conf.get_computed_value("layer_height", 0);
+                    }
+                    value = to_string_nozero(val, 5);
                 value = boost::lexical_cast<std::string>(val);
             }
         } catch (...) {}
@@ -10269,16 +10613,13 @@ std::map<std::string, std::string> PrintConfigDef::to_prusa(t_config_option_key 
     }
     if ("default_fan_speed" == opt_key) {
         if (!value.empty() && value.front() == '!') {
-            value = "1";
-        }
-        if (value == "0") {
-            opt_key = "min_fan_speed";
-            value = std::to_string(all_conf.option("fan_printer_min_speed")->get_float());
             new_entries["fan_always_on"] = "0";
         } else {
-            opt_key = "min_fan_speed";
             new_entries["fan_always_on"] = "1";
         }
+        opt_key = "min_fan_speed";
+        value = std::to_string(std::max(all_conf.option("fan_printer_min_speed")->get_float(),
+                                        all_conf.option("default_fan_speed")->get_float()));
     }
     if ("bridge_fan_speed" == opt_key) {
         if (!value.empty() && value.front() == '!') {
@@ -11820,13 +12161,17 @@ const CLIMiscConfigDef cli_misc_config_def;
 
 DynamicPrintAndCLIConfig::PrintAndCLIConfigDef DynamicPrintAndCLIConfig::s_def;
 
-void DynamicPrintAndCLIConfig::handle_legacy(t_config_option_key &opt_key, std::string &value) const {
-    if (cli_actions_config_def.options.find(opt_key) == cli_actions_config_def.options.end() &&
+#ifdef _DEBUGINFO
+void DynamicPrintAndCLIConfig::handle_legacy(t_config_option_key &opt_key, std::string &value) const
+{
+    assert(false); // please handle it in bunch
+    if (cli_actions_config_def  .options.find(opt_key) == cli_actions_config_def  .options.end() &&
         cli_transform_config_def.options.find(opt_key) == cli_transform_config_def.options.end() &&
-        cli_misc_config_def.options.find(opt_key) == cli_misc_config_def.options.end()) {
-        PrintConfigDef::handle_legacy(opt_key, value);
+        cli_misc_config_def     .options.find(opt_key) == cli_misc_config_def     .options.end()) {
+        PrintConfigDef::handle_legacy_pair(opt_key, value);
     }
 }
+#endif
 
 // SlicingStatesConfigDefs
 
@@ -12166,10 +12511,21 @@ CustomGcodeSpecificConfigDef::CustomGcodeSpecificConfigDef() {
     def->label = L("Next color");
     def->tooltip = L("Next color to display when a color change is performed, in #ffffff format.");
 
-    def = this->add("next_colour", coString);
-    // TRN: This is a label in custom g-code editor dialog, belonging to color_change_extruder. Denoted index of the extruder for which color change is performed.
-    def->label = L("Next colour");
-    def->tooltip = L("Next colour to display when a colour change is performed, in #ffffff format.");
+    def = this->add("previous_extrusion_role", coString);
+    def->label = L("Previous extrusion role");
+    def->tooltip = L("The extrusion role before changing to the new one.");
+
+    def = this->add("next_extrusion_role", coString);
+    def->label = L("Next extrusion role");
+    def->tooltip = L("The new extrusion role the gcode changes to.");
+
+    def = this->add("extrusion_role", coString);
+    def->label = L("Extrusion role");
+    def->tooltip = L("Deprecated, use next_extrusion_role.");
+
+    def = this->add("last_extrusion_role", coString);
+    def->label = L("Last extrusion role");
+    def->tooltip = L("Deprecated, use previous_extrusion_role.");
     
     def = this->add("start_gcode_bed_temperature", coInt);
     def->label = L("Computed bed temperature for first layer");

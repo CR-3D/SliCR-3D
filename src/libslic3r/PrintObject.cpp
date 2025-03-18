@@ -930,10 +930,6 @@ void PrintObject::simplify_extrusion_path()
                 
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment() + 1;
-                m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
-                                L("Optimizing layer %s / %s"),
-                                {std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max())},
-                                PrintBase::SlicingStatus::SECONDARY_STATE);
             }
         );
         //also simplify object skirt & brim
@@ -971,10 +967,6 @@ void PrintObject::simplify_extrusion_path()
 
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment() + 1;
-                m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
-                                L("Optimizing layer %s / %s"),
-                                {std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max())},
-                                PrintBase::SlicingStatus::SECONDARY_STATE);
             }
         );
         m_print->throw_if_canceled();
@@ -4705,6 +4697,7 @@ void PrintObject::clean_surfaces() {
 // fill_surfaces but we only turn them into VOID surfaces, thus preserving the boundaries.
 void PrintObject::combine_infill()
 {
+    coord_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->print()->config().resolution.value));
     // Work on each region separately.
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
         const PrintRegion &region = this->printing_region(region_id);
@@ -4761,6 +4754,7 @@ void PrintObject::combine_infill()
             // Start looping from the second layer and intersect the current intersection with it.
             for (size_t i = 1; i < layerms.size(); ++i)
                 intersection = intersection_ex(to_expolygons(layerms[i]->fill_surfaces().filter_by_type(stPosInternal | stDensSparse)), intersection);
+            ensure_valid(intersection, scaled_resolution);
             double area_threshold = layerms.front()->infill_area_threshold();
             if (! intersection.empty() && area_threshold > 0.)
                 intersection.erase(std::remove_if(intersection.begin(), intersection.end(), 
@@ -4789,14 +4783,13 @@ void PrintObject::combine_infill()
                   region.config().fill_pattern.value == ipHoneycomb) ? 1.5f : 0.5f) *
                     layerms.back()->flow(frSolidInfill).scaled_width();
             for (ExPolygon& expoly : intersection) {
-                expoly.assert_valid();
                 polygons_append(intersection_with_clearance, offset(expoly, clearance_offset));
             }
             for (LayerRegion *layerm : layerms) {
                 Polygons internal = to_polygons(layerm->fill_surfaces().filter_by_type(stPosInternal | stDensSparse));
                 layerm->m_fill_surfaces.remove_type(stPosInternal | stDensSparse);
                 ExPolygons only_internal = diff_ex(internal, intersection_with_clearance);
-                assert_valid(only_internal);
+                ensure_valid(only_internal, scaled_resolution);
                 layerm->m_fill_surfaces.append(std::move(only_internal), stPosInternal | stDensSparse);
                 if (layerm == layerms.back()) {
                     // Apply surfaces back with adjusted depth to the uppermost layer.
@@ -4810,7 +4803,7 @@ void PrintObject::combine_infill()
                 } else {
                     // Save void surfaces.
                     ExPolygons only_void = intersection_ex(internal, intersection_with_clearance);
-                    assert_valid(only_void);
+                    ensure_valid(only_void, scaled_resolution);
                     layerm->m_fill_surfaces.append(std::move(only_void), stPosInternal | stDensVoid);
                 }
             }

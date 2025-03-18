@@ -29,3 +29,5 @@ deps/build-linux/*
 .pkg_cache
 CMakeUserPresets.json
 resources/scripts/shell/ftp_credentials.conf
+**/bad_*
+

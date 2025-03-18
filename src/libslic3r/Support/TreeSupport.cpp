@@ -242,12 +242,10 @@ ExPolygons to_expolys(Polygons polys) {
     assert(enforcers_layers.size() == num_overhang_layers);
     assert(blockers_layers.size() == num_overhang_layers);
 
-tbb::parallel_for(tbb::blocked_range<int>(1, num_overhang_layers),
-    [&print_object, &config, &print_config, &enforcers_layers, &enforcers_custom_facets, &blockers_layers, &blockers_custom_facets,
-     support_auto, support_enforce_layers, support_threshold_auto, tan_threshold, enforcer_overhang_offset, num_raft_layers, &throw_on_cancel, &out]
-        (const tbb::blocked_range<int>& range) {
-        for (int layer_id = range.begin(); layer_id < range.end(); ++layer_id) {
-
+    Slic3r::parallel_for(size_t(1), num_overhang_layers,
+        [&print_object, &config, &print_config, &enforcers_layers, &enforcers_custom_facets, &blockers_layers, &blockers_custom_facets,
+         support_auto, support_enforce_layers, support_threshold_auto, tan_threshold, enforcer_overhang_offset, num_raft_layers, &throw_on_cancel, &out]
+        (const size_t layer_id) {
             const Layer   &current_layer  = *print_object.get_layer(layer_id);
             const Layer   &lower_layer    = *print_object.get_layer(layer_id - 1);
             // Full overhangs with zero lower_layer_offset and no blockers applied.
@@ -384,7 +382,7 @@ tbb::parallel_for(tbb::blocked_range<int>(1, num_overhang_layers),
             out[layer_id + num_raft_layers] = std::move(overhangs);
             throw_on_cancel();
         }
-    });
+    );
 
 #if 0
     if (num_raft_layers > 0) {

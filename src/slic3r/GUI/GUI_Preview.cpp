@@ -602,12 +602,12 @@ void Preview::update_layers_slider(const std::vector<double>& layers_z, bool sho
     int idx_low = std::max(current_lower_tick, 0);
     int idx_high = snap_to_max ? m_layers_slider->GetMaxValue() : std::min(current_higher_tick, m_layers_slider->GetMaxValue());
     if (!layers_z.empty()) {
-        if (!snap_to_min) {
+        if (!snap_to_min && !is_approx(layers_z[idx_low], z_low, 0.0000001)) {
             int idx_new = find_close_layer_idx(layers_z, z_low, DoubleSlider::epsilon()/*1e-6*/);
             if (idx_new != -1)
                 idx_low = idx_new;
         }
-        if (!snap_to_max) {
+        if (!snap_to_max && !is_approx(layers_z[idx_high], z_high, 0.0000001)) {
             int idx_new = find_close_layer_idx(layers_z, z_high, DoubleSlider::epsilon()/*1e-6*/);
             if (idx_new != -1)
                 idx_high = idx_new;

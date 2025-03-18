@@ -334,9 +334,9 @@ std::vector<DistancedPoint> slice_xy_path(tcb::span<const Point> xy_path,
                 } else {
                     //don't bother if it's at less than epsilon from the last point
                     if (dist_target > total_distance + min_distance) {
-                        total_distance = dist_target;
                         result.emplace_back(
-                            DistancedPoint{Line(result.back().point, point).point_at(dist_target), total_distance});
+                            DistancedPoint{Line(result.back().point, point).point_at(dist_target - total_distance), dist_target});
+                        total_distance = dist_target;
                     }
                 }
                 ++dist_idx;

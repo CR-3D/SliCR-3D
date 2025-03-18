@@ -1,10 +1,11 @@
-///|/ Copyright (c) Prusa Research 2017 - 2023 Oleksandra Iushchenko @YuSanka, Lukáš Matěna @lukasmatena, Tomáš Mészáros @tamasmeszaros, Lukáš Hejl @hejllukas, Vojtěch Bubník @bubnikv, Pavel Mikuš @Godrak, David Kocík @kocikdav, Enrico Turri @enricoturri1966, Vojtěch Král @vojtechkral
+///|/ Copyright (c) SuperSlicer 2025 Durand rémi @supermerill
+///|/ Copyright (c) Prusa Research 2017 - 2024 Oleksandra Iushchenko @YuSanka, Lukáš Matěna @lukasmatena, Tomáš Mészáros @tamasmeszaros, Lukáš Hejl @hejllukas, Vojtěch Bubník @bubnikv, Pavel Mikuš @Godrak, David Kocík @kocikdav, Enrico Turri @enricoturri1966, Vojtěch Král @vojtechkral
 ///|/ Copyright (c) 2021 Martin Budden
 ///|/ Copyright (c) 2021 Ilya @xorza
 ///|/ Copyright (c) 2019 John Drake @foxox
 ///|/ Copyright (c) 2018 Martin Loidl @LoidlM
 ///|/
-///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
+///|/ SuperSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include <cassert>
 
@@ -49,6 +50,8 @@
 #include "PresetBundle.hpp"
 
 using boost::property_tree::ptree;
+
+// todo: arc_fitting and mlin_gcode_resolution switch from print to printer
 
 namespace Slic3r {
 
@@ -137,14 +140,14 @@ VendorProfile VendorProfile::from_ini(const ptree &tree, const boost::filesystem
     std::vector<std::string> technologies;
     if (Slic3r::unescape_strings_cstyle(technologies_field, technologies) && !technologies.empty()) {
         for (const std::string &technology : technologies) {
-            if (technology == "FFF")
-                res.technologies.push_back(PrinterTechnology::ptFFF);
-            else if (technology == "SLA")
-                res.technologies.push_back(PrinterTechnology::ptSLA);
-            else if (technology == "SLS")
-                res.technologies.push_back(PrinterTechnology::ptSLS);
-            else
-                BOOST_LOG_TRIVIAL(error) << boost::format("Vendor bundle: `%1%`: Malformed technologies field: `%2%`") % id % technologies_field;
+            PrinterTechnology tech = parse_printer_technology(technology);
+            if (tech != ptUnknown) {
+                res.technologies.push_back(tech);
+            } else {
+                BOOST_LOG_TRIVIAL(error)
+                    << boost::format("Vendor bundle: `%1%`: Malformed technologies field: `%2%`") % id %
+                        technologies_field;
+            }
         }
     } else {
         //default to FFF if not present
@@ -336,10 +339,12 @@ void Preset::normalize(DynamicPrintConfig &config)
             if (key == "compatible_prints" || key == "compatible_printers")
                 continue;
             auto *opt = config.option(key, false);
+            auto *opt_default = defaults.option(key);
             /*assert(opt != nullptr);
             assert(opt->is_vector());*/
-            if (opt != nullptr && opt->is_vector())
-                static_cast<ConfigOptionVectorBase*>(opt)->resize(n, defaults.option(key));
+            if (opt != nullptr && opt->is_vector() && opt_default != nullptr) {
+                static_cast<ConfigOptionVectorBase*>(opt)->resize(n, opt_default);
+            }
         }
         // The following keys are mandatory for the UI, but they are not part of FullPrintConfig, therefore they are handled separately.
         for (const char *key : {"filament_settings_id"}) {

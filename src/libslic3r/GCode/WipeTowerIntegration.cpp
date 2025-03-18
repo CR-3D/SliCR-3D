@@ -156,9 +156,13 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
     } else {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]\n","");
     }
-    std::string tcr_gcode;
-    unescape_string_cstyle(tcr_rotated_gcode, tcr_gcode);
-    gcode += tcr_gcode;
+
+    // the custom gcode is already processed by the parser...
+    // supermerill: why? it breaks the '\' from custom gcode. disabling it
+    //std::string tcr_gcode;
+    //unescape_string_cstyle(tcr_rotated_gcode, tcr_gcode);
+    //gcode += tcr_gcode;
+    gcode += tcr_rotated_gcode;
 
     // tag for fan speed (to not lost it)
     if (!finalize)

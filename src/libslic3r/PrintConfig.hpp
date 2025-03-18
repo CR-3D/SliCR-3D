@@ -57,6 +57,8 @@
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
 
+#include <unordered_map>
+
 namespace Slic3r {
 
 enum CompleteObjectSort {
@@ -364,8 +366,9 @@ class PrintConfigDef : public ConfigDef
 public:
     PrintConfigDef();
     
-    static void handle_legacy(t_config_option_key& opt_key, std::string& value, bool remove_unkown_keys = true);
-    static bool is_defined(t_config_option_key& opt_key);
+    static void handle_legacy_map(std::unordered_map<t_config_option_key, std::pair<t_config_option_key, std::string>> &dict, bool remove_unkown_keys = true);
+    static void handle_legacy_pair(t_config_option_key &opt_key, std::string &value, bool remove_unkown_keys = true);
+    static bool is_defined(const t_config_option_key& opt_key);
     static std::map<std::string, std::string> to_prusa(t_config_option_key& opt_key, std::string& value, const DynamicConfig& all_conf);
     static std::map<std::string, std::string> from_prusa(t_config_option_key& opt_key, std::string& value, const DynamicConfig& all_conf);
     static void handle_legacy_composite(DynamicPrintConfig &config, std::map<t_config_option_key, std::string> &opt_deleted);
@@ -461,12 +464,16 @@ public:
     // Validate the PrintConfig. Returns an empty string on success, otherwise an error message is returned.
     std::string         validate();
 
+
+#ifdef _DEBUGINFO
     // Verify whether the opt_key has not been obsoleted or renamed.
     // Both opt_key and value may be modified by handle_legacy().
     // If the opt_key is no more valid in this version of Slic3r, opt_key is cleared by handle_legacy().
     // handle_legacy() is called internally by set_deserialize().
-    void                handle_legacy(t_config_option_key &opt_key, std::string &value) const override
-        { PrintConfigDef::handle_legacy(opt_key, value); }
+    void                handle_legacy(t_config_option_key &opt_key, std::string &value) const override {
+        PrintConfigDef::handle_legacy_pair(opt_key, value);
+    }
+#endif
     // Called after a config is loaded as a whole.
     // Perform composite conversions, for example merging multiple keys into one key.
     // For conversion of single options, the handle_legacy() method above is called.
@@ -521,12 +528,14 @@ public:
     virtual const t_config_option_keys& keys_ref() const = 0;
 
 protected:
+#ifdef _DEBUGINFO
     // Verify whether the opt_key has not been obsoleted or renamed.
     // Both opt_key and value may be modified by handle_legacy().
     // If the opt_key is no more valid in this version of Slic3r, opt_key is cleared by handle_legacy().
     // handle_legacy() is called internally by set_deserialize().
     void                handle_legacy(t_config_option_key &opt_key, std::string &value) const override
-        { PrintConfigDef::handle_legacy(opt_key, value); }
+        { PrintConfigDef::handle_legacy_pair(opt_key, value); }
+#endif
 
     // Internal class for keeping a dynamic map to static options.
     class StaticCacheBase
@@ -645,10 +654,7 @@ protected: \
     STATIC_PRINT_CONFIG_CACHE_BASE(CLASS_NAME) \
 public: \
     /* Overrides ConfigBase::def(). Static configuration definition. Any value stored into this ConfigBase shall have its definition here. */ \
-    const ConfigDef*    def() const override { return &print_config_def; } \
-    /* Handle legacy and obsoleted config keys */ \
-    void                handle_legacy(t_config_option_key &opt_key, std::string &value) const override \
-        { PrintConfigDef::handle_legacy(opt_key, value); }
+    const ConfigDef*    def() const override { return &print_config_def; }
 
 #define PRINT_CONFIG_CLASS_ELEMENT_DEFINITION(r, data, elem) BOOST_PP_TUPLE_ELEM(0, elem) BOOST_PP_TUPLE_ELEM(1, elem);
 #define PRINT_CONFIG_CLASS_ELEMENT_INITIALIZATION2(KEY) cache.opt_add(BOOST_PP_STRINGIZE(KEY), base_ptr, this->KEY);
@@ -1784,12 +1790,13 @@ public:
     // Overrides ConfigBase::def(). Static configuration definition. Any value stored into this ConfigBase shall have its definition here.
     const ConfigDef*        def() const override { return &s_def; }
 
+#ifdef _DEBUGINFO
     // Verify whether the opt_key has not been obsoleted or renamed.
     // Both opt_key and value may be modified by handle_legacy().
     // If the opt_key is no more valid in this version of Slic3r, opt_key is cleared by handle_legacy().
     // handle_legacy() is called internally by set_deserialize().
     void                    handle_legacy(t_config_option_key &opt_key, std::string &value) const override;
-
+#endif
 private:
     class PrintAndCLIConfigDef : public ConfigDef
     {
