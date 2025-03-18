@@ -308,6 +308,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
         size_t non_zero_pos = nozzle_diameter_str.find_first_not_of('0', decimal_pos + 2);
         nozzle_diameter_str.erase(non_zero_pos, std::string::npos);
     }*/
+    std::replace(nozzle_diameter_str.begin(), nozzle_diameter_str.end(), ',', '.');
 
     std::string bend_90_nozzle_size_3mf = "90_bend_" + nozzle_diameter_str + ".3mf";
     std::string selected_extrusion_role = dynamicExtrusionRole[0]->GetValue().ToStdString();
