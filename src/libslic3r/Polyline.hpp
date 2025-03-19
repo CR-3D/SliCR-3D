@@ -113,6 +113,7 @@ bool remove_same_neighbor(Polyline &polyline);
 bool remove_same_neighbor(Polylines &polylines);
 // remove any point that are at epsilon  (or resolution) 'distance' (douglas_peuckere algo for now) and all polylines that are too small to be valid
 void ensure_valid(Polylines &polylines, coord_t resolution = SCALED_EPSILON);
+void ensure_valid(Polyline &polyline, coord_t resolution = SCALED_EPSILON);
 
 inline double total_length(const Polylines &polylines) {
     double total = 0;

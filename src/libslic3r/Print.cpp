@@ -452,7 +452,9 @@ std::set<uint16_t> Print::object_extruders(const PrintObjectPtrs &objects, float
             for (const Layer *layer : object->layers()) {
                 if (layer->print_z - layer->height - EPSILON < z && z < layer->print_z + EPSILON ) {
                     for (const LayerRegion *lr : layer->regions()) {
-                        region_set.insert(&lr->region());
+                        if (lr->has_extrusions()) {
+                            region_set.insert(&lr->region());
+                        }
                     }
                 }
             }

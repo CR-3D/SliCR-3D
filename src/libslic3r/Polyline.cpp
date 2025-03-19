@@ -255,6 +255,15 @@ void ensure_valid(Polylines &polylines, coord_t resolution) {
     }
 }
 
+void ensure_valid(Polyline &polyline, coord_t resolution) {
+    assert(polyline.size() > 1);
+    polyline.douglas_peucker(resolution);
+    assert(polyline.size() > 1);
+    if (polyline.size() == 2 && polyline.front().coincides_with_epsilon(polyline.back())) {
+        polyline.clear();
+    }
+}
+
 const Point& leftmost_point(const Polylines &polylines)
 {
     if (polylines.empty())

@@ -753,7 +753,6 @@ static inline void tree_supports_generate_paths(
                 pl.reverse();
             pl.points.emplace_back(pl.points.front());
             pl.clip_end(clip_length);
-            pl.assert_valid();
             if (pl.size() < 2)
                 continue;
             // Find the foot of the seam point on anchor_candidates. Only pick an anchor point that was created by offsetting the source contour.
@@ -791,7 +790,6 @@ static inline void tree_supports_generate_paths(
                 // Try to cut an anchor from the closest_contour.
                 // Both closest_contour and pl are CW oriented.
                 pl.points.emplace_back(closest_point.cast<coord_t>());
-            pl.assert_valid();
                 const ClipperLib_Z::Path &path = *closest_contour;
                 double remaining_length = anchor_length - (seam_pt - closest_point).norm();
                 int i = closest_point_idx;
@@ -803,14 +801,12 @@ static inline void tree_supports_generate_paths(
                 if (remaining_length < (1. - closest_point_t) * l) {
                     // Just trim the current line.
                     pl.points.emplace_back((closest_point + v * (remaining_length / l)).cast<coord_t>());
-            pl.assert_valid();
                 } else {
                     // Take the rest of the current line, continue with the other lines.
                     Point pt_path_j(path[j].x(),path[j].y());
                     if (!pl.points.back().coincides_with_epsilon(pt_path_j)) {
                         pl.points.emplace_back(pt_path_j);
                     }
-            pl.assert_valid();
                     pi = pj;
                     for (i = j; path[i].z() == idx_loop && remaining_length > 0; i = j, pi = pj) {
                         j = next_idx_modulo(i, path);
@@ -823,19 +819,19 @@ static inline void tree_supports_generate_paths(
                         }
                         if (remaining_length <= l) {
                             pl.points.emplace_back((pi + v * (remaining_length / l)).cast<coord_t>());
-            pl.assert_valid();
                             break;
                         }
                         pl.points.emplace_back(path[j].x(), path[j].y());
-            pl.assert_valid();
                         remaining_length -= l;
                     }
                 }
             }
             // Start with the anchor.
             pl.reverse();
-            pl.assert_valid();
-            polylines.emplace_back(std::move(pl));
+            ensure_valid(pl, support_params.resolution);
+            if (!pl.empty()) {
+                polylines.emplace_back(std::move(pl));
+            }
         }
 
         ExtrusionEntityCollection &out = eec ? *eec : dst;
