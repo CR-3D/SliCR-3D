@@ -6,6 +6,8 @@ on:
       - rc
       - debug_ubuntu
       - master_27_dev
+      - dev
+
 jobs:
   build:
 

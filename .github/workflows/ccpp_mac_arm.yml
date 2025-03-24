@@ -7,6 +7,7 @@ on:
       - nightly_dev
       - nightly_master
       - debug_macos
+      - dev
 
 jobs:
   build_dep:

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rc
+      - dev
 
 jobs:
   build_dep:
