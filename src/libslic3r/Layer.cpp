@@ -797,6 +797,7 @@ void Layer::make_perimeters()
                     //        LayerRegion &layerm = *m_regions[region_id];
                     //        // Separate the fill surfaces.
                     //        ExPolygons expp = intersection_ex(to_expolygons(new_slices.surfaces), fill_expolygons);
+                    //        ensure_valid(expp, scaled_resolution);
                     //        layerm.m_fill_expolygons = expp;
                     //        if (layerm_config != m_regions[region_id]) {
                     //            layerm.m_fill_no_overlap_expolygons = (layerm_config)->fill_no_overlap_expolygons();
@@ -991,6 +992,7 @@ void Layer::sort_perimeters_into_islands(
                 LayerRegion &l = *m_regions[region_idx];
                 ExPolygons l_slices_exp = to_expolygons(l.slices().surfaces);
                 l.m_fill_expolygons = intersection_ex(l_slices_exp, fill_expolygons);
+                ensure_valid(l.m_fill_expolygons, scaled_resolution);
                 //copy m_fill_no_overlap_expolygons in sister LayerRegion. It will serve as a mask (with intersection). TODO: maybe to intersection(m_fill_no_overlap_expolygons, l.slices().surfaces)
                 if (&this_layer_region != &l) {
                     assert(l.m_fill_no_overlap_expolygons.empty());
@@ -1092,9 +1094,11 @@ void Layer::sort_perimeters_into_islands(
                         fills[new_positions[old_pos]]       = std::move(fills_temp[old_pos]);
                         fill_bboxes[new_positions[old_pos]] = std::move(fill_bboxes_temp[old_pos]);
                     }
+                    assert_valid(fills);
                 }
             } while (sort_region_id != -1);
         } else {
+            ensure_valid(fill_expolygons, scaled_resolution);
             this_layer_region.m_fill_expolygons        = std::move(fill_expolygons);
             this_layer_region.m_fill_expolygons_bboxes = std::move(fill_expolygons_bboxes);
         }

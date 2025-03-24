@@ -403,6 +403,23 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
                                           config->option("seam_notch_outer")->get_float() != 0);
     toggle_field("seam_notch_angle", have_notch);
 
+    bool have_gap_fill = !have_arachne;
+    toggle_field("gap_fill_enabled", have_gap_fill);
+    for (auto el : { "gap_fill_last"})
+        toggle_field(el, have_gap_fill && config->opt_bool("gap_fill_enabled"));
+    if (have_gap_fill) {
+        have_gap_fill = config->opt_bool("gap_fill_enabled");
+        for (InfillPattern ip : {config->opt_enum<InfillPattern>("bottom_fill_pattern"),
+                                 config->opt_enum<InfillPattern>("solid_fill_pattern"),
+                                 config->opt_enum<InfillPattern>("top_fill_pattern")}) {
+            if (ip == InfillPattern::ipConcentricGapFill || ip == InfillPattern::ipRectilinearWGapFill ||
+                ip == InfillPattern::ipMonotonicWGapFill) {
+                have_gap_fill = true;
+            }
+        }
+    }
+    for (auto el : { "gap_fill_extension", "gap_fill_max_width", "gap_fill_min_area", "gap_fill_min_length", "gap_fill_min_width" })
+        toggle_field(el, have_gap_fill);
     // gap fill  can appear in infill
     toggle_field("gap_fill_speed", have_perimeters && config->opt_bool("gap_fill_enabled"));
 

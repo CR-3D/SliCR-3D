@@ -161,7 +161,6 @@ group:sidetext_width$5:Gap Fill
 		setting:label$_:gap_fill_enabled
 	end_line
 
-
 group:sidetext_width$5:Advanced
 	setting:width$25:no_perimeter_unsupported_algo
 	line:One-loop perimeters

@@ -806,7 +806,7 @@ Updates PresetUpdater::priv::get_config_updates(const Semver &old_slic3r_version
 				updates.incompats.emplace_back(std::move(bundle_path), *ver_current, vp.name);
 				continue;
 			}
-		current_not_supported = true;
+			current_not_supported = true;
 		}
 
 		if (recommended->config_version < vp.config_version) {
@@ -927,7 +927,7 @@ Updates PresetUpdater::priv::get_config_updates(const Semver &old_slic3r_version
 			}
 #endif // 0
 			updates.updates.emplace_back(std::move(new_update));
-			// 'Install' the index in the vendor directory. This is used to memoize
+			// 'Install' the index in the vendor directory. This is used to memorize
 			// offered updates and to not offer the same update again if it was cancelled by the user.
 			copy_file_fix(bundle_path_idx_to_install, bundle_path_idx);
 		} else {
@@ -1109,30 +1109,32 @@ static bool reload_configs_update_gui()
 
 PresetUpdater::UpdateResult PresetUpdater::config_update(const Semver& old_slic3r_version, UpdateParams params, const SharedArchiveRepositoryVector& repositories, PresetUpdaterUIStatus* ui_status) const
 {
- 	if (! p->enabled_config_update) { return R_NOOP; }
+    if (!p->enabled_config_update) {
+        return R_NOOP;
+    }
 
-	auto updates = p->get_config_updates(old_slic3r_version);
-	if (updates.incompats.size() > 0) {
-		BOOST_LOG_TRIVIAL(info) << format("%1% bundles incompatible. Asking for action...", updates.incompats.size());
+    Updates updates = p->get_config_updates(old_slic3r_version);
+    if (updates.incompats.size() > 0) {
+        BOOST_LOG_TRIVIAL(info) << format("%1% bundles incompatible. Asking for action...", updates.incompats.size());
 
-		std::unordered_map<std::string, wxString> incompats_map;
-		for (const auto &incompat : updates.incompats) {
-			const auto min_slic3r = incompat.version.min_slic3r_version;
-			const auto max_slic3r = incompat.version.max_slic3r_version;
-			wxString restrictions;
-			if (min_slic3r != Semver::zero() && max_slic3r != Semver::inf()) {
-                restrictions = GUI::format_wxstr(_L("requires min. %s and max. %s"),
-                    min_slic3r.to_string(),
-                    max_slic3r.to_string());
-			} else if (min_slic3r != Semver::zero()) {
-				restrictions = GUI::format_wxstr(_L("requires min. %s"), min_slic3r.to_string());
-				BOOST_LOG_TRIVIAL(debug) << "Bundle is not downgrade, user will now have to do whole wizard. This should not happen.";
-			} else {
+        std::unordered_map<std::string, wxString> incompats_map;
+        for (const auto &incompat : updates.incompats) {
+            const auto min_slic3r = incompat.version.min_slic3r_version;
+            const auto max_slic3r = incompat.version.max_slic3r_version;
+            wxString restrictions;
+            if (min_slic3r != Semver::zero() && max_slic3r != Semver::inf()) {
+                restrictions = GUI::format_wxstr(_L("requires min. %s and max. %s"), min_slic3r.to_string(),
+                                                 max_slic3r.to_string());
+            } else if (min_slic3r != Semver::zero()) {
+                restrictions = GUI::format_wxstr(_L("requires min. %s"), min_slic3r.to_string());
+                BOOST_LOG_TRIVIAL(debug)
+                    << "Bundle is not downgrade, user will now have to do whole wizard. This should not happen.";
+            } else {
                 restrictions = GUI::format_wxstr(_L("requires max. %s"), max_slic3r.to_string());
-			}
+            }
 
-			incompats_map.emplace(std::make_pair(incompat.vendor, std::move(restrictions)));
-		}
+            incompats_map.emplace(std::make_pair(incompat.vendor, std::move(restrictions)));
+        }
 
 		GUI::MsgDataIncompatible dlg(std::move(incompats_map));
 		const auto res = dlg.ShowModal();
@@ -1162,8 +1164,7 @@ PresetUpdater::UpdateResult PresetUpdater::config_update(const Semver& old_slic3
 		}
 
 		//forced update
-		if (incompatible_version)
-		{
+		if (incompatible_version) {
 			BOOST_LOG_TRIVIAL(info) << format("Update of %1% bundles available. At least one requires higher version of Slicer.", updates.updates.size());
 
 			std::vector<GUI::MsgUpdateForced::Update> updates_msg;

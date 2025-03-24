@@ -386,7 +386,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 params.bridge_angle = float(surface.bridge_angle);
                 params.angle         = (is_denser) ? 0 : compute_fill_angle(region_config, layerm.layer()->id());
                 params.can_angle_cross = region_config.fill_angle_cross;
-		        params.anchor_length = std::min(params.anchor_length, params.anchor_length_max);
+                params.anchor_length = std::min(params.anchor_length, params.anchor_length_max);
 
                 //adjust flow (to over-extrude when needed)
                 params.flow_mult = 1;
