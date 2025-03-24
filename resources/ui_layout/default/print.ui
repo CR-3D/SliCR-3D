@@ -74,15 +74,6 @@ group:Thin Walls
 	line:Thin Walls
 		setting:label$_:thin_walls
 	end_line
-	line:Thin Walls Min Width
-		setting:width$5:thin_walls_min_width
-	end_line
-	line:Thin Walls Overlap
-		setting:width$5:thin_walls_overlap
-	end_line
-	line:Thin Walls Merge
-		setting:thin_walls_merge
-	end_line
 
 group:Avoid crossing perimeters
 	line:Activate

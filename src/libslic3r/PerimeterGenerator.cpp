@@ -4635,24 +4635,19 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         area_used.push_back(expolycontainer.expoly);
                     all_next_onion = &area_used;
                 }
+
                 // look for thin walls
                 if (params.config.thin_walls) {
-                    // detect edge case where a curve can be split in multiple small chunks.
-                    if (allow_perimeter_anti_hysteresis && !special_area) {
-                        std::vector<float> divs = { 2.1f, 1.9f, 2.2f, 1.75f, 1.5f }; //don't go too far, it's not possible to print thin wall after that
-                        size_t idx_div = 0;
-                        while (next_onion.size() > last.size() && idx_div < divs.size()) {
-                            float div = divs[idx_div];
-                            //use a sightly bigger spacing to try to drastically improve the split, that can lead to very thick gapfill
-                            ExPolygons next_onion_secondTry = offset2_ex(
-                                last,
-                                -(float)((params.get_ext_perimeter_width() / 2) + (params.get_ext_perimeter_spacing() / div) - 1),
-                                +(float)((params.get_ext_perimeter_spacing() / div) - 1));
-                            if (next_onion.size() > next_onion_secondTry.size() * 1.2 && next_onion.size() > next_onion_secondTry.size() + 2) {
-                                next_onion = next_onion_secondTry;
-                            }
-                            idx_div++;
-                        }
+                    // the following offset2 ensures almost nothing in @thin_walls is narrower than $min_width
+                    // (actually, something larger than that still may exist due to mitering or other causes)
+                    coord_t min_width = coord_t(scale_(params.ext_perimeter_flow.nozzle_diameter() / 3));
+                    ExPolygons expp = opening_ex(
+                        // medial axis requires non-overlapping geometry
+                        diff_ex(last, offset(next_onion, float(ext_perimeter_width / 2.) + ClipperSafetyOffset)),
+                        float(min_width / 2.));
+                    // the maximum thickness of our thin wall area is equal to the minimum thickness of a single loop
+                    for (ExPolygon &ex : expp)
+                       ex.medial_axis(min_width, ext_perimeter_width + ext_perimeter_spacing2, thin_walls_thickpolys);
                     }
 
                     // the following offset2 ensures almost nothing in @thin_walls is narrower than $min_width
@@ -4734,7 +4729,6 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         //mask
                         next_onion = intersection_ex(next_onion_temp, last);
                     }
-                }
                 if (params.spiral_vase && all_next_onion->size() > 1) {
                     assert(contour_count > 0);
                     // Remove all but the largest area polygon.
@@ -4745,7 +4739,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                 // from the line width of the infill?
                 coord_t good_spacing = (perimeter_idx == 1) ? params.get_ext_perimeter_spacing2() : params.get_perimeter_spacing();
 
-                next_onion = params.config.thin_walls ?
+                offsets = params.config.thin_walls ?
                     // This path will ensure, that the perimeters do not overfill, as in 
                     // prusa3d/Slic3r GH #32, but with the cost of rounding the perimeters
                     // excessively, creating gaps, which then need to be filled in by the not very 
@@ -4753,13 +4747,12 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // Also the offset2(perimeter, -x, x) may sometimes lead to a perimeter, which is larger than
                     // the original.
                     offset2_ex(last,
-                        -(float)(good_spacing + (1 - thin_perimeter) * params.get_perimeter_spacing() / 2 - 1),
-                        +(float)((1 - thin_perimeter) * params.get_perimeter_spacing() / 2 - 1),
-                        (params.use_round_perimeters() ? ClipperLib::JoinType::jtRound : ClipperLib::JoinType::jtMiter),
-                        (params.use_round_perimeters() ? params.get_min_round_spacing() : 3)) :
+                            - float(good_spacing + min_spacing / 2. - 1.),
+                            float(min_spacing / 2. - 1.)) :
                     // If "detect thin walls" is not enabled, this paths will be entered, which 
                     // leads to overflows, as in prusa3d/Slic3r GH #32
                     offset_ex(last, - float(good_spacing));
+                // look for gaps
 
                 // look for gaps
                 if (has_gap_fill)

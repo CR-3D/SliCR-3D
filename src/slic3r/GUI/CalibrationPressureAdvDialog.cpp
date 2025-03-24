@@ -147,7 +147,6 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     {"SolidInfill", "solid_infill_extrusion_width"},
     {"SupportMaterial", "support_material_extrusion_width"},// support material layer_height can go up/down depending on config.
     {"SupportMaterialInterface", "support_material_extrusion_width"},//SupportMaterialInterface and SupportMaterialInterface shares same width calculations?
-    {"ThinWall", "thin_walls_min_width"},//not fully suported -- thin walls might have to get scaled down to 1 wall thick not 4...
     {"TopSolidInfill", "top_infill_extrusion_width"},
     {"FirstLayer", "first_layer_extrusion_width"}
     };
@@ -250,7 +249,6 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     double er_accel = full_print_config.get_computed_value("solid_infill_acceleration");
     double er_speed = full_print_config.get_computed_value("solid_infill_speed");
     double er_spacing = full_print_config.get_abs_value("external_perimeter_extrusion_spacing",nozzle_diameter);
-    double thin_walls_min_width = full_print_config.get_abs_value("thin_walls_min_width", nozzle_diameter);
 
     double default_er_width = full_print_config.get_abs_value("extrusion_width", nozzle_diameter);
     double default_er_speed = full_print_config.get_computed_value("default_speed");

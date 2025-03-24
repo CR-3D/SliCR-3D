@@ -6777,6 +6777,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
+    /*
     def = this->add("thin_walls_min_width", coFloatOrPercent);
     def->label = L("Min width");
     def->full_label = L("Thin walls min width");
@@ -6813,7 +6814,7 @@ void PrintConfigDef::init_fff_params() {
         " You can deactivate this if you are using thin walls as a custom support, to reduce adhesion a little.");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionBool(true));
-
+*/
     def = this->add("thin_walls_acceleration", coFloatOrPercent);
     def->label = L("Thin Walls");
     def->full_label = L("Thin walls acceleration");
@@ -10360,9 +10361,6 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "thin_perimeters_all",
 "thin_perimeters",
 "thin_walls_acceleration",
-"thin_walls_merge",
-"thin_walls_min_width",
-"thin_walls_overlap",
 "thin_walls_speed",
 "thumbnails_color",
 "thumbnails_custom_color",
