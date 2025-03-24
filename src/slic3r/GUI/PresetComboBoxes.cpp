@@ -1299,18 +1299,37 @@ void PlaterPresetComboBox::update()
             set_label_marker(Append(separator(L("System presets")), NullBitmapBndl()));
     }
     
-    if(!system_presets.empty())
-    {
+    if (!system_presets.empty()) {
+        // Sort presets: non-`+` first, then `+`, both groups alphabetically sorted
         std::sort(system_presets.begin(), system_presets.end(), [](const PresetData& a, const PresetData& b) {
-            return a.lower_name < b.lower_name;
-            });
-        
-        for (std::vector<PresetData>::iterator it = system_presets.begin(); it != system_presets.end(); ++it) {
+            bool a_has_plus = a.name.find("+") != std::string::npos;
+            bool b_has_plus = b.name.find("+") != std::string::npos;
+    
+            // Move non-plus names first
+            if (a_has_plus && !b_has_plus) return false;
+            if (!a_has_plus && b_has_plus) return true;
+    
+            // If both have or don't have "+", sort alphabetically
+            return a.lower_name < b.lower_name; 
+        });
+    
+        bool separator_added = false;
+    
+        for (auto it = system_presets.begin(); it != system_presets.end(); ++it) {
+            bool has_plus = it->name.find("+") != std::string::npos;
+    
+            // Insert separator before the first `+` preset
+            if (has_plus && !separator_added) {
+                set_label_marker(Append(separator(L("CR-3D+")), NullBitmapBndl()));
+                separator_added = true;
+            }
+    
+            // Append each preset
             Append(it->name, *it->bitmap);
             validate_selection(it->name == selected_user_preset);
         }
     }
-    
+
     if (!nonsys_presets.empty())
     {
         std::sort(nonsys_presets.begin(), nonsys_presets.end(), [](const PresetData& a, const PresetData& b) {
