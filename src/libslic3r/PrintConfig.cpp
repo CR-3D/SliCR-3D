@@ -9269,8 +9269,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     //fan speed: activate disable.
     assert(!has(dict, "bridge_internal_fan_speed"s));
     for_ech_entry(dict, {
-        "bridge_fan_speed"s, "default_fan_speed"s, "min_fan_speed"s/* this is default_fan_speed's alias*/, "external_perimeter_fan_speed"s,
-        "gap_fill_fan_speed"s, "infill_fan_speed"s, "internal_bridge_fan_speed"s, "overhangs_fan_speed"s,
+        "bridge_fan_speed"s, "default_fan_speed"s, "min_fan_speed"s/* this is default_fan_speed's alias*/, "external_perimeter_fan_speed"s, "infill_fan_speed"s, "internal_bridge_fan_speed"s, "overhangs_fan_speed"s,
         "perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
                   [](Key &opt_key, Val &value) {
             assert(print_config_def.get(opt_key) && print_config_def.get(opt_key)->type == coInts);
