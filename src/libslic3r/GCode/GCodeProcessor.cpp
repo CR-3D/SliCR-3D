@@ -4887,6 +4887,10 @@ void GCodeProcessor::store_move_vertex(EMoveType type, bool internal_only)
         internal_only
     );
 
+#if __WIN32__
+   TimeMachine& machine = m_time_processor.machines.front();
+   machine.blocks.back().moves.push_back(m_result.moves.size() - 1);
+#endif
     // stores stop time placeholders for later use
     if (type == EMoveType::Color_change || type == EMoveType::Pause_Print) {
         for (size_t i = 0; i < static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Count); ++i) {
