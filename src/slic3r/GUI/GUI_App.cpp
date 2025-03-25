@@ -1843,7 +1843,7 @@ void GUI_App::update_ui_colours_from_appconfig() {
         color_from_int(app_config->create_color(1.00f, 0.99f, AppConfig::EAppColorType::Main));
     m_color_selected_btn_bg = is_dark_mode ?
         color_from_int(app_config->create_color(0.35f, 0.37f, AppConfig::EAppColorType::Main)) :
-        color_from_int(app_config->create_color(0.05f, 0.9f, AppConfig::EAppColorType::Main));
+        color_from_int(app_config->create_color(0.51f, 0.47f, AppConfig::EAppColorType::Main));
 #endif
 
     // also update imgui color cache... can be moved if you have a better placee it

@@ -392,7 +392,7 @@ wxBitmapBundle* BitmapCache::from_svg(const std::string& bitmap_name, unsigned t
     //if (dark_mode)
     //    replaces["#808080"] = "#FFFFFF";
     //if (!new_color.empty())
-    //    replaces["#ED6B21"] = new_color;
+    //    replaces["#1A7476"] = new_color;
 
     auto dark_mode_change = color_changes.has_value("#808080");
     bool has_dark_mode = dark_mode_change.has_value() && dark_mode_change->new_color_str == "#FFFFFF";
@@ -482,8 +482,8 @@ wxBitmapBundle* BitmapCache::from_png(const std::string& bitmap_name, unsigned w
 //        if (color_str.front() != '#')
 //            color_str = "#" + color_str;
 //        if (color_str.size() == 7) {
-//            replaces["#ED6B21"] = color_str;
-//            replaces["#ed6b21"] = color_str;
+//            replaces["#1A7476"] = color_str;
+//            replaces["#1A7476"] = color_str;
 //            replaces["#2172eb"] = color_str;
 //        }
 //    }

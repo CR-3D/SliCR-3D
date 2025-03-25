@@ -67,7 +67,7 @@ static std::string def_text_color()
     return encode_color(ColorRGB(def_colour.Red(), def_colour.Green(), def_colour.Blue()));
 }
 static std::string grey     = "#808080";
-static std::string orange   = "#ed6b21";
+static std::string orange   = "#1A7476";
 
 static void color_string(wxString& str, const std::string& color)
 {

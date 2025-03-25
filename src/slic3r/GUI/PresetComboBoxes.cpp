@@ -540,8 +540,8 @@ wxBitmapBundle* PresetComboBox::get_bmp(  std::string bitmap_key, bool wide_icon
                 assert(material_rgb.empty() || material_rgb.size() == 7);
                 assert(material_rgb.empty() || material_rgb.front() == '#');
                 if (material_rgb.size() == 7) {
-                    replaces.add("#ED6B21", material_rgb);
-                    replaces.add("#ed6b21", material_rgb);
+                    replaces.add("#1A7476", material_rgb);
+                    replaces.add("#1A7476", material_rgb);
                     replaces.add("#2172eb", material_rgb);
                 }
                 bmps.emplace_back(bitmap_cache().from_svg(main_icon_name, 16, 16, replaces));//dark_mode, material_rgb));

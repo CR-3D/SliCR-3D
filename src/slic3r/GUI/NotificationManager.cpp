@@ -537,7 +537,7 @@ void NotificationManager::PopNotification::render_hypertext(ImGuiWrapper& imgui,
 	// hover color (hypertext is always blue)
 	//wxColour orange_color = color_from_int(wxGetApp().app_config->create_color(1.f, 0.99f, AppConfig::EAppColorType::Main));
 	//ImVec4 blue_color_vec = ImVec4(orange_color.Red(), orange_color.Green(), orange_color.Blue(), 1.0f);
-	ImVec4 blue_color_vec = ImVec4(.0f, .313f, 1.0f, 1.0f);
+	ImVec4 blue_color_vec = ImVec4(0.102f, 0.455f, 0.463f, 1.0f);
 		//ImVec4(.99f, .313f, .0f, 1.0f);
 	if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 		blue_color_vec.y += 0.2f;

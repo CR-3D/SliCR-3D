@@ -4170,8 +4170,8 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     if (extruders != m_previous_extruders) {
        if (nozzle_size == 2) {
            m_extruders_used = extruders;
-           q->set_bed_shape();
-           m_previous_extruders = extruders;
+           //q->set_bed_shape();
+           //m_previous_extruders = extruders;
        }
     }
     
@@ -5828,12 +5828,8 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
     size_t nozzle_size = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values().size();
     if (nozzle_size <= 1) {
         bool new_shape = bed.set_shape(shape, {}, max_print_height, custom_texture, custom_model, force_as_custom);
-        if (new_shape) {
-            if (view3D) view3D->bed_shape_changed();
-            if (preview) preview->bed_shape_changed();
-        }
-        return;
     }
+
 
     std::vector<std::vector<Vec2d>> exclude_areas;
 
@@ -5868,10 +5864,10 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
         }
     }
 
-    if (new_shape) {
-        //if (view3D) view3D->bed_shape_changed();
-        //if (preview) preview->bed_shape_changed();
-    }
+    if (view3D)
+        view3D->bed_shape_changed();
+    if (preview)
+        preview->bed_shape_changed();
 }
 
 bool Plater::priv::can_delete() const
