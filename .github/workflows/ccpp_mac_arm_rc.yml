@@ -6,6 +6,7 @@ on:
       - master
       - rc
       - master_27_dev
+      - dev
 
 jobs:
   build_dep:

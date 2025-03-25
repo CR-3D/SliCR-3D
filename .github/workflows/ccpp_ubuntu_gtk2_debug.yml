@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - debug_ubuntu
-
+      - dev
 jobs:
   build:
 

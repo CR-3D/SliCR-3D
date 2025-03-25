@@ -7,7 +7,7 @@ on:
       - nightly_dev
       - nightly_master
       - debug_ubuntu
-
+      - dev
 jobs:
   build_dep:
     runs-on: ubuntu-20.04
