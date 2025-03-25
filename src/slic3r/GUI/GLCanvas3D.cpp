@@ -8113,7 +8113,7 @@ Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, const float* z, bool use_
     else {
         Camera& camera = wxGetApp().plater()->get_camera();
         const Camera::EType type = camera.get_type();
-        const Vec4i viewport(camera.get_viewport().data());
+        const Vec4i32 viewport(camera.get_viewport().data());
         Transform3d projection_matrix;
         if (use_ortho && type != Camera::EType::Ortho) {
             const double inv_zoom = camera.get_inv_zoom();

@@ -4739,7 +4739,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                 // from the line width of the infill?
                 coord_t good_spacing = (perimeter_idx == 1) ? params.get_ext_perimeter_spacing2() : params.get_perimeter_spacing();
 
-                offsets = params.config.thin_walls ?
+                next_onion = params.config.thin_walls ?
                     // This path will ensure, that the perimeters do not overfill, as in 
                     // prusa3d/Slic3r GH #32, but with the cost of rounding the perimeters
                     // excessively, creating gaps, which then need to be filled in by the not very 
