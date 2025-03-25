@@ -4226,7 +4226,7 @@ msgstr "Rundungstoleranz"
 msgid "Twisting"
 msgstr "Verdrehen"
 
-msgid "Better Bonding"
+msgid "Better bonding"
 msgstr "Bessere Haftung"
 
 msgid "Wall Transition Angle"
@@ -4262,13 +4262,13 @@ msgstr "Massive Schichten"
 msgid "Minimum Shell Thickness"
 msgstr "Minimale Schalenstärke"
 
-msgid "No Solid Infill Over"
+msgid "No solid infill over"
 msgstr "Keine feste Füllung über"
 
 msgid "Enforce Vertical Shell Thickness"
 msgstr "Stelle die vertikale Hüllenstärke sicher"
 
-msgid "Enforce 100% Fill Volume"
+msgid "Enforce 100% fill volume"
 msgstr "Erzwinge 100 % Füllvolumen"
 
 msgid "Only One Perimeter Top Layer"
@@ -4466,7 +4466,7 @@ msgstr "Tiefe des Innenwischens"
 msgid "Extra Wipe for External Perimeters"
 msgstr "Zusätzliches Wischen für äußere Konturen"
 
-msgid "Minimum Wipe Length"
+msgid "Minimum Wipe length"
 msgstr "Minimale Wischlänge"
 
 msgid "Seam Gap"
@@ -4496,10 +4496,10 @@ msgstr "Steilere Rampe vor Hindernissen"
 msgid "Deretraction extra length"
 msgstr "Zusätzliche Wiedereinzugslänge"
 
-msgid "Minimal Movement After Retraction"
+msgid "Minimal Travel After Retraction"
 msgstr "Minimalbewegung nach Einziehen"
 
-msgid "Minimum travel after z lift"
+msgid "Minimum Travel AFter Lift"
 msgstr "Mindestweg nach Z-Hub"
 
 msgid "Retract On Layer Change"
@@ -4517,7 +4517,7 @@ msgstr "Zusätzliches Wischen für äußere Konturen"
 msgid "Max Wipe deviation"
 msgstr "Maximale Wischabweichung"
 
-msgid "Wipe inside at start"
+msgid "Wipe Inside At Start"
 msgstr "Innenwischen am Anfang"
 
 msgid "Wipe inside at end"
@@ -6941,7 +6941,7 @@ msgid "Min"
 msgstr "Min"
 
 #: src/libslic3r/PrintConfig.cpp:1848
-msgid "Min print speed"
+msgid "Min Print Speed"
 msgstr "Minimale Druckgeschwindigkeit"
 
 #: src/libslic3r/PrintConfig.cpp:3711
@@ -10786,10 +10786,10 @@ msgstr "Überhänge Lüftergeschwindigkeit"
 msgid "Gap fill fan speed"
 msgstr "Spaltfüllung Lüftergeschwindigkeit"
 
-msgid "Layer time goal"
+msgid "Layer Time Goal"
 msgstr "Ziel für die Schichtzeit"
 
-msgid "Max speed reduction"
+msgid "Max Speed Reduction"
 msgstr "Maximale Geschwindigkeitsreduktion"
 
 msgid "Toolchange temperature enabled"
@@ -22091,3 +22091,113 @@ msgstr "zlib-Fehler %d"
 #: ../src/richtext/richtextliststylepage.cpp:496 ../src/richtext/richtextbulletspage.cpp:288
 msgid "~"
 msgstr "~"
+
+
+msgid "Configuration Sources"
+msgstr "Konfigurationsquellen"
+
+msgid "Configuration sources" 
+msgstr "Konfigurationsquellen"
+
+msgid "Online sources"
+msgstr "Online Quellen"
+
+msgid "Local sources"
+msgstr "Lokale Quellen"
+
+msgid "Please, select online sources you want to update profiles from"
+msgstr "Online-Quellen zum Aktualisieren von Profilen auswählen"
+
+msgid "As an alternative to online sources, profiles can also be updated by manually loading files containing the updates. "
+           "This is mostly useful on computers that are not connected to the internet."
+msgstr "Als Alternative zu Online-Quellen können Profile auch durch manuelles Laden von Dateien mit den Aktualisierungen aktualisiert werden. Dies ist vor allem auf Computern nützlich, die nicht mit dem Internet verbunden sind."
+
+msgid "From region"
+msgstr "Von Region"
+
+msgid "From the whole layer"
+msgstr "Von der gesamten Schicht"
+
+msgid "Solid infill threshold width"
+msgstr "Schwellenbreite für solides Füllen"
+
+msgid "Internal bridge infill threshold width"
+msgstr "Schwellenbreite für internes Brückenfüllmuster"
+
+msgid "Anchor Bridged Infill Margin"
+msgstr "Rand für verankerte Brückenfüllung"
+
+msgid "Advanced Infill Options"
+msgstr "Erweiterte Einstellungen für Füllung"
+
+msgid "Retraction length"
+msgstr "Einzugslänge"
+
+msgid "Build Volume"
+msgstr "Bauraum"
+
+msgid "Z Full Step"
+msgstr "Z-Achsen-Vollschritt"
+
+msgid "Min height for travel"
+msgstr "Mindesthöhe für Bewegungen"
+
+msgid "Cooling Fan"
+msgstr "Lüfter"
+
+msgid "Only custom Start G-code"
+msgstr "Nur eigener Start-G-Code"
+
+msgid "Emit temperature commands automatically"
+msgstr "Temperaturbefehle automatisch ausgeben"
+
+msgid "Layer Height Limits"
+msgstr "Grenzwerte für Schichthöhe"
+
+msgid "Minimum retraction"
+msgstr "Minimum Einzug"
+
+msgid "Extra unretraction"
+msgstr "Zusätzliche Rückzugsumkehr"
+
+msgid "Preferred orientation"
+msgstr "Bevorzugte Orientierung"
+
+msgid "Precision Min Resolution"
+msgstr "Minimale Präzisionsauflösung"
+
+msgid "Precision Min Extrusion Length"
+msgstr "Minimale Extrusionslänge für Präzision"
+
+msgid "Processing limit"
+msgstr "Verarbeitungslimit"
+
+msgid "Top Infill Connection"
+msgstr "Obere Infill Verbindung"
+
+msgid "Bottom Infill Connection"
+msgstr "Untere Infill Verbindung"
+
+msgid "Solid Infill Connection"
+msgstr "Feste Infill Verbindung"
+
+msgid "Bridge Infill Connection"
+msgstr "Brücken Infill Verbindung"
+
+msgid "Curve Smoothing"
+msgstr "Kurvenglättung"
+
+msgid "Reduce Printing Time"
+msgstr "Druckzeit reduzieren"
+
+msgid "Infill Angle"
+msgstr "Füllwinkel"
+
+msgid "Width & Flow"
+msgstr "Breite & Fluss"
+
+msgid "Bed Temperature"
+msgstr "Bett Temperatur"
+
+msgid "Internal Bridges"
+msgstr "Interne Brücken"

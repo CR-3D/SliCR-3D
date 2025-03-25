@@ -123,8 +123,6 @@ group:Very Short Layer Time - Began To Decrease Extrusion Rate
 	setting:id$0:label$Layer Time Goal:slowdown_below_layer_time
 	setting:id$0:label$Max Speed Reduction:max_speed_reduction
 	setting:id$0:label$Min Print Speed:min_print_speed
-group:Behavior
-	cooling_description
 
 page:Multimaterial:funnel
 group:Multimaterial toolchange temperature 
