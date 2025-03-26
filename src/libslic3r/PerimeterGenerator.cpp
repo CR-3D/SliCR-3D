@@ -4591,7 +4591,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                 coordf_t good_spacing    = params.get_ext_perimeter_width() / 2;
                 coordf_t overlap_spacing = (1 - thin_perimeter) * params.get_ext_perimeter_spacing() / 2;
                 if (holes_count == 0 || contour_count == 0) {
-
+                    allow_perimeter_anti_hysteresis = false; // don't erase that complicated next_onion computation
                     if (holes_count == 0) {
                         for (ExPolygon &expoly : last) { 
                             last_asynch.push_back(ExPolygonAsynch{ExPolygonAsynch::ExPolygonAsynchType::epatShrinkContour, expoly,
@@ -4617,9 +4617,9 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                                                ClipperLib::JoinType::jtMiter, 3);
                     } else {
                         coordf_t good_spacing    = params.get_ext_perimeter_width() / 2;
-                        coordf_t overlap_spacing = (1 - thin_perimeter) * params.get_ext_perimeter_spacing() / 2;
+                        coordf_t overlap_spacing = (1.f - thin_perimeter) * params.get_ext_perimeter_spacing() / 2;
                         next_onion               = offset2_ex(last, -(float) (good_spacing + overlap_spacing - 1),
-                                                +(float) (overlap_spacing + 1), ClipperLib::JoinType::jtMiter, 3);
+                                                +(float) (overlap_spacing - 1), ClipperLib::JoinType::jtMiter, 3);
                     }
                     if (thin_perimeter < 0.7) {
                         // offset2_ex can create artifacts, if too big. see superslicer#2428
@@ -4648,6 +4648,32 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // the maximum thickness of our thin wall area is equal to the minimum thickness of a single loop
                     for (ExPolygon &ex : expp)
                        ex.medial_axis(min_width, ext_perimeter_width + ext_perimeter_spacing2, thin_walls_thickpolys);
+                    }
+                    
+                    // detect edge case where a curve can be split in multiple small chunks.
+                    if (allow_perimeter_anti_hysteresis && !special_area && next_onion.size() > last.size()) {
+                         // don't go too far, it's not possible to print thin wall after that
+                        std::vector<float> variations = { -.025f, .025f, -.05f, .05f, -.075f, .1f, .15f};
+                        const coordf_t good_spacing    = params.get_ext_perimeter_width() / 2;
+                        const coordf_t overlap_spacing = (1 - thin_perimeter) * params.get_ext_perimeter_spacing() / 2;
+                        for (size_t idx_variations = 0;
+                             next_onion.size() > last.size() && idx_variations < variations.size();
+                             idx_variations++) {
+                            const coordf_t spacing_change = params.get_ext_perimeter_spacing() * variations[idx_variations];
+                            //don't go over 100% overlap
+                            if (overlap_spacing + spacing_change < 1) {
+                                continue;
+                            }
+                            //use a sightly bigger spacing to try to drastically improve the split, that can lead to very thick gapfill
+                            ExPolygons next_onion_secondTry = offset2_ex(
+                                last,
+                                -(float)(good_spacing + overlap_spacing + spacing_change - 1),
+                                +(float)(overlap_spacing + spacing_change) - 1);
+                            if (next_onion.size() > next_onion_secondTry.size() * 1.2 && next_onion.size() > next_onion_secondTry.size() + 2) {
+                                next_onion = next_onion_secondTry;
+                            }
+                            
+                        }
                     }
 
                     // the following offset2 ensures almost nothing in @thin_walls is narrower than $min_width
@@ -4752,7 +4778,6 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // If "detect thin walls" is not enabled, this paths will be entered, which 
                     // leads to overflows, as in prusa3d/Slic3r GH #32
                     offset_ex(last, - float(good_spacing));
-                // look for gaps
 
                 // look for gaps
                 if (has_gap_fill)
@@ -4761,7 +4786,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // won't be able to fill but we'd still remove from infill area
                     append(gaps, diff_ex(
                         offset(last,    - float(0.5 * good_spacing)),
-                        offset(next_onion,   float(0.5 * good_spacing + 10))));  // safety offset
+                        offset(next_onion,   float(0.5 * good_spacing + 25))));  // safety offset
 
 
                 std::vector<ExPolygonAsynch> *touse = nullptr;
