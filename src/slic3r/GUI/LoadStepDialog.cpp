@@ -175,6 +175,12 @@ void LoadStepDialog::add_params(wxSizer* sizer)
             text_ctrl->SetValue(str_precision);
     };
 
+    auto tooltip = [](const SliderHelper& sl_helper) -> wxString {
+        // TRN %n% contain min, max and step values respectively
+        return format_wxstr(_L("Set value from the range [%1%; %2%] with %3% step"),
+                            sl_helper.min_val, sl_helper.max_val, sl_helper.val_step);
+    };
+
     // Add "Linear precision"
 
     m_linear_precision_slider = new wxSlider(this, wxID_ANY, m_linear_precision_sl.get_pos(m_params.linear), m_linear_precision_sl.beg_sl_pos, m_linear_precision_sl.end_sl_pos, wxDefaultPosition, def_slider_size, slyder_style);
@@ -185,8 +191,7 @@ void LoadStepDialog::add_params(wxSizer* sizer)
     });
 
     m_linear_precision_val = new wxTextCtrl(this, wxID_ANY, format_wxstr("%1%", m_linear_precision_sl.adjust_to_region(m_params.linear)), wxDefaultPosition, def_editor_size, text_ctrl_style);
-    m_linear_precision_val->SetToolTip(format_wxstr("Set value from the range [%1%; %2%] with %3% step",
-                                       m_linear_precision_sl.min_val, m_linear_precision_sl.max_val, m_linear_precision_sl.val_step));
+    m_linear_precision_val->SetToolTip(tooltip(m_linear_precision_sl));
 
     m_linear_precision_val->Bind(wxEVT_TEXT_ENTER, [process_value_change, this](wxCommandEvent& e) {
         process_value_change(m_params.linear, m_linear_precision_val, m_linear_precision_slider, m_linear_precision_sl);
@@ -211,8 +216,7 @@ void LoadStepDialog::add_params(wxSizer* sizer)
     });
 
     m_angle_precision_val = new wxTextCtrl(this, wxID_ANY, format_wxstr("%1%", m_angle_precision_sl.adjust_to_region(m_params.angle)), wxDefaultPosition, def_editor_size, text_ctrl_style);
-    m_angle_precision_val->SetToolTip(format_wxstr("Set value from the range [%1%; %2%] with %3% step", 
-                                      m_angle_precision_sl.min_val, m_angle_precision_sl.max_val, m_angle_precision_sl.val_step));
+    m_angle_precision_val->SetToolTip(tooltip(m_angle_precision_sl));
 
     m_angle_precision_val->Bind(wxEVT_TEXT_ENTER, [process_value_change, this](wxCommandEvent& e) {
         process_value_change(m_params.angle, m_angle_precision_val, m_angle_precision_slider, m_angle_precision_sl);
