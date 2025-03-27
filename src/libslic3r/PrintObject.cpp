@@ -286,7 +286,9 @@ void PrintObject::make_perimeters()
 
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment();
-                m_print->secondary_status_counter_add_max(m_layers.size());
+                m_print->set_status( int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()), L("Generating perimeters: layer %s / %s"), 
+                    { std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max()) }, PrintBase::SlicingStatus::SECONDARY_STATE);
+
                 // make perimeters
                 m_layers[layer_idx]->make_perimeters();
         }
