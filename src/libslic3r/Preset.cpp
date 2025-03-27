@@ -789,6 +789,7 @@ static std::vector<std::string> s_Preset_print_options {
         "first_layer_infill_speed",
         // thin wall
         "thin_walls",
+        "thin_walls_min_width",
         "thin_walls_speed",
         //precision, smoothing
 //        "arc_fitting", // in printer preset

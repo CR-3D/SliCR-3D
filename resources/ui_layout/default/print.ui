@@ -74,6 +74,9 @@ group:Thin Walls
 	line:Thin Walls
 		setting:label$_:thin_walls
 	end_line
+	line:Thin Walls Min Width
+		setting:label$_:thin_walls_min_width
+	end_line
 
 group:Avoid crossing perimeters
 	line:Activate

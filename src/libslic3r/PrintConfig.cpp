@@ -6777,7 +6777,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
-    /*
+    
     def = this->add("thin_walls_min_width", coFloatOrPercent);
     def->label = L("Min width");
     def->full_label = L("Thin walls min width");
@@ -6792,7 +6792,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->max_literal = {20, true};
     def->set_default_value(new ConfigOptionFloatOrPercent(33, true));
-
+/*
     def = this->add("thin_walls_overlap", coFloatOrPercent);
     def->label = L("Overlap");
     def->full_label = L("Thin wall overlap");
@@ -10358,6 +10358,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "support_material_interface_layer_height",
 "support_material_bottom_interface_pattern",
 "support_material_layer_height",
+"thin_walls_min_width",
 "thin_perimeters_all",
 "thin_perimeters",
 "thin_walls_acceleration",
