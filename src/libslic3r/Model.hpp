@@ -1170,6 +1170,12 @@ public:
     void set_rotation(const Vec3d& rotation) { m_transformation.set_rotation(rotation); }
     void set_rotation(Axis axis, double rotation) { m_transformation.set_rotation(axis, rotation); }
 
+    void rotate(Matrix3d rotation_matrix) {
+        auto rotation = m_transformation.get_rotation_matrix();
+        rotation      = rotation_matrix * rotation;
+        set_rotation(Geometry::Transformation(rotation).get_rotation());
+    }
+    
     Vec3d get_scaling_factor() const { return m_transformation.get_scaling_factor(); }
     double get_scaling_factor(Axis axis) const { return m_transformation.get_scaling_factor(axis); }
 

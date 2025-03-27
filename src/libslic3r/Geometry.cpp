@@ -410,6 +410,37 @@ Vec3d extract_rotation(const Transform3d& transform)
     return extract_rotation(m);
 }
 
+Vec3d extract_euler_angles(const Eigen::Matrix<double, 3, 3, Eigen::DontAlign>& rotation_matrix)
+{
+    // The extracted "rotation" is a triplet of numbers such that Geometry::rotation_transform
+    // returns the original transform. Because of the chosen order of rotations, the triplet
+    // is not equivalent to Euler angles in the usual sense.
+    Vec3d angles = rotation_matrix.eulerAngles(2,1,0);
+    std::swap(angles(0), angles(2));
+    return angles;
+}
+
+Vec3d extract_euler_angles(const Transform3d& transform)
+{
+    // use only the non-translational part of the transform
+    Eigen::Matrix<double, 3, 3, Eigen::DontAlign> m = transform.matrix().block(0, 0, 3, 3);
+    // remove scale
+    m.col(0).normalize();
+    m.col(1).normalize();
+    m.col(2).normalize();
+    return extract_euler_angles(m);
+}
+
+void rotation_from_two_vectors(Vec3d from, Vec3d to, Vec3d& rotation_axis, double& phi, Matrix3d* rotation_matrix)
+{
+    const Matrix3d m = Eigen::Quaterniond().setFromTwoVectors(from, to).toRotationMatrix();
+    const Eigen::AngleAxisd aa(m);
+    rotation_axis = aa.axis();
+    phi           = aa.angle();
+    if (rotation_matrix)
+        *rotation_matrix = m;
+}
+
 Transform3d Transformation::get_offset_matrix() const
 {
     return translation_transform(get_offset());

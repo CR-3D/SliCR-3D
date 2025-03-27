@@ -5603,6 +5603,91 @@ bool GLCanvas3D::_render_arrange_menu(float pos_x, bool current_bed)
     return true;
 }
 
+//BBS: GUI refactor: adjust main toolbar position
+bool GLCanvas3D::_render_orient_menu(float left, float right, float bottom, float top, bool current_bed)
+{
+    ImGuiWrapper* imgui = wxGetApp().imgui();
+
+    auto canvas_w = float(get_canvas_size().get_width());
+    auto canvas_h = float(get_canvas_size().get_height());
+    //BBS: GUI refactor: move main toolbar to the right
+    //original use center as {0.0}, and top is (canvas_h/2), bottom is (-canvas_h/2), also plus inv_camera
+    //now change to left_up as {0,0}, and top is 0, bottom is canvas_h
+#if BBS_TOOLBAR_ON_TOP
+    const float x = (1 + left) * canvas_w / 2;
+    ImGuiWrapper::push_toolbar_style(get_scale());
+    imgui->set_next_window_pos(x, m_main_toolbar.get_height(), ImGuiCond_Always, 0.5f, 0.0f);
+#else
+    const float x = canvas_w - m_main_toolbar.get_width();
+    const float y = 0.5f * canvas_h - top * float(wxGetApp().plater()->get_camera().get_zoom());
+    imgui->set_next_window_pos(x, y, ImGuiCond_Always, 1.0f, 0.0f);
+#endif
+
+    //imgui->begin(_L("Auto Orientation options"), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+
+    OrientSettings settings = get_orient_settings();
+    OrientSettings& settings_out = get_orient_settings();
+
+    auto& appcfg = wxGetApp().app_config;
+    PrinterTechnology ptech = current_printer_technology();
+
+    bool settings_changed = false;
+    float angle_min = 45.f;
+    std::string angle_key = "overhang_angle", rot_key = "enable_rotation";
+    std::string key_min_area = "min_area";
+    std::string postfix = "_fff";
+
+    if (ptech == ptSLA) {
+        angle_min = 45.f;
+        postfix = "_sla";
+    }
+
+
+    angle_key += postfix;
+    rot_key += postfix;
+
+    //if (imgui->slider_float(_L("Overhang Angle"), &settings.overhang_angle, angle_min, 90.0f, "%5.2f") || angle_min > settings.overhang_angle) {
+    //    settings.overhang_angle = std::max(angle_min, settings.overhang_angle);
+    //    settings_out.overhang_angle = settings.overhang_angle;
+    //    appcfg->set("orient", angle_key, std::to_string(settings_out.overhang_angle));
+    //    settings_changed = true;
+    //}
+
+    if (imgui->checkbox(_L("Enable rotation"), settings.enable_rotation)) {
+        settings_out.enable_rotation = settings.enable_rotation;
+        appcfg->set("orient", rot_key, settings_out.enable_rotation ? "1" : "0");
+        settings_changed = true;
+    }
+
+    if (imgui->checkbox(_L("Optimize support interface area"), settings.min_area)) {
+        settings_out.min_area = settings.min_area;
+        appcfg->set("orient", key_min_area, settings_out.min_area ? "1" : "0");
+        settings_changed = true;
+    }
+
+    ImGui::Separator();
+
+    if (imgui->button(_L("Orient"))) {
+        //wxGetApp().plater()->set_prepare_state(Job::PREPARE_STATE_DEFAULT);
+        wxGetApp().plater()->orient();
+    }
+
+    ImGui::SameLine();
+
+    if (imgui->button(_L("Reset"))) {
+        settings_out = OrientSettings{};
+        settings_out.overhang_angle = 60.f;
+        appcfg->set("orient", angle_key, std::to_string(settings_out.overhang_angle));
+        appcfg->set("orient", rot_key, settings_out.enable_rotation ? "1" : "0");
+        appcfg->set("orient", key_min_area, settings_out.min_area? "1" : "0");
+        settings_changed = true;
+    }
+
+    imgui->end();
+    //ImGuiWrapper::pop_toolbar_style();
+    return settings_changed;
+}
+
 #define ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT 0
 #if ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT
 static void debug_output_thumbnail(const ThumbnailData& thumbnail_data)
@@ -5625,6 +5710,9 @@ static void debug_output_thumbnail(const ThumbnailData& thumbnail_data)
     image.SaveFile("C:/prusa/test/test.png", wxBITMAP_TYPE_PNG);
 }
 #endif // ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT
+
+
+
 
 void GLCanvas3D::_render_thumbnail_internal(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, const GLVolumeCollection& volumes, Camera::EType camera_type)
 {
@@ -6188,10 +6276,29 @@ bool GLCanvas3D::_init_main_toolbar()
     if (!m_main_toolbar.add_item(item))
         return false;
 
+    item.name = "orient";
+    item.icon_filename = "toolbar_orient.svg";
+    item.tooltip = _u8L("Auto orient");
+    item.sprite_id = 3;
+    item.left.render_callback = nullptr;
+    item.enabling_callback = []()->bool { return wxGetApp().plater()->can_arrange(); };
+    item.left.toggable = false;  // allow right mouse click
+    //BBS: GUI refactor: adjust the main toolbar position
+    item.left.action_callback = [this]() {
+        if (m_canvas != nullptr)
+        {
+            wxGetApp().plater()->orient();
+            //BBS do not show orient menu
+           // _render_orient_menu(left, right, bottom, top, false);
+        }
+    };
+    if (!m_main_toolbar.add_item(item))
+        return false;
+
     item.name = "arrange";
     item.icon_filename = "arrange.svg";
     item.tooltip = _u8L("Arrange") + " [A]\n" + _u8L("Arrange selection") + " [Shift+A]\n" + _u8L("Click right mouse button to show arrangement options");
-    item.sprite_id = 3;
+    item.sprite_id = 4;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_ARRANGE)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_arrange(); };
     item.right.toggable = true;
@@ -6207,7 +6314,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.tooltip =
         _u8L("Arrange current bed") + " [D]\n"
         + _u8L("Arrange selection on current bed") + " [Shift+D]\n";
-    item.sprite_id = 4;
+    item.sprite_id = 5;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_ARRANGE_CURRENT_BED)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_arrange(); };
     item.right.toggable = true;
@@ -6228,7 +6335,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "copy";
     item.icon_filename = "copy.svg";
     item.tooltip = _u8L("Copy") + " [" + GUI::shortkey_ctrl_prefix() + "C]";
-    item.sprite_id = 5;
+    item.sprite_id = 6;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_COPY)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_copy_to_clipboard(); };
     if (!m_main_toolbar.add_item(item))
@@ -6237,7 +6344,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "paste";
     item.icon_filename = "paste.svg";
     item.tooltip = _u8L("Paste") + " [" + GUI::shortkey_ctrl_prefix() + "V]";
-    item.sprite_id = 6;
+    item.sprite_id = 7;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_PASTE)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_paste_from_clipboard(); };
     if (!m_main_toolbar.add_item(item))
@@ -6249,7 +6356,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "more";
     item.icon_filename = "instance_add.svg";
     item.tooltip = _u8L("Add instance") + " [+]";
-    item.sprite_id = 7;
+    item.sprite_id = 8;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_MORE)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_increase_instances(); };
@@ -6260,7 +6367,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "fewer";
     item.icon_filename = "instance_remove.svg";
     item.tooltip = _u8L("Remove instance") + " [-]";
-    item.sprite_id = 8;
+    item.sprite_id = 9;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_FEWER)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_decrease_instances(); };
@@ -6273,7 +6380,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "splitobjects";
     item.icon_filename = "split_objects.svg";
     item.tooltip = _u8L("Split to objects");
-    item.sprite_id = 9;
+    item.sprite_id = 10;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_SPLIT_OBJECTS)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_split_to_objects(); };
@@ -6283,7 +6390,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "splitvolumes";
     item.icon_filename = "split_parts.svg";
     item.tooltip = _u8L("Split to parts");
-    item.sprite_id = 10;
+    item.sprite_id = 11;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_SPLIT_VOLUMES)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_split_to_volumes(); };
@@ -6298,7 +6405,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.tooltip = _u8L("Switch to Settings") + "\n" + "[" + GUI::shortkey_ctrl_prefix() + "4] - " + _u8L("Print Settings Tab")    + 
                                                 "\n" + "[" + GUI::shortkey_ctrl_prefix() + "5] - " + (current_printer_technology() == ptFFF ? _u8L("Filament Settings Tab") : _u8L("Material Settings Tab") +
                                                 "\n" + "[" + GUI::shortkey_ctrl_prefix() + "6] - " + _u8L("Printer Settings Tab")) ;
-    item.sprite_id = 11;
+    item.sprite_id = 12;
     item.enabling_callback    = GLToolbarItem::Default_Enabling_Callback;
     item.visibility_callback  = []() { return get_app_config()->get_bool("new_settings_layout_mode") ||
                                                    get_app_config()->get_bool("dlg_settings_layout_mode"); };
@@ -6314,7 +6421,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "search";
     item.icon_filename = "search_.svg";
     item.tooltip = _u8L("Search") + " [" + GUI::shortkey_ctrl_prefix() + "F]";
-    item.sprite_id = 12;
+    item.sprite_id = 13;
     item.left.toggable = true;
     item.left.render_callback = [this](float left, float right, float, float) {
         if (m_canvas != nullptr) {
@@ -6336,7 +6443,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "layersediting";
     item.icon_filename = "layers_white.svg";
     item.tooltip = _u8L("Variable layer height");
-    item.sprite_id = 13;
+    item.sprite_id = 14;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_LAYERSEDITING)); };
     item.visibility_callback = [this]()->bool {
         bool res = current_printer_technology() == ptFFF;

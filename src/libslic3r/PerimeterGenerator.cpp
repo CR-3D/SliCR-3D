@@ -4649,7 +4649,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     for (ExPolygon &ex : expp)
                        ex.medial_axis(min_width, ext_perimeter_width + ext_perimeter_spacing2, thin_walls_thickpolys);
                     }
-                    
+  
                     // detect edge case where a curve can be split in multiple small chunks.
                     if (allow_perimeter_anti_hysteresis && !special_area && next_onion.size() > last.size()) {
                          // don't go too far, it's not possible to print thin wall after that
