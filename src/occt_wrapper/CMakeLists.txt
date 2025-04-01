@@ -68,5 +68,5 @@ target_link_libraries(OCCTWrapper ${OCCT_LIBS})
 
 include(GNUInstallDirs)
 
-install(TARGETS OCCTWrapper DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS OCCTWrapper DESTINATION "${CMAKE_INSTALL_LIBDIR}/superslicer")
 
