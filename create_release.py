@@ -17,7 +17,8 @@ import subprocess
 repo = "slic3r/slic3r"
 program_name = "Slic3r"
 path_7zip = r"C:\Program Files\7-Zip\7z.exe"
-github_auth_token = "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"
+# github classic personal access token, works with [gist, repo, workflow] permissions, should be something like "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"
+github_auth_token = ""
 
 def get_version():
 	settings_stream = open("./version.inc", mode="r", encoding="utf-8");
