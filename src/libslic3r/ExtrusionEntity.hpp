@@ -14,10 +14,10 @@
 #include "Polygon.hpp"
 #include "Polyline.hpp"
 
-#include <assert.h>
+#include <cassert>
+#include <numeric>
 #include <optional>
 #include <string_view>
-#include <numeric>
 
 namespace Slic3r {
 

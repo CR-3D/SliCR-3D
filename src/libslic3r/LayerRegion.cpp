@@ -1361,10 +1361,11 @@ void LayerRegion::simplify_extrusion_entity()
         enable_arc_fitting = ArcFittingType::Disabled;
     coordf_t scaled_resolution = scale_d(print_config.resolution.value);
     if (enable_arc_fitting != ArcFittingType::Disabled) {
-        scaled_resolution = scale_d(print_config.arc_fitting_resolution.get_abs_value(unscaled(scaled_resolution)));
+        scaled_resolution = scale_d(print_config.arc_fitting_resolution.get_abs_value(std::max(EPSILON, unscaled(scaled_resolution))));
     }
     if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting != ArcFittingType::Disabled ? SCALED_EPSILON * 2 : SCALED_EPSILON;
-    
+    scaled_resolution = std::max(double(SCALED_EPSILON), scaled_resolution);
+
 	//Ligne 652:     SimplifyVisitor(coordf_t scaled_resolution, ArcFittingType use_arc_fitting, const ConfigOptionFloatOrPercent *arc_fitting_tolearance)
     //call simplify for all paths
     Slic3r::SimplifyVisitor visitor{ scaled_resolution , enable_arc_fitting, &print_config.arc_fitting_tolerance, enable_arc_fitting != ArcFittingType::Disabled ? SCALED_EPSILON * 2 : SCALED_EPSILON };

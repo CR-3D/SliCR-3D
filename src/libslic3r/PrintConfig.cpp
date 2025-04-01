@@ -43,7 +43,7 @@
 #include <boost/nowide/iostream.hpp>
 
 #include <algorithm>
-#include <float.h>
+#include <cfloat>
 
 namespace Slic3r {
 
@@ -819,7 +819,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
 
     def = this->add("bridge_fan_speed", coInts);
-    def->label = L("Bridges fan speed");
+    def->label = L("Bridge Infill fan speed");
     def->category = OptionCategory::cooling;
     def->tooltip = L("This fan speed is enforced during bridges and overhangs. It won't slow down the fan if it's "
                      "currently running at a higher speed."
@@ -944,7 +944,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("bridge_speed", coFloatOrPercent);
     def->label = L("Bridges");
-    def->full_label = L("Bridge speed");
+    def->full_label = L("Bridge Infill speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing bridges."
                      "\nThis can be expressed as a percentage (for example: 60%) over the Default speed."
@@ -3328,6 +3328,8 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("xyz decimals");
     def->category = OptionCategory::output;
     def->tooltip = L("Choose how many digits after the dot for xyz coordinates.");
+    def->min = 0;
+    def->max = 7;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionInt(3));
 
@@ -3335,6 +3337,8 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Extruder decimals");
     def->category = OptionCategory::output;
     def->tooltip = L("Choose how many digits after the dot for extruder moves.");
+    def->min = 0;
+    def->max = 7;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionInt(5));
 
@@ -3725,7 +3729,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionBool(true));
 
     def = this->add("internal_bridge_fan_speed", coInts);
-    def->label = L("Infill bridges fan speed");
+    def->label = L("Internal Bridge Infill fan speed");
     def->category = OptionCategory::cooling;
     def->tooltip = L("This fan speed is enforced during all infill bridges. It won't slow down the fan if it's "
                      "currently running at a higher speed."
@@ -3752,8 +3756,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionFloatOrPercent(300, true));
 
     def = this->add("internal_bridge_speed", coFloatOrPercent);
-    def->label = L("Internal bridges");
-    def->full_label = L("Internal bridge speed");
+    def->label = L("Internal Bridge Infill speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing the bridges that support the top layer.\nCan be a % of the bridge speed.");
     def->sidetext = L("mm/%");
@@ -4605,8 +4608,8 @@ void PrintConfigDef::init_fff_params() {
     def->full_label = L("Overhangs speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing overhangs."
-                     "\nCan be a % of the bridge speed."
-                     "\nSet zero to use autospeed for this feature.");
+        "\nCan be a % of the bridge infill speed."
+        "\nSet zero to use autospeed for this feature.");
     def->sidetext = L("mm/s");
     def->ratio_over = "bridge_speed";
     def->min = 0;
@@ -8841,7 +8844,8 @@ inline void for_ech_entry(std::unordered_map<t_config_option_key, std::pair<t_co
                           std::initializer_list<t_config_option_key> &&list,
                           const std::function<void(t_config_option_key &opt_key, std::string &value)> &do_something) {
     for (const t_config_option_key &key : list) {
-        if (auto last_search_result = dict.find(key); last_search_result != dict.end() && last_search_result->second.first == key) {
+        if (auto last_search_result = dict.find(key); last_search_result != dict.end()) {
+            // assert(last_search_result->second.first == key); it's possibly different because of alias.
             do_something(last_search_result->second.first, last_search_result->second.second);
         }
     }
@@ -8850,7 +8854,7 @@ inline void for_ech_entry(std::unordered_map<t_config_option_key, std::pair<t_co
                           const std::set<t_config_option_key> &list,
                           const std::function<void(t_config_option_key &opt_key, std::string &value)> &do_something) {
     for (const t_config_option_key &key : list) {
-        if (last_search_result = dict.find(key); last_search_result != dict.end() && last_search_result->second.first == key) {
+        if (last_search_result = dict.find(key); last_search_result != dict.end()) {
             do_something(last_search_result->second.first, last_search_result->second.second);
         }
     }

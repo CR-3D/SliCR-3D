@@ -7,11 +7,11 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#include <stdlib.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <random>
 

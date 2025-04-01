@@ -18,8 +18,8 @@
 
 #include <iostream>
 #include <ctime>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstdio>
 
 #include <wx/wx.h>
 #include <wx/scrolwin.h>

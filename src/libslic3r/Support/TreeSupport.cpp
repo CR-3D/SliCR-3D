@@ -29,15 +29,15 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <optional>
-#include <stdio.h>
 #include <string>
 #include <string_view>
 
 #include <boost/log/trivial.hpp>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 // #define TREESUPPORT_DEBUG_SVG
 

@@ -48,27 +48,27 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cfloat>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <float.h>
 #include <functional>
 #include <limits>
 #include <map>
-#include <oneapi/tbb/blocked_range.h>
-#include <oneapi/tbb/concurrent_vector.h>
-#include <oneapi/tbb/parallel_for.h>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <boost/log/trivial.hpp>
 
-#include <tbb/parallel_for.h>
-#include <vector>
+#include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/concurrent_vector.h>
+#include <oneapi/tbb/parallel_for.h>
+//#include <oneapi/tbb/parallel_for.h>
 
 using namespace std::literals;
 

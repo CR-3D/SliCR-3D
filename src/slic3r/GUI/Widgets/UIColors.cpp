@@ -1,5 +1,7 @@
 #include "UIColors.hpp"
 
+#include <cassert>
+
 namespace Slic3r { namespace GUI { namespace Widget {
 
 static int clr_border_hovered = 0x000000; //0xED6B21; // 0x00AE42;

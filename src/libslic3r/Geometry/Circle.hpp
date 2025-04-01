@@ -6,6 +6,7 @@
 #define slic3r_Geometry_Circle_hpp_
 
 #include "../Point.hpp"
+#include "../Line.hpp"
 
 #include <Eigen/Geometry>
 

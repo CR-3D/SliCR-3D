@@ -5,7 +5,7 @@
 #include "../../ClipperUtils.hpp"
 #include "../FillRectilinear.hpp"
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #ifdef LIGHTNING_DISTANCE_FIELD_DEBUG_OUTPUT
 #include "../../SVG.hpp"

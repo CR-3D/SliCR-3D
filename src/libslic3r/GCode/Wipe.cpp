@@ -439,8 +439,8 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                     travel_ok =true;
                     poly = my_boundary.contour.split_at_index(best_idx);
                 } else {
-                    // get the nearest hole
-                    size_t best_id_hole = 0;
+                    // get the nearest hole (if nearest than contour)
+                    size_t best_id_hole = -1;
                     for (size_t id_hole = 0; id_hole < my_boundary.holes.size(); id_hole++) {
                         for (size_t idx = 0; idx < my_boundary.holes[id_hole].size(); idx++) {
                             coordf_t dist_sqr = start.distance_to_square(my_boundary.holes[id_hole].points[idx]);
@@ -451,7 +451,11 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                             }
                         }
                     }
-                    // CRASH poly = my_boundary.holes[best_id_hole].split_at_index(best_idx);
+                    if (best_id_hole != size_t(-1)) {
+                        poly = my_boundary.holes[best_id_hole].split_at_index(best_idx);
+                    } else {
+                        poly = my_boundary.contour.split_at_index(best_idx);
+                    }
                     travel_ok =true;
                 }
                 if (travel_ok) {

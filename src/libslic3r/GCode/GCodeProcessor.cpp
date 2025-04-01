@@ -21,8 +21,8 @@
 #include <boost/nowide/cstdio.hpp>
 #include <boost/filesystem/path.hpp>
 
-#include <float.h>
-#include <assert.h>
+#include <cassert>
+#include <cfloat>
 
 #if __has_include(<charconv>)
     #include <charconv>

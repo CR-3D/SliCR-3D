@@ -3,9 +3,10 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include <algorithm>
-#include <vector>
-#include <float.h>
+#include <cassert>
+#include <cfloat>
 #include <unordered_map>
+#include <vector>
 
 #include <png.h>
 
@@ -25,7 +26,6 @@
 #undef NDEBUG
 #endif
 
-#include <assert.h>
 
 namespace Slic3r {
 

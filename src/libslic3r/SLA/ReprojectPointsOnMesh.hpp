@@ -11,7 +11,7 @@
 #include "Hollowing.hpp"
 #include "libslic3r/Model.hpp"
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 namespace Slic3r { namespace sla {
 

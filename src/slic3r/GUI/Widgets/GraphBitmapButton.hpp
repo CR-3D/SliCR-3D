@@ -2,6 +2,7 @@
 #define slic3r_GUI_GraphButton_hpp_
 
 #include "../wxExtensions.hpp"
+#include <wx/bmpbuttn.h>
 
 namespace Slic3r {
     struct GraphData;

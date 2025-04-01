@@ -31,8 +31,8 @@
 #include <boost/log/trivial.hpp>
 #include <boost/container/static_vector.hpp>
 
-#include <tbb/parallel_for.h>
-#include <tbb/task_group.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/task_group.h>
 
 #define SUPPORT_USE_AGG_RASTERIZER
 

@@ -23,7 +23,7 @@
 #define enable_27_fixes
 
 #undef NDEBUG
-#include <assert.h>
+#include <cassert>
 
 #if ENABLE_SCROLLABLE
 static wxSize get_screen_size(wxWindow* window)

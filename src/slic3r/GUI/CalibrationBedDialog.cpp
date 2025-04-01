@@ -11,6 +11,7 @@
 #include <wx/scrolwin.h>
 #include <wx/display.h>
 #include <wx/file.h>
+#include <wx/wupdlock.h>
 #include "wxExtensions.hpp"
 #include "Jobs/ArrangeJob2.hpp"
 

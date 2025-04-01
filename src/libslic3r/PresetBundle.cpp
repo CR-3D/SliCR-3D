@@ -1243,11 +1243,12 @@ static void flatten_configbundle_hierarchy(boost::property_tree::ptree &tree, co
         const_cast<pt::ptree*>(prst.node)->erase("inherits");
         if (! inherits_system.empty()) {
             // Loaded a user config bundle, where a profile inherits a system profile.
-			// User profile should be derived from a single system profile only.
-			assert(inherits_system.size() == 1);
-			if (inherits_system.size() > 1)
-				BOOST_LOG_TRIVIAL(error) << "flatten_configbundle_hierarchy: The preset " << prst.name << " inherits from more than single system preset";
-			prst.node->put("inherits", Slic3r::escape_string_cstyle(inherits_system.front()));
+            // User profile should be derived from a single system profile only.
+            assert(inherits_system.size() == 1);
+            if (inherits_system.size() > 1)
+                BOOST_LOG_TRIVIAL(error) << "flatten_configbundle_hierarchy: The preset " << prst.name
+                                         << " inherits from more than single system preset";
+            prst.node->put("inherits", Slic3r::escape_string_cstyle(inherits_system.front()));
         }
     }
 

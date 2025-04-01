@@ -14,7 +14,7 @@
 
 #include <cassert>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #define TREE_SUPPORT_ORGANIC_NUDGE_NEW 1
 

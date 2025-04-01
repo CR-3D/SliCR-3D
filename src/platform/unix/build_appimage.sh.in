@@ -10,15 +10,15 @@
 # 20 Nov 2023, wschadow, minor changes
 #
 
-APPIMAGETOOLURL="https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage"
-
+#old fuse2 tool APPIMAGETOOLURL="https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage"
+APPIMAGETOOLURL="https://github.com/AppImage/appimagetool/releases/download/1.9.0/appimagetool-x86_64.AppImage"
 
 APP_IMAGE="@SLIC3R_APP_KEY@_ubu64.AppImage"
 
 wget ${APPIMAGETOOLURL} -O ../appimagetool.AppImage
 chmod +x ../appimagetool.AppImage
 
-sed -i -e 's#/usr#././#g' bin/@SLIC3R_APP_NAME@
+sed -i -e 's#/usr#././#g' bin/@SLIC3R_APP_CMD@
 cp @SLIC3R_APP_CMD@ AppRun
 chmod +x AppRun
 

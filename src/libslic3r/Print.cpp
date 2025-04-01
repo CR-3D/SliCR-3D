@@ -40,7 +40,8 @@
 #include "BuildVolume.hpp"
 #include "format.hpp"
 
-#include <float.h>
+#include <cfloat>
+
 #include <algorithm>
 #include <limits>
 #include <string>
@@ -51,7 +52,7 @@
 #include <boost/log/trivial.hpp>
 #include <boost/regex.hpp>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 namespace Slic3r {
 
@@ -1823,26 +1824,25 @@ void Print::_make_skirt(const PrintObjectPtrs &objects, ExtrusionEntityCollectio
                 // Collect the outer contour points only, ignore holes for the calculation of the convex hull.
                 append(object_points, expoly.contour.points);
         }
+        // simplify
+        object_points = Slic3r::Geometry::convex_hull(object_points).points;
         // Get support layers up to skirt_height_z.
         for (const SupportLayer *layer : object->support_layers()) {
             if (layer->print_z > skirt_height_z)
                 break;
-            layer->support_fills.collect_points(object_points);
+            for (const ExPolygon &expoly : layer->support_islands)
+                append(object_points, expoly.contour.points);
+            // simplify
+            object_points = Slic3r::Geometry::convex_hull(object_points).points;
         }
         // if brim, it superseed object & support for first layer
         if (config().skirt_distance_from_brim) {
             // get first layer support
             if (!object->support_layers().empty() && object->support_layers().front()->print_z == object->m_layers[0]->print_z) {
                 Points support_points;
-                for (const ExtrusionEntity* extrusion_entity : object->support_layers().front()->support_fills.entities()) {
-                    ArcPolylines polys;
-                    extrusion_entity->collect_polylines(polys);
-                    for (const ArcPolyline &polyline : polys) {
-                        assert(!polyline.has_arc());
-                        append(support_points, polyline.to_polyline().points);
-                    }
-                }
-                Polygon hull_support = Slic3r::Geometry::convex_hull(support_points);
+                for (const ExPolygon &expoly : object->support_layers().front()->support_islands)
+                    append(object_points, expoly.contour.points);
+                const Polygon hull_support = Slic3r::Geometry::convex_hull(support_points);
                 for (const Polygon& poly : offset(hull_support, scale_(object->config().brim_width)))
                     append(object_points, poly.points);
             }
@@ -1861,6 +1861,16 @@ void Print::_make_skirt(const PrintObjectPtrs &objects, ExtrusionEntityCollectio
                 }
             }
         }
+        // simplify
+        Polygon polygon = Slic3r::Geometry::convex_hull(object_points);
+        coord_t scaled_resolution_internal_coarse = std::min(std::max(SCALED_EPSILON * 10,
+                                                                      scale_t(this->config().resolution_internal)),
+                                                             this->skirt_flow(0).scaled_width());
+        if (!ensure_valid(polygon, scaled_resolution_internal_coarse)) {
+            assert(false);
+            return;
+        }
+        object_points = polygon.points;
         // Repeat points for each object copy.
         for (const PrintInstance &instance : object->instances()) {
             Points copy_points = object_points;

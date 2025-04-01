@@ -10,8 +10,8 @@
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Tesselate.hpp"
 
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_reduce.h>
 
 #include <boost/log/trivial.hpp>
 

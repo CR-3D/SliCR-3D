@@ -33,7 +33,7 @@ using namespace Slic3r;
 #include <CGAL/Exact_integer.h>
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/Cartesian_converter.h>
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 // libslic3r
 #include "TriangleMesh.hpp" // its_merge

@@ -6,7 +6,8 @@
 #ifndef slic3r_GLCanvas3D_hpp_
 #define slic3r_GLCanvas3D_hpp_
 
-#include <stddef.h>
+#include <cfloat>
+#include <cstddef>
 #include <memory>
 #include <chrono>
 #include <cstdint>
@@ -19,6 +20,7 @@
 #include "GLSelectionRectangle.hpp"
 #include "MeshUtils.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
+#include "libslic3r/Slicing.hpp"
 #include "GCodeViewer.hpp"
 #include "Camera.hpp"
 #include "SceneRaycaster.hpp"
@@ -27,9 +29,7 @@
 #include "libslic3r/Arrange/ArrangeSettingsDb_AppCfg.hpp"
 #include "ArrangeSettingsDialogImgui.hpp"
 
-#include "libslic3r/Slicing.hpp"
 
-#include <float.h>
 
 #include <wx/timer.h>
 

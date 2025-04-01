@@ -13,8 +13,8 @@
 #include "Print.hpp"
 #include "Layer.hpp"
 #include "Layer.hpp"
+#include <cassert>
 #include <cmath>
-#include <assert.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>

@@ -82,13 +82,23 @@ done
         echo "END otool"
         
         #copy libzstd
-        ZSDT_FILE=
-        echo "libzstd:\n"
+        ZSDT_PATH=
+        echo "libzstd:"
+        echo "ls -al /opt/homebrew/opt/zstd/lib/libzstd*.dylib:"
         ls -al /opt/homebrew/opt/zstd/lib/libzstd*.dylib
+        echo "ls -al /usr/local/opt/zstd/lib/libzstd*.dylib:"
         ls -al /usr/local/opt/zstd/lib/libzstd*.dylib
+        echo "ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib:"
+        ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib
+        echo "ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1:"
+        ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1
         ZSDT_PATH=$(ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
-        if [ -z "${ZSDT_FILE}" ]
+        if [ -z "${ZSDT_PATH}" ]
         then
+            echo "ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib:"
+            ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib
+            echo "ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1:"
+            ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1
             # try with homebrew
             ZSDT_PATH=$(ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
         fi
@@ -96,10 +106,12 @@ done
         echo "zstd var:'"$ZSDT_PATH"' : "$ZSTD_FILE;
         cp $ZSDT_PATH pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/$ZSTD_FILE
         ls -al pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/
-        install_name_tool -change $ZSDT_PATH @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        install_name_tool -change /opt/homebrew/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        
+        if [[ -n "$ZSDT_PATH" ]]
+        then
+            install_name_tool -change $ZSDT_PATH @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+            install_name_tool -change /opt/homebrew/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+            install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        fi
         echo "otool -L exefile now:"
         otool -L pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
         echo "END otool"

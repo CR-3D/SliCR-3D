@@ -14,8 +14,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/log/trivial.hpp>
+#include <cassert>
+#include <cfloat>
 #include <iostream>
-#include <float.h>
 #include <unordered_set>
 
 #if 0
@@ -24,7 +25,6 @@
     #undef NDEBUG
 #endif
 
-#include <assert.h>
 
 #include <fast_float/fast_float.h>
 

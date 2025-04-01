@@ -7,8 +7,8 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 #include <memory>
 
 #include "../ClipperUtils.hpp"
@@ -507,27 +507,36 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
             }
     }
 
+    // merge polygons and ensure no fill overlap.
     {
         const coord_t resolution = std::max(SCALED_EPSILON, scale_t(layer.object()->print()->config().resolution_internal.value));
-        Polygons all_polygons;
+        ExPolygons all_expolygons;
         for (SurfaceFill &fill : surface_fills) {
+            assert_valid(fill.expolygons);
+            // note: Bridges are processed first (see SurfaceFill::operator<())
             if (!fill.expolygons.empty()) {
-                if (fill.params.priority > 0) {
-                    append(all_polygons, to_polygons(fill.expolygons));
-                } else if (fill.expolygons.size() > 1 || !all_polygons.empty()) {
-                    assert_valid(fill.expolygons);
-                    Polygons polys = to_polygons(std::move(fill.expolygons));
-                    // Make a union of polygons, use a safety offset, subtract the preceding polygons.
-                    // Bridges are processed first (see SurfaceFill::operator<())
-                    fill.expolygons = all_polygons.empty() ? union_safety_offset_ex(polys) :
-                                                             diff_ex(polys, all_polygons, ApplySafetyOffset::Yes);
+                if (fill.expolygons.size() > 1) {
+                    // ensure it's fused (should be union_safety_offset_ex, but something in slicing set bridges area farther apart than normal).
+                    fill.expolygons = offset2_ex(fill.expolygons, fill.params.flow.scaled_width() / 4, -fill.params.flow.scaled_width() / 4);
                     ensure_valid(fill.expolygons, resolution);
-                    append(all_polygons, std::move(polys));
-                } else if (&fill != &surface_fills.back()) {
+                }
+                if (fill.params.priority > 0) {
+                    //allow infill overlap if priority is not 0, as it's for dense infill.
+                    all_expolygons = union_ex(all_expolygons, fill.expolygons);
+                } else if (fill.expolygons.size() > 1 || !all_expolygons.empty()) {
                     assert_valid(fill.expolygons);
-                    append(all_polygons, to_polygons(fill.expolygons));
+                    // subtract the preceding polygons, to avoid overlapping infills.
+                    if (!all_expolygons.empty()) {
+                        fill.expolygons = diff_ex(fill.expolygons, all_expolygons, ApplySafetyOffset::Yes);
+                        ensure_valid(fill.expolygons, resolution);
+                    }
+                    all_expolygons = union_ex(all_expolygons, fill.expolygons);
+                } else if (&fill != &surface_fills.back()) {
+                    //still add it to all_expolygons for the next surface_fill
+                    all_expolygons = union_ex(all_expolygons, fill.expolygons);
                 }
             }
+            assert_valid(fill.expolygons);
         }
     }
 

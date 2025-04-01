@@ -3,27 +3,29 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include <numeric>
-#include "Emboss.hpp"
-#include <stdio.h>
-#include <numeric>
 #include <cstdlib>
+#include <cstdio>
+#include <numeric>
+
 #include <boost/nowide/convert.hpp>
 #include <boost/log/trivial.hpp>
 #include <ClipperUtils.hpp> // union_ex + for boldness(polygon extend(offset))
-#include "IntersectionPoints.hpp"
 
 #define STB_TRUETYPE_IMPLEMENTATION // force following include to generate implementation
 #include "imgui/imstb_truetype.h" // stbtt_fontinfo
-#include "Utils.hpp" // ScopeGuard
+
 
 #include <Triangulation.hpp> // CGAL project
-#include "libslic3r.h"
 
 // to heal shape
-#include "ExPolygonsIndex.hpp"
+#include "libslic3r.h"
 #include "libslic3r/AABBTreeLines.hpp" // search structure for found close points
 #include "libslic3r/Line.hpp"
 #include "libslic3r/BoundingBox.hpp"
+#include "Emboss.hpp"
+#include "ExPolygonsIndex.hpp"
+#include "IntersectionPoints.hpp"
+#include "Utils.hpp" // ScopeGuard
 
 // Experimentaly suggested ration of font ascent by multiple fonts
 // to get approx center of normal text line

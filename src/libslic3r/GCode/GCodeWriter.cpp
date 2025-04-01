@@ -19,7 +19,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include <algorithm>
-#include <assert.h>
+#include <cassert>
 #include <iomanip>
 #include <iostream>
 #include <map>

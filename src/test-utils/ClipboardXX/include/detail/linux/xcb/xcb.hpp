@@ -3,7 +3,7 @@
 #include "../../exception.hpp"
 #include "xcb_event.hpp"
 
-#include <assert.h>
+#include <cassert>
 #include <memory>
 #include <optional>
 #include <xcb/xcb.h>

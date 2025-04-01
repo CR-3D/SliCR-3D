@@ -17,23 +17,22 @@
 #include "libslic3r_version.h"
 
 // this needs to be included early for MSVC (listing it in Build.PL is not enough)
-#include <memory>
 #include <array>
 #include <algorithm>
-#include <ostream>
-#include <iostream>
-#include <math.h>
-#include <queue>
-#include <sstream>
-#include <cstdio>
-#include <stdint.h>
-#include <stdarg.h>
-#include <vector>
-#include <set>
 #include <cassert>
 #include <cmath>
-#include <type_traits>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <ostream>
+#include <iostream>
+#include <memory>
 #include <optional>
+#include <queue>
+#include <set>
+#include <sstream>
+#include <type_traits>
+#include <vector>
 
 #ifdef _WIN32
 // On MSVC, std::deque degenerates to a list of pointers, which defeats its purpose of reducing allocator load and memory fragmentation.

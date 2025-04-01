@@ -1,12 +1,12 @@
 #include "Mouse3DController.hpp"
 
-#include <stdint.h>
+#include <array>
+#include <cstdint>
+#include <cstdio>
+
 #include <dlfcn.h>
 
-#include <array>
-
 #include <boost/log/trivial.hpp>
-#include <cstdio>
 
 
 static Slic3r::GUI::Mouse3DController* mouse_3d_controller = nullptr;

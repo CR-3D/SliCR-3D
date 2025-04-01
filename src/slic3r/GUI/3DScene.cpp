@@ -33,10 +33,10 @@
 #include "libslic3r/Tesselate.hpp"
 #include "libslic3r/PrintConfig.hpp"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include <boost/log/trivial.hpp>
 

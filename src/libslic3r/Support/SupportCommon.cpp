@@ -15,7 +15,7 @@
 #include <cmath>
 #include <boost/container/static_vector.hpp>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #include "SupportCommon.hpp"
 #include "SupportLayer.hpp"

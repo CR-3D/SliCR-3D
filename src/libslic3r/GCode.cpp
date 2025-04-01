@@ -50,10 +50,11 @@
 #include "format.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <chrono>
 #include <map>
-#include <math.h>
 #include <unordered_set>
 #include <optional>
 #include <string>
@@ -74,21 +75,21 @@
 #include "SVG.hpp"
 
 #include <fast_float/fast_float.h>
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 // Intel redesigned some TBB interface considerably when merging TBB with their oneAPI set of libraries, see GH #7332.
 // We are using quite an old TBB 2017 U7. Before we update our build servers, let's use the old API, which is deprecated in up to date TBB.
 #if ! defined(TBB_VERSION_MAJOR)
-    #include <tbb/version.h>
+    #include <oneapi/tbb/version.h>
 #endif
 #if ! defined(TBB_VERSION_MAJOR)
     static_assert(false, "TBB_VERSION_MAJOR not defined");
 #endif
 #if TBB_VERSION_MAJOR >= 2021
-    #include <tbb/parallel_pipeline.h>
+    #include <oneapi/tbb/parallel_pipeline.h>
     using slic3r_tbb_filtermode = tbb::filter_mode;
 #else
-    #include <tbb/pipeline.h>
+    #include <oneapi/tbb/pipeline.h>
     using slic3r_tbb_filtermode = tbb::filter;
 #endif
 
@@ -101,7 +102,6 @@ using namespace std::literals::string_view_literals;
 #undef NDEBUG
 #endif
 
-#include <assert.h>
 
 namespace Slic3r {
 

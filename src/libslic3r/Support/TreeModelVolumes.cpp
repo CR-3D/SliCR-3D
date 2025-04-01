@@ -27,8 +27,8 @@
 
 #include <boost/log/trivial.hpp>
 
-#include <tbb/parallel_for.h>
-#include <tbb/task_group.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/task_group.h>
 
 namespace Slic3r::FFFTreeSupport
 {

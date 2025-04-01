@@ -95,8 +95,6 @@ public:
     bool is_valid() const { return this->points.size() >= 3; assert_valid(); }
     void douglas_peucker(coord_t tolerance) override;
     
-    void assert_valid() const;
-    
     // Does an unoriented polygon contain a point?
     bool contains(const Point &point) const { return Slic3r::contains(*this, point, true); }
     // Approximate on boundary test.
@@ -155,10 +153,18 @@ bool        has_duplicate_points(const Polygons &polys);
 bool remove_same_neighbor(Polygon &polygon);
 bool remove_same_neighbor(Polygons &polygons);
 // remove any point that are at epsilon  (or resolution) 'distance' (douglas_peuckere algo for now) and all polygons that are too small to be valid
+
 void ensure_valid(Polygons &polygons, coord_t resolution = SCALED_EPSILON);
-void assert_valid(const Polygons &polygons);
 Polygons ensure_valid(Polygons &&polygons, coord_t resolution = SCALED_EPSILON);
 Polygons ensure_valid(coord_t resolution, Polygons &&polygons);
+// return false if the polygon isn't valid and need to be removed.
+bool ensure_valid(Polygon &polygon, coord_t resolution = SCALED_EPSILON);
+
+#ifdef _DEBUGINFO
+void assert_valid(const Polygons &polygons);
+#else
+inline void assert_valid(const Polygons &polygons) {}
+#endif
 
 inline double total_length(const Polygons &polylines) {
     double total = 0;

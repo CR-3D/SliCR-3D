@@ -361,8 +361,13 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     have_arachne = have_arachne && config->opt_enum<PerimeterGeneratorType>("perimeter_generator") == PerimeterGeneratorType::Arachne;
     for (auto el : { "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle", "wall_distribution_count", "min_feature_size", "min_bead_width", "aaa" })
        toggle_field(el, have_arachne);
+    
+    for (auto el : {"perimeter_loop", "thin_perimeters", "perimeter_round_corners"})
+        toggle_field(el, have_perimeters && !have_arachne);
 
-    bool has_external_peri_not_loop = config->opt_bool("external_perimeters_first") && !config->opt_bool("perimeter_loop");
+    bool have_perimeter_loop = config->opt_bool("perimeter_loop") && !have_arachne;
+
+    bool has_external_peri_not_loop = config->opt_bool("external_perimeters_first") && !have_perimeter_loop;
     toggle_field("external_perimeters_vase", has_external_peri_not_loop);
     toggle_field("external_perimeters_first_force", has_external_peri_not_loop && !have_arachne );
     bool is_ext_forced = config->opt_bool("external_perimeters_first_force");
@@ -371,9 +376,6 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
     toggle_field("perimeter_bonding", config->opt_bool("external_perimeters_first") && !have_arachne && config->option("perimeter_overlap")->get_float() == 100.f && config->option("external_perimeter_overlap")->get_float() == 100.f);
 
-    for (auto el : {"perimeter_loop", "extra_perimeters_on_overhangs",
-        "thin_perimeters", "perimeter_round_corners"})
-        toggle_field(el, have_perimeters && !have_arachne);
     
     toggle_field("no_perimeter_unsupported_algo", have_perimeters);
     toggle_field("only_one_perimeter_top", have_perimeters);
@@ -382,10 +384,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("overhangs_reverse", have_overhangs_reverse);
 
     toggle_field("overhangs_reverse_threshold", have_overhangs_reverse && config->opt_bool("overhangs_reverse"));
-
-    toggle_field("overhangs_reverse_threshold", have_perimeters && config->opt_bool("overhangs_reverse"));
-
-    toggle_field("overhangs_speed_enforce", have_perimeters && !config->opt_bool("perimeter_loop"));
+    toggle_field("overhangs_speed_enforce", have_perimeters && !have_perimeter_loop);
     toggle_field("min_width_top_surface", have_perimeters && config->opt_bool("only_one_perimeter_top"));
     toggle_field("thin_perimeters_all", have_perimeters && config->option("thin_perimeters")->get_float() != 0 && !have_arachne);
     bool have_thin_wall = !have_arachne && have_perimeters;
@@ -396,7 +395,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     for (auto el : { "seam_angle_cost", "seam_travel_cost", "seam_visibility" })
         toggle_field(el, have_perimeters && config->option<ConfigOptionEnum<SeamPosition>>("seam_position")->value == SeamPosition::spCost);
 
-    toggle_field("perimeter_loop_seam", config->opt_bool("perimeter_loop"));
+    toggle_field("perimeter_loop_seam", have_perimeter_loop);
 
     bool have_notch = have_perimeters && (config->option("seam_notch_all")->get_float() != 0 ||
                                           config->option("seam_notch_inner")->get_float() != 0 ||

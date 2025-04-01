@@ -23,8 +23,8 @@
 
 #include <iostream>
 #include <ctime>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include <wx/wx.h>
 #include <wx/brush.h>

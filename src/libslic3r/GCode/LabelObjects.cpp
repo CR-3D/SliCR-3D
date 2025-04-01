@@ -6,7 +6,7 @@
 #include "libslic3r/Print.hpp"
 #include "libslic3r/TriangleMeshSlicer.hpp"
 
-#include <boost/regex.hpp>
+#include <regex>
 
 namespace Slic3r::GCode {
 

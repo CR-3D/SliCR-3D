@@ -43,7 +43,6 @@
 #include <iterator>
 #include <limits>
 #include <list>
-#include <math.h>
 #include <ostream>
 #include <stack>
 #include <string>
@@ -1836,15 +1835,15 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
 void convert_to_clipperpath_with_bbox(const Polygons& source, const BoundingBox& extrusion_path_bbox, ClipperLib_Z::Paths& dest) {
     dest.clear();
     dest.reserve(source.size());
-    Points clipped;
+    Polygon clipped;
     for (const Polygon& poly : source) {
         clipped.clear();
-        ClipperUtils::clip_clipper_polygon_with_subject_bbox(poly.points, extrusion_path_bbox, clipped);
+        ClipperUtils::clip_clipper_polygon_with_subject_bbox(poly, extrusion_path_bbox, clipped);
         if (! clipped.empty()) {
             dest.emplace_back();
             ClipperLib_Z::Path& out = dest.back();
-            out.reserve(poly.points.size());
-            for (const Point& pt : poly.points)
+            out.reserve(clipped.points.size());
+            for (const Point& pt : clipped.points)
                 out.emplace_back(pt.x(), pt.y(), 0);
         }
     }
@@ -3883,7 +3882,8 @@ void PerimeterGenerator::process(// Input:
             //}
         }
         
-        if (lower_slices != nullptr && params.config.overhangs_width_speed.is_enabled() && params.config.extra_perimeters_on_overhangs &&
+        if (lower_slices != nullptr &&
+            params.config.extra_perimeters_on_overhangs &&
             params.config.perimeters > 0 && params.layer->id() > params.object_config.raft_layers) {
 
             // remove infill/peri encroaching
@@ -4763,22 +4763,61 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
             } else {
                 //FIXME Is this offset correct if the line width of the inner perimeters differs
                 // from the line width of the infill?
-                coord_t good_spacing = (perimeter_idx == 1) ? params.get_ext_perimeter_spacing2() : params.get_perimeter_spacing();
-
-                next_onion = params.config.thin_walls ?
+                const coord_t good_spacing = (perimeter_idx == 1) ? params.get_ext_perimeter_spacing2() : params.get_perimeter_spacing();
+                if (thin_perimeter <= 0.98) {
+                    const coordf_t overlap_spacing = (1 - thin_perimeter) * params.get_perimeter_spacing() / 2;
                     // This path will ensure, that the perimeters do not overfill, as in 
                     // prusa3d/Slic3r GH #32, but with the cost of rounding the perimeters
                     // excessively, creating gaps, which then need to be filled in by the not very 
                     // reliable gap fill algorithm.
                     // Also the offset2(perimeter, -x, x) may sometimes lead to a perimeter, which is larger than
                     // the original.
-                    offset2_ex(last,
-                            - float(good_spacing + min_spacing / 2. - 1.),
-                            float(min_spacing / 2. - 1.)) :
-                    // If "detect thin walls" is not enabled, this paths will be entered, which 
-                    // leads to overflows, as in prusa3d/Slic3r GH #32
-                    offset_ex(last, - float(good_spacing));
+                    next_onion = offset2_ex(last,
+                        -(float)(good_spacing + overlap_spacing - 1),
+                        +(float)(overlap_spacing - 1),
+                        (params.use_round_perimeters() ? ClipperLib::JoinType::jtRound : ClipperLib::JoinType::jtMiter),
+                        (params.use_round_perimeters() ? params.get_min_round_spacing() : 3));
+                    if (allow_perimeter_anti_hysteresis) {
+                        // now try with different min spacing if we fear some hysteresis
+                        // TODO, do that for each polygon from last, instead to do for all of them in one go.
+                        ExPolygons no_thin_onion = offset_ex(last, double(-good_spacing));
+                        if (last_area < 0) {
+                            last_area = 0;
+                            for (const ExPolygon &expoly : last) { last_area += expoly.area(); }
+                        }
+                        double new_area = 0;
+                        for (const ExPolygon &expoly : next_onion) { new_area += expoly.area(); }
 
+                        std::vector<float> variations = { .025f, .06f, .125f};// don't over-extrude, so don't use negative variations
+                        for (size_t idx_variations = 0; (next_onion.size() > no_thin_onion.size() ||
+                                                         (new_area != 0 && last_area > new_area * 100)) &&
+                             idx_variations < variations.size();
+                             idx_variations++) {
+                            const coordf_t spacing_change = params.get_ext_perimeter_spacing() * variations[idx_variations];
+                            //use a sightly bigger spacing to try to drastically improve the split, that can lead to very thick gapfill
+                            ExPolygons next_onion_secondTry = offset2_ex(
+                                last,
+                                -(float)(good_spacing + overlap_spacing + spacing_change - 1),
+                                +(float)(overlap_spacing + spacing_change - 1));
+                            if (next_onion.size() > next_onion_secondTry.size() * 1.2 && next_onion.size() > next_onion_secondTry.size() + 2) {
+                                // don't get it if it creates too many
+                                next_onion = next_onion_secondTry;
+                            } else if (next_onion.size() > next_onion_secondTry.size() || last_area > new_area * 100) {
+                                // don't get it if it's too small
+                                double area_new = 0;
+                                for (const ExPolygon &expoly : next_onion_secondTry) { area_new += expoly.area(); }
+                                if (last_area > area_new * 100 || new_area == 0) {
+                                    next_onion = next_onion_secondTry;
+                                }
+                            }
+                        }
+                        last_area = new_area;
+                    }
+                } else {
+                    // If "overlapping_perimeters" is enabled, this paths will be entered, which 
+                    // leads to overflows, as in prusa3d/Slic3r GH #32
+                    next_onion = offset_ex(last, - float(good_spacing));
+                }
                 // look for gaps
                 if (has_gap_fill)
                     // not using safety offset here would "detect" very narrow gaps
