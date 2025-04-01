@@ -690,10 +690,6 @@ bool ensure_valid(Polygon &polygon, coord_t resolution) {
 void assert_valid(const Polygons &polygons) {
     
 }
-#else
-void Polygon::assert_valid() const {
-    
-}
 #endif
 
 static inline bool is_stick(const Point &p1, const Point &p2, const Point &p3)
