@@ -648,6 +648,7 @@ void PreferencesDialog::build()
 			L("Show ignored settings when loading a project or configuration"),
             L("When loading a configuration, if it's coming from an earlier, a future or from another software, show the ignored settings that doesn't suit this version. Uncheck to remove this anoying pop-up."),
 			app_config->get_bool("show_unknown_setting"));
+            app_config->set("show_unknown_setting", "0");
 
         append_bool_option(m_tabid_2_optgroups.back().back(), "use_binary_gcode_when_supported", L("Use binary G-code when the printer supports it"),
                     L("If the 'Supports binary G-code' option is enabled in Printer Settings, "
@@ -763,8 +764,8 @@ void PreferencesDialog::build()
 		
 
 		append_bool_option(m_tabid_2_optgroups.back().back(), "downloader_url_registered",
-			L("Allow downloads from Printables.com"),
-			L("If enabled, Slic3r will be allowed to download from Printables.com"),
+			L("Allow downloads from server."),
+			L("If enabled, SliCR-3D will be allowed to download from our server."),
 			app_config->get_bool("downloader_url_registered"));
 		assert(m_tabid_2_optgroups.size() == tabs->GetPageCount());
 		create_downloader_path_sizer(tabs->GetPage(tabs->GetPageCount()-1), m_tabid_2_optgroups.back().back());
