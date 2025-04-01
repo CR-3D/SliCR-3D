@@ -2282,7 +2282,6 @@ void ConfigWizardIndex::on_paint(wxPaintEvent &evt)
 
     index_height = std::max(index_height, bg.GetHeight() + em_w / 2);
 
-    int virtual_width, virtual_height;
     wxSize virtual_size = GetVirtualSize();
     if (virtual_size.GetWidth() != index_width && virtual_size.GetHeight() != index_height) {
         SetVirtualSize(index_width, index_height);
