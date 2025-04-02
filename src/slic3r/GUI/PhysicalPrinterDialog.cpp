@@ -578,7 +578,8 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     // Always fill in the "printhost_port" combo box from the config and select it.
     {
         Choice* choice = dynamic_cast<Choice*>(m_optgroup->get_field("printhost_port"));
-        choice->set_values({ m_config->opt_string("printhost_port") });
+        const std::vector<std::string> choice_values = { m_config->opt_string("printhost_port") };
+        choice->set_values(choice_values);
         choice->set_selection();
     }
 

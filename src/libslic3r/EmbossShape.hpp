@@ -101,6 +101,10 @@ struct EmbossShape
         // Loaded string data from file
         std::shared_ptr<std::string> file_data = nullptr;
 
+        SvgFile() {}
+        SvgFile(const std::string &path) : path(path) {}
+        SvgFile(const std::string &path, const std::string &path_in_3mf) : path(path), path_in_3mf(path_in_3mf) {}
+
         template<class Archive> void save(Archive &ar) const {
             // Note: image is only cache it is not neccessary to store
 
