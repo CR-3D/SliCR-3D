@@ -15,3 +15,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.14 added FieldRACK printer
 0.0.15 added PETG +
 0.0.16 removed extruder_clearance_height, extruder_clearance_radius from FieldRACK
+0.0.17 changed filament names
