@@ -1218,25 +1218,12 @@ void Sidebar::update_all_preset_comboboxes()
         }
     
     if (print_tech == ptFFF) {
-    /*
+    
         for (PlaterPresetComboBox* cb : p->combos_filament)
             for (size_t extr_idx = 0; extr_idx < p->combos_filament.size(); ++extr_idx) {
                 PlaterPresetComboBox *cb  = p->combos_filament[extr_idx];
                 cb->update();
-                // update tool name
-                auto opt = preset_bundle.printers.get_edited_preset().config.option<ConfigOptionStrings>("tool_name");
-                assert(opt);
-                if (opt && cb->label) {
-                    std::string tool_name = opt->get_at(extr_idx);
-                    std::wstring wide_tool_name = to_wstring(tool_name);
-                    
-                    if (wide_tool_name.size() > 10) {
-                        wide_tool_name = wide_tool_name.substr(0, 7) + std::string("... ");
-                    }
-                    cb->label->SetLabel(wide_tool_name.empty() ? "" : (wide_tool_name + std::string(": ")));
-                }
-            }
-            */
+        }
     }
 }
 
@@ -4862,12 +4849,8 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         tab_print->reload_config();
         return;
     } else if (idx_selected == 0) {
-        // do nothing
         return;
     }
-    
-    tab_print->load_config(print_config);
-    tab_print->reload_config();
 }
 
 void Plater::priv::on_select_preset(wxCommandEvent &evt)
@@ -4896,7 +4879,6 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
     std::string last_selected_ph_printer_name = combo->get_selected_ph_printer_name();
     
     bool select_preset = !combo->selection_is_changed_according_to_physical_printers();
-    // TODO: ?
     
     if (preset_type == Preset::TYPE_FFF_FILAMENT) {
         wxGetApp().preset_bundle->set_filament_preset(idx, preset_name);
