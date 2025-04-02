@@ -28,7 +28,11 @@ if(NOT NLopt_DIR)
 
 	set(NLopt_FOUND TRUE)
 
-	set(_NLopt_LIB_NAMES "nlopt")
+	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+		set(_NLopt_LIB_NAMES "nlopt" "nloptd")
+	else()
+		set(_NLopt_LIB_NAMES "nlopt")
+	endif()
 	find_library(NLopt_LIBS
 		NAMES ${_NLopt_LIB_NAMES})
 	if(NOT NLopt_LIBS)
