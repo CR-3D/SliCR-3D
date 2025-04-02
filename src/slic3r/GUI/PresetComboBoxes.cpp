@@ -1059,19 +1059,6 @@ void PlaterPresetComboBox::switch_to_tab()
 
         else
             wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpLastSettings, false);
-
-        //In a case of a multi-material printing, for editing another Filament Preset
-        //it's needed to select this preset for the "Filament settings" Tab
-        if (m_type == Preset::TYPE_FFF_FILAMENT && wxGetApp().extruders_edited_cnt() > 1)
-        {
-            const std::string& selected_preset = GetString(GetSelection()).ToUTF8().data();
-            // Call select_preset() only if there is new preset and not just modified
-            if (!boost::algorithm::ends_with(selected_preset, Preset::suffix_modified()))
-            {
-                const std::string& preset_name = wxGetApp().preset_bundle->filaments.get_preset_name_by_alias(selected_preset);
-                wxGetApp().get_tab(m_type)->select_preset(preset_name);
-            }
-        }
     }
 }
 
