@@ -4660,22 +4660,49 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         }
 
         //TODO change below things to avoid deleting more than one path, or at least preserve their flow
-        
+
+        // to change the flow, to converve the right amount of plastic (even if we remove more of it in the end)
+        auto ratio_length = [](const Point& last_point, const Point& new_pt, Point &last_proj_point, const Line &projection_line)->double {
+            Point new_proj = new_pt.projection_onto(projection_line.a, projection_line.b);
+            double dist_proj = last_proj_point.distance_to(new_proj);
+            double dist = last_point.distance_to(new_pt);
+            last_proj_point = new_proj;
+            assert(dist >= dist_proj);
+            assert(dist > 0);
+            return dist > 0 ? (dist_proj / dist) : 0;
+        };
         //reduce the flow of the notch path, as it's longer than previously
         // test if the path isn't too curved/sharp
         coordf_t length_temp = notch_length;
         if (length_temp * length_temp < 
             1.4 * notch_extrusion_start.front().polyline.front().distance_to_square(notch_extrusion_start.back().polyline.back())) {
             //create a gentle curve
-            Point p1 = Line(moved_start, Line(start_point, notch_extrusion_start.front().polyline.front()).midpoint()).midpoint();
-            Point p2 = Line(p1, building_paths.front().first_point()).midpoint();
-            p2 = Line(p2, notch_extrusion_start.back().polyline.back()).midpoint();
+            static int aizub=0;
+            SVG svg(debug_out_path("%d-test-%d.svg", m_layer->id(), aizub++));
+            svg.draw(to_polylines(original_loop.as_polylines()), "green", scale_t(0.1));
+            svg.draw(to_polylines(ExtrusionMultiPath(building_paths).as_polylines()), "orange", scale_t(0.08));
+            svg.draw(to_polylines(ExtrusionMultiPath(notch_extrusion_start).as_polylines()), "blue", scale_t(0.06));
+            svg.draw(moved_start, "pink", scale_t(0.07));
+            svg.draw(notch_extrusion_start.front().polyline.front(), "cyan", scale_t(0.065));
+            svg.draw(building_paths.front().first_point(), "brown", scale_t(0.06));
+            svg.draw(start_point, "purple", scale_t(0.055));
+            svg.draw(next_point, "teal", scale_t(0.05));
+
+            Point midpoint_temp = Line(moved_start, next_point).midpoint();
+            Point p1 = Line(moved_start, start_point).midpoint();
+            p1 = p1 + Line(p1, midpoint_temp).vector() * 0.3;
+            Point p2 = Line(start_point, next_point).midpoint();
+            p2 = p2 + Line(p2, midpoint_temp).vector() * 0.3;
+            svg.draw(Polyline({moved_start, p1,p2, next_point}), "yellow", scale_t(0.045));
+            svg.Close();
             ExtrusionPath model(notch_extrusion_start.front());
             model.polyline.clear();
             notch_extrusion_start.clear();
-            create_new_extrusion(notch_extrusion_start, model, 0.25f, moved_start, p1);
-            create_new_extrusion(notch_extrusion_start, model, 0.5f, p1, p2);
-            create_new_extrusion(notch_extrusion_start, model, 0.75f, p2, building_paths.front().first_point());
+            Line projection_line(start_point, next_point);
+            Point proj_point = start_point;
+            create_new_extrusion(notch_extrusion_start, model, ratio_length(moved_start, p1, proj_point, projection_line) * 0.5f, moved_start, p1);
+            create_new_extrusion(notch_extrusion_start, model, ratio_length(p1, p2, proj_point, projection_line) * 0.75f, p1, p2);
+            create_new_extrusion(notch_extrusion_start, model, ratio_length(p2, next_point, proj_point, projection_line) * .9f, p2, next_point);
         } //else : keep the path as-is
         for (ExtrusionPath &ep : notch_extrusion_start) {
             assert(!ep.can_reverse());
@@ -4685,25 +4712,24 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         if (length_temp * length_temp < 
             1.4 * notch_extrusion_end.front().polyline.front().distance_to_square(notch_extrusion_end.back().polyline.back())) {
             //create a gentle curve
-            Point p1 = Line(moved_end, notch_extrusion_end.front().polyline.front()).midpoint();
-            Point p2 = Line(p1, building_paths.back().last_point()).midpoint();
-            p2 = Line(p2, notch_extrusion_end.front().polyline.front()).midpoint();
+            Point midpoint_temp = Line(moved_end, prev_point).midpoint();
+            Point p1 = Line(moved_end, end_point).midpoint();
+            p1 = p1 + Line(p1, midpoint_temp).vector() * 0.3;
+            Point p2 = Line(end_point, prev_point).midpoint();
+            p2 = p2 + Line(p2, midpoint_temp).vector() * 0.3;
+
+            //Point p1 = Line(moved_end, notch_extrusion_end.front().polyline.front()).midpoint();
+            //Point p2 = Line(p1, building_paths.back().last_point()).midpoint();
+            //p2 = Line(p2, notch_extrusion_end.front().polyline.front()).midpoint();
             float flow_ratio = 0.75f;
-            auto check_length_clipped = [&building_paths, &end_point, notch_length](const Point& pt_to_check) {
-                if (notch_length > 0) {
-                    double dist = pt_to_check.projection_onto(building_paths.back().last_point(), end_point).distance_to(end_point);
-                    if (dist < notch_length) {
-                        return false;
-                    }
-                }
-                return true;
-            };
             ExtrusionPath model = notch_extrusion_end.front();
             model.polyline.clear();
             notch_extrusion_end.clear();
-            create_new_extrusion(notch_extrusion_end, model, check_length_clipped(p2)?0.75f:0.f, building_paths.back().last_point(), p2);
-            create_new_extrusion(notch_extrusion_end, model, check_length_clipped(p1) ? 0.5f : 0.f, p2, p1);
-            create_new_extrusion(notch_extrusion_end, model, 0.f, p1, moved_end);
+            Line projection_line(prev_point, end_point);
+            Point proj_point = prev_point;
+            create_new_extrusion(notch_extrusion_end, model, ratio_length(prev_point, p2, proj_point, projection_line) * 0.75f, building_paths.back().last_point(), p2);
+            create_new_extrusion(notch_extrusion_end, model, ratio_length(p2, p1, proj_point, projection_line) * 0.5f, p2, p1);
+            create_new_extrusion(notch_extrusion_end, model, ratio_length(p1, moved_end, proj_point, projection_line) * 0.25f, p1, moved_end);
         } //else : keep the path as-is
     }
     for (ExtrusionPath &ep : notch_extrusion_start) {
