@@ -262,7 +262,7 @@ void NotificationManager::PopNotification::count_spaces()
 #if _WIN32
 	m_line_height = 15.0; //ImGui::CalcTextSize("a").y;
 #else 
-	m_line_height = 28.0;
+	m_line_height = ImGui::CalcTextSize("a").y;
 #endif
 
 	m_left_indentation = m_line_height;
