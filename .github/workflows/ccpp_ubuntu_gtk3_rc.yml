@@ -6,7 +6,9 @@ on:
       - rc
       - debug_ubuntu
       - master_27_dev
-      - dev
+      - master_27
+      - dev_27
+
 
 jobs:
   build:

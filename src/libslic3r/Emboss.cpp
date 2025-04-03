@@ -274,6 +274,24 @@ bool is_valid(const FontFile &font, unsigned int index) {
 fontinfo_opt load_font_info(
     const unsigned char *data, unsigned int index)
 {
+
+    if (stbtt_tag4(data, '1', 0, 0, 0)) {
+        BOOST_LOG_TRIVIAL(debug) << "Loading TrueType file: start with '1'000";
+    } else if (stbtt_tag(data, "typ1")) {
+        BOOST_LOG_TRIVIAL(debug) << "Loading TrueType with type 1 font file: start with 'typ1'";
+        BOOST_LOG_TRIVIAL(error) << "Error, we don't support TrueType with type 1 font";
+    } else if (stbtt_tag(data, "OTTO")) {
+        BOOST_LOG_TRIVIAL(debug) << "Loading OpenType file: start with 'OTTO'";
+    } else if (stbtt_tag4(data, 0,1,0,0)) {
+        BOOST_LOG_TRIVIAL(debug) << "Loading OpenType file: start with 0100";
+    } else if (stbtt_tag(data, "true")) {
+        BOOST_LOG_TRIVIAL(debug) << "Loading Apple specification for TrueType fonts file: start with 'true'";
+    } else {
+        BOOST_LOG_TRIVIAL(error) << "Error, unknown font format, here are the first 4 chars: '"
+            <<data[0]<<"' '"<<data[1]<<"' '"<<data[2]<<"' '"<<data[3]
+            <<"' (in decimal:  "<<int(data[0])<<","<<int(data[1])<<","<<int(data[2])<<","<<int(data[3])<<")";
+    }
+
     int font_offset = stbtt_GetFontOffsetForIndex(data, index);
     if (font_offset < 0) {
         assert(false);
@@ -1074,6 +1092,7 @@ std::unique_ptr<FontFile> Emboss::create_font_file(
 
 std::unique_ptr<FontFile> Emboss::create_font_file(const char *file_path)
 {
+    BOOST_LOG_TRIVIAL(debug) << "open font file: " << file_path;
     FILE *file = std::fopen(file_path, "rb");
     if (file == nullptr) {
         assert(false);

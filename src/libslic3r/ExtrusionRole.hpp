@@ -192,7 +192,7 @@ public:
     }
 
     //modifiers
-    static constexpr const ExtrusionRoleModifier Bridge{ExtrusionRoleModifier::ERM_Bridge};
+    //static constexpr const ExtrusionRoleModifier Bridge{ExtrusionRoleModifier::ERM_Bridge};
 
     static constexpr const ExtrusionRoleModifier None{};
     // Internal perimeter, not bridging.

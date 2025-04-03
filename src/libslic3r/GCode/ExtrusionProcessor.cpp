@@ -15,6 +15,13 @@ ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath   
 {
     if (!path.role().is_overhang()) {
         return { path };
+    } else {
+        assert(path.attributes().overhang_attributes);
+        if (path.attributes().overhang_attributes->start_distance_from_prev_layer != 0) {
+            // not inside the dynamic range
+            assert(path.attributes().overhang_attributes->start_distance_from_prev_layer == 1);
+            return { path };
+        }
     }
     //TODO: 'split' lines if the dist of each point is between 0 and max_width, with a max length of path.width/2
 
@@ -121,6 +128,13 @@ ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath   
     if (result.back().size() == 1) {
         //delete it
         result.pop_back();
+    }
+    //remove overhang role, as it prevents placing seams on it.
+    for (ExtrusionPath &res_path : result) {
+        assert(res_path.role().is_overhang());
+        assert(res_path.attributes().overhang_attributes);
+        res_path.attributes_mutable().role = (res_path.role() & ExtrusionRoleModifier(~ExtrusionRoleModifier::ERM_Bridge));
+        assert(res_path.role() == ExtrusionRole::Perimeter || res_path.role() == ExtrusionRole::Perimeter);
     }
 #ifdef _DEBUG
     for (auto &path : result) {

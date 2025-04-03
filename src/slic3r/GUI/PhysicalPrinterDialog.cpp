@@ -582,7 +582,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         Choice* choice = dynamic_cast<Choice*>(m_optgroup->get_field("printhost_port"));
         choice->set_values({ m_config->opt_string("printhost_port") });
         if (choice->get_value().empty()) {
-            warning_catcher(this, "printhost_port can´t be empty");
+            warning_catcher(this, "printhost_port can't be empty");
         }
         
         choice->set_selection();

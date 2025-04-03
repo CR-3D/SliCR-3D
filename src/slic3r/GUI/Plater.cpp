@@ -4865,9 +4865,6 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         // do nothing
         return;
     }
-    
-    tab_print->load_config(print_config);
-    tab_print->reload_config();
 }
 
 void Plater::priv::on_select_preset(wxCommandEvent &evt)

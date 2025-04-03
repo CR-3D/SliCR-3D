@@ -7,7 +7,9 @@ on:
       - nightly_dev
       - nightly_master
       - debug_macos
-      - dev
+      - master_27
+      - dev_27
+
 
 jobs:
   build_dep:

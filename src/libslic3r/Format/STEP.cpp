@@ -39,7 +39,7 @@ LoadStepFn get_load_step_fn()
 #endif
 
     if (!load_step_fn) {
-        auto libpath = boost::dll::program_location().parent_path();
+        boost::filesystem::path libpath = boost::dll::program_location().parent_path();
 #ifdef _WIN32
         libpath /= "OCCTWrapper.dll";
         HMODULE module = LoadLibraryW(libpath.wstring().c_str());
@@ -61,7 +61,21 @@ LoadStepFn get_load_step_fn()
 #elif __APPLE__
         load_step_fn = &load_step_internal;
 #else
+        if (libpath.filename() == "bin") {
+            libpath = libpath.parent_path();
+            libpath /= "lib";
+        }
+        libpath /= "superslicer";
         libpath /= "OCCTWrapper.so";
+        if (!libpath.exists()) {
+            BOOST_LOG_TRIVIAL(error) << "Error: can't find "<<libpath.string()<< " to load.";
+            boost::filesystem::path libpath = boost::dll::program_location().parent_path();
+            libpath /= "OCCTWrapper.so";
+        }
+        if (!libpath.exists()) {
+            BOOST_LOG_TRIVIAL(error) << "Error: can't find " << libpath.string() << " to load.";
+        }
+
         void *plugin_ptr = dlopen(libpath.c_str(), RTLD_NOW | RTLD_GLOBAL);
 
         if (plugin_ptr) {

@@ -20,6 +20,11 @@ include(GenerateExportHeader)
 generate_export_header(OCCTWrapper)
 
 find_package(OpenCASCADE REQUIRED)
+if (OpenCASCADE_VERSION VERSION_LESS 7.6.2)
+    message(FATAL_ERROR "OpenCASCADE v7 >= v7.6.2 must be used")
+elseif (OpenCASCADE_VERSION VERSION_GREATER_EQUAL 8.0.0)
+    message(FATAL_ERROR "OpenCASCADE v7 >= v7.6.2 must be used")
+endif ()
 
 set(OCCT_LIBS
     TKXCAF
@@ -68,5 +73,5 @@ target_link_libraries(OCCTWrapper ${OCCT_LIBS})
 
 include(GNUInstallDirs)
 
-install(TARGETS OCCTWrapper DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS OCCTWrapper DESTINATION "${CMAKE_INSTALL_LIBDIR}/superslicer")
 

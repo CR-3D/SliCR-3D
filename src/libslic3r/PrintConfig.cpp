@@ -4888,7 +4888,7 @@ void PrintConfigDef::init_fff_params() {
         "This setting allows you to reduce the overlap between the perimeters, to reduce the impact of the "
         "perimeters' artifacts."
         " 100% means that no gap is left, and 0% means that perimeters are not touching each other anymore."
-        "\nIt's very experimental, please report about the usefulness. It may be removed if there is no use for it.");
+        "\nIt's very experimental, please report about the usefulness.");
     def->sidetext = L("%");
     def->min = 0;
     def->max = 100;
