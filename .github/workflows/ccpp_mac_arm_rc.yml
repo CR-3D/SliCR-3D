@@ -5,7 +5,7 @@ on:
     branches:
       - master
       - rc
-      - master_27_dev
+      - master_27
       - dev
 
 jobs:
