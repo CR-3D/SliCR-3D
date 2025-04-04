@@ -217,14 +217,19 @@ public:
 
         wxDisplay main_display;
         wxRect display_size = main_display.GetClientArea();
+        wxSize ppi = main_display.GetPPI();
         //display_size.width = 1920;
         // the scaling factor is for text, not pictures.
         //double scaling = main_display.GetScaleFactor();
         
+        if (ppi.x != 0 && ppi.y != 0) {
+            scaling = scaling * ppi.y / 80.;
+        }
+
         //check if the spashscreen fit
-        scaling = std::min(
+        scaling = std::min( scaling, std::min(
             (display_size.width - display_size.x) * 0.8 / width,
-            (display_size.height - display_size.y) * 0.8 / height);
+            (display_size.height - display_size.y) * 0.8 / height));
         // if screen very small, use all the space avaialble
         if (scaling < 0.5) {
             scaling = std::min(
@@ -235,6 +240,8 @@ public:
             // don't grow with fractional scaling
             if (scaling > 1.8) {
                 scaling = 2 * int(scaling * 0.56);
+            } else if (scaling > 1.4) {
+                scaling = 1.5;
             } else {
                 scaling = 1.;
             }

@@ -390,11 +390,15 @@ Points MultiPoint::_douglas_peucker_plus(const Points& pts, const double toleran
 // to create a cpp multipoint to create test units.
 std::string MultiPoint::to_debug_string()
 {
+    if (points.empty()) {
+        return "{}";
+    }
     std::string ret;
     for (Point pt : points) {
         ret += std::string(",Point{") + std::to_string(pt.x()) + std::string(",") + std::to_string(pt.y()) +
             std::string("}");
     }
+    assert(!ret.empty());
     ret[0] = '{';
     ret += std::string("}");
     return ret;

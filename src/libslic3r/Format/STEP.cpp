@@ -67,12 +67,12 @@ LoadStepFn get_load_step_fn()
         }
         libpath /= "superslicer";
         libpath /= "OCCTWrapper.so";
-        if (!libpath.exists()) {
+        if (!boost::filesystem::exists(libpath)) {
             BOOST_LOG_TRIVIAL(error) << "Error: can't find "<<libpath.string()<< " to load.";
             boost::filesystem::path libpath = boost::dll::program_location().parent_path();
             libpath /= "OCCTWrapper.so";
         }
-        if (!libpath.exists()) {
+        if (!boost::filesystem::exists(libpath)) {
             BOOST_LOG_TRIVIAL(error) << "Error: can't find " << libpath.string() << " to load.";
         }
 

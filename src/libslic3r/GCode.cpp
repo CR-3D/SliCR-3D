@@ -4678,29 +4678,18 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         if (length_temp * length_temp < 
             1.4 * notch_extrusion_start.front().polyline.front().distance_to_square(notch_extrusion_start.back().polyline.back())) {
             //create a gentle curve
-            static int aizub=0;
-            SVG svg(debug_out_path("%d-test-%d.svg", m_layer->id(), aizub++));
-            svg.draw(to_polylines(original_loop.as_polylines()), "green", scale_t(0.1));
-            svg.draw(to_polylines(ExtrusionMultiPath(building_paths).as_polylines()), "orange", scale_t(0.08));
-            svg.draw(to_polylines(ExtrusionMultiPath(notch_extrusion_start).as_polylines()), "blue", scale_t(0.06));
-            svg.draw(moved_start, "pink", scale_t(0.07));
-            svg.draw(notch_extrusion_start.front().polyline.front(), "cyan", scale_t(0.065));
-            svg.draw(building_paths.front().first_point(), "brown", scale_t(0.06));
-            svg.draw(start_point, "purple", scale_t(0.055));
-            svg.draw(next_point, "teal", scale_t(0.05));
 
             Point midpoint_temp = Line(moved_start, next_point).midpoint();
             Point p1 = Line(moved_start, start_point).midpoint();
             p1 = p1 + Line(p1, midpoint_temp).vector() * 0.3;
             Point p2 = Line(start_point, next_point).midpoint();
             p2 = p2 + Line(p2, midpoint_temp).vector() * 0.3;
-            svg.draw(Polyline({moved_start, p1,p2, next_point}), "yellow", scale_t(0.045));
-            svg.Close();
             ExtrusionPath model(notch_extrusion_start.front());
             model.polyline.clear();
             notch_extrusion_start.clear();
             Line projection_line(start_point, next_point);
             Point proj_point = start_point;
+            // we reduce the flow even more to have a "hole" inside.
             create_new_extrusion(notch_extrusion_start, model, ratio_length(moved_start, p1, proj_point, projection_line) * 0.5f, moved_start, p1);
             create_new_extrusion(notch_extrusion_start, model, ratio_length(p1, p2, proj_point, projection_line) * 0.75f, p1, p2);
             create_new_extrusion(notch_extrusion_start, model, ratio_length(p2, next_point, proj_point, projection_line) * .9f, p2, next_point);
@@ -4719,9 +4708,6 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
             Point p2 = Line(end_point, prev_point).midpoint();
             p2 = p2 + Line(p2, midpoint_temp).vector() * 0.3;
 
-            //Point p1 = Line(moved_end, notch_extrusion_end.front().polyline.front()).midpoint();
-            //Point p2 = Line(p1, building_paths.back().last_point()).midpoint();
-            //p2 = Line(p2, notch_extrusion_end.front().polyline.front()).midpoint();
             float flow_ratio = 0.75f;
             ExtrusionPath model = notch_extrusion_end.front();
             model.polyline.clear();
