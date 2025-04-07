@@ -29,6 +29,7 @@
 #include <libqhullcpp/QhullFacetList.h>
 #include <libqhullcpp/QhullVertexSet.h>
 
+#include <cassert>
 #include <cmath>
 #include <deque>
 #include <queue>
@@ -41,12 +42,11 @@
 #include <boost/nowide/cstdio.hpp>
 #include <boost/predef/other/endian.h>
 
-#include <tbb/concurrent_vector.h>
+#include <oneapi/tbb/concurrent_vector.h>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <assert.h>
 
 namespace Slic3r {
 

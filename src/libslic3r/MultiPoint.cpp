@@ -386,15 +386,19 @@ Points MultiPoint::_douglas_peucker_plus(const Points& pts, const double toleran
         assert(!result_pts[i - 1].coincides_with_epsilon(result_pts[i]));
     return result_pts;
 }
-#ifdef _DEBUG
+#ifdef _DEBUGINFO
 // to create a cpp multipoint to create test units.
 std::string MultiPoint::to_debug_string()
 {
+    if (points.empty()) {
+        return "{}";
+    }
     std::string ret;
     for (Point pt : points) {
         ret += std::string(",Point{") + std::to_string(pt.x()) + std::string(",") + std::to_string(pt.y()) +
             std::string("}");
     }
+    assert(!ret.empty());
     ret[0] = '{';
     ret += std::string("}");
     return ret;

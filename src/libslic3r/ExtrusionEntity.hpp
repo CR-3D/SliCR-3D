@@ -14,10 +14,10 @@
 #include "Polygon.hpp"
 #include "Polyline.hpp"
 
-#include <assert.h>
+#include <cassert>
+#include <numeric>
 #include <optional>
 #include <string_view>
-#include <numeric>
 
 namespace Slic3r {
 
@@ -166,6 +166,8 @@ struct ExtrusionAttributes : ExtrusionFlow
     ExtrusionAttributes(ExtrusionRole role) : role{ role } {}
     ExtrusionAttributes(ExtrusionRole role, const Flow &flow) : role{ role }, ExtrusionFlow{ flow } {}
     ExtrusionAttributes(ExtrusionRole role, const ExtrusionFlow &flow) : role{ role }, ExtrusionFlow{ flow } {}
+    ExtrusionAttributes(ExtrusionRole role, const ExtrusionFlow &flow, OverhangAttributes overhang)
+        : role{role}, ExtrusionFlow{flow}, overhang_attributes(overhang) {}
 
     // What is the role / purpose of this extrusion?
     ExtrusionRole   role{ ExtrusionRole::None };

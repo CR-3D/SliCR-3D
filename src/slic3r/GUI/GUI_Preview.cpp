@@ -34,6 +34,7 @@
 #include <wx/combobox.h>
 #include <wx/checkbox.h>
 #include <wx/display.h>
+#include <wx/wupdlock.h>
 
 #include <boost/locale.hpp>
 #include <boost/locale/generator.hpp>

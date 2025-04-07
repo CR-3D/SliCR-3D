@@ -5,13 +5,13 @@
 #ifndef slic3r_GUI_ObjectManipulation_hpp_
 #define slic3r_GUI_ObjectManipulation_hpp_
 
+#include <cfloat>
 #include <memory>
 
 #include "GUI_ObjectSettings.hpp"
 #include "GUI_ObjectList.hpp"
 #include "GUI_Geometry.hpp"
 #include "libslic3r/Point.hpp"
-#include <float.h>
 
 #include "Widgets/ComboBox.hpp"
 #include "Widgets/TextInput.hpp"

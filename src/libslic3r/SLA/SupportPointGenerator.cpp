@@ -2,7 +2,7 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #include "SupportPointGenerator.hpp"
 #include "Execution/ExecutionTBB.hpp"

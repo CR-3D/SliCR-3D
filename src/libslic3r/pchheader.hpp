@@ -11,18 +11,16 @@
 	#endif
 #endif
 
-#include <float.h>
-#include <math.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <string.h>
 
 #include <cassert>
+#include <cfloat>
 #include <climits>
 #include <cmath>
 #include <cstddef>
-#include <cstdio>
+#include <cstdarg>
 #include <cstdlib>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 
@@ -111,10 +109,10 @@
 #include <boost/thread.hpp>
 #include <boost/version.hpp>
 
-#include <tbb/parallel_for.h>
-#include <tbb/scalable_allocator.h>
-#include <tbb/spin_mutex.h>
-#include <tbb/task_group.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/scalable_allocator.h>
+#include <oneapi/tbb/spin_mutex.h>
+#include <oneapi/tbb/task_group.h>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>

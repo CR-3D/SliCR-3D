@@ -12,12 +12,14 @@
 #include <wx/combo.h>
 #include <wx/dataview.h>
 #include <wx/button.h>
+#include <wx/bmpbuttn.h>
 #include <wx/sizer.h>
 #include <wx/menu.h>
 #include <wx/bmpcbox.h>
 #include <wx/bmpbndl.h>
 #include <wx/statbmp.h>
 #include <wx/timer.h>
+#include <wx/dcmemory.h>
 
 #include <vector>
 #include <functional>

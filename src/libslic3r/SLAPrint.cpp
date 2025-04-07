@@ -18,7 +18,7 @@
 #include <unordered_set>
 #include <numeric>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 #include <boost/filesystem/path.hpp>
 #include <boost/log/trivial.hpp>
 

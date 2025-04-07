@@ -5,8 +5,8 @@
 #ifndef slic3r_EdgeGrid_hpp_
 #define slic3r_EdgeGrid_hpp_
 
-#include <stdint.h>
-#include <math.h>
+#include <cmath>
+#include <cstdint>
 
 #include "Point.hpp"
 #include "BoundingBox.hpp"

@@ -1137,8 +1137,8 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox** combo, const int extr_i
     {   // tool name
     /*
         auto opt = wxGetApp().preset_bundle->printers.get_edited_preset().config.option<ConfigOptionStrings>("tool_name");
-        assert(opt);
-        std::string tool_name = opt? opt->get_at(extr_idx) : nullptr;
+        //assert(opt); // sla don't have tool_name
+        std::string tool_name = opt ? opt->get_at(extr_idx) : "";
         int size_panel = get_app_config()->get_int("side_panel_width");
         size_t max_letters  = size_t(std::max(4, size_panel/4));
         if (tool_name.size() > max_letters) {

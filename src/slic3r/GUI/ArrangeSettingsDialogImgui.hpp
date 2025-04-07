@@ -8,6 +8,7 @@
 #include "libslic3r/Arrange/ArrangeSettingsView.hpp"
 #include "ImGuiWrapper.hpp"
 #include "libslic3r/AnyPtr.hpp"
+#include "libslic3r/PrintConfig.hpp"
 
 namespace Slic3r {
 namespace GUI {

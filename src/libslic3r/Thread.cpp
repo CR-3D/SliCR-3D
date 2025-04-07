@@ -19,8 +19,9 @@
 #include <random>
 #include <thread>
 #include <time.h>
-#include <tbb/parallel_for.h>
-#include <tbb/task_arena.h>
+#include <chrono>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/task_arena.h>
 
 #include "Thread.hpp"
 #include "Utils.hpp"

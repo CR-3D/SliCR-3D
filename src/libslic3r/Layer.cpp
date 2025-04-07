@@ -68,6 +68,22 @@ void Layer::make_slices()
         ensure_valid(slices, std::max(scale_t(this->object()->print()->config().resolution), SCALED_EPSILON));
         for (ExPolygon &poly : slices) poly.assert_valid();
         // lslices are sorted by topological order from outside to inside from the clipper union used above
+#ifdef _DEBUG
+        if (slices.size() > 1) {
+            std::vector<BoundingBox> bboxes;
+            bboxes.emplace_back(slices[0].contour.points);
+            for (size_t check_idx = 1; check_idx < slices.size(); ++check_idx) {
+                assert(bboxes.size() == check_idx);
+                bboxes.emplace_back(slices[check_idx].contour.points);
+                for (size_t bigger_idx = 0; bigger_idx < check_idx; ++bigger_idx) {
+                    // higher idx can be inside holes, but not the opposite!
+                    if (bboxes[check_idx].contains(bboxes[bigger_idx])) {
+                        assert(!slices[check_idx].contour.contains(slices[bigger_idx].contour.first_point()));
+                    }
+                }
+            }
+        }
+#endif
         this->set_lslices() = slices;
     }
 

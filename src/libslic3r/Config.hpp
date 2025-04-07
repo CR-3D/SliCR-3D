@@ -22,21 +22,21 @@
 #ifndef slic3r_Config_hpp_
 #define slic3r_Config_hpp_
 
-#include <assert.h>
-#include <map>
+#include <cassert>
+#include <cfloat>
 #include <climits>
-#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <limits>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
-#include <float.h>
 #include "libslic3r.h"
 #include "clonable_ptr.hpp"
 #include "Exception.hpp"

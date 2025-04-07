@@ -12,8 +12,8 @@
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include "GLModel.hpp"
 
+#include <cfloat>
 #include <cstdint>
-#include <float.h>
 #include <set>
 #include <unordered_set>
 

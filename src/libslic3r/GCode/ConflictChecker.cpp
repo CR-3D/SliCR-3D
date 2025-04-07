@@ -5,8 +5,8 @@
 ///|/
 #include "ConflictChecker.hpp"
 
-#include <tbb/parallel_for.h>
-#include <tbb/concurrent_vector.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/concurrent_vector.h>
 
 #include <map>
 #include <functional>

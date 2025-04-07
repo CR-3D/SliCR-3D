@@ -21,7 +21,7 @@
 #include <unordered_set>
 #include <mutex>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 #include <boost/thread/lock_guard.hpp>
 
 #ifndef NDEBUG

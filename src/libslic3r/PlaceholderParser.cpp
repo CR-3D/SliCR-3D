@@ -16,7 +16,7 @@
 #include <sstream>
 #include <map>
 #ifdef _MSC_VER
-    #include <stdlib.h>  // provides **_environ
+    #include <cstdlib>  // provides **_environ
 #else
     #include <unistd.h>  // provides **environ
 #endif

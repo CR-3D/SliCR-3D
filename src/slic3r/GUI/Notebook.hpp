@@ -6,6 +6,7 @@
 #define slic3r_Notebook_hpp_
 
 #include <wx/bookctrl.h>
+#include <wx/sizer.h>
 
 namespace Slic3r {
 namespace GUI {

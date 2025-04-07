@@ -10,6 +10,7 @@
 #define slic3r_GFormatter_hpp_
 
 #include "../libslic3r.h"
+#include "../Point.hpp"
 
 #include <string>
 #include <string_view>

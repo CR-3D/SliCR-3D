@@ -25,7 +25,8 @@
 #include "Utils.hpp"
 #include "LocalesUtils.hpp"
 
-#include <assert.h>
+#include <cassert>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -44,8 +45,6 @@
 #include <boost/nowide/fstream.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/format.hpp>
-#include <string.h>
-#include "GCode/PchipInterpolatorHelper.hpp"
 #include <LibBGCode/binarize/binarize.hpp>
 
 //FIXME for GCodeFlavor and gcfMarlin (for forward-compatibility conversion)

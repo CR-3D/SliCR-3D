@@ -72,17 +72,17 @@
 
 #include "wxExtensions.hpp"
 
-#include <tbb/parallel_for.h>
-#include <tbb/spin_mutex.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/spin_mutex.h>
 
 #include <boost/log/trivial.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/crc.hpp>
 
-#include <iostream>
-#include <float.h>
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
+#include <iostream>
 #include <set>
 #include "DoubleSlider.hpp"
 

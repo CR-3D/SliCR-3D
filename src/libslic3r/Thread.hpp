@@ -11,8 +11,9 @@
 #include <random>
 #include <boost/thread.hpp>
 
-#include <tbb/task_scheduler_observer.h>
-#include <tbb/enumerable_thread_specific.h>
+#include <oneapi/tbb/task_scheduler_observer.h>
+#include <oneapi/tbb/enumerable_thread_specific.h>
+#include <oneapi/tbb/parallel_for.h>
 
 namespace Slic3r {
 

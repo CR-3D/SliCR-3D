@@ -18,7 +18,7 @@
 #include <unordered_set>
 
 #include <boost/log/trivial.hpp>
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 #include <mutex>
 #include <boost/thread/lock_guard.hpp>
 

@@ -5,10 +5,10 @@
 #ifndef slic3r_MutablePriorityQueue_hpp_
 #define slic3r_MutablePriorityQueue_hpp_
 
-#include <assert.h>
 #include <type_traits>
 #include <vector>
 #include <limits>
+#include <cassert>
 #include <cstdlib> // adds size_t (without std::)
 
 namespace Slic3r {

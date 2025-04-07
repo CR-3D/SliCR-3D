@@ -16,7 +16,7 @@
 
 #include <boost/log/trivial.hpp>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 
 namespace Slic3r {
@@ -895,6 +895,23 @@ void PrintObject::_max_overhang_threshold() {
         ExPolygons new_lslices = intersection_ex(my_layer->lslices(), all_region_modified, ApplySafetyOffset::Yes);
         ensure_valid(new_lslices, resolution);
         assert_valid(new_lslices);
+        // lslices are sorted by topological order from outside to inside from the clipper intersection_ex used above
+#ifdef _DEBUG
+        if (new_lslices.size() > 1) {
+            std::vector<BoundingBox> bboxes;
+            bboxes.emplace_back(new_lslices[0].contour.points);
+            for (size_t check_idx = 1; check_idx < new_lslices.size(); ++check_idx) {
+                assert(bboxes.size() == check_idx);
+                bboxes.emplace_back(new_lslices[check_idx].contour.points);
+                for (size_t bigger_idx = 0; bigger_idx < check_idx; ++bigger_idx) {
+                    // higher idx can be inside holes, but not the opposite!
+                    if (bboxes[check_idx].contains(bboxes[bigger_idx])) {
+                        assert(!new_lslices[check_idx].contour.contains(new_lslices[bigger_idx].contour.first_point()));
+                    }
+                }
+            }
+        }
+#endif
         my_layer->set_lslices() = std::move(new_lslices);
         my_layer->lslice_indices_sorted_by_print_order = chain_expolygons(my_layer->lslices());
         assert(my_layer->lslices().size() == my_layer->lslice_indices_sorted_by_print_order.size());

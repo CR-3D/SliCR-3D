@@ -7,17 +7,6 @@
 
 #include <boost/log/trivial.hpp>
 
-/*
-#include <memory.h>
-#include <string.h>
-#include <float.h>
-
-#include "../libslic3r.h"
-#include "../PrintConfig.hpp"
-#include "../Utils.hpp"
-#include "Print.hpp"
-*/
-
 
 namespace Slic3r {
 

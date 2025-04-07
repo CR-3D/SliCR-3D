@@ -16,7 +16,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include <algorithm>
-#include <assert.h>
+#include <cassert>
 
 namespace Slic3r {
 namespace GUI {

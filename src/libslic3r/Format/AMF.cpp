@@ -8,7 +8,7 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include <limits>
-#include <string.h>
+#include <cstring>
 #include <map>
 #include <string>
 #include <expat.h>
@@ -45,7 +45,7 @@ namespace pt = boost::property_tree;
 #undef NDEBUG
 #endif
 
-#include <assert.h>
+#include <cassert>
 
 // VERSION NUMBERS
 // 0 : .amf, .amf.xml and .zip.amf files saved by older slic3r. No version definition in them.
