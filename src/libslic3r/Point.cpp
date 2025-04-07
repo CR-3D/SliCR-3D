@@ -168,8 +168,11 @@ Point Point::projection_onto(const Point &line_a, const Point &line_b) const
     double theta = ((double) (line_b(0) - (*this) (0)) * lx + (double) (line_b(1) - (*this) (1)) * ly) /
                    (sqr<double>(lx) + sqr<double>(ly));
 
-    if (0.0 <= theta && theta <= 1.0)
-        return (theta * line_a.cast<coordf_t>() + (1.0 - theta) * line_b.cast<coordf_t>()).cast<coord_t>();
+    if (0.0 <= theta && theta <= 1.0) {
+        Vec2d float_vec = theta * line_a.cast<coordf_t>() + (1.0 - theta) * line_b.cast<coordf_t>();
+        // Point(double, double) round the values
+        return Point(float_vec.x(), float_vec.y());
+    }
 
     // Else pick closest endpoint.
     return ((line_a - *this).cast<double>().squaredNorm() < (line_b - *this).cast<double>().squaredNorm()) ? line_a : line_b;

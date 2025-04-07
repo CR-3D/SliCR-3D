@@ -1,14 +1,16 @@
 #include "CalibrationRetractionDialog.hpp"
-#include "I18N.hpp"
+
 #include "libslic3r/Model.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/AppConfig.hpp"
-// #include "Jobs/ArrangeJob2.hpp"
 #include "GLCanvas3D.hpp"
 #include "GUI.hpp"
 #include "GUI_ObjectList.hpp"
+#include "I18N.hpp"
+#include "MsgDialog.hpp"
 #include "Plater.hpp"
 #include "Tab.hpp"
+
 #include <wx/scrolwin.h>
 #include <wx/display.h>
 #include <wx/file.h>
@@ -161,6 +163,14 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     full_print_config.apply(*print_config);
     full_print_config.apply(*printer_config);
     full_print_config.apply(*filament_config);
+
+    // check if the printer has use_firmware_retraction
+    if (printer_config->opt_bool("use_firmware_retraction")) {
+        MessageDialog dialog(this, _L("The current printer profile has the firmware retraction enabled. This calibration can't work with this setting enabled."), _L("Firmware retraction enabled"),
+            wxICON_WARNING | wxOK);
+        dialog.Show();
+        return;
+    }
 
     double retraction_start = 0;
     std::string str = temp_start->GetValue().ToStdString();

@@ -1,8 +1,10 @@
 
 REQUIRED_DEV_PACKAGES=(
+    appstream
     autoconf
     build-essential
     cmake
+	desktop-file-utils
 #    eglexternalplatform-dev
     extra-cmake-modules
     file

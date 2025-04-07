@@ -1177,17 +1177,23 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
     // big speed should go into a speed overhang or flow overhang.
     // small flow should go into a speed overhang or flow overhang.
     // big flow should only go into a flow overhang.
+    const bool is_loop = overhang_params.is_loop;
     std::function<void(ExtrusionPaths &, const std::function<bool(ExtrusionPath &, ExtrusionPath &, ExtrusionPath &)> &)> foreach =
-        [](ExtrusionPaths &paths, const std::function<bool(ExtrusionPath &, ExtrusionPath &, ExtrusionPath &)> &doforeach) {
+        [is_loop](ExtrusionPaths &paths, const std::function<bool(ExtrusionPath &, ExtrusionPath &, ExtrusionPath &)> &doforeach) {
             if (paths.size() > 2) {
                 // follow the number from this array to get the next item to check.
                 std::vector<uint32_t> sort(paths.size());
                 // initialize original index locations
-                std::vector<size_t> idxs(paths.size());
-                std::iota(idxs.begin(), idxs.end(), 0);
+                std::vector<size_t> idxs(paths.size() - (is_loop ? 0 : 2));
+                std::iota(idxs.begin(), idxs.end(), is_loop ? 0 : 1);
                 // sort indexes based (todo: optimise plz)
-                std::stable_sort(idxs.begin(), idxs.end(),
-                                 [&paths](size_t i1, size_t i2) { return paths[i1].length() < paths[i2].length(); });
+                std::stable_sort(idxs.begin(), idxs.end(), [&paths](size_t i1, size_t i2) {
+                    return paths[i1].length() < paths[i2].length();
+                });
+                if (!is_loop) {
+                    sort.front() = uint32_t(-1);
+                    sort.back() = uint32_t(-1);
+                }
                 for (uint32_t order = 0; order < uint32_t(idxs.size()); ++order) {
                     sort[idxs[order]] = order;
                 }
@@ -1196,7 +1202,8 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
                 for (uint32_t current_order = 0; current_order < end_order && paths.size() > 2; ++current_order) {
                     bool found = false;
                     assert(paths.size() == sort.size());
-                    for (size_t i_curr = 0; i_curr < sort.size(); i_curr++) {
+                    const size_t max = is_loop ? sort.size() : (sort.size() - 1);
+                    for (size_t i_curr = is_loop ? 0 : 1; i_curr < max; i_curr++) {
                         assert(!found);
                         if (sort[i_curr] == current_order) {
                             found = true;
@@ -1218,7 +1225,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
                     assert(found);
                 }
                 // merge same height
-                for (size_t i_curr = 0; i_curr < paths.size() && paths.size() > 1; i_curr++) {
+                for (size_t i_curr = 0; i_curr < (is_loop ? paths.size() : (paths.size() - 1)) && paths.size() > 1; i_curr++) {
                     // found our next item to check, do the thing.
                     size_t i_next = (i_curr + 1) % paths.size();
                     assert(paths[i_curr].polyline.back() == paths[i_next].polyline.front());
@@ -2505,7 +2512,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
     idx_lh_size++;
     assert(idx_lh_size > 3 && idx_lh_size < 7);
     //FIXME from here, it's ~exactly the same as the other create_overhangs, please merge that into a function.
-    
+
     Params_sort_overhangs overhang_params;
     overhang_params.is_loop = is_loop;
     overhang_params.is_external = is_external;

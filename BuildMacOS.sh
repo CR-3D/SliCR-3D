@@ -73,6 +73,9 @@ then
     exit -1
 fi
 
+BUILD_ARCH="x86_64"
+BUILD_ARCH_x86="x86_64"
+
 while getopts ":idaxbhcsltwrv" opt; do
   case ${opt} in
     i )
@@ -151,14 +154,44 @@ fi
 echo "Build architecture: ${BUILD_ARCH}"
 echo "Build IMG_ARCH=${BUILD_IMG_ARCH}\n"
 
-echo "\n/Applications:\n"
+echo "\nls /Applications:\n"
 ls /Applications
-echo "\n/Applications/Xcode_13.2.1.app:\n"
-ls /Applications/Xcode_13.2.1.app
-echo "\n/Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
-ls /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
-echo "\n/Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib:\n"
-ls /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib
+echo "\nnls /Applications/Xcode_14.3.1.app:\n"
+ls /Applications/Xcode_14.3.1.app
+echo "\nnls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/lib:\n"
+ls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/lib
+echo "\nnls /Applications/Xcode_15.2.0.app:\n"
+ls /Applications/Xcode_15.2.0.app
+echo "\nnls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/usr/lib:\n"
+ls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/usr/lib
+echo "\nnls /Applications/Xcode_15.4.0.app:\n"
+ls /Applications/Xcode_15.4.0.app
+echo "\nnls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/usr/lib:\n"
+ls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/usr/lib
+echo "\nnls /Applications/Xcode_16.2.0.app:\n"
+ls /Applications/Xcode_16.2.0.app
+echo "\nnls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/lib:\n"
+ls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/lib
+
+# if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+# then
+    # echo "Switch to xcode Xcode_14.3.1"
+    # sudo xcode-select -s /Applications/Xcode_14.3.1.app/Contents/Developer
+    # sudo mv -f /Applications/Xcode_15.0.1.app /Applications/NO_Xcode_15.0.1.app
+    # sudo mv -f /Applications/Xcode_15.0.app /Applications/NO_Xcode_15.0.app
+    # sudo mv -f /Applications/Xcode_15.1.0.app Applications/NO_Xcode_15.1.0.app
+    # sudo mv -f /Applications/Xcode_15.1.app /Applications/NO_Xcode_15.1.app
+    # sudo mv -f /Applications/Xcode_15.2.0.app /Applications/NO_Xcode_15.2.0.app
+    # sudo mvv /Applications/Xcode_15.2.app /Applications/NO_Xcode_15.2.app
+# fi
 
 # Iconv: /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib/libiconv.tbd
 echo "\nbrew --prefix libiconv:\n"
@@ -220,9 +253,16 @@ then
         BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
     fi
     # cmake deps
-    echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.15\" ${BUILD_ARCH} "
-    pushd deps/build > /dev/null
-    cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" $BUILD_ARGS
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+    then
+        echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
+        pushd deps/build > /dev/null
+        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
+    else
+        echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
+        pushd deps/build > /dev/null
+        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
+    fi
     if [ $? -eq 0 ]
     then
         echo -e "\n ... done\n"
@@ -304,7 +344,12 @@ then
 
     # cmake
     pushd build > /dev/null
-    cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+    then
+        cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
+    else
+        cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
+    fi
     if [ $? -eq 0 ]
     then
         echo -e "\n ... done\n"
@@ -360,9 +405,9 @@ then
     chmod 755 $ROOT/build/src/BuildMacOSImage.sh
     pushd build  > /dev/null
     echo "> $ROOT/build/src/BuildMacOSImage.sh -i ${BUILD_IMG_ARCH}"
-    if [[ -n "$BUILD_DOWNLOAD_DEP" ]]
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
     then
-        $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH
+        $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH -z
     else
         $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH -z
     fi

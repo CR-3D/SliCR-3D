@@ -896,7 +896,6 @@ void ArcPolyline::split_at(coordf_t distance, ArcPolyline &p1, ArcPolyline &p2) 
             if (lsqr > sqr(distance)) {
 #ifdef _DEBUG
                 length_tot_split = current.length;
-                assert(length_tot_split == 0);
 #endif
                 Point split_point = p1.back() + Point::round(v * (distance / sqrt(lsqr)));
                 p1.m_path.push_back({split_point, 0, Geometry::ArcWelder::Orientation::Unknown});

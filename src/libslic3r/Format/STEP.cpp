@@ -67,15 +67,20 @@ LoadStepFn get_load_step_fn()
         }
         libpath /= "superslicer";
         libpath /= "OCCTWrapper.so";
-        if (!libpath.exists()) {
-            BOOST_LOG_TRIVIAL(error) << "Error: can't find "<<libpath.string()<< " to load.";
-            boost::filesystem::path libpath = boost::dll::program_location().parent_path();
+        BOOST_LOG_TRIVIAL(debug) << "Exsists"<<libpath.string()<< " ? "<<boost::filesystem::exists(libpath);
+        if (!boost::filesystem::exists(libpath)) {
+            boost::filesystem::path libpath_old = libpath;
+            // retry with appimage directory
+            libpath = boost::dll::program_location().parent_path();
             libpath /= "OCCTWrapper.so";
-        }
-        if (!libpath.exists()) {
-            BOOST_LOG_TRIVIAL(error) << "Error: can't find " << libpath.string() << " to load.";
+            BOOST_LOG_TRIVIAL(debug) << "Exsists"<<libpath.string()<< " ? "<<boost::filesystem::exists(libpath);
+            if (!boost::filesystem::exists(libpath)) {
+                BOOST_LOG_TRIVIAL(error) << "Error: can't find '"<<libpath_old.string()<< "' nor '"<<libpath.string()<<"' to load.";
+                libpath = "OCCTWrapper.so";
+            }
         }
 
+        BOOST_LOG_TRIVIAL(debug) << "try to open dll "<<libpath.c_str()<< " ? "<<boost::filesystem::exists(libpath);
         void *plugin_ptr = dlopen(libpath.c_str(), RTLD_NOW | RTLD_GLOBAL);
 
         if (plugin_ptr) {

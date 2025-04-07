@@ -161,7 +161,7 @@ double distance_to_infinite(const L &line, const Vec<Dim<L>, Scalar<L>> &point)
 template<class L> bool intersection(const L &l1, const L &l2, Vec<Dim<L>, Scalar<L>> *intersection_pt)
 {
     using Floating      = typename std::conditional<std::is_floating_point<Scalar<L>>::value, Scalar<L>, double>::type;
-    using VecType       = const Vec<Dim<L>, Floating>;
+    using VecType       = Vec<Dim<L>, Floating>;
     const VecType v1    = (l1.b - l1.a).template cast<Floating>();
     const VecType v2    = (l2.b - l2.a).template cast<Floating>();
     Floating      denom = cross2(v1, v2);
@@ -178,8 +178,19 @@ template<class L> bool intersection(const L &l1, const L &l2, Vec<Dim<L>, Scalar
     Floating t1     = nume_a / denom;
     Floating t2     = nume_b / denom;
     if (t1 >= 0 && t1 <= 1.0f && t2 >= 0 && t2 <= 1.0f) {
+        VecType vv = l1.a.template cast<Floating>();
+        VecType vv1  = t1 * v1;
+        VecType vvend = vv + vv1;
+        Vec<Dim<L>, Scalar<L>> ptend = vvend.template cast<Scalar<L>>();
         // Get the intersection point.
-        (*intersection_pt) = (l1.a.template cast<Floating>() + t1 * v1).template cast<Scalar<L>>();
+        VecType float_vec = l1.a.template cast<Floating>() + t1 * v1;
+        if (std::is_same<Scalar<L>, int64_t>::value) {
+            // round yourself, as we can't rely on the Point constructor
+            (*intersection_pt).x() = Scalar<L>(std::round(float_vec.x()));
+            (*intersection_pt).y() = Scalar<L>(std::round(float_vec.y()));
+        } else {
+            (*intersection_pt) = float_vec.template cast<Scalar<L>>();
+        }
         return true;
     }
     return false; // not intersecting

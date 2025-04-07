@@ -872,15 +872,15 @@ DynamicPrintConfig PresetBundle::full_sla_config() const
     out.erase("compatible_printers");
     out.erase("compatible_printers_condition");
     out.erase("inherits");
-    
+
     out.option<ConfigOptionString >("sla_print_settings_id",    true)->value  = this->sla_prints.get_selected_preset_name();
     out.option<ConfigOptionString >("sla_material_settings_id", true)->value  = this->sla_materials.get_selected_preset_name();
     out.option<ConfigOptionString >("printer_settings_id",      true)->value  = this->printers.get_selected_preset_name();
     out.option<ConfigOptionString >("physical_printer_settings_id", true)->value = this->physical_printers.get_selected_printer_name();
 
-    out.option<ConfigOptionBool >("sla_print_settings_id",      true)->value  = this->sla_prints.get_selected_preset().is_dirty;
-    out.option<ConfigOptionBool >("sla_material_settings_id",   true)->value  = this->sla_materials.get_selected_preset().is_dirty;
-    out.option<ConfigOptionBool >("printer_settings_id",        true)->value  = this->printers.get_selected_preset().is_dirty;
+    out.option<ConfigOptionBool >("sla_print_settings_modified",      true)->value  = this->sla_prints.get_selected_preset().is_dirty;
+    out.option<ConfigOptionBool >("sla_material_settings_modified",   true)->value  = this->sla_materials.get_selected_preset().is_dirty;
+    out.option<ConfigOptionBool >("printer_settings_modified",        true)->value  = this->printers.get_selected_preset().is_dirty;
 
     // Serialize the collected "compatible_printers_condition" and "inherits" fields.
     // There will be 1 + num_exturders fields for "inherits" and 2 + num_extruders for "compatible_printers_condition" stored.

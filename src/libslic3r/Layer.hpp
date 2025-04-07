@@ -312,9 +312,9 @@ public:
     }
     void                  add_ironing_range(const LayerExtrusionRange &new_ironing_range) {
         // Compress ranges.
-        if (!this->ironings.empty() && this->fills.back().region() == new_ironing_range.region() &&
-            *this->fills.back().end() == *new_ironing_range.begin())
-            this->ironings.back() = {new_ironing_range.region(), {*this->fills.back().begin(), *new_ironing_range.end()}};
+        if (!this->ironings.empty() && this->ironings.back().region() == new_ironing_range.region() &&
+            *this->ironings.back().end() == *new_ironing_range.begin())
+            this->ironings.back() = {new_ironing_range.region(), {*this->ironings.back().begin(), *new_ironing_range.end()}};
         else
             this->ironings.push_back(new_ironing_range);
     }
