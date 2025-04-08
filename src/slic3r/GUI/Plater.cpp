@@ -7985,7 +7985,7 @@ void Plater::export_gcode(bool prefer_removable)
         if (printer_technology() == ptFFF) {
            const ConfigOptionStrings *filaments = active_fff_print().full_print_config().opt<ConfigOptionStrings>(
                                                                                                             "filament_settings_id");
-            assert(filaments->size() == fff_print().config().filament_type.size());
+            assert(filaments->size() == active_fff_print().config().filament_type.size());
             for (int i = 0; i < filaments->size(); i++) {
                 str_material += "\n" + format(_L("'%1%' of type %2%"), filaments->get_at(i),
                                               active_fff_print().config().filament_type.get_at(i));
