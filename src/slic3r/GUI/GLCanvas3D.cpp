@@ -6569,11 +6569,10 @@ void GLCanvas3D::_update_camera_zoom(double zoom)
     m_dirty = true;
 }
 
-void GLCanvas3D::_refresh_if_shown_on_screen()
-{
+void GLCanvas3D::_refresh_if_shown_on_screen() {
     if (_is_shown_on_screen()) {
-        const Size& cnv_size = get_canvas_size();
-        _resize((unsigned int)cnv_size.get_width(), (unsigned int)cnv_size.get_height());
+        const Size &cnv_size = get_canvas_size();
+        _resize((unsigned int) cnv_size.get_width(), (unsigned int) cnv_size.get_height());
 
         // When the application starts the following call to render() triggers the opengl initialization.
         // We need to ask for an extra call to reload_scene() to force the generation of the model for wipe tower
