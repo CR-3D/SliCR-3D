@@ -17,3 +17,5 @@ min_slic3r_version = 2.4.0-rc
 0.0.16 removed extruder_clearance_height, extruder_clearance_radius from FieldRACK
 0.0.17 changed filament names
 0.0.18 added 'No Filament'
+0.0.19 set autoemit_temperature_command to 0 for all
+0.0.20 Changed start_gcode_manual for C2-IDEX to 1
