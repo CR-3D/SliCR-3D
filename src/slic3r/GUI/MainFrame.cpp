@@ -1121,8 +1121,11 @@ void MainFrame::init_tabpanel()
                     this->m_plater->select_view_3D("Preview");
                     this->m_plater->refresh_print();
                     this->m_plater->Refresh();
-                } else
+                } else {
                     this->m_plater->select_view_3D("Preview");
+                    this->m_plater->refresh_print();
+                    this->m_plater->Refresh();
+                }
             } else if (bt_idx_sel == 2) {
                 this->m_webViewPanel->m_webView->Show();
                 this->m_webViewPanel->m_combo_printer->update();

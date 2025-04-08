@@ -236,7 +236,7 @@ void BackgroundSlicingProcess::thread_proc() {
     m_condition.notify_one();
     for (;;) {
         // assert(m_state == STATE_IDLE || m_state == STATE_CANCELED || m_state == STATE_FINISHED);
-        // Wait until a new task is ready to be executed, or this thread should be finished.
+        //  Wait until a new task is ready to be executed, or this thread should be finished.
         lck.lock();
         m_condition.wait(lck, [this]() { return m_state == STATE_STARTED || m_state == STATE_EXIT; });
         if (m_state == STATE_EXIT)
