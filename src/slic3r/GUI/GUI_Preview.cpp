@@ -825,12 +825,10 @@ void Preview::update_layers_slider_from_canvas(wxKeyEvent& event)
     m_layers_slider->fire_update_if_needed();
 }
 
-void Preview::update_moves_slider()
-{
-    const GCodeViewer::SequentialView& view = m_canvas->get_gcode_sequential_view();
+void Preview::update_moves_slider() {
+    const GCodeViewer::SequentialView &view = m_canvas->get_gcode_sequential_view();
     // this should not be needed, but it is here to try to prevent rambling crashes on Mac Asan
     if (view.endpoints.last < view.endpoints.first)
-    if (active_gcode_result()->moves.empty())
         return;
 
     assert(view.endpoints.first <= view.current.first && view.current.first <= view.endpoints.last);
@@ -842,7 +840,7 @@ void Preview::update_moves_slider()
     alternate_values.reserve(view.endpoints.last - view.endpoints.first + 1);
     unsigned int last_gcode_id = view.gcode_ids[view.endpoints.first];
     for (unsigned int i = view.endpoints.first; i <= view.endpoints.last; ++i) {
-        //assert(view.gcode_ids.size() > i); //can happen in 0th layer (before first layer)
+        // assert(view.gcode_ids.size() > i); //can happen in 0th layer (before first layer)
         if (view.gcode_ids.size() > i) {
             if (i > view.endpoints.first) {
                 // skip consecutive moves with same gcode id (resulting from processing G2 and G3 lines)
@@ -865,7 +863,8 @@ void Preview::update_moves_slider()
     m_moves_slider->SetSliderAlternateValues(alternate_values);
     m_moves_slider->SetMaxValue(int(values.size()) - 1);
     m_moves_slider->SetSelectionSpan(values.front() - 1 - view.endpoints.first,
-                                     max_is_max ? m_moves_slider->GetMaxValue() : values.back() - 1 - view.endpoints.first);
+                                     max_is_max ? m_moves_slider->GetMaxValue() :
+                                                  values.back() - 1 - view.endpoints.first);
     m_moves_slider->fire_update_if_needed();
 }
 

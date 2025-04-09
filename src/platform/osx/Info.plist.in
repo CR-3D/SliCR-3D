@@ -11,7 +11,7 @@
   <key>CFBundleName</key>
   <string>SliCR-3D</string>
   <key>CFBundleShortVersionString</key>
-  <string>SliCR-3D SliCR-3D_2.7.0.3_+UNKNOWN</string>
+  <string>SliCR-3D SliCR-3D_2.7.0_+UNKNOWN</string>
   <key>CFBundleIdentifier</key>
   <string>org.SliCR-3D/</string>
   <key>CFBundleInfoDictionaryVersion</key>
@@ -21,7 +21,7 @@
   <key>CFBundleSignature</key>
   <string>????</string>
   <key>CFBundleVersion</key>
-  <string>SliCR-3D_2.7.0.3_+UNKNOWN</string>
+  <string>SliCR-3D_2.7.0_+UNKNOWN</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>

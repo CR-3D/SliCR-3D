@@ -1218,25 +1218,12 @@ void Sidebar::update_all_preset_comboboxes()
         }
     
     if (print_tech == ptFFF) {
-    /*
+    
         for (PlaterPresetComboBox* cb : p->combos_filament)
             for (size_t extr_idx = 0; extr_idx < p->combos_filament.size(); ++extr_idx) {
                 PlaterPresetComboBox *cb  = p->combos_filament[extr_idx];
                 cb->update();
-                // update tool name
-                auto opt = preset_bundle.printers.get_edited_preset().config.option<ConfigOptionStrings>("tool_name");
-                assert(opt);
-                if (opt && cb->label) {
-                    std::string tool_name = opt->get_at(extr_idx);
-                    std::wstring wide_tool_name = to_wstring(tool_name);
-                    
-                    if (wide_tool_name.size() > 10) {
-                        wide_tool_name = wide_tool_name.substr(0, 7) + std::string("... ");
-                    }
-                    cb->label->SetLabel(wide_tool_name.empty() ? "" : (wide_tool_name + std::string(": ")));
-                }
-            }
-            */
+        }
     }
 }
 
@@ -4734,68 +4721,49 @@ void Plater::priv::reload_all_from_disk()
     for (unsigned int idx : curr_idxs) { selection.add(idx, false); }
 }
 
-void Plater::priv::set_current_panel(wxTitledPanel *panel)
+void Plater::priv::set_current_panel(wxTitledPanel* panel)
 {
     if (std::find(panels.begin(), panels.end(), panel) == panels.end())
         return;
-    
+
 #ifdef __WXMAC__
     bool force_render = (current_panel != nullptr);
 #endif // __WXMAC__
 
-    ScopeGuard guard([]() { s_reload_preview_after_switching_beds = false; });
-
-    if (current_panel == panel) {
-        if (!s_reload_preview_after_switching_beds)
-            return;
-        else {
-            update_background_process();
-        }
-    }
+    if (current_panel == panel)
+        return;
 
     wxTitledPanel* old_panel = current_panel;
     current_panel = panel;
-
     // to reduce flickering when changing view, first set as visible the new current panel
-    for (wxPanel *p : panels) {
+    for (wxPanel* p : panels) {
         if (p == current_panel) {
 #ifdef __WXMAC__
             // On Mac we need also to force a render to avoid flickering when changing view
             if (force_render) {
                 if (p == view3D)
-                    dynamic_cast<View3D *>(p)->get_canvas3d()->render();
+                    dynamic_cast<View3D*>(p)->get_canvas3d()->render();
                 else if (p == preview)
-                    dynamic_cast<Preview *>(p)->get_canvas3d()->render();
+                    dynamic_cast<Preview*>(p)->get_canvas3d()->render();
             }
 #endif // __WXMAC__
             p->Show();
         }
     }
     // then set to invisible the other
-    for (wxPanel *p : panels) {
+    for (wxPanel* p : panels) {
         if (p != current_panel)
             p->Hide();
     }
     
     panel_sizer->Layout();
-    
-    if (old_panel)
+
+    if(old_panel)
         old_panel->get_canvas3d()->unbind_event_handlers();
     if (current_panel)
         current_panel->get_canvas3d()->bind_event_handlers();
 
     if (current_panel == view3D) {
-
-        if(s_multiple_beds.stop_autoslice(true)) {
-            sidebar->switch_from_autoslicing_mode();
-            update_background_process();
-        }
-
-        if (old_panel == preview)
-            preview->get_canvas3d()->unbind_event_handlers();
-
-        view3D->get_canvas3d()->bind_event_handlers();
-
         if (view3D->is_reload_delayed()) {
             // Delayed loading of the 3D scene.
             if (printer_technology == ptSLA) {
@@ -4805,38 +4773,40 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
             } else
                 view3D->reload_scene(true);
         }
-    } else if (current_panel == preview) {
-        
+    }
+    else if (current_panel == preview) {
         if (wxGetApp().is_editor()) {
             // see: Plater::priv::object_list_changed()
+            // FIXME: it may be better to have a single function making this check and let it be called wherever needed
             bool export_in_progress = this->background_process.is_export_scheduled();
-            if (
-                s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed())
-                && !export_in_progress
-                && is_sliceable(s_print_statuses[s_multiple_beds.get_active_bed()])
-            ) {
-                preview->get_canvas3d()->init_gcode_viewer();
-                preview->get_canvas3d()->load_gcode_shells();
-                q->reslice();
+            bool model_fits = view3D->get_canvas3d()->check_volumes_outside_state() != ModelInstancePVS_Partly_Outside;
+            if (!model.objects.empty() && !export_in_progress && model_fits) {
+                //check if already slicing
+                bool already_running = this->background_process.state() == BackgroundSlicingProcess::State::STATE_RUNNING
+                    || this->background_process.state() == BackgroundSlicingProcess::State::STATE_STARTED;
+                if(!already_running) {
+                    preview->get_canvas3d()->init_gcode_viewer();
+                    this->q->reslice();
+                } else if (! this->background_process.finished()) {
+                    //TODO test
+                    preview->get_canvas3d()->init_gcode_viewer();
+                    preview->load_gcode_shells();
+                }
             }
             // keeps current gcode preview, if any
-            preview->reload_print();
-
-            if (! s_multiple_beds.is_bed_occupied(s_multiple_beds.get_active_bed()))
-                preview->get_canvas3d()->reset_gcode_toolpaths();
+            preview->reload_print(true);
         }
     }
-    
+
     if (current_panel) {
-        // sets the canvas as dirty to force a render at the 1st idle event (wxWidgets IsShownOnScreen() is buggy and
-        // cannot be used reliably)
+        // sets the canvas as dirty to force a render at the 1st idle event (wxWidgets IsShownOnScreen() is buggy and cannot be used reliably)
         current_panel->set_as_dirty();
         // reset cached size to force a resize on next call to render() to keep imgui in synch with canvas size
         current_panel->get_canvas3d()->reset_old_size();
         view_toolbar.select_item(current_panel->name);
         if (notification_manager != nullptr)
             notification_manager->set_in_preview(current_panel == preview);
-        
+
         current_panel->SetFocusFromKbd();
     }
 }
@@ -4862,7 +4832,6 @@ void Plater::priv::on_support_selected(std::string filament_name, int idx_select
         tab_print->reload_config();
         return;
     } else if (idx_selected == 0) {
-        // do nothing
         return;
     }
 }
@@ -4893,7 +4862,6 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
     std::string last_selected_ph_printer_name = combo->get_selected_ph_printer_name();
     
     bool select_preset = !combo->selection_is_changed_according_to_physical_printers();
-    // TODO: ?
     
     if (preset_type == Preset::TYPE_FFF_FILAMENT) {
         wxGetApp().preset_bundle->set_filament_preset(idx, preset_name);
@@ -8000,7 +7968,7 @@ void Plater::export_gcode(bool prefer_removable)
         if (printer_technology() == ptFFF) {
            const ConfigOptionStrings *filaments = active_fff_print().full_print_config().opt<ConfigOptionStrings>(
                                                                                                             "filament_settings_id");
-            assert(filaments->size() == fff_print().config().filament_type.size());
+            assert(filaments->size() == active_fff_print().config().filament_type.size());
             for (int i = 0; i < filaments->size(); i++) {
                 str_material += "\n" + format(_L("'%1%' of type %2%"), filaments->get_at(i),
                                               active_fff_print().config().filament_type.get_at(i));
@@ -8428,7 +8396,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         );
     }
 
-    p->notification_manager->push_bulk_exporting_finished_notification(output_dir.string(), path_on_removable_media);
+ //   p->notification_manager->push_bulk_exporting_finished_notification(output_dir.string(), path_on_removable_media);
 }
 
 void Plater::export_stl_obj(std::string path_u8, bool extended, bool selection_only)

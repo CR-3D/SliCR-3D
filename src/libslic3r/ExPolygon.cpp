@@ -419,28 +419,6 @@ Lines ExPolygon::lines() const
     return lines;
 }
 
-#ifdef _DEBUG
-// to create a cpp multipoint to create test units.
-std::string ExPolygon::to_debug_string()
-{
-    std::string ret("ExPolygon expoly(");
-    ret += contour.to_debug_string();
-    if (!holes.empty() && !holes.front().empty()) {
-        ret += std::string(",");
-        ret += holes.front().to_debug_string();
-    } else {
-        ret += std::string(",{}");
-    }
-    ret += std::string(");\n");
-    for (size_t i = 1; i < holes.size(); ++i) {
-        ret += std::string("expoly.holes.push_back(Polygon");
-        ret += holes.front().to_debug_string();
-        ret += std::string(")\n");
-    }
-    return ret;
-}
-#endif
-
 // Do expolygons match? If they match, they must have the same topology,
 // however their contours may be rotated.
 bool expolygons_match(const ExPolygon &l, const ExPolygon &r)

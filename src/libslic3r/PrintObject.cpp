@@ -885,17 +885,20 @@ void PrintObject::generate_support_spots()
     }
 }
 
-void PrintObject::generate_support_material()
-{
+void PrintObject::generate_support_material() {
     if (this->set_started(posSupportMaterial)) {
-        m_print->set_status(objectstep_2_percent[PrintObjectStep::posSupportMaterial], L("Generating support material"));
+        m_print->set_status(objectstep_2_percent[PrintObjectStep::posSupportMaterial],
+                            L("Generating support material"));
         if (m_print->objects().size() > 1) {
             m_print->secondary_status_counter_add_max(1);
+            m_print->set_status(0. / m_print->objects().size(), L("Object %s / %s"),
+                                {std::to_string(0), std::to_string(m_print->objects().size())},
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
         } else {
             m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
         this->clear_support_layers();
-        if ((this->has_support() && m_layers.size() > 1) || (this->has_raft() && ! m_layers.empty())) {
+        if ((this->has_support() && m_layers.size() > 1) || (this->has_raft() && !m_layers.empty())) {
             this->_generate_support_material();
             m_print->throw_if_canceled();
         } else {
@@ -908,10 +911,15 @@ void PrintObject::generate_support_material()
 #endif
         }
         this->set_done(posSupportMaterial);
-        
+
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            m_print->set_status(100 * (nb_objects_done + 1) / m_print->secondary_status_counter_get_max(),
+                                L("Object %s / %s"),
+                                {std::to_string(nb_objects_done + 1),
+                                 std::to_string(m_print->secondary_status_counter_get_max())},
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
         }
     }
 }

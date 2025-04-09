@@ -94,7 +94,7 @@ public:
     bool make_clockwise();
     bool is_valid() const { return this->points.size() >= 3; assert_valid(); }
     void douglas_peucker(coord_t tolerance) override;
-    
+        
     // Does an unoriented polygon contain a point?
     bool contains(const Point &point) const { return Slic3r::contains(*this, point, true); }
     // Approximate on boundary test.
@@ -127,7 +127,7 @@ public:
     size_t remove_collinear(coord_t max_offset);
     size_t remove_collinear_angle(double angle);
 
-#ifdef _DEBUGINFO
+    #ifdef _DEBUGINFO
     void assert_valid() const override {
         assert(size() > 2);
         for (size_t i_pt = 1; i_pt < size(); ++i_pt)
