@@ -12,6 +12,10 @@ group:Vertical shells
         setting:label$_:perimeters_hole
 	end_line
 
+	line:Staggered Perimeters (Brick Layers)
+		setting:label$_:staggered_perimeters
+	end_line
+
 	recommended_thin_wall_thickness_description
 group:Horizontal shells
 	line:Solid layers

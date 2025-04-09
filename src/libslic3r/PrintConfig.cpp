@@ -4948,6 +4948,14 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionInt(3));
 
+    def = this->add("staggered_perimeters", coBool);
+    def->label = L("Staggered Perimeters");
+    def->full_label = L("Staggered Perimeters");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Just for experimental purposes.");
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionBool(false));
+
     def = this->add("perimeters_hole", coInt);
     def->label = L("Max perimeter count for holes");
     def->category = OptionCategory::perimeter;

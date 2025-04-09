@@ -995,6 +995,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     // Total number of perimeters.
     ((ConfigOptionInt,                  perimeters))
     ((ConfigOptionInt,                  perimeters_hole))
+    // Staggered
+    ((ConfigOptionBool,                 staggered_perimeters))
     ((ConfigOptionPercent,              print_extrusion_multiplier))
     ((ConfigOptionFloat,                print_retract_length))
     ((ConfigOptionFloat,                print_retract_lift))

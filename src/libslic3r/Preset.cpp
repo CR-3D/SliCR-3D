@@ -512,6 +512,7 @@ static std::vector<std::string> s_Preset_print_options {
         "first_layer_height",
         "perimeters",
         "perimeters_hole",
+        "staggered_perimeters",
         "spiral_vase",
         "slice_closing_radius",
         "slicing_mode",
