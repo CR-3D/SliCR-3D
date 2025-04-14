@@ -2673,7 +2673,7 @@ void GLCanvas3D::render()
 
     wxGetApp().plater()->get_mouse3d_controller().render_settings_dialog(*this);
 
-    wxGetApp().plater()->get_notification_manager()->render_notifications(*this, get_overlay_window_width());
+    //wxGetApp().plater()->get_notification_manager()->render_notifications(*this, get_overlay_window_width());
 
     if (! s_multiple_beds.is_autoslicing())
         wxGetApp().plater()->render_sliders(*this);

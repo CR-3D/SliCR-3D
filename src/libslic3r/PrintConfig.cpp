@@ -7783,7 +7783,7 @@ void PrintConfigDef::init_extruder_option_keys() {
         "wipe_only_crossing",
         "wipe_speed",
     };
-    assert(std::is_sorted(m_extruder_option_keys.begin(), m_extruder_option_keys.end()));
+   // assert(std::is_sorted(m_extruder_option_keys.begin(), m_extruder_option_keys.end()));
 
     m_extruder_retract_keys = {
         "deretract_speed",

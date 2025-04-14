@@ -307,8 +307,9 @@ void PrintObject::make_perimeters()
         m_print->throw_if_canceled();
         BOOST_LOG_TRIVIAL(debug) << "Generating milling post-process in parallel - end";
     }
-
+    make_staggered_perimeters();
     this->set_done(posPerimeters);
+
 }
 
 void PrintObject::prepare_infill()
@@ -4698,7 +4699,84 @@ void PrintObject::clean_surfaces() {
             }
         }
     );
+}
 
+void draw_layer_perimeters(Slic3r::SVG &svg,
+                           LayerRegion *layer,
+                           float width,
+                           const std::string &layer_name,
+                           const std::vector<std::string> &colors) {
+    GetPathsVisitor visitor;
+    ExtrusionEntityCollection cur_perimeters = layer->perimeters();
+
+    cur_perimeters.visit(visitor);
+
+    for (size_t i = 0; i < visitor.paths.size(); ++i) {
+        const auto *path = visitor.paths[i];
+        Polyline pl = path->as_polyline().to_polyline();
+        std::string color = (i < colors.size()) ? colors[i] : "black";
+        svg.draw(pl, color, scale_t(width));
+    }
+}
+
+void draw_offset_polygons(Slic3r::SVG &svg,
+                          const std::vector<Polygon> &polygons,
+                          float width,
+                          const std::string &color) {
+    for (const auto &poly : polygons) {
+        svg.draw(to_polylines(Slic3r::offset(poly.split_at_first_point(), scale_t(width / 2))), color, scale_t(0.01));
+    }
+}
+
+void draw_intersections_and_diff(Slic3r::SVG &svg,
+                                 const Polyline &path,
+                                 const Polygons &coverage,
+                                 const std::string &inter_color,
+                                 const std::string &diff_color) {
+    Polylines inter = Slic3r::intersection_pl(path, coverage);
+    Polylines diff = Slic3r::diff_pl(path, coverage);
+
+    svg.draw(inter, inter_color, scale_t(0.2));
+    svg.draw(diff, diff_color, scale_t(0.2));
+}
+
+void PrintObject::make_staggered_perimeters() {
+
+        Slic3r::parallel_for(size_t(1), this->m_layers.size(), [this](const size_t layer_idx) {
+
+
+        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+            const PrintRegion &region = this->printing_region(region_id);
+            GetPathsVisitor visitor_prev, visitor_curr;
+            Layer *current_layer = this->m_layers[layer_idx];
+            Layer *prev_layer = this->m_layers[layer_idx - 1];
+
+            ExtrusionEntityCollection new_perimeters; // this will replace layerm->m_perimeters
+
+            LayerRegion *layerm = current_layer->get_region(region_id);
+            LayerRegion *layerm_prev = prev_layer->get_region(region_id);
+            ExtrusionEntityCollection cur_perimeters = layerm->perimeters();
+            ExtrusionEntityCollection prev_perimeters = layerm_prev->perimeters();
+
+            cur_perimeters.visit(visitor_curr);
+            prev_perimeters.visit(visitor_prev);
+
+            for (size_t path_idx = 0; path_idx < visitor_curr.paths.size(); ++path_idx) {
+                ExtrusionPath *path = visitor_curr.paths[path_idx];
+
+                Polyline poly = path->as_polyline().to_polyline();
+
+                // This gives an approximate "area" the extrusion will cover
+                Polygons prev_coverage = visitor_prev.paths[path_idx]->polygons_covered_by_width(path->width());
+
+                // Check intersection
+                Polylines intersecting = Slic3r::intersection_pl(poly, prev_coverage);
+                
+            }
+
+            visitor_curr.paths[0]->as_polyline().clear();
+        }
+    });
 }
 
 // combine fill surfaces across layers to honor the "infill every N layers" option
