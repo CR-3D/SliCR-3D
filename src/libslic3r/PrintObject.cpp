@@ -307,6 +307,7 @@ void PrintObject::make_perimeters()
         m_print->throw_if_canceled();
         BOOST_LOG_TRIVIAL(debug) << "Generating milling post-process in parallel - end";
     }
+
     make_staggered_perimeters();
     this->set_done(posPerimeters);
 
@@ -4741,42 +4742,45 @@ void draw_intersections_and_diff(Slic3r::SVG &svg,
 }
 
 void PrintObject::make_staggered_perimeters() {
+    if (this->m_layers.size() < 2)
+        return; // must have previous layers
 
-        Slic3r::parallel_for(size_t(1), this->m_layers.size(), [this](const size_t layer_idx) {
-
-
+    for (size_t layer_idx = 1; layer_idx < this->m_layers.size(); ++layer_idx) {
         for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
             const PrintRegion &region = this->printing_region(region_id);
-            GetPathsVisitor visitor_prev, visitor_curr;
             Layer *current_layer = this->m_layers[layer_idx];
             Layer *prev_layer = this->m_layers[layer_idx - 1];
 
-            ExtrusionEntityCollection new_perimeters; // this will replace layerm->m_perimeters
-
             LayerRegion *layerm = current_layer->get_region(region_id);
             LayerRegion *layerm_prev = prev_layer->get_region(region_id);
-            ExtrusionEntityCollection cur_perimeters = layerm->perimeters();
-            ExtrusionEntityCollection prev_perimeters = layerm_prev->perimeters();
+            if (!layerm || !layerm_prev)
+                continue;
 
-            cur_perimeters.visit(visitor_curr);
-            prev_perimeters.visit(visitor_prev);
+            ExtrusionEntityCollection current_perimeters = layerm->perimeters();
+            ExtrusionEntityCollection previous_perimeters = layerm_prev->perimeters();
 
-            for (size_t path_idx = 0; path_idx < visitor_curr.paths.size(); ++path_idx) {
-                ExtrusionPath *path = visitor_curr.paths[path_idx];
+            GetPathsVisitor current_visitor, previous_visitor;
+            current_perimeters.visit(current_visitor);
+            previous_perimeters.visit(previous_visitor);
 
-                Polyline poly = path->as_polyline().to_polyline();
+            ExtrusionEntityCollection new_perimeters;
 
-                // This gives an approximate "area" the extrusion will cover
-                Polygons prev_coverage = visitor_prev.paths[path_idx]->polygons_covered_by_width(path->width());
+            for (ExtrusionPath *curr_path : current_visitor.paths) {
+                // Make a copy so we don't mutate original
+                ExtrusionPath modified = *curr_path;
 
-                // Check intersection
-                Polylines intersecting = Slic3r::intersection_pl(poly, prev_coverage);
-                
+                // Example modification
+                modified.attributes_mutable().mm3_per_mm *= 25;
+                modified.attributes_mutable().width *= 20;
+
+                new_perimeters.append(std::move(modified));
             }
 
-            visitor_curr.paths[0]->as_polyline().clear();
+            // Replace perimeters with modified ones
+            layerm->m_perimeters.clear();
+            layerm->m_perimeters.append(std::move(new_perimeters));
         }
-    });
+    }
 }
 
 // combine fill surfaces across layers to honor the "infill every N layers" option
