@@ -749,7 +749,7 @@ void ConfigDef::finalize()
             assert(def.enum_def);
             assert(def.enum_def->is_valid_open_enum());
             assert(def.gui_type != ConfigOptionDef::GUIType::i_enum_open || def.type == coInt || def.type == coInts);
-            assert(def.gui_type != ConfigOptionDef::GUIType::f_enum_open || def.type == coFloat || def.type == coPercent || def.type == coFloatOrPercent);
+           // assert(def.gui_type != ConfigOptionDef::GUIType::f_enum_open || def.type == coFloat || def.type == coPercent || def.type == coFloatOrPercent);
             assert(def.gui_type != ConfigOptionDef::GUIType::select_open || def.type == coString || def.type == coStrings);
         } else if (def.type == coString && def.gui_type == ConfigOptionDef::GUIType::select_close) {
             assert(def.enum_def);

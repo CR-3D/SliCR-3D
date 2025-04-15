@@ -73,9 +73,6 @@ group:G2/G3 Generation
 	line:Arc Fitting
 		setting:label$_:arc_fitting
 	end_line
-	line:Arc Fitting Algorithm
-		setting:label$_:arc_fitting_algorithm
-	end_line
 	line:Arc Fitting Tolerance
 		setting:label$_:arc_fitting_tolerance
 	end_line
