@@ -4764,18 +4764,43 @@ void PrintObject::make_staggered_perimeters() {
             previous_perimeters.visit(previous_visitor);
 
             ExtrusionEntityCollection new_perimeters;
+            
+            
+           for (ExtrusionPath* curr_path : current_visitor.paths) {
+               if (curr_path->role() != ERM_Perimeter) {
+                    new_perimeters.append(*curr_path);
+                    continue;
+                }
+                
+              Polyline current_poly = curr_path->as_polyline().to_polyline();
+              
+              bool pinned = false;
+              
+            for (ExtrusionPath* prev_path : previous_visitor.paths) {
+                Polygons previous_poly = prev_path->polygons_covered_by_width(prev_path->width());
 
-            for (ExtrusionPath *curr_path : current_visitor.paths) {
-                // Make a copy so we don't mutate original
-                ExtrusionPath modified = *curr_path;
+                Polylines intersections = intersection_pl(current_poly, previous_poly);
+                Polylines diff = diff_pl(current_poly, previous_poly);
 
-                // Example modification
-                modified.attributes_mutable().mm3_per_mm *= 25;
-                modified.attributes_mutable().width *= 20;
+                for (const Polyline& seg : intersections) {
+                    ExtrusionPath path(seg, curr_path->attributes());
+                    new_perimeters.append(std::move(path));
+                }
 
-                new_perimeters.append(std::move(modified));
+                for (const Polyline& seg : diff) {
+                    ExtrusionAttributes pinned_attrs = curr_path->attributes_mutable();  // deep copy
+                    ExtrusionPath path(seg, pinned_attrs);
+                    
+                    // change flow
+                    path.attributes_mutable().mm3_per_mm *= 10;
+
+                    new_perimeters.append(std::move(path));
+                    pinned = true;
+                }
+                if (pinned) break;
+               }
             }
-
+            
             // Replace perimeters with modified ones
             layerm->m_perimeters.clear();
             layerm->m_perimeters.append(std::move(new_perimeters));

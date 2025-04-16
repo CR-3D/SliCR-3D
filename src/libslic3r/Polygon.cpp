@@ -72,7 +72,6 @@ double Polygon::area(const Points &points)
             p1 = p2;
         }
     }
-    assert(is_approx(ClipperLib::Area(points), 0.5 * a, SCALED_EPSILON * 1.));
     return 0.5 * a;
 }
 

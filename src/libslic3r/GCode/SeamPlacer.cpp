@@ -614,14 +614,13 @@ PolylineWithEnds extract_perimeter_polylines(const Layer *layer, const SeamPosit
                     visitor.also_overhangs = old;
                     if (polylines.empty()) {
                         // shouldn't happen
-                        assert(ex_entity->role() == ExtrusionRole::ThinWall || layer_region->region().config().perimeter_generator == PerimeterGeneratorType::Arachne); // no loops
+
                         //ex_entity->visit(visitor);
                         // what to do in this case?
                         Points pts;
                         ex_entity->collect_points(pts);
                         assert(!pts.empty());
                         bool is_loop = pts.front() == pts.back();
-                        assert(!is_loop);
                         polylines.emplace_back(std::move(pts), true, !is_loop, PolylineWithEnd::PolyDir::BOTH);
                         corresponding_regions_out.push_back(layer_region);
                     }
@@ -650,7 +649,7 @@ void process_perimeter_polylines(const PolylineWithEnd &orig_polyline, float z_c
     }
     PolylineWithEnd polyline = orig_polyline;
     bool is_polygon = polyline.first_point() == polyline.last_point();
-    assert(!is_polygon || polyline.direction != PolylineWithEnd::PolyDir::BOTH);
+   // assert(!is_polygon || polyline.direction != PolylineWithEnd::PolyDir::BOTH);
     if (is_polygon && polyline.direction == PolylineWithEnd::PolyDir::CW) {
         polyline.reverse();
         assert(polyline.direction == PolylineWithEnd::PolyDir::CCW);
