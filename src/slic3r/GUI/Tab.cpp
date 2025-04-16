@@ -55,7 +55,6 @@
 #include "UnsavedChangesDialog.hpp"
 #include "Widgets/CheckBox.hpp"
 #include "WipeTowerDialog.hpp"
-#include "../Utils/Repetier.hpp"
 
 
 #include <boost/algorithm/string.hpp>
@@ -193,10 +192,6 @@ void Tab::create_preset_tab()
         }
     });
 
-    m_presets_choice->Enable();
-
-    auto color = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
-
     //buttons
     m_scaled_buttons.reserve(6);
     m_scaled_buttons.reserve(2);
@@ -271,8 +266,10 @@ void Tab::create_preset_tab()
     m_default_label_clr     = wxGetApp().get_label_clr_default();
     m_phony_label_clr       = wxGetApp().get_label_clr_phony();
 
+#ifdef _USE_CUSTOM_NOTEBOOK
     // Sizer with buttons for mode changing
     if (wxGetApp().tabs_as_menu())
+#endif
         m_mode_sizer = nullptr;//new ModeSizer(panel, int (0.5*em_unit(this)));
 
     const float scale_factor = em_unit(this)*0.1;// GetContentScaleFactor();
@@ -502,6 +499,7 @@ int Tab::get_icon_id(const wxString& title, const std::string& icon)
 
 Slic3r::GUI::PageShp Tab::create_options_page(const wxString& title, const std::string& icon)
 {
+    assert((this->type() & Preset::Type::TYPE_FREQUENT) == 0);
     assert(Tab::fake_build || m_page_view);
     // Initialize the page.
     PageShp page(new Page(this, m_page_view, title, get_icon_id(title, icon)));
@@ -1158,35 +1156,21 @@ void Tab::load_config(const DynamicPrintConfig& config)
 }
 
 // Reload current $self->{config} (aka $self->{presets}->edited_preset->config) into the UI fields.
-// *DONT* delete this, otherwise the sidebar will not create the fields.
 void Tab::reload_config()
 {
     if (m_active_page)
         m_active_page->reload_config();
-
-    PrinterTechnology   pt                  = get_printer_technology();
-    ConfigOptionsGroup *og_freq_chng_params = wxGetApp().sidebar().og_freq_chng_params(pt);
-
-    // also reload scripted that aren't on the active page.
+    //also reload scripted that aren't on the active page.
     for (PageShp page : m_pages) {
         if (page.get() != m_active_page) {
-            DynamicPrintConfig config = static_cast<TabPrinter *>(this)->m_preset_bundle->full_config();
-            if (config.has("nozzle_diameter")) {
-                size_t nozzle_diameters_count = static_cast<ConfigOptionFloats *>(config.option("nozzle_diameter"))->get_values().size();
-
-                Field *field = og_freq_chng_params->get_field("s_nozzle_diameter_2");
-                if (field) {
-                    field->toggle_widget_enable(nozzle_diameters_count == 2);
-                }
-
-                for (auto group : page->m_optgroups) {
-                    // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
-                    group->update_script_presets(true);
-                }
+            for (auto group : page->m_optgroups) {
+                // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
+                group->update_script_presets(true);
             }
         }
     }
 }
+
 void Tab::update_mode()
 {
     m_mode = wxGetApp().get_mode();
@@ -1391,12 +1375,12 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     if (wxGetApp().plater() == nullptr) {
         return;
     }
-    
+
     if (opt_key == "compatible_prints")
         this->compatible_widget_reload(m_compatible_prints);
     if (opt_key == "compatible_printers")
         this->compatible_widget_reload(m_compatible_printers);
-    
+
     PrinterTechnology pt = get_printer_technology();
     ConfigOptionsGroup* og_freq_chng_params = wxGetApp().sidebar().og_freq_chng_params(pt);
     
@@ -1405,7 +1389,7 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     std::string opt_id = opt_key;
     if(size_t pos = opt_id.find("#"); pos != std::string::npos)
         opt_id = opt_id.substr(0, pos);
-    
+
     // script presets
     auto it = Tab::depsid_2_tabtype_scriptids.find(opt_id);
     if (it != Tab::depsid_2_tabtype_scriptids.end()) {
@@ -1425,17 +1409,26 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
                             field->set_any_value(script_val, false);
                     }
                 }
+                if((script_tab->type() & Preset::Type::TYPE_FREQUENT) != 0) { // also check freq changed params
+                    Field *field = og_freq_chng_params->get_field(tabtype_presetid.second);
+                    if (field) {
+                        boost::any script_val = script_tab->m_script_exec.call_script_function_get_value(field->m_opt);
+                        if (!script_val.empty())
+                            field->set_any_value(script_val, false);
+                    }
+                }
             }
         }
     }
-    
+
     // update unscripted freq params
     Field* field = og_freq_chng_params->get_field(opt_key);
     if (field) {
         boost::any val = m_config_base->option(opt_key)->get_any(field->m_opt_idx);
         field->set_any_value(val, false);
     }
-    
+
+
     if (opt_key == "wipe_tower" || opt_key == "single_extruder_multi_material" || opt_key == "extruders_count" )
         update_wiping_button_visibility();
 
@@ -1656,6 +1649,7 @@ void Tab::on_presets_changed()
 
     // Instead of PostEvent (EVT_TAB_PRESETS_CHANGED) just call update_presets
     wxGetApp().plater()->sidebar().update_presets(type());
+
     // Printer selected at the Printer tab, update "compatible" marks at the print and filament selectors.
     for (auto t: m_dependent_tabs)
     {
@@ -1816,9 +1810,8 @@ void Tab::update_frequently_changed_parameters()
 
 void Tab::update_script_presets()
 {
-    for (PageShp& page : m_pages) {
-        page->update_script_presets(); 
-    }
+    for (PageShp& page : m_pages)
+        page->update_script_presets();
 }
 
 t_change Tab::set_or_add(t_change previous, t_change toadd) {
@@ -2171,7 +2164,7 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
             bool is_script = std::find(params.begin(), params.end(), "script") != params.end();
 
             if (is_script && !this->m_script_exec.is_intialized()) {
-                BOOST_LOG_TRIVIAL(error) << "Error: trying to create a scripted widget for '"<< setting_type_name << "' but the .as file doesn't exist or can't be parsed";
+                BOOST_LOG_TRIVIAL(error) << "Error: trying to creater a scripted widget for '"<< setting_type_name << "' but the .as file doesn't exist or can't be parsed";
                 continue;
             }
             std::string setting_id = "";
@@ -2243,7 +2236,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
             bool colored = false;
             bool custom_label = false;
             std::string label_path;
-
             for (int i = 1; i < params.size() - 1; i++) {
                 if (params[i] == "simple")
                 {
@@ -2293,11 +2285,10 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
                     if (option.opt.full_label.empty() && !is_script)
                         option.opt.full_label = option.opt.label;
                     option.opt.label = (params[i].substr(strlen("label$")));
-                    if (is_script && option.opt.full_label.empty())
+                    if (is_script && option.opt.full_label.empty()) 
                         option.opt.full_label = option.opt.label;
                     need_to_notified_search = true;
                 }
-                
                 else if (boost::starts_with(params[i], "label_width$")) {
                     option.opt.label_width = atoi(params[i].substr(strlen("label_width$")).c_str());
                 }
@@ -2480,8 +2471,6 @@ std::vector<Slic3r::GUI::PageShp> Tab::create_pages(std::string setting_type_nam
             height = atoi(arg.c_str());
         } else if (full_line == "freq_purging_volumes") {
             // hack (see FreqChangedParams::init() in plater.cpp)
-            current_line.label_tooltip = full_line;
-        } else if (full_line == "preheat_extruders") {
             current_line.label_tooltip = full_line;
         } else if (full_line == "update_nozzle_diameter") {
             current_group->m_on_change = set_or_add(current_group->m_on_change, [this, idx_page]
@@ -3022,7 +3011,6 @@ void TabPrint::update()
     // But it should be corrected when we will have more such sets.
     // Disable check of the compatibility of the "support_material" and "overhangs" options for saved user profile
     // NOTE: Initialization of the support_material_overhangs_queried value have to be processed just ones
-    
     if (!m_config_manipulation.is_initialized_support_material_overhangs_queried())
     {
         const Preset& selected_preset = m_preset_bundle->fff_prints.get_selected_preset();
@@ -3400,17 +3388,39 @@ void TabFilament::toggle_options()
 { //TODO: check prusa changes
     if (!m_active_page)
         return;
-        const DynamicPrintConfig& print_config = m_preset_bundle->fff_prints.get_edited_preset().config;
-        const DynamicPrintConfig& filament_config = m_preset_bundle->filaments.get_edited_preset().config;
-        const DynamicPrintConfig& printer_config = m_preset_bundle->printers.get_edited_preset().config;
-            // Print config values
-        DynamicPrintConfig full_print_config;
-        full_print_config.apply(print_config);
-        full_print_config.apply(filament_config);
-        full_print_config.apply(printer_config);
 
-        m_config_manipulation.toggle_fff_filament_options(m_config, full_print_config);
+    //if ( std::find(m_active_page->descriptions.begin(), m_active_page->descriptions.end(), "cooling") != m_active_page->descriptions.end())
+    {
+        // bool fan_always_on = m_config->opt_bool("fan_always_on", 0);
 
+        //get_field("max_fan_speed")->toggle_widget_enable(m_config->opt_float("fan_below_layer_time", 0) > 0);
+        toggle_option("min_print_speed", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
+        toggle_option("max_speed_reduction", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
+
+        // hidden 'cooling', it's now deactivated.
+             //for (auto el : { "min_fan_speed", "disable_fan_first_layers" })
+        //for (auto el : { "max_fan_speed", "fan_below_layer_time", "slowdown_below_layer_time", "min_print_speed" })
+        //    get_field(el)->toggle_widget_enable(cooling);
+
+
+        //for (auto el : { "min_fan_speed", "disable_fan_first_layers" })
+        //    get_field(el)->toggle_widget_enable(fan_always_on);
+
+        toggle_option("max_fan_speed", 
+            m_config->opt_float("fan_below_layer_time", 0) > 0 
+            || m_config->opt_float("slowdown_below_layer_time", 0) > 0, 0);
+
+        toggle_option("overhangs_fan_speed", !m_config->is_enabled("overhangs_dynamic_fan_speed", 0), 0);
+    }
+
+    //if (m_active_page->title() == "Advanced")
+    {
+        bool multitool_ramming = m_config->opt_bool("filament_multitool_ramming", 0);
+        toggle_option("filament_multitool_ramming_volume", multitool_ramming);
+        toggle_option("filament_multitool_ramming_flow", multitool_ramming);
+    }
+
+    //if (m_active_page->title() == "Filament Overrides")
         update_filament_overrides_page();
 }
 
@@ -3934,12 +3944,6 @@ void TabPrinter::on_preset_loaded()
     // update the extruders count field
     auto   *nozzle_diameter = dynamic_cast<const ConfigOptionFloats*>(m_config->option("nozzle_diameter"));
     size_t extruders_count = nozzle_diameter->size();
-    
-    if (this->m_config)
-        if (this->m_config->has("print_host"))
-            if (this->m_config->opt_string("print_host") != "")
-                wxGetApp().plater_->set_physical_printer_config(this->m_config);
-    
     // update the GUI field according to the number of nozzle diameters supplied
     extruders_count_changed(extruders_count);
 
@@ -4109,12 +4113,13 @@ void TabPrinter::update()
 
     update_description_lines();
     Layout();
-    
+
     if (m_update_cnt == 0) {
         assert(m_config);
         wxGetApp().mainframe->on_config_changed(*m_config);
     }
 }
+
 void TabPrinter::update_fff()
 {
     if (m_use_silent_mode != m_config->opt_bool("silent_mode")) {
@@ -4215,8 +4220,6 @@ void Tab::load_current_preset()
             on_preset_loaded();
         else
             wxGetApp().sidebar().update_objects_list_extruder_column(1);
-
-        wxGetApp().show_printer_webview_tab();
     }
     // Reload preset pages with the new configuration values.
     reload_config();
@@ -4261,6 +4264,7 @@ void Tab::load_current_preset()
                 for (auto tab : wxGetApp().tabs_list) {
                     if (tab->type() == Preset::TYPE_PRINTER) { // Printer tab shouln't be swapped
                         int cur_selection = wxGetApp().tab_panel()->GetSelection();
+#ifdef _USE_CUSTOM_NOTEBOOK
                         //update icon
                         int icon_size = 0;
                         try {
@@ -4271,6 +4275,7 @@ void Tab::load_current_preset()
                             Notebook* notebook = dynamic_cast<Notebook*>(wxGetApp().tab_panel());
                             notebook->SetPageImage(notebook->FindFirstBtPage(tab), tab->icon_name(icon_size, printer_technology), icon_size);
                         }
+#endif
                         if (cur_selection != 0)
                             wxGetApp().tab_panel()->SetSelection(wxGetApp().tab_panel()->GetPageCount() - 1);
                         continue;
@@ -4297,6 +4302,10 @@ void Tab::load_current_preset()
                 //wxGetApp().mainframe->update_layout();
                 static_cast<TabPrinter*>(this)->m_printer_technology = printer_technology;
                 m_active_page = tmp_page;
+//#ifdef _MSW_DARK_MODE // change_tab already call update_icon, no need to re-do it here.
+//                if (!wxGetApp().tabs_as_menu())
+//                    dynamic_cast<Notebook*>(wxGetApp().tab_panel())->SetPageImage(wxGetApp().tab_panel()->FindPage(this), printer_technology == ptFFF ? "printer" : "sla_printer");
+//#endif
             }
             on_presets_changed();
             if (printer_technology == ptFFF) {
@@ -4308,21 +4317,9 @@ void Tab::load_current_preset()
                 static_cast<TabPrinter*>(this)->m_sys_milling_count = parent_preset == nullptr ? 0 :
                     static_cast<const ConfigOptionFloats*>(parent_preset->config.option("milling_diameter"))->size();
             }
-        } else {
+        }
+        else {
             on_presets_changed();
-            //update width/spacing links
-            if (type() == Preset::TYPE_FFF_PRINT) {
-                assert(m_config);
-                //verify that spacings are set
-                if (m_config && m_config->update_phony({
-                        &wxGetApp().preset_bundle->prints(wxGetApp().plater()->printer_technology()).get_edited_preset().config,
-                        &wxGetApp().preset_bundle->materials(wxGetApp().plater()->printer_technology()).get_edited_preset().config,
-                        &wxGetApp().preset_bundle->printers.get_edited_preset().config
-                    }) != nullptr) {
-                    update_dirty(); // will call on_presets_changed() again
-                    reload_config();
-                }
-            }
         }
         update_frequently_changed_parameters();
 
@@ -4539,7 +4536,6 @@ bool Tab::select_preset(std::string preset_name, bool delete_current /*=false*/,
         // Trigger the on_presets_changed event so that we also restore the previous value in the plater selector,
         // if this action was initiated from the plater.
         on_presets_changed();
-
     } else {
         if (current_dirty)
             m_presets->discard_current_changes();
@@ -5038,7 +5034,6 @@ void Tab::delete_preset()
         PhysicalPrinter& printer = physical_printers.get_selected_printer();
         if (printer.preset_names.size() == 1) {
             if (m_presets_choice->del_physical_printer(_L("It's a last preset for this physical printer.")))
-                wxGetApp().show_printer_webview_tab();
                 Layout();
             return;
         }
@@ -6072,10 +6067,8 @@ void Page::reload_config()
 
 void Page::update_script_presets()
 {
-    for (auto group : m_optgroups) {
-
+    for (auto group : m_optgroups)
         group->update_script_presets();
-        }
 }
 
 void Page::update_visibility(ConfigOptionMode mode, bool update_contolls_visibility)
@@ -6221,7 +6214,7 @@ void TabSLAMaterial::init()
     m_presets = &m_preset_bundle->sla_materials;
     load_initial_data();
 }
-void TabSLAMaterial::build() { append(this->m_pages, create_pages("2.ui")); }
+void TabSLAMaterial::build() { append(this->m_pages, create_pages("sla_material.ui")); }
 
 void TabSLAMaterial::toggle_options()
 {
@@ -6422,7 +6415,7 @@ void TabSLAPrint::init()
     load_initial_data();
 }
 
-void TabSLAPrint::build() { append(this->m_pages, create_pages("l.ui")); }
+void TabSLAPrint::build() { append(this->m_pages, create_pages("sla_print.ui")); }
 
 void TabSLAPrint::update_description_lines()
 {

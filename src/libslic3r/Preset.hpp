@@ -134,9 +134,13 @@ public:
         TYPE_SLA_PRINT = TYPE_SLA | TYPE_PRINT1,
         TYPE_SLA_MATERIAL = TYPE_SLA | TYPE_MATERIAL,
         TYPE_TECHNOLOGY = TYPE_FFF | TYPE_SLA,
+        
+        TYPE_FREQUENT     = 1 << 5,
+        TYPE_FREQUENT_FFF = TYPE_FFF | TYPE_FREQUENT,
+        TYPE_FREQUENT_SLA = TYPE_SLA | TYPE_FREQUENT,
         // This type is here to support PresetConfigSubstitutions for physical printers, however it does not belong to the Preset class,
         // PhysicalPrinter class is used instead.
-        TYPE_PHYSICAL_PRINTER = 1 << 5,
+        TYPE_PHYSICAL_PRINTER = 1 << 6,
         TYPE_PREFERENCES
     };
     static inline PrinterTechnology get_tech(Type type)
