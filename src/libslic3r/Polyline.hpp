@@ -97,7 +97,7 @@ public:
     bool is_straight() const;
     bool is_closed() const { return this->points.front() == this->points.back(); }
     void assert_valid() const;
-
+    bool split_at_length(double length, Polyline* out1, Polyline* out2) const;
     using iterator = Points::iterator;
     using const_iterator = Points::const_iterator;
 };
@@ -339,6 +339,7 @@ public:
 
     //works on points only (be careful)
     bool split_at_index(const size_t index, ArcPolyline &p1, ArcPolyline &p2) const;
+    
     void pop_front();
     void pop_back();
     // need some work to work better on arc

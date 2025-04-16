@@ -150,6 +150,49 @@ template void Polyline::simplify_by_visibility<ExPolygon>(const ExPolygon &area)
 template void Polyline::simplify_by_visibility<ExPolygonCollection>(const ExPolygonCollection &area);
 #endif
 
+bool Polyline::split_at_length(double length, Polyline* out1, Polyline* out2) const {
+    out1->clear();
+    out2->clear();
+
+    if (this->points.size() < 2)
+        return false;
+
+    double accumulated = 0.0;
+    out1->points.push_back(this->points[0]);
+
+    for (size_t i = 1; i < this->points.size(); ++i) {
+        const Point& p1 = this->points[i - 1];
+        const Point& p2 = this->points[i];
+        double seg_len = p1.distance_to(p2);
+
+        if (accumulated + seg_len >= length) {
+            double ratio = (length - accumulated) / seg_len;
+            Point split = p1 + (p2 - p1) * ratio;
+
+            // Finalize first part
+            out1->points.push_back(split);
+
+            // Start second part
+            out2->points.push_back(split);
+            out2->points.push_back(p2);
+
+            // Copy remaining points
+            for (size_t j = i + 1; j < this->points.size(); ++j)
+                out2->points.push_back(this->points[j]);
+
+            return true;
+        }
+
+        out1->points.push_back(p2);
+        accumulated += seg_len;
+    }
+
+    // If split point is beyond total length
+    *out1 = *this;
+    out2->clear();
+    return false;
+}
+
 void Polyline::split_at(const Point &point, Polyline* p1, Polyline* p2) const
 {
     if (this->points.empty()) return;

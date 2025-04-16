@@ -307,10 +307,9 @@ void PrintObject::make_perimeters()
         m_print->throw_if_canceled();
         BOOST_LOG_TRIVIAL(debug) << "Generating milling post-process in parallel - end";
     }
-
+    
     make_staggered_perimeters();
     this->set_done(posPerimeters);
-
 }
 
 void PrintObject::prepare_infill()
@@ -4741,71 +4740,137 @@ void draw_intersections_and_diff(Slic3r::SVG &svg,
     svg.draw(diff, diff_color, scale_t(0.2));
 }
 
+Point point_along_polyline(const Polyline& pl, double distance) {
+    if (pl.points.size() < 2)
+        return pl.points.empty() ? Point(0, 0) : pl.points.front();
+
+    double accumulated = 0.0;
+
+    for (size_t i = 1; i < pl.points.size(); ++i) {
+        const Point& p1 = pl.points[i - 1];
+        const Point& p2 = pl.points[i];
+        double seg_len = p1.distance_to(p2);
+
+        if (accumulated + seg_len >= distance) {
+            // Found the segment to interpolate
+            double local = distance - accumulated;
+            double ratio = seg_len > 0 ? local / seg_len : 0.0;
+            return p1 + (p2 - p1) * ratio;
+        }
+
+        accumulated += seg_len;
+    }
+
+    // If distance exceeds total, return last point
+    return pl.points.back();
+}
+
 void PrintObject::make_staggered_perimeters() {
-    if (this->m_layers.size() < 2)
-        return; // must have previous layers
-
-    for (size_t layer_idx = 1; layer_idx < this->m_layers.size(); ++layer_idx) {
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            const PrintRegion &region = this->printing_region(region_id);
-            Layer *current_layer = this->m_layers[layer_idx];
-            Layer *prev_layer = this->m_layers[layer_idx - 1];
-
-            LayerRegion *layerm = current_layer->get_region(region_id);
-            LayerRegion *layerm_prev = prev_layer->get_region(region_id);
-            if (!layerm || !layerm_prev)
-                continue;
-
-            ExtrusionEntityCollection current_perimeters = layerm->perimeters();
-            ExtrusionEntityCollection previous_perimeters = layerm_prev->perimeters();
-
-            GetPathsVisitor current_visitor, previous_visitor;
-            current_perimeters.visit(current_visitor);
-            previous_perimeters.visit(previous_visitor);
-
-            ExtrusionEntityCollection new_perimeters;
+   
+   if (this->m_layers.size() < 2)
+      return; // must have previous layers
+   
+   for (size_t layer_idx = 1; layer_idx < this->m_layers.size(); ++layer_idx) {
+      for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
+         const PrintRegion &region = this->printing_region(region_id);
+         if (!region.config().staggered_perimeters)
+            return;
             
+         Layer *current_layer = this->m_layers[layer_idx];
+         Layer *prev_layer = this->m_layers[layer_idx - 1];
+         
+         LayerRegion *layerm = current_layer->get_region(region_id);
+         LayerRegion *layerm_prev = prev_layer->get_region(region_id);
+         
+         if (!layerm || !layerm_prev)
+            continue;
+         
+         ExtrusionEntityCollection current_perimeters = layerm->perimeters();
+         ExtrusionEntityCollection previous_perimeters = layerm_prev->perimeters();
+         
+         GetPathsVisitor current_visitor, previous_visitor;
+         current_perimeters.visit(current_visitor);
+         previous_perimeters.visit(previous_visitor);
+         
+         ExtrusionEntityCollection new_perimeters;
+         
+         for (ExtrusionPath* curr_path : current_visitor.paths) {
+            if (curr_path->role() != ERM_Perimeter) {
+               new_perimeters.append(*curr_path); // Non-perimeters → untouched
+               continue;
+            }
             
-           for (ExtrusionPath* curr_path : current_visitor.paths) {
-               if (curr_path->role() != ERM_Perimeter) {
-                    new_perimeters.append(*curr_path);
-                    continue;
-                }
-                
-              Polyline current_poly = curr_path->as_polyline().to_polyline();
-              
-              bool pinned = false;
-              
+            Polyline curr_poly = curr_path->as_polyline().to_polyline();
+            bool modified = false;
+            
             for (ExtrusionPath* prev_path : previous_visitor.paths) {
-                Polygons previous_poly = prev_path->polygons_covered_by_width(prev_path->width());
-
-                Polylines intersections = intersection_pl(current_poly, previous_poly);
-                Polylines diff = diff_pl(current_poly, previous_poly);
-
-                for (const Polyline& seg : intersections) {
-                    ExtrusionPath path(seg, curr_path->attributes());
-                    new_perimeters.append(std::move(path));
-                }
-
-                for (const Polyline& seg : diff) {
-                    ExtrusionAttributes pinned_attrs = curr_path->attributes_mutable();  // deep copy
-                    ExtrusionPath path(seg, pinned_attrs);
-                    
-                    // change flow
-                    path.attributes_mutable().mm3_per_mm *= 10;
-
-                    new_perimeters.append(std::move(path));
-                    pinned = true;
-                }
-                if (pinned) break;
+               Polygons prev_coverage;
+               Polygons path_poly = prev_path->polygons_covered_by_width(prev_path->width());
+               prev_coverage.insert(prev_coverage.end(), path_poly.begin(), path_poly.end());
+               
+               
+               // Find unsupported segments
+               Polylines unsupported = diff_pl(curr_poly, prev_coverage);
+               
+               // Total unsupported length
+               double unsupported_len = 0.0;
+               for (const Polyline& seg : unsupported) unsupported_len += seg.length();
+               
+               const double min_len = 0.6 * curr_path->width();
+               
+               // Split once at offset along first unsupported segment
+               const Polyline& first_unsupported = unsupported.front();
+               double split_offset_mm = std::max(1.0, 1.8 * curr_path->width());
+               double curr_len_mm = unscaled(curr_poly.length());
+               
+               if (split_offset_mm >= curr_len_mm - 0.1)
+                  break;
+               
+               
+               std::cout << "Curr path length: " << curr_len_mm << "\n";
+               std::cout << "Unsupported segments: " << unsupported.size() << "\n";
+               std::cout << "Split offset: " << split_offset_mm << "\n";
+               
+               Polyline front, back;
+               bool ok = curr_poly.split_at_length(scale_t(split_offset_mm), &front, &back);
+               if (!ok || front.size() < 2 || back.size() < 2) {
+                  // fallback: boost entire path
+                  ExtrusionAttributes boosted = curr_path->attributes_mutable();
+                  boosted.mm3_per_mm *= 1.5;
+                  ExtrusionPath pin(curr_poly, boosted);
+                  pin.role() = curr_path->role();
+                  new_perimeters.append(std::move(pin));
+                  modified = true;
+                  break;
+               } else {
+                  
+                  // Apply pinning: entry segment → boosted flow
+                  ExtrusionAttributes boosted = curr_path->attributes_mutable();
+                  boosted.mm3_per_mm *= 1.5;
+                  boosted.width *= 1.5;
+                  ExtrusionPath pin(front, boosted);
+                  pin.role() = curr_path->role();
+                  new_perimeters.append(std::move(pin));
+                  
+                  // Remaining segment → normal flow
+                  ExtrusionPath normal(back, curr_path->attributes());
+                  normal.role() = curr_path->role();
+                  new_perimeters.append(std::move(normal));
+                  
+                  modified = true;
+                  break;
                }
             }
             
-            // Replace perimeters with modified ones
-            layerm->m_perimeters.clear();
-            layerm->m_perimeters.append(std::move(new_perimeters));
-        }
-    }
+            if (!modified) {
+               new_perimeters.append(*curr_path); // no unsupported segment → keep original
+            }
+         }
+         // Replace perimeters with modified ones
+         layerm->m_perimeters.clear();
+         layerm->m_perimeters.append(std::move(new_perimeters));
+      }
+   }
 }
 
 // combine fill surfaces across layers to honor the "infill every N layers" option
