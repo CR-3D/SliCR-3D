@@ -398,7 +398,7 @@ public:
     std::set<uint16_t>   object_extruders() const;
     double               get_first_layer_height() const;
 
-    void make_staggered_perimeters();
+    void pin_perimeters();
 
     // Called by make_perimeters()
     void slice();

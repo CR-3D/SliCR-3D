@@ -308,7 +308,7 @@ void PrintObject::make_perimeters()
         BOOST_LOG_TRIVIAL(debug) << "Generating milling post-process in parallel - end";
     }
     
-    make_staggered_perimeters();
+    pin_perimeters();
     this->set_done(posPerimeters);
 }
 
@@ -4765,7 +4765,30 @@ Point point_along_polyline(const Polyline& pl, double distance) {
     return pl.points.back();
 }
 
-void PrintObject::make_staggered_perimeters() {
+double calculate_boost_factor(const Polyline& unsupported_segment,
+                              double width,
+                              double layer_height,
+                              double support_coverage_ratio = 1.0,
+                              double default_boost = 1.5,
+                              double max_boost = 2.5)
+{
+    double unsupported_mm = unscaled(unsupported_segment.length());
+    double boost = default_boost;
+
+    if (unsupported_mm > width * 2.0)
+        boost += std::min(1.0, unsupported_mm / 10.0);
+
+    if (layer_height > 0.2)
+        boost += (layer_height - 0.2) * 1.5;
+
+    if (support_coverage_ratio < 0.3)
+        boost += 0.3;
+
+    return std::min(boost, max_boost);
+}
+
+
+void PrintObject::pin_perimeters() {
    
    if (this->m_layers.size() < 2)
       return; // must have previous layers
@@ -4820,17 +4843,12 @@ void PrintObject::make_staggered_perimeters() {
                
                // Split once at offset along first unsupported segment
                const Polyline& first_unsupported = unsupported.front();
-               double split_offset_mm = std::max(1.0, 1.8 * curr_path->width());
+               double split_offset_mm = std::max(1.0, 1.5 * curr_path->width());
                double curr_len_mm = unscaled(curr_poly.length());
                
                if (split_offset_mm >= curr_len_mm - 0.1)
                   break;
-               
-               
-               std::cout << "Curr path length: " << curr_len_mm << "\n";
-               std::cout << "Unsupported segments: " << unsupported.size() << "\n";
-               std::cout << "Split offset: " << split_offset_mm << "\n";
-               
+
                Polyline front, back;
                bool ok = curr_poly.split_at_length(scale_t(split_offset_mm), &front, &back);
                if (!ok || front.size() < 2 || back.size() < 2) {
@@ -4843,20 +4861,23 @@ void PrintObject::make_staggered_perimeters() {
                   modified = true;
                   break;
                } else {
-                  
-                  // Apply pinning: entry segment → boosted flow
-                  ExtrusionAttributes boosted = curr_path->attributes_mutable();
-                  boosted.mm3_per_mm *= 1.5;
-                  boosted.width *= 1.5;
+                  double layer_height = current_layer->print_z - prev_layer->print_z;
+                  double support_ratio = 1.0;
+
+                  double boost_factor = calculate_boost_factor(front, curr_path->width(), layer_height, support_ratio);
+
+                  ExtrusionAttributes boosted = curr_path->attributes();
+                  boosted.mm3_per_mm *= boost_factor;
+                  boosted.width *= 1.0 + (boost_factor - 1.0) * 0.3;
+
                   ExtrusionPath pin(front, boosted);
                   pin.role() = curr_path->role();
                   new_perimeters.append(std::move(pin));
-                  
-                  // Remaining segment → normal flow
+
                   ExtrusionPath normal(back, curr_path->attributes());
                   normal.role() = curr_path->role();
                   new_perimeters.append(std::move(normal));
-                  
+
                   modified = true;
                   break;
                }
