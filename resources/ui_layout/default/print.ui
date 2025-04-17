@@ -805,10 +805,11 @@ group:Overlap
         setting:label$_:top_solid_infill_overlap
 	end_line
 
-	line:Bridge Lines Density
+	line:Bridge Lines Overlap
 		setting:bridge_overlap_min
 		setting:bridge_overlap
 	end_line
+
 	line:Infill Overlap
 	setting:label$_:infill_overlap
 	end_line
