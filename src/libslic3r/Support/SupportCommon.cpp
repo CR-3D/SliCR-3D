@@ -1371,7 +1371,7 @@ static void modulate_extrusion_by_overlapping_layers(
             }
             path_ends.emplace_back(std::pair<Point, Point>(polylines.back().points.front(), polylines.back().points.back()));
         }
-       // assert_valid(polylines);
+        assert_valid(polylines);
     }
     // Destroy the original extrusion paths, their polylines were moved to path_fragments already.
     // This will be the destination for the new paths.
@@ -1387,9 +1387,9 @@ static void modulate_extrusion_by_overlapping_layers(
         assert_valid(polygons_trimming);
         frag.polylines = intersection_pl(path_fragments.back().polylines, polygons_trimming);
         ensure_valid(frag.polylines, this_layer.resolution);
-        //assert_valid(frag.polylines);
+        assert_valid(frag.polylines);
         path_fragments.back().polylines = diff_pl(path_fragments.back().polylines, polygons_trimming);
-        //assert_valid(path_fragments.back().polylines);
+        assert_valid(path_fragments.back().polylines);
         // Adjust the extrusion parameters for a reduced layer height and a non-bridging flow (nozzle_dmr = -1, does not matter).
         assert(this_layer.print_z > overlapping_layer.print_z);
         float old_height = frag.flow.height;
@@ -1442,7 +1442,7 @@ static void modulate_extrusion_by_overlapping_layers(
     for (size_t i_overlapping_layer = 0; i_overlapping_layer <= n_overlapping_layers; ++ i_overlapping_layer) {
         const Polylines &polylines = path_fragments[i_overlapping_layer].polylines;
         for (size_t i_polyline = 0; i_polyline < polylines.size(); ++ i_polyline) {
-            polylines[i_polyline].MultiPoint::assert_valid();
+            polylines[i_polyline].assert_valid();
             // Map a starting point of a polyline to a pair of <layer, polyline>
             if (polylines[i_polyline].points.size() >= 2) {
                 map_fragment_starts.insert(ExtrusionPathFragmentEnd(i_overlapping_layer, i_polyline, true));
@@ -1824,12 +1824,10 @@ void generate_support_toolpaths(
                                                                 size_t(-1) :
                                                                 (slicing_params.base_raft_layers + slicing_params.interface_raft_layers - 1);
 
-    //Slic3r::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),
-        //[&config, &slicing_params, &support_params, &support_layers, &bottom_contacts, &top_contacts, &intermediate_layers, &interface_layers, &base_interface_layers, &layer_caches, &loop_interface_processor,
-            //&bbox_object, n_raft_layers, link_max_length_factor, &filler_first_layer, raft_top_interface_idx]
-            //(const tbb::blocked_range<size_t>& range) {
-    {
-        const tbb::blocked_range<size_t> range(n_raft_layers, support_layers.size());
+    tbb::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),
+        [&config, &slicing_params, &support_params, &support_layers, &bottom_contacts, &top_contacts, &intermediate_layers, &interface_layers, &base_interface_layers, &layer_caches, &loop_interface_processor,
+            &bbox_object, n_raft_layers, link_max_length_factor, &filler_first_layer, raft_top_interface_idx]
+            (const tbb::blocked_range<size_t>& range) {
         // Indices of the 1st layer in their respective container at the support layer height.
         size_t idx_layer_bottom_contact   = size_t(-1);
         size_t idx_layer_top_contact      = size_t(-1);
@@ -2188,7 +2186,7 @@ void generate_support_toolpaths(
                     support_layer.support_islands_bboxes.emplace_back(get_extents(expoly).inflated(SCALED_EPSILON));
             }
         } // for each support_layer_id
-    }//);
+    });
 
     // Now modulate the support layer height in parallel.
     tbb::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),

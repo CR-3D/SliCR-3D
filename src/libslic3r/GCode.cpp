@@ -7153,9 +7153,10 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
     // check whether a straight travel move would need retraction
     bool needs_retraction = this->needs_retraction(this->last_pos_defined() ? travel : Polyline{point}, role);
-    if (m_config.only_retract_when_crossing_perimeters && this->last_pos_defined() &&
-        !(m_config.enforce_retract_first_layer && m_layer_index == 0))
-        needs_retraction = needs_retraction && this->can_cross_perimeter(travel, true);
+    
+    //if (m_config.only_retract_when_crossing_perimeters && this->last_pos_defined() &&
+      //  !(m_config.enforce_retract_first_layer && m_layer_index == 0))
+      //  needs_retraction = needs_retraction && this->can_cross_perimeter(travel, true);
 
     // Re-allow avoid_crossing_perimeters for the next travel moves
     m_avoid_crossing_perimeters.reset_once_modifiers();
@@ -7726,7 +7727,7 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
             assert(m_last_object_layer == m_layer || dynamic_cast<const Layer*>(m_layer) ||
                 (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z + EPSILON));
             assert(m_last_object_layer);
-            if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {
+           if (m_last_object_layer != nullptr && m_layer_slices_offseted.layer != m_last_object_layer) {
                 m_layer_slices_offseted.layer    = m_last_object_layer;
                 m_layer_slices_offseted.diameter = scale_t(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) / 2;
                 ExPolygons slices                = m_last_object_layer->lslices();

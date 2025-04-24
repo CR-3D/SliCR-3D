@@ -809,8 +809,9 @@ group:Overlap
 		setting:bridge_overlap_min
 		setting:bridge_overlap
 	end_line
+
 	line:Infill Overlap
-	setting:label$_:infill_overlap
+		setting:label$_:infill_overlap
 	end_line
 
 group:Flow
