@@ -255,6 +255,19 @@ void ensure_valid(Polylines &polylines, coord_t resolution) {
     }
 }
 
+Polylines ensure_valid(Polylines &&polylines, coord_t resolution) {
+    for (size_t i = 0; i < polylines.size(); ++i) {
+        assert(polylines[i].size() > 1);
+        polylines[i].douglas_peucker(resolution);
+        assert(polylines[i].size() > 1);
+        if (polylines[i].size() == 2 && polylines[i].front().coincides_with_epsilon(polylines[i].back())) {
+            polylines.erase(polylines.begin() + i);
+            --i;
+        }
+    }
+    return std::move(polylines);
+}
+
 void ensure_valid(Polyline &polyline, coord_t resolution) {
     assert(polyline.size() > 1);
     polyline.douglas_peucker(resolution);

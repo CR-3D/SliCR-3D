@@ -2833,7 +2833,7 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
     const coord_t anchors_size = std::min(bridged_infill_margin, perimeter_depth);
     const coord_t overhang_scaled_spacing = params.overhang_flow.scaled_spacing();
 
-    const BoundingBox infill_area_bb = get_extents(infill_area).inflated(SCALED_EPSILON);
+    const BoundingBox infill_area_bb = get_extents(infill_area).inflated(SCALED_EPSILON + anchors_size);
     const Polygons optimized_lower_slices = ClipperUtils::clip_clipper_polygons_with_subject_bbox(params.lower_slices_bridge, infill_area_bb);
     const ExPolygons overhangs  = diff_ex(infill_area, optimized_lower_slices);
 
@@ -2842,6 +2842,7 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
     AABBTreeLines::LinesDistancer<Line> lower_layer_aabb_tree{to_lines(optimized_lower_slices)};
     // use island instead of infill_area, to be able to use already extruded (hopefully not-overhang) perimeters.
     const Polygons                      anchors             = intersection({island}, optimized_lower_slices);
+    const ExPolygons                    anchors_no_overhangs= diff_ex(anchors, overhangs);
     const ExPolygons                    inset_anchors       = diff_ex(anchors,
                                                                    offset_ex(overhangs, anchors_size /*+ 0.1 * params.overhang_flow.scaled_width()*/, EXTRA_PERIMETER_OFFSET_PARAMETERS));
     const ExPolygons                    inset_overhang_area = diff_ex(infill_area, inset_anchors);
@@ -2882,7 +2883,7 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
         ExPolygons perimeter_polygon = offset2_ex(union_ex(offset_ex(overhang_to_cover, 0.1 * overhang_scaled_spacing), anchoring),
                                             -overhang_scaled_spacing * (0.1 + 0.5 + 0.1), overhang_scaled_spacing * 0.1);
 
-        const Polygon anchoring_convex_hull = Geometry::convex_hull(anchoring);
+        const Polygon anchoring_convex_hull = Geometry::convex_hull(intersection_ex(expanded_overhang_to_cover, anchors_no_overhangs));
         double  unbridgeable_area     = area(diff(real_overhang, {anchoring_convex_hull}));
 
         //try with the quick bridge detector
@@ -3606,9 +3607,9 @@ void PerimeterGenerator::process(// Input:
     // prepare grown lower layer slices for overhang detection
     //note: config.overhangs_width can't be enabled (has to be ignored) if config.overhangs_width_speed is disabled (for now)
     bool overhang_speed_enabled = params.config.overhangs_width_speed.is_enabled();
-    bool overhang_flow_enabled = params.config.overhangs_width.is_enabled();
-    bool overhang_dynamic_enabled = params.config.overhangs_dynamic_speed.is_enabled();
-    bool overhang_extra_enabled = params.config.extra_perimeters_on_overhangs;
+    const bool overhang_flow_enabled = params.config.overhangs_width.is_enabled();
+    const bool overhang_dynamic_enabled = params.config.overhangs_dynamic_speed.is_enabled();
+    const bool overhang_extra_enabled = params.config.extra_perimeters_on_overhangs;
     if (this->lower_slices != NULL && (overhang_speed_enabled || overhang_flow_enabled || overhang_dynamic_enabled || overhang_extra_enabled)) {
         // We consider overhang any part where the entire nozzle diameter is not supported by the
         // lower layer, so we take lower slices and offset them by overhangs_width of the nozzle diameter used 
@@ -3909,7 +3910,7 @@ void PerimeterGenerator::process(// Input:
         }
         
         if (lower_slices != nullptr &&
-            params.config.extra_perimeters_on_overhangs &&
+            overhang_extra_enabled &&
             params.config.perimeters > 0 && params.layer->id() > params.object_config.raft_layers) {
 
             // remove infill/peri encroaching

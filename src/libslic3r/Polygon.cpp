@@ -657,10 +657,23 @@ bool remove_same_neighbor(Polygons &polygons)
     return exist;
 }
 
+// note: prefer using ExPolygons.
 void ensure_valid(Polygons &polygons, coord_t resolution /*= SCALED_EPSILON*/) {
     for (size_t i = 0; i < polygons.size(); ++i) {
+        bool ccw = polygons[i].is_counter_clockwise();
         polygons[i].douglas_peucker(resolution);
         if (polygons[i].size() < 3) {
+            // if erase contour, also erase its holes.
+            if (ccw) {
+                for (size_t hole_idx = i + 1; hole_idx < polygons.size(); ++hole_idx) {
+                    if (polygons[i].is_clockwise()) {
+                        polygons.erase(polygons.begin() + hole_idx);
+                        --hole_idx;
+                    } else {
+                        break;
+                    }
+                }
+            }
             polygons.erase(polygons.begin() + i);
             --i;
         }
@@ -677,6 +690,7 @@ Polygons ensure_valid(coord_t resolution, Polygons &&polygons) {
     return ensure_valid(std::move(polygons), resolution);
 }
 
+// unsafe, can delete a contour withotu its holes (ie, only call it if you work only on contour)
 bool ensure_valid(Polygon &polygon, coord_t resolution) {
     polygon.douglas_peucker(resolution);
     if (polygon.size() < 3) {

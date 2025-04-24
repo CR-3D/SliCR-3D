@@ -207,7 +207,7 @@ brew --prefix zstd
 export $BUILD_ARCH
 export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix zstd)/lib/
 
-echo -n "[1/9] Updating submodules..."
+echo -n "[1/8] Updating submodules..."
 {
     # update submodule profiles
     pushd resources/profiles
@@ -219,12 +219,12 @@ echo "done"
 
 if [[ -n "$VERSION_DATE" ]]
 then
-	echo -n "[2/9] Changing date in version ... "
+	echo -n "[2/8] Changing date in version ... "
     # change date in version
     sed "s/+UNKNOWN/-$(date '+%F')/" version.inc > version.date.inc
 	echo "done"
 else
-	echo -n "[2/9] Changing date in version: remove UNKNOWN ... "
+	echo -n "[2/8] Changing date in version: remove UNKNOWN ... "
     sed "s/+UNKNOWN//" version.inc > version.date.inc
 	echo "done"
 fi
@@ -242,7 +242,7 @@ then
     then
         mkdir deps/build
     fi
-    echo -e " \n[3/9] Configuring dependencies ... \n"
+    echo -e " \n[3/8] Configuring dependencies ... \n"
     BUILD_ARGS=""
     if [[ -n "$BUILD_ARCH" ]]
     then
@@ -271,7 +271,7 @@ then
         exit 1 # terminate and indicate error
     fi
 
-    echo -e "[4/9] Building dependencies ...\n"
+    echo -e "[4/8] Building dependencies ...\n"
 
     # make deps
     make -j$NCORES
@@ -283,20 +283,12 @@ then
         exit 1 # terminate and indicate error
     fi
 
-    echo -e "[5/9] Renaming wxscintilla library ...\n"
-
-    # rename wxscintilla
-    pushd destdir/usr/local/lib > /dev/null
-    cp libwxscintilla-3.2.a libwx_osx_cocoau_scintilla-3.2.a
-
     popd > /dev/null
-    popd > /dev/null
-    echo -e "\n ... done\n"
 fi
 
 if [[ -n "$BUILD_CLEANDEPEND" ]]
 then
-    echo -e "[6/9] Cleaning dependencies...\n"
+    echo -e "[5/8] Cleaning dependencies...\n"
     pushd deps/build
     pwd
     rm -fr dep_*
@@ -306,7 +298,7 @@ fi
 
 if [[ -n "$BUILD_SLIC3R" ]]
 then
-    echo -e "[5/9] Configuring Slicer ...\n"
+    echo -e "[4/8] Configuring Slicer ...\n"
 
     if [[ -n $BUILD_WIPE ]]
     then
@@ -361,7 +353,7 @@ then
     # make Slic3r
     if [[ -z "$BUILD_XCODE" ]]
     then
-        echo -e "\n[6/9] Building Slicer ...\n"
+        echo -e "\n[5/8] Building Slicer ...\n"
         make -j$NCORES Slic3r
         if [ $? -eq 0 ]
         then
@@ -372,7 +364,7 @@ then
         fi
     fi
 
-    echo -e "\n[7/9] Generating language files ...\n"
+    echo -e "\n[6/8] Generating language files ...\n"
     #make .mo
     if [[ -n "$UPDATE_POTFILE" ]]
     then

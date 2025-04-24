@@ -86,7 +86,7 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
 
     std::string tcr_rotated_gcode = post_process_wipe_tower_moves(tcr, wipe_tower_offset, wipe_tower_rotation);
 
-    double current_z = gcodegen.writer().get_position().z();
+    double current_z = gcodegen.writer().get_unlifted_position().z();
 
     if (z == -1.) // in case no specific z was provided, print at current_z pos
         z = current_z;

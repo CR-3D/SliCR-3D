@@ -287,12 +287,25 @@ inline Polyline to_polyline(const Polygon &polygon)
     return out;
 }
 
+// to have easier time with svg output.
+inline Polylines to_polylines(const Polygon &polygon)
+{
+    Polylines out;
+    assert(!polygon.empty());
+    if (!polygon.empty()) {
+        out.push_back(to_polyline(polygon));
+    }
+    return out;
+}
+
 inline Polylines to_polylines(const Polygons &polygons)
 {
     Polylines out;
     out.reserve(polygons.size());
-    for (const Polygon &polygon : polygons)
-        out.emplace_back(to_polyline(polygon));
+    for (const Polygon &polygon : polygons) {
+        assert(!polygon.empty());
+        out.push_back(to_polyline(polygon));
+    }
     return out;
 }
 

@@ -1139,7 +1139,7 @@ void TextCtrl::BUILD() {
         }), temp->GetId());
     }
 
-	temp->Bind(wxEVT_LEFT_DOWN, ([temp](wxEvent& event)
+	temp->GetTextCtrl()->Bind(wxEVT_LEFT_DOWN, ([temp](wxEvent& event)
 	{
 		//! to allow the default handling
 		event.Skip();
@@ -1150,7 +1150,7 @@ void TextCtrl::BUILD() {
 		flag = true;
 #endif // __WXGTK__
 		temp->GetToolTip()->Enable(flag);
-	}), temp->GetId());
+	}), temp->GetTextCtrl()->GetId());
 
 	temp->Bind(wxEVT_KILL_FOCUS, ([this, temp](wxEvent& e)
 	{

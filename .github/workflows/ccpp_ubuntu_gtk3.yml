@@ -9,8 +9,10 @@ on:
       - debug_ubuntu
       - dev
 jobs:
-  build_dep:
-    runs-on: ubuntu-20.04
+  build:
+
+    runs-on: ubuntu-22.04
+
     steps:
     - uses: actions/checkout@v3
     - name: Setup cmake
