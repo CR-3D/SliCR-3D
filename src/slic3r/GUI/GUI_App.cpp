@@ -3769,7 +3769,7 @@ void GUI_App::show_downloader_registration_dialog() {
         auto downloader_worker = new DownloaderUtils::Worker(nullptr);
         downloader_worker->perform_register(app_config->get("url_downloader_dest"));
 #ifdef __linux__
-        if (downloader_worker->get_perform_registration_linux())
+        if (downloader_worker->perform_registration_linux())
             DesktopIntegrationDialog::perform_downloader_desktop_integration();
 #endif // __linux__
     } else {
