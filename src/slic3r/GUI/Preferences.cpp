@@ -1263,7 +1263,7 @@ void PreferencesDialog::accept(wxEvent&)
 		if (!this->m_downloader->on_finish())
 			return;
 #ifdef __linux__
-		if( this->m_downloader->perform_registration_linux()) 
+		if( this->m_downloader->perform_registration_linux) 
 			DesktopIntegrationDialog::perform_downloader_desktop_integration();
 #endif // __linux__
 	}
