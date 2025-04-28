@@ -49,7 +49,7 @@ done
 
 if [[ -n "$BUILD_APP" ]]
 then
-    echo -e "\n[8/9] Generating Linux app ..."
+    echo -e "\n[7/8] Generating Linux app ..."
     # create directory and copy into it
     if [ -d "package" ]
     then
@@ -88,7 +88,7 @@ fi
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
-    echo -e "\n[9/9] Creating .tgz and Appimage for distribution ...\n"
+    echo -e "\n[8/8] Creating .tgz and Appimage for distribution ...\n"
 
     pushd package > /dev/null
     if [[ "$GTK_VERSION" == 2 ]]

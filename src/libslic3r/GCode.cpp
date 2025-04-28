@@ -4940,9 +4940,13 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         pt.rotate(angle, current_point);
         //check if we can go to higher dist
         if (nozzle_diam != 0 && setting_max_depth > nozzle_diam * 0.55) {
-            // call travel_to to trigger retract, so we can check it (but don't use the travel)
-            travel_to(gcode, pt, wipe_paths.front().role());
-            if (m_writer.tool()->need_unretract()) {
+            // check if retraction
+            bool has_retraction = !this->last_pos_defined();
+            if (!has_retraction) {
+                Polyline travel = Polyline(this->last_pos(), pt);
+                has_retraction = this->needs_retraction(travel, original_loop.paths.front().role(), scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) * 3);
+            }
+            if (has_retraction) {
                 this->m_throw_if_canceled();
                 dist = coordf_t(check_wipe::max_depth(wipe_paths, scale_t(setting_max_depth), scale_t(nozzle_diam), [current_pos, current_point, vec_dist, vec_norm, angle](coord_t dist)->Point {
                     Point pt = Point::round(current_pos + vec_dist * (2 * dist / vec_norm));
@@ -4961,7 +4965,11 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         ExtrusionPath fake_path_wipe(ArcPolyline(Polyline{ pt , current_point }), wipe_paths.front().attributes(), wipe_paths.front().can_reverse());
         fake_path_wipe.attributes_mutable().mm3_per_mm = 0;
         assert(!fake_path_wipe.can_reverse());
-        gcode += extrude_path(fake_path_wipe, "move inwards before retraction/seam", speed);
+        // put travel before wipe (if ensure extrude_path don't do anything, then it's just an extra travel lost in the gcode).
+        gcode += this->_before_extrude(fake_path_wipe, "travel to wipe", speed);
+        gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_Start) + "\n";
+        gcode += this->extrude_path(fake_path_wipe, "move inwards before retraction/seam", speed);
+        gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_End) + "\n";
     }
     
     //extrusion notch start if any

@@ -1128,7 +1128,7 @@ SliceMappings update_active_object_parts(const Layer                        *lay
                                   centroid.head<2>().cwiseProduct(centroid.head<2>()));
                 float xy_variance      = variance.x() + variance.y();
                 float arm_len_estimate = std::max(1.0f, bottom_z - (conn.centroid_accumulator.z() / conn.area));
-                return conn.area * sqrt(xy_variance) / arm_len_estimate;
+                return conn.area * sqrtf(xy_variance) / arm_len_estimate;
             };
 
 #ifdef DETAILED_DEBUG_LOGS

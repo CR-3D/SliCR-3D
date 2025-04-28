@@ -647,13 +647,6 @@ void PrintObject::prepare_infill()
         int32_t advancement_count = m_print->secondary_status_counter_increment(15);
     }
 
-    // Count the distance from the nearest solid surface, to allow to use denser infill
-    // if needed and if infill_dense_layers is positive.
-    // Get the surfaces with "stPosInternal | stDensSparse | stModBridge" type if dense infill
-    // Need to be before bridge_over_infill, to stop bridge expanding too much over dense infill.
-    this->tag_under_bridge();
-    m_print->throw_if_canceled();
-
 #ifdef _DEBUG
     //assert each surface is not on top of each other (or almost)
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
@@ -662,19 +655,43 @@ void PrintObject::prepare_infill()
                 for (auto &srf2 : layer->m_regions[region_id]->fill_surfaces().surfaces) {
                     if (&srf != &srf2) {
                         ExPolygons intersect = intersection_ex(srf.expolygon, srf2.expolygon);
-                        intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
+                        ExPolygons small_intersect = offset2_ex(intersect, -SCALED_EPSILON * 2, SCALED_EPSILON);
                         double area = 0;
-                        for (auto &expoly : intersect) {
+                        for (auto &expoly : small_intersect) {
                             area += expoly.area();
                         }
                         // assert(area < SCALED_EPSILON * SCALED_EPSILON /** 100*/);
-                        assert(area < scale_t(1) * scale_t(1));
+                        double area_ratio = area / (scale_t(1) * scale_t(1));
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+                        if (area_ratio >= 1) {
+                            static int iInst=0;
+                            BoundingBox bbox = get_extents(to_points(layer->lslices()));
+                            bbox.offset(scale_(1.));
+                            ::Slic3r::SVG svg(debug_out_path("%d_%d_%d_inset_overhang_area.svg", layer->id(), region_id, iInst++).c_str(), bbox);
+                            svg.draw(srf.expolygon, "yellow");
+                            svg.draw(srf2.expolygon, "cyan");
+                            svg.draw(to_polylines(srf.expolygon), "brown", scale_t(0.01));
+                            svg.draw(to_polylines(srf2.expolygon), "blue", scale_t(0.01));
+                            svg.draw(to_polylines(intersect), "orange", scale_t(0.002));
+                            svg.draw(to_polylines(small_intersect), "red", scale_t(0.001));
+                            svg.Close();
+                        }
+#endif
+                        assert(area_ratio < 1);
                     }
                 }
             }
         }
     }
 #endif
+
+    // Count the distance from the nearest solid surface, to allow to use denser infill
+    // if needed and if infill_dense_layers is positive.
+    // Get the surfaces with "stPosInternal | stDensSparse | stModBridge" type if dense infill
+    // Need to be before bridge_over_infill, to stop bridge expanding too much over dense infill.
+    this->tag_under_bridge();
+    m_print->throw_if_canceled();
+    // note: dense infill overlap other infill areas.
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
@@ -1934,10 +1951,12 @@ void PrintObject::tag_under_bridge() {
                                                         algo = dfaDisabled;
                                                 }
                                             }
+                                            const double perimeter_width = region->config().perimeters == 0 ? 0 :
+                                                (layerm->flow(frExternalPerimeter).width() + layerm->flow(frPerimeter).spacing() * (region->config().perimeters - 1));
+                                            const double offset_expand = layerm->region().config().external_infill_margin.get_abs_value(perimeter_width);
                                             if (dfaEnlarged == algo) {
                                                 //expand the area a bit
-                                                intersect = offset_ex(intersect, (scaled(layerm->region().config().external_infill_margin.get_abs_value(
-                                                    region->config().perimeters == 0 ? 0 : (layerm->flow(frExternalPerimeter).width() + layerm->flow(frPerimeter).spacing() * (region->config().perimeters - 1))))));
+                                                intersect = offset_ex(intersect, scaled(offset_expand));
                                                 intersect = intersection_ex(intersect, sparse_polys);
                                             } else if (dfaDisabled == algo) {
                                                 intersect.clear();
@@ -1971,8 +1990,7 @@ void PrintObject::tag_under_bridge() {
                                                     for (ExPolygon poly_inter : cover_intersect)
                                                         area_dense_covered += poly_inter.area();
                                                     // if enlarge is smaller, use enlarge
-                                                    intersect = offset_ex(intersect, (scaled(layerm->region().config().external_infill_margin.get_abs_value(
-                                                        region->config().perimeters == 0 ? 0 : (layerm->flow(frExternalPerimeter).width() + layerm->flow(frPerimeter).spacing() * (region->config().perimeters - 1))))));
+                                                    intersect = offset_ex(intersect, scaled(offset_expand));
                                                     intersect = intersection_ex(intersect, sparse_polys);
                                                     double area_enlarged_covered = 0;
                                                     for (ExPolygon poly_inter : intersect)

@@ -121,6 +121,7 @@ const char* surface_type_to_color_name(const SurfaceType surface_type)
     if ((surface_type & stPosTop) != 0) return "rgb(255,0,0)"; // "red";
     if (surface_type == (stPosBottom | stDensSolid | stModBridge)) return "rgb(0,0,255)"; // "blue";
     if ((surface_type & stPosBottom) != 0) return "rgb(0,255,0)"; // "green";
+    if (surface_type == (stPosInternal | stDensSparse | stModBridge)) return "rgb(64,128,255)"; // light blue
     if (surface_type == (stPosInternal | stDensSolid | stModBridge)) return "rgb(0,255,255)"; // cyan
     if (surface_type == (stPosInternal | stDensSolid | stModOverBridge)) return "rgb(0,255,128)"; // green-cyan
     if (surface_type == (stPosInternal | stDensSolid)) return "rgb(255,0,255)"; // magenta
@@ -155,6 +156,8 @@ void export_surface_type_legend_to_svg(SVG &svg, const Point &pos)
     pos_x = pos_x0;
     pos_y = pos(1)+scale_(2.8);
     svg.draw_legend(Point(pos_x, pos_y), "internal"       , surface_type_to_color_name(stPosInternal | stDensSparse));
+    pos_x += step_x;
+    svg.draw_legend(Point(pos_x, pos_y), "dense bridge", surface_type_to_color_name(stPosInternal | stDensSparse | stModBridge));
     pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "internal solid" , surface_type_to_color_name(stPosInternal | stDensSolid));
     pos_x += step_x;

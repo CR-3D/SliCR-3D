@@ -96,7 +96,7 @@ def handle_artifact(json_artifact):
 			print("appimage: " +str(resp));
 			z = zipfile.ZipFile(io.BytesIO(resp.content));
 			z.extractall(release_path);
-			os.rename(release_path+"/"+program_name+"-linux-x64-GTK2.AppImage", release_path+"/"+program_name+"-ubuntu_20.04-gtk2-" + version + ".AppImage");
+			os.rename(release_path+"/"+program_name+"-linux-x64-GTK2.AppImage", release_path+"/"+program_name+"-ubuntu_22.04-gtk2-" + version + ".AppImage");
 		if json_artifact["name"] == "rc_"+program_name+"-linux-x64-GTK3.AppImage" and not found_linux_appimage_gtk3:
 			found_linux_appimage_gtk3 = True;
 			print("Found ubuntu GTK3 artifact");
@@ -105,7 +105,7 @@ def handle_artifact(json_artifact):
 			print("appimage: " +str(resp));
 			z = zipfile.ZipFile(io.BytesIO(resp.content));
 			z.extractall(release_path);
-			os.rename(release_path+"/"+program_name+"-linux-x64-GTK3.AppImage", release_path+"/"+program_name+"-ubuntu_20.04-" + version + ".AppImage");
+			os.rename(release_path+"/"+program_name+"-linux-x64-GTK3.AppImage", release_path+"/"+program_name+"-ubuntu_22.04-" + version + ".AppImage");
 		if json_artifact["name"] == "rc_"+program_name+"-linux-x64-GTK3.tgz" and not found_linux:
 			found_linux = True;
 			print("Found ubuntu GTK3 archive artifact");

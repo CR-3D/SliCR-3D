@@ -353,15 +353,16 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
     bool has_spiral_vase = have_perimeters && config->opt_bool("spiral_vase");
     
-    //bool pa = config->opt_bool("enable_pressure_advance");
-    //toggle_field("pressure_advance", pa);
+    toggle_field("perimeter_generator", have_perimeters);
+    bool have_arachne = have_perimeters && config->opt_enum<PerimeterGeneratorType>("perimeter_generator") == PerimeterGeneratorType::Arachne;
+    bool have_perimeter_hole = !have_arachne && (config->opt_int("perimeters") == config->opt_int("perimeters_hole") || !config->is_enabled("perimeters_hole"));
+    for (auto el : {"wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle",
+                    "wall_distribution_count", "min_feature_size", "min_bead_width"}) {
+        toggle_field(el, have_arachne);
+    }
+    toggle_field("perimeters_hole", !have_arachne);
     
-    bool have_arachne = have_perimeters && (config->opt_int("perimeters") == config->opt_int("perimeters_hole") || !config->is_enabled("perimeters_hole"));
-    toggle_field("perimeter_generator", have_arachne);
-    have_arachne = have_arachne && config->opt_enum<PerimeterGeneratorType>("perimeter_generator") == PerimeterGeneratorType::Arachne;
-    for (auto el : { "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle", "wall_distribution_count", "min_feature_size", "min_bead_width", "aaa" })
-       toggle_field(el, have_arachne);
-    
+
     for (auto el : {"perimeter_loop", "thin_perimeters", "perimeter_round_corners"})
         toggle_field(el, have_perimeters && !have_arachne);
 

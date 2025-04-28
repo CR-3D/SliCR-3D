@@ -42,7 +42,7 @@ while getopts ":ixavhz" opt; do
   esac
 done
 
-    echo -e "\n[8/9] Generating MacOS app..."
+    echo -e "\n[7/8] Generating MacOS app..."
 #    {
         # update Info.plist
         pushd src
@@ -176,7 +176,7 @@ DMG_NAME=@SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
-echo -e "\n[9/9] Creating .tgz and DMG Image for distribution..."
+echo -e "\n[8/8] Creating .tgz and DMG Image for distribution..."
   {
 
     tar -czvf @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.tgz pack/@SLIC3R_APP_KEY@

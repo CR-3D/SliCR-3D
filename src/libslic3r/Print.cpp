@@ -1841,7 +1841,7 @@ void Print::_make_skirt(const PrintObjectPtrs &objects, ExtrusionEntityCollectio
             if (!object->support_layers().empty() && object->support_layers().front()->print_z == object->m_layers[0]->print_z) {
                 Points support_points;
                 for (const ExPolygon &expoly : object->support_layers().front()->support_islands)
-                    append(object_points, expoly.contour.points);
+                    append(support_points, expoly.contour.points);
                 const Polygon hull_support = Slic3r::Geometry::convex_hull(support_points);
                 for (const Polygon& poly : offset(hull_support, scale_(object->config().brim_width)))
                     append(object_points, poly.points);

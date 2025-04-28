@@ -194,6 +194,9 @@ void TreeModelVolumes::precalculate(const PrintObject& print_object, const coord
     for (LayerIndex distance_to_top = 0; distance_to_top <= max_layer; ++ distance_to_top) {
         const LayerIndex current_layer = max_layer - distance_to_top;
         auto update_radius_until_layer = [&radius_until_layer, current_layer](coord_t r) {
+            // supermerill: quick fix for radius ==0 that creates crashes
+            if (r <= 0)
+                return;
             auto it = radius_until_layer.find(r);
             if (it == radius_until_layer.end())
                 radius_until_layer.emplace_hint(it, r, current_layer);

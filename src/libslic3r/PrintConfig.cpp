@@ -4951,13 +4951,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("perimeters_hole", coInt);
     def->label = L("Max perimeter count for holes");
     def->category = OptionCategory::perimeter;
-    def->tooltip = L(
-        "This option sets the number of perimeters to have over holes."
-        " Note that if a hole-perimeter fuse with the contour, then it will go around like a contour perimeter.."
-        "\nIf disabled, holes will have the same number of perimeters as contour."
-        "\nNote that Slic3r may increase this number automatically when it detects "
-        "sloping surfaces which benefit from a higher number of perimeters "
-        "if the Extra Perimeters option is enabled.");
+    def->tooltip = L("This option sets the number of perimeters to have over holes."
+                   " Note that if a hole-perimeter fuse with the contour, then it will go around like a contour perimeter."
+                   "\nIf disabled, holes will have the same number of perimeters as contour. Cannot be enabled at the same time as Arachne generator."
+                   "\nNote that Slic3r may increase this number automatically when it detects "
+                   "sloping surfaces which benefit from a higher number of perimeters "
+                   "if the Extra Perimeters option is enabled.");
     def->sidetext = L("(minimum).");
     def->min = 0;
     def->max = 10000;
@@ -5300,7 +5299,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent(0, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
     def = this->add("resolution_internal", coFloat);
     def->label = L("Internal resolution");
@@ -6049,6 +6048,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("start_gcode", coString);
     def->label = L("Start G-code");
+    def->category = OptionCategory::customgcode;
     def->tooltip = L("This start procedure is inserted at the beginning, possibly prepended by "
                      "temperature-changing commands and others. See 'autoemit_temperature_commands' and 'start_gcode_manual'.");
     def->multiline = true;
