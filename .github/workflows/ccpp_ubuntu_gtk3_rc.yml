@@ -26,6 +26,8 @@ jobs:
       run: sudo apt update
     - name: install gtk3
       run: sudo apt install libgtk-3-dev
+    - name: Install WebKit GTK
+      run: sudo apt install libwebkit2gtk-4.0-dev
     - name: install libs
       run: sudo ./BuildLinux.sh -u
     - name: dep cache

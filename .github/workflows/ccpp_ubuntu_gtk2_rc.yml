@@ -34,9 +34,10 @@ jobs:
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -gd
+      run: ./BuildLinux.sh -g 2 -d
+      
     - name: slicer, tar & appimage
-      run: ./BuildLinux.sh -gsi
+      run: ./BuildLinux.sh -g 2 -s -i
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
