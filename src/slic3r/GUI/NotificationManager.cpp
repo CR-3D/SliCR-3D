@@ -540,13 +540,14 @@ void NotificationManager::PopNotification::render_hypertext(
     // wxColour orange_color = color_from_int(wxGetApp().app_config->create_color(1.f, 0.99f,
     // AppConfig::EAppColorType::Main)); ImVec4 blue_color_vec = ImVec4(orange_color.Red(), orange_color.Green(),
     // orange_color.Blue(), 1.0f);
-    ImVec4 blue_color_vec = ImVec4(.0f, .313f, 1.0f, 1.0f);
+    ImVec4 teal_blue_vec = ImVec4(0.10196f, 0.45490f, 0.46275f, 1.0f);
+
     // ImVec4(.99f, .313f, .0f, 1.0f);
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
-        blue_color_vec.y += 0.2f;
+        teal_blue_vec.y += 0.2f;
 
     // text
-    push_style_color(ImGuiCol_Text, blue_color_vec, m_state == EState::FadingOut, m_current_fade_opacity);
+    push_style_color(ImGuiCol_Text, teal_blue_vec, m_state == EState::FadingOut, m_current_fade_opacity);
     ImGui::SetCursorPosX(text_x);
     ImGui::SetCursorPosY(text_y);
     imgui.text(text.c_str());
@@ -558,9 +559,9 @@ void NotificationManager::PopNotification::render_hypertext(
     ImVec2 lineStart = lineEnd;
     lineStart.x = ImGui::GetItemRectMin().x;
     ImGui::GetWindowDrawList()->AddLine(lineStart, lineEnd,
-                                        IM_COL32((int) (blue_color_vec.x * 255), (int) (blue_color_vec.y * 255),
-                                                 (int) (blue_color_vec.z * 255),
-                                                 (int) (blue_color_vec.w * 255.f *
+                                        IM_COL32((int) (teal_blue_vec.x * 255), (int) (teal_blue_vec.y * 255),
+                                                 (int) (teal_blue_vec.z * 255),
+                                                 (int) (teal_blue_vec.w * 255.f *
                                                         (m_state == EState::FadingOut ? m_current_fade_opacity :
                                                                                         1.f))));
 }

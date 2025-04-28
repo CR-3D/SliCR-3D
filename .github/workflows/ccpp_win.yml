@@ -7,7 +7,7 @@ on:
       - nightly_dev
       - nightly_master
       - debug_win
-      - dev
+
 jobs:
   build_dep:
     runs-on: windows-2019

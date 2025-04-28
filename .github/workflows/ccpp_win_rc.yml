@@ -3,10 +3,8 @@ name: C/C++ Release candidate windows x64
 on:
   push:
     branches:
-      - rc
-      - debug_win
-      - master_27_dev
-      - dev
+      - master_27
+
 jobs:
   build_dep:
     runs-on: windows-2019
@@ -124,5 +122,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: SliCR-3D_rc_win64
+        name: rc_win64
         path: build/package/
