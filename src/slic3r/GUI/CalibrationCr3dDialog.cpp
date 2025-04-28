@@ -35,7 +35,7 @@ void CalibrationCr3dAbstractDialog::create_geometry(std::string calibration_path
     //GLCanvas3D::set_warning_freeze(true);
     std::vector<size_t> objs_idx = plat->load_files(std::vector<std::string>{
         Slic3r::resources_dir()+"/calibration/cr3d"+ calibration_path
-    }, true, false, false, false);
+    }, true, true, false, false);
 
     //update plater
     //GLCanvas3D::set_warning_freeze(false);
