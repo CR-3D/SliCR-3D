@@ -6,7 +6,7 @@ if [[ -f /sbin/sysctl && -x /sbin/sysctl ]]; then sysctl_bin=/sbin/sysctl
 else sysctl_bin=sysctl
 fi
 
-export ROOT=$(pwd)/build
+export ROOT=$(pwd)
 mkdir -p "$ROOT"
 echo "ROOT is set to: $ROOT"
 
