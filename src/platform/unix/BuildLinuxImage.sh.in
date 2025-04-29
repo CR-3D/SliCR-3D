@@ -58,8 +58,8 @@ if [[ -n "$BUILD_APP" ]]; then
     fi
     mkdir -p package/bin
 
-    cp -rf ../resources/ package/resources
-    cp -f bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
+    cp -rf ../resources/package/resources
+    cp -f package/bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
     cp -f src/OCCTWrapper.so package/bin
 
     ln -rs package/bin/@SLIC3R_APP_CMD@ package/bin/@GCODEVIEWER_APP_CMD@
