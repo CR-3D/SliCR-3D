@@ -59,7 +59,7 @@ if [[ -n "$BUILD_APP" ]]; then
     mkdir -p package/bin
     mkdir -p package/resources
 
-    cp -rf ../resources/package/resources/* package/resources/
+    cp -rf $ROOT/../resources/* package/resources/
     cp -f bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
     cp -f src/OCCTWrapper.so package/bin
 
