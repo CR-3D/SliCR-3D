@@ -7139,6 +7139,18 @@ msgstr "Veränderer"
 msgid "Monotonic"
 msgstr "Monotonisch"
 
+msgid "Monotonic (filled)"
+msgstr "Montonisch (Gefüllt)"
+
+msgid "Monotonic Lines"
+msgstr "Monotonische Linien"
+
+msgid "Concentric (filled)"
+msgstr "Konzentrisch (Gefüllt)"
+
+msgid "External walls"
+msgstr "Sichtbare äußere Wände"
+
 #: src/slic3r/GUI/HintNotification.cpp:771 src/slic3r/GUI/HintNotification.cpp:797 src/slic3r/GUI/NotificationManager.cpp:374 src/slic3r/GUI/NotificationManager.cpp:391
 msgid "More"
 msgstr "Mehr"
