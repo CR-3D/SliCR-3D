@@ -725,6 +725,8 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         shader->set_uniform("projection_matrix", projection_matrix);
         shader->set_uniform("transparent_background", bottom || ! is_active);
         shader->set_uniform("svg_source", boost::algorithm::iends_with(m_texture.get_source(), ".svg"));
+        float alpha_multiplier = bottom ? 0.05f : 1.0f;
+        shader->set_uniform("alpha_multiplier", alpha_multiplier);
 
         glsafe(::glEnable(GL_DEPTH_TEST));
         if (bottom)
@@ -735,7 +737,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
 
         if (bottom)
             glsafe(::glFrontFace(GL_CW));
-        
+            
         // if m_texture_with_grid, show a grid on top of texture.
         if (this->m_texture_with_grid) {
             glsafe(::glDisable(GL_DEPTH_TEST));
