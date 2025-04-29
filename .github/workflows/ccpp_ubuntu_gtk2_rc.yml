@@ -24,14 +24,8 @@ jobs:
       run: sudo apt update
     - name: install gtk2
       run: sudo apt install libgtk2.0-dev
-      
-    - name: Add wxWidgets PPA
-      run: sudo add-apt-repository ppa:ok2cqr/wxgtk3.0-gtk2 -y
-    - name: Update apt again
-      run: sudo apt update
-    - name: Install GTK2-based wxWidgets and WebKit
-      run: sudo apt install libwxgtk3.0-gtk2-dev libwebkitgtk-dev
-    
+    - name: Install WebKit GTK
+      run: sudo apt install libwebkit2gtk-4.0-dev
     - name: install libs
       run: sudo ./BuildLinux.sh -u
     - name: dep cache
