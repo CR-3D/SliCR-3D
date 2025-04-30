@@ -57,17 +57,12 @@ static char marker_by_type(Preset::Type type, PrinterTechnology pt)
     return ImGui::PrintIconMarker;
 }
 
-std::string Option::opt_key_with_idx() const
-{
-    std::string opt_key = boost::nowide::narrow(key);
-    assert(opt_key.find(';') == std::string::npos);
-    if (idx >= 0) {
-        opt_key += "#" + std::to_string(idx);
-    }
-    return opt_key;
-}
+//OptionKeyId SearchOption::opt_key_with_idx() const
+//{
+//    return OptionKeyId {opt_key(), idx};
+//}
 
-std::string Option::opt_key() const
+std::string SearchOption::opt_key() const
 {
     std::string opt_key = boost::nowide::narrow(key);
     assert(opt_key.find(';') == std::string::npos);
@@ -81,18 +76,13 @@ void FoundOption::get_marked_label_and_tooltip(const char** label_, const char**
 }
 
 template<class T>
-//void change_opt_key(std::string& opt_key, DynamicPrintConfig* config)
 void change_opt_key(std::string& opt_key, DynamicPrintConfig* config, int& cnt)
 {
     T* opt_cur = static_cast<T*>(config->option(opt_key));
     cnt = opt_cur->size();
-    return;
-
-    if (opt_cur->size() > 0)
-        opt_key += "#" + std::to_string(0);
 }
 
-static Option create_option(const std::string& opt_key, const int16_t opt_idx, Preset::Type type, const GroupAndCategory& gc)
+static SearchOption create_option(const std::string& opt_key, const int32_t opt_idx, Preset::Type type, const GroupAndCategory& gc)
 {
     wxString suffix;
     wxString suffix_local;
@@ -125,34 +115,37 @@ static Option create_option(const std::string& opt_key, const int16_t opt_idx, P
     }
 
     if (!label.IsEmpty())
-        return Option{ boost::nowide::widen(opt.opt_key), type, opt_idx, opt.mode,
+        return SearchOption{ boost::nowide::widen(opt.opt_key), type, opt_idx, opt.mode,
                                     (label + suffix).ToStdWstring(), (local_label + suffix_local).ToStdWstring(),
                                     gc.group.ToStdWstring(), _(gc.group).ToStdWstring(),
                                     category.ToStdWstring(), GUI::Tab::translate_category(category, type).ToStdWstring() ,
                                     wxString(opt.tooltip).ToStdWstring(), (_(opt.tooltip)).ToStdWstring(),
                                     boost::algorithm::to_lower_copy(wxString(opt.tooltip).ToStdWstring()), boost::algorithm::to_lower_copy((_(opt.tooltip)).ToStdWstring()) };
-    return Option{};
+    return SearchOption{};
 
 }
 
-static std::string get_key(const std::string& opt_key, Preset::Type type)
-{
-    return std::to_string(int(type)) + ";" + opt_key;
+static std::string get_group_key(const std::string &opt_key, Preset::Type type, int32_t idx) {
+    std::string grp_key = std::to_string(int(type));
+    grp_key += ";";
+    grp_key += opt_key;
+    if (idx >= 0)
+        // ! It's very important to use "#". opt_key#n is a real option key used in GroupAndCategory
+        grp_key += "#" + std::to_string(idx);
+    return grp_key;
 }
+
 void change_opt_keyFoP(std::string& opt_key, DynamicPrintConfig* config, int& cnt)
 {
     ConfigOptionFloatsOrPercents* opt_cur = static_cast<ConfigOptionFloatsOrPercents*>(config->option(opt_key));
     cnt = opt_cur->size();
-    return;
-
-    if (opt_cur->size() > 0)
-        opt_key += "#" + std::to_string(0);
 }
-const GroupAndCategory& OptionsSearcher::get_group_and_category(const std::string& opt_key, ConfigOptionMode tags) const
+
+const GroupAndCategory& OptionsSearcher::get_group_and_category(const std::string &grp_key, ConfigOptionMode tags) const
 {
     static GroupAndCategory empty = GroupAndCategory{ "","",ConfigOptionDef {} };
 
-    auto it = groups_and_categories.find(opt_key);
+    auto it = groups_and_categories.find(grp_key);
     if (it == groups_and_categories.end())
         return empty;
     for (const GroupAndCategory& gag : it->second) {
@@ -165,25 +158,22 @@ const GroupAndCategory& OptionsSearcher::get_group_and_category(const std::strin
 void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type type)
 {
     //const ConfigDef* defs = config->def();
-    auto emplace_option = [this, type](std::string grp_key, const int16_t id)
+    auto emplace_option = [this](const t_config_option_key &opt_key, Preset::Type type, const int32_t idx)
     {
+        std::string grp_key = get_group_key(opt_key, type, idx);
 
-        //TODO:test that new if
-        if (id >= 0)
-            // ! It's very important to use "#". opt_key#n is a real option key used in GroupAndCategory
-            grp_key += "#" + std::to_string(id);
+        assert(this->groups_and_categories.find(grp_key) == this->groups_and_categories.end()
+            || !this->groups_and_categories[grp_key].empty());
 
-        assert(groups_and_categories.find(grp_key) == groups_and_categories.end()
-            || !groups_and_categories[grp_key].empty());
-
-        for (const GroupAndCategory& gc : groups_and_categories[grp_key]) {
+        for (const GroupAndCategory& gc : this->groups_and_categories[grp_key]) {
             if (gc.group.IsEmpty() || gc.category.IsEmpty())
                 return;
 
-            Option option = create_option(gc.gui_opt.opt_key, id, type, gc);
+            assert(opt_key == gc.gui_opt.opt_key);
+            SearchOption option = create_option(opt_key, idx, type, gc);
             if (!option.label.empty()) {
-                options.push_back(std::move(option));
-                sorted = false;
+                this->options.push_back(std::move(option));
+                this->sorted = false;
             }
 
             //wxString suffix;
@@ -207,7 +197,7 @@ void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type ty
             //    label = opt.label;
 
             //if (!label.empty())
-            //    options.emplace_back(Option{ boost::nowide::widen(opt.opt_key), type, opt.mode,
+            //    options.emplace_back(SearchOption{ boost::nowide::widen(opt.opt_key), type, opt.mode,
             //                                (wxString(label) + suffix).ToStdWstring(), (_(label) + suffix_local).ToStdWstring(),
             //                                gc.group.ToStdWstring(), _(gc.group).ToStdWstring(),
             //                                gc.category.ToStdWstring(), GUI::Tab::translate_category(gc.category, type).ToStdWstring() ,
@@ -215,45 +205,30 @@ void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type ty
         }
     };
 
-    for (std::string opt_key : config->keys())
+    for (const t_config_option_key &opt_key : config->keys())
     {
         const ConfigOptionDef& opt = *config->option_def(opt_key);
         //if (opt.mode != comNone && (opt.mode & current_tags) == 0)
         //    continue;
 
-        int cnt = 0;
+        int32_t cnt = 0;
 
-        if ( (type == Preset::TYPE_SLA_MATERIAL || type == Preset::TYPE_FFF_FILAMENT || type == Preset::TYPE_PRINTER || opt.is_vector_extruder) && opt_key != "bed_shape")
-            switch (config->option(opt_key)->type())
-            {
-            case coInts:	change_opt_key<ConfigOptionInts		>(opt_key, config, cnt);	break;
-            case coBools:	change_opt_key<ConfigOptionBools	>(opt_key, config, cnt);	break;
-            case coFloats:	change_opt_key<ConfigOptionFloats	>(opt_key, config, cnt);	break;
-            case coStrings:	change_opt_key<ConfigOptionStrings	>(opt_key, config, cnt);	break;
-            case coPercents:change_opt_key<ConfigOptionPercents	>(opt_key, config, cnt);	break;
-            case coPoints:	change_opt_key<ConfigOptionPoints	>(opt_key, config, cnt);	break;
-            //case coFloatsOrPercents:	change_opt_key<ConfigOptionFloatsOrPercents	>(opt_key, config, cnt);	break;
-            case coFloatsOrPercents:change_opt_keyFoP(opt_key, config, cnt);	break;
-            case coGraphs:	change_opt_key<ConfigOptionGraphs	>(opt_key, config, cnt);	break;
-            default:		break;
-            }
+        if ((type == Preset::TYPE_SLA_MATERIAL || type == Preset::TYPE_FFF_FILAMENT || type == Preset::TYPE_PRINTER ||
+             opt.is_vector_extruder) &&
+            opt_key != "bed_shape") {
+            cnt = config->option(opt_key)->size();
+        }
 
         //wxString label = opt.full_label.empty() ? opt.label : opt.full_label;
-
-        std::string key = get_key(opt_key, type);
-
         //if (label_override.find(opt.opt_key) != label_override.end()) {
         //    label = label_override[opt.opt_key][1].empty() ? label_override[opt.opt_key][0] : label_override[opt.opt_key][1];
         //}
 
         if (cnt == 0)
-            emplace_option(key, -1);
+            emplace_option(opt_key, type, -1);
         else
             for (int i = 0; i < cnt; ++i)
-                // // ! It's very important to use "#". opt_key#n is a real option key used in GroupAndCategory
-                // emplace_option(key + "#" + std::to_string(i), i);
-                // ??? please prusa, make your mind...
-                emplace_option(key, i);
+                emplace_option(opt_key, type, i);
     }
 }
 
@@ -306,7 +281,10 @@ static bool fuzzy_match(const std::wstring &search_pattern, const std::wstring &
 		return false;
 }
 
-static bool strong_match(const std::wregex& search_pattern, const std::wstring& label, int& out_score, std::vector<uint16_t>& out_matches) {
+static bool strong_match(const std::wregex &search_pattern,
+                         const std::wstring &label,
+                         int &out_score,
+                         std::vector<uint16_t> &out_matches) {
     std::wsmatch sm;
     out_matches.clear();
     out_score = 0;
@@ -337,7 +315,7 @@ bool OptionsSearcher::search(const std::string& search,  bool force/* = false*/)
     bool full_list = search.empty();
     std::wstring sep = L" : ";
 
-    auto get_label = [this, &sep](const Option& opt, bool marked = true)
+    auto get_label = [this, &sep](const SearchOption& opt, bool marked = true)
     {
         std::wstring out;
         if (marked) {
@@ -358,7 +336,7 @@ bool OptionsSearcher::search(const std::string& search,  bool force/* = false*/)
         return out;
     };
 
-    auto get_label_english = [this, &sep](const Option& opt, bool marked = true)
+    auto get_label_english = [this, &sep](const SearchOption& opt, bool marked = true)
     {
         std::wstring out;
         if (marked) {
@@ -379,7 +357,7 @@ bool OptionsSearcher::search(const std::string& search,  bool force/* = false*/)
         return out;
     };
 
-    auto get_tooltip = [this, &sep](const Option& opt)
+    auto get_tooltip = [this, &sep](const SearchOption& opt)
     {
         //add "\n" to long tooltip lines
         std::wstring tooltip;
@@ -421,7 +399,7 @@ bool OptionsSearcher::search(const std::string& search,  bool force/* = false*/)
     std::vector<uint16_t> matches, matches2;
     for (size_t i=0; i < options.size(); i++)
     {
-        const Option &opt = options[i];
+        const SearchOption &opt = options[i];
 
         if (!view_params.all_mode)
             if ((opt.tags & current_tags) != current_tags)
@@ -556,7 +534,7 @@ void OptionsSearcher::check_and_update(PrinterTechnology pt_in, ConfigOptionMode
         if(i.config != nullptr)
             append_options(i.config, i.type);
 
-    for (Option &opt : script_options) {
+    for (SearchOption &opt : script_options) {
         if (Preset::get_tech(opt.type))
             options.insert(options.end(), opt);
     }
@@ -571,7 +549,7 @@ void OptionsSearcher::check_and_update(PrinterTechnology pt_in, ConfigOptionMode
 
 void OptionsSearcher::append_script_option(const ConfigOptionDef &opt,
                                            Preset::Type       preset_type,
-                                           int16_t            idx)
+                                           int32_t            idx)
 {
     wxString label = opt.full_label;
     if (label.IsEmpty())
@@ -582,12 +560,12 @@ void OptionsSearcher::append_script_option(const ConfigOptionDef &opt,
     wxString tooltip_lc = tooltip;
     tooltip_lc.LowerCase();
 
-    std::string             key = get_key(opt.opt_key, preset_type);
-    const GroupAndCategory &gc  = get_group_and_category(key, opt.mode);
+    std::string             grp_key = get_group_key(opt.opt_key, preset_type, idx);
+    const GroupAndCategory &gc  = get_group_and_category(grp_key, opt.mode);
     if (gc.group.IsEmpty() && gc.category.IsEmpty())
         return; // have to do ConfigOptionGroup::register_to_search
 
-    script_options.emplace_back(Search::Option{
+    script_options.emplace_back(Search::SearchOption{
         boost::nowide::widen(opt.opt_key),
         preset_type,
         idx,
@@ -611,19 +589,19 @@ void OptionsSearcher::append_preferences_option(const GUI::Line& opt_line)
     if (label.IsEmpty())
         return;
 
-    std::string key = get_key(opt_line.get_options().front().opt_id, type);
-    assert(groups_and_categories.find(key) != groups_and_categories.end());
-    assert(!groups_and_categories[key].empty());
+    const Slic3r::GUI::Option &opt = opt_line.get_options().front();
+    std::string grp_key = get_group_key(opt.opt_key, type, opt.opt_idx);
+    assert(groups_and_categories.find(grp_key) != groups_and_categories.end());
+    assert(!groups_and_categories[grp_key].empty());
     // it's for TYPE_PREFERENCES, so no mode ?
-    const GroupAndCategory& gc = groups_and_categories[key].front(); 
-    if (gc.group.IsEmpty() || gc.category.IsEmpty())
-        return;        
-        
-    preferences_options.emplace_back(Search::Option{ boost::nowide::widen(opt_line.get_options().front().opt_id), type, 
-                                -1, ConfigOptionMode::comSimpleAE,
-                                label.ToStdWstring(), _(label).ToStdWstring(),
-                                gc.group.ToStdWstring(), _(gc.group).ToStdWstring(),
-                                gc.category.ToStdWstring(), _(gc.category).ToStdWstring() });
+    const GroupAndCategory& gc = groups_and_categories[grp_key].front(); 
+    if (gc.group.IsEmpty() || gc.category.IsEmpty()) {
+        return;
+    }
+    preferences_options.push_back(
+        SearchOption{boost::nowide::widen(opt.opt_key), type, opt.opt_idx, ConfigOptionMode::comSimpleAE,
+                       label.ToStdWstring(), _(label).ToStdWstring(), gc.group.ToStdWstring(),
+                       _(gc.group).ToStdWstring(), gc.category.ToStdWstring(), _(gc.category).ToStdWstring()});
 }
 
 void OptionsSearcher::append_preferences_options(const std::vector<GUI::Line>& opt_lines)
@@ -633,79 +611,44 @@ void OptionsSearcher::append_preferences_options(const std::vector<GUI::Line>& o
         if (line.is_separator())
             continue;
         append_preferences_option(line);
-        //wxString label = line.label;
-        //if (label.IsEmpty())
-        //    continue;
-
-        //std::string key = get_key(line.get_options().front().opt_id, type);        
-        //const GroupAndCategory& gc = groups_and_categories[key];
-        //if (gc.group.IsEmpty() || gc.category.IsEmpty())
-        //    continue;        
-        //
-        //preferences_options.emplace_back(Search::Option{ boost::nowide::widen(key), type,
-        //                            -1, ConfigOptionMode::comSimpleAE,
-        //                            label.ToStdWstring(), _(label).ToStdWstring(),
-        //                            gc.group.ToStdWstring(), _(gc.group).ToStdWstring(),
-        //                            gc.category.ToStdWstring(), _(gc.category).ToStdWstring() });
     }
 }
 
-const Option& OptionsSearcher::get_option(size_t pos_in_filter) const
+const SearchOption& OptionsSearcher::get_option(size_t pos_in_filter) const
 {
     assert(pos_in_filter != size_t(-1) && found[pos_in_filter].option_idx != size_t(-1));
     return options[found[pos_in_filter].option_idx];
 }
 
-const Option& OptionsSearcher::get_option(const std::string& opt_key, Preset::Type type) const
+const SearchOption& OptionsSearcher::get_option(const t_config_option_key& opt_key, int32_t idx, Preset::Type type) const
 {
-    int16_t idx = -1;
-    size_t pos_hash = opt_key.find('#');
-    if (pos_hash == std::string::npos) {
-        auto it = std::lower_bound(options.begin(), options.end(), Option({ boost::nowide::widen(opt_key), type, idx }));
-        assert(it != options.end());
-        return options[it - options.begin()];
-    } else {
-        std::string raw_opt_key = opt_key.substr(0, pos_hash);
-        std::string opt_idx = opt_key.substr(pos_hash + 1);
-        idx = atoi(opt_idx.c_str());
-        auto it = std::lower_bound(options.begin(), options.end(), Option({ boost::nowide::widen(raw_opt_key), type, idx }));
-        assert(it != options.end());
-        return options[it - options.begin()];
-    }
-
+    assert(opt_key.find('#') == std::string::npos);
+    auto it = std::lower_bound(options.begin(), options.end(), SearchOption({ boost::nowide::widen(opt_key), type, idx }));
+    assert(it != options.end());
+    return options[it - options.begin()];
 }
 
-Option OptionsSearcher::get_option_names(const std::string& opt_key, Preset::Type type) const
+SearchOption OptionsSearcher::get_option_names(const t_config_option_key& opt_key, int32_t idx, Preset::Type type) const
 {
-    int16_t idx = -1;
-    size_t pos_hash = opt_key.find('#');
-    std::vector<Search::Option>::const_iterator it;
-    if (pos_hash == std::string::npos) {
-        it = std::lower_bound(options.begin(), options.end(), Option({ boost::nowide::widen(opt_key), type, idx }));
-    } else {
-        std::string raw_opt_key = opt_key.substr(0, pos_hash);
-        std::string opt_idx = opt_key.substr(pos_hash + 1);
-        idx = atoi(opt_idx.c_str());
-        it = std::lower_bound(options.begin(), options.end(), Option({ boost::nowide::widen(raw_opt_key), type, idx }));
-    }
-    if (it != options.end() && it->opt_key_with_idx() == opt_key)
+    assert(opt_key.find('#') == std::string::npos);
+    auto it = std::lower_bound(options.begin(), options.end(), SearchOption({ boost::nowide::widen(opt_key), type, idx }));
+    if (it != options.end() && it->opt_key() == opt_key && it->idx == idx)
         return *it;
-    std::string key = get_key(opt_key, type);
-    if (it != options.end() && groups_and_categories.find(key) == groups_and_categories.end()) {
-        //TODO check why needed
-        size_t pos = key.find('#');
-        if (pos == std::string::npos)
+    std::string grp_key = get_group_key(opt_key, type, idx);
+    if (it != options.end() && groups_and_categories.find(grp_key) == groups_and_categories.end()) {
+        // TODO check why needed
+        if (idx < 0)
             return *it;
 
-        std::string zero_opt_key = key.substr(0, pos + 1) + "0";
-
-        if(groups_and_categories.find(zero_opt_key) == groups_and_categories.end())
+        // try again with index 0
+        grp_key = get_group_key(opt_key, type, 0);
+        if (groups_and_categories.find(grp_key) == groups_and_categories.end())
             return *it;
 
-        return create_option(opt_key, idx, type, get_group_and_category(zero_opt_key, ConfigOptionMode::comNone));
+        return create_option(opt_key, idx, type, get_group_and_category(grp_key, ConfigOptionMode::comNone));
     }
 
-    const GroupAndCategory& gc = get_group_and_category(key, ConfigOptionMode::comNone);
+    const GroupAndCategory& gc = get_group_and_category(grp_key, ConfigOptionMode::comNone);
     if (gc.group.IsEmpty() || gc.category.IsEmpty())
         return *it;
 
@@ -740,12 +683,12 @@ void OptionsSearcher::dlg_msw_rescale()
         search_dialog->msw_rescale();
 }
 
-void OptionsSearcher::add_key(const std::string& opt_key, Preset::Type type, const wxString& group, const wxString& category, const ConfigOptionDef& gui_opt, bool reset)
+void OptionsSearcher::add_key(const OptionKeyIdx& opt_key_idx, Preset::Type type, const wxString& group, const wxString& category, const ConfigOptionDef& gui_opt, bool reset)
 {
-    std::string key = get_key(opt_key, type);
-    auto it = groups_and_categories.find(key);
+    std::string grp_key = get_group_key(opt_key_idx.key, type, opt_key_idx.idx);
+    auto it = groups_and_categories.find(grp_key);
     if (it == groups_and_categories.end()) {
-        groups_and_categories[key] = { GroupAndCategory{group, category, gui_opt} };
+        groups_and_categories[grp_key] = { GroupAndCategory{group, category, gui_opt} };
     } else {
         //remove all entry from old presets
         if (reset)

@@ -844,7 +844,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
             combined_layer_height = infill_every_layers * base_layer_height;
         }
         else if(selected_extrusion_role == "FirstLayer"){
-            combined_layer_height == first_layer_height;
+            combined_layer_height = first_layer_height;
         }
 
         auto last_90_bend_scale = model.objects[objs_idx[id_item]]->volumes[count_increments]->get_scaling_factor();
