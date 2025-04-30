@@ -550,14 +550,6 @@ public:
     // Compare the content of get_selected_preset() with get_edited_preset() configs, return true if they differ.
     bool                        current_is_dirty() const 
         { return is_dirty(&this->get_edited_preset(), &this->get_selected_preset()); }
-    // Compare the content of get_selected_preset() with get_edited_preset() configs, return the list of keys where they differ.
-    // Note that it won't take into account phony settings. Because current_dirty_options() is only used to see if the preset need to be saved.
-    std::vector<std::string>    current_dirty_options(const bool deep_compare = false) const
-        { return dirty_options(&this->get_edited_preset(), &this->get_selected_preset(), deep_compare, true); }
-    // Compare the content of get_selected_preset() with get_edited_preset() configs, return the list of keys where they differ.
-    std::vector<std::string>    current_different_from_parent_options(const bool deep_compare = false) const
-        { return dirty_options(&this->get_edited_preset(), this->get_selected_preset_parent(), deep_compare); }
-
     // Compare the content of get_saved_preset() with get_edited_preset() configs, return true if they differ.
     bool                        saved_is_dirty() const 
         { return is_dirty(&this->get_edited_preset(), &m_saved_preset); }
@@ -640,8 +632,12 @@ private:
 
     size_t update_compatible_internal(const PresetWithVendorProfile &active_printer, const PresetWithVendorProfile *active_print, PresetSelectCompatibleType unselect_if_incompatible);
 public:
-    static bool                     is_dirty(const Preset *edited, const Preset *reference);
-    static std::vector<std::string> dirty_options(const Preset *edited, const Preset *reference, const bool deep_compare = false, const bool ignore_phony = true);
+    static bool is_dirty(const Preset *edited, const Preset *reference);
+    // with negative, is still ok for "vector size change" (if vector)
+    static constexpr int32_t DIRTY_VECTOR_CHANGE_SIZE = 1 << 1;
+    static constexpr int32_t DIRTY_VECTOR_ADDED_IDX = 1 << 2;
+    static constexpr int32_t DIRTY_VECTOR_SAME_AS_FIRST = 1 << 3;
+    static std::map<OptionKeyIdx, uint16_t> dirty_options(const Preset *edited, const Preset *reference, const bool ignore_phony = false);
 
     const std::vector<std::pair<std::string, std::string>>& map_alias_to_profile_name() { return m_map_alias_to_profile_name; }
 private:

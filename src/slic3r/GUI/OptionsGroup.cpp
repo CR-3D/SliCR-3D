@@ -34,14 +34,14 @@
 namespace Slic3r { namespace GUI {
 
 const t_field& OptionsGroup::build_field(const Option& opt) {
-    return build_field(opt.opt_id, opt.opt);
+    return build_field(OptionKeyIdx{opt.opt_key, opt.opt_idx}, opt.opt);
 }
-const t_field& OptionsGroup::build_field(const t_config_option_key& id) {
-    const ConfigOptionDef& opt = m_options.at(id).opt;
-    return build_field(id, opt);
+const t_field& OptionsGroup::build_field(const OptionKeyIdx& key_idx) {
+    const ConfigOptionDef& opt = m_options.at(key_idx).opt;
+    return build_field(key_idx, opt);
 }
 
-const t_field& OptionsGroup::build_field(const t_config_option_key& id, const ConfigOptionDef& opt) {
+const t_field& OptionsGroup::build_field(const OptionKeyIdx& key_idx, const ConfigOptionDef& opt) {
     // Check the gui_type field first, fall through
     // is the normal type.
     switch (opt.gui_type) {
@@ -49,16 +49,16 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
     case ConfigOptionDef::GUIType::select_open:
     case ConfigOptionDef::GUIType::f_enum_open:
     case ConfigOptionDef::GUIType::i_enum_open:
-        m_fields.emplace(id, Choice::Create<Choice>(this->ctrl_parent(), opt, id));
+        m_fields.emplace(key_idx, Choice::Create<Choice>(this->ctrl_parent(), opt, key_idx));
         break;
     case ConfigOptionDef::GUIType::color:
-        m_fields.emplace(id, ColourPicker::Create<ColourPicker>(this->ctrl_parent(), opt, id));
+        m_fields.emplace(key_idx, ColourPicker::Create<ColourPicker>(this->ctrl_parent(), opt, key_idx));
         break;
     case ConfigOptionDef::GUIType::slider:
-        m_fields.emplace(id, SliderCtrl::Create<SliderCtrl>(this->ctrl_parent(), opt, id));
+        m_fields.emplace(key_idx, SliderCtrl::Create<SliderCtrl>(this->ctrl_parent(), opt, key_idx));
         break;
     case ConfigOptionDef::GUIType::legend: // StaticText
-        m_fields.emplace(id, StaticText::Create<StaticText>(this->ctrl_parent(), opt, id));
+        m_fields.emplace(key_idx, StaticText::Create<StaticText>(this->ctrl_parent(), opt, key_idx));
         break;
     default:
         switch (opt.type) {
@@ -67,39 +67,39 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
             case coFloat:
             case coFloats:
             case coPercent:
-			case coPercents:
+            case coPercents:
             case coString:
             case coStrings:
-                m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                m_fields.emplace(key_idx, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, key_idx));
                 break;
             case coBools:
-                if (id.find('#') == std::string::npos) {
+                if (key_idx.idx < 0) {
                     // string field with vector serialization
-                    m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                    m_fields.emplace(key_idx, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, key_idx));
                     break;
                 }
             case coBool:
-                m_fields.emplace(id, CheckBox::Create<CheckBox>(this->ctrl_parent(), opt, id));
+                m_fields.emplace(key_idx, CheckBox::Create<CheckBox>(this->ctrl_parent(), opt, key_idx));
                 break;
             case coInts:
-                if (id.find('#') == std::string::npos) {
+                if (key_idx.idx < 0) {
                     // string field with vector serialization
-                    m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                    m_fields.emplace(key_idx, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, key_idx));
                     break;
                 }
             case coInt:
-                m_fields.emplace(id, SpinCtrl::Create<SpinCtrl>(this->ctrl_parent(), opt, id));
+                m_fields.emplace(key_idx, SpinCtrl::Create<SpinCtrl>(this->ctrl_parent(), opt, key_idx));
                 break;
             case coEnum:
-                m_fields.emplace(id, Choice::Create<Choice>(this->ctrl_parent(), opt, id));
+                m_fields.emplace(key_idx, Choice::Create<Choice>(this->ctrl_parent(), opt, key_idx));
                 break;
             case coPoint:
             case coPoints:
-                m_fields.emplace(id, PointCtrl::Create<PointCtrl>(this->ctrl_parent(), opt, id));
+                m_fields.emplace(key_idx, PointCtrl::Create<PointCtrl>(this->ctrl_parent(), opt, key_idx));
                 break;
             case coGraph:
             case coGraphs:
-                m_fields.emplace(id, GraphButton::Create<GraphButton>(this->ctrl_parent(), opt, id));
+                m_fields.emplace(key_idx, GraphButton::Create<GraphButton>(this->ctrl_parent(), opt, key_idx));
                 break;
             case coNone:  assert(false); break;
             default:
@@ -107,35 +107,35 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
         }
     }
     // Grab a reference to fields for convenience
-    const t_field& field = m_fields[id];
-	field->m_on_change = [this](const std::string& opt_id, bool enabled, const boost::any& value) {
+    const t_field& field = m_fields[key_idx];
+	field->m_on_change = [this](const OptionKeyIdx& opt_key_idx, bool enabled, const boost::any& value) {
 			//! This function will be called from Field.
 			//! Call OptionGroup._on_change(...)
 			if (!m_disabled)
-				this->on_change_OG(opt_id, enabled, value);
+				this->on_change_OG(opt_key_idx, enabled, value);
 	};
-    field->m_on_kill_focus = [this](const std::string& opt_id) {
+    field->m_on_kill_focus = [this](const OptionKeyIdx& opt_key_idx) {
 			//! This function will be called from Field.
 			if (!m_disabled)
-				this->on_kill_focus(opt_id);
+				this->on_kill_focus(opt_key_idx);
 	};
     field->m_parent = parent();
 
     if (edit_custom_gcode && opt.is_code) {
-        field->m_fn_edit_value = [this](std::string opt_id) {
+        field->m_fn_edit_value = [this](const OptionKeyIdx& opt_key_idx) {
             if (!m_disabled)
-                this->edit_custom_gcode(opt_id);
+                this->edit_custom_gcode(opt_key_idx);
         };
         field->set_edit_tooltip(_L("Edit Custom G-code"));
     }
 
-	field->m_back_to_initial_value = [this](std::string opt_id) {
+	field->m_back_to_initial_value = [this](const OptionKeyIdx& opt_key_idx) {
 		if (!m_disabled)
-			this->back_to_initial_value(opt_id);
+			this->back_to_initial_value(opt_key_idx);
 	};
-	field->m_back_to_sys_value = [this](std::string opt_id) {
+	field->m_back_to_sys_value = [this](const OptionKeyIdx& opt_key_idx) {
 		if (!m_disabled)
-			this->back_to_sys_value(opt_id);
+			this->back_to_sys_value(opt_key_idx);
 	};
 
 	// assign function objects for callbacks, etc.
@@ -152,8 +152,8 @@ OptionsGroup::OptionsGroup(	wxWindow* _parent, const wxString& title,
     assert(Tab::fake_build || m_parent);
 }
 
-Option::Option(const ConfigOptionDef& _opt, t_config_option_key id) : opt(_opt), opt_id(id)
-{
+Option::Option(const ConfigOptionDef &_opt, int32_t idx /*= -1*/)
+    : opt(_opt), opt_key(_opt.opt_key), opt_idx(idx) {
     if (!opt.tooltip.empty()) {
         wxString tooltip;
         if (opt.opt_key.rfind("branching", 0) == 0)
@@ -208,7 +208,7 @@ void OptionsGroup::set_max_win_width(int max_win_width)
 
 void OptionsGroup::show_field(const t_config_option_key& opt_key, bool show/* = true*/)
 {
-    Field* field = get_field(opt_key);
+    Field* field = get_field(OptionKeyIdx::scalar(opt_key));
     if (!field) return;
     wxWindow* win = field->getWindow();
     if (!win) return;
@@ -258,7 +258,7 @@ void OptionsGroup::append_line(const Line& line)
 
 	auto option_set = line.get_options();
 	for (auto opt : option_set)
-		m_options.emplace(opt.opt_id, opt);
+        m_options.emplace(OptionKeyIdx{opt.opt_key, opt.opt_idx}, opt);
 
     //if first control don't have a label, use the line one for the tooltip
     if (!option_set.empty() && (option_set.front().opt.label.empty() || "_" == option_set.front().opt.label)) {
@@ -508,7 +508,7 @@ void OptionsGroup::activate_line(Line& line)
                 h_sizer->Add(opt.side_widget(this->ctrl_parent())/*!.target<wxWindow>()*/, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 1);    //! requires verification
             }
 
-            if (opt.opt_id != option_set.back().opt_id) {//! instead of (opt != option_set.back())
+            if (opt.opt_key != option_set.back().opt_key || opt.opt_idx != option_set.back().opt_idx) {//! instead of (opt != option_set.back())
                 m_options_mode.back()[opt.opt.mode].push_back(h_sizer->GetItemCount());
                 h_sizer->AddSpacer(6);
             }
@@ -634,23 +634,12 @@ Line OptionsGroup::create_single_option_line(const Option& option, const std::st
     return retval;
 }
 
-void OptionsGroup::clear_fields_except_of(const std::vector<std::string> left_fields)
-{
-    auto it = m_fields.begin();
-    while (it != m_fields.end()) {
-        if (std::find(left_fields.begin(), left_fields.end(), it->first) == left_fields.end())
-            it = m_fields.erase(it);
-        else
-            it++;
-    }
-}
-
-void OptionsGroup::on_change_OG(const t_config_option_key& opt_id, bool enabled, const boost::any& value) {
-    auto it = m_options.find(opt_id);
+void OptionsGroup::on_change_OG(const OptionKeyIdx& opt_key_idx, bool enabled, const boost::any& value) {
+    auto it = m_options.find(opt_key_idx);
     if (it != m_options.end() && it->second.opt.is_script && it->second.script) {
         it->second.script->call_script_function_set(it->second.opt, value);
     }else if (m_on_change != nullptr)
-		m_on_change(opt_id, enabled, value);
+        m_on_change(opt_key_idx, enabled, value);
 }
 
 void OptionsGroup::update_script_presets(bool init) {
@@ -659,7 +648,7 @@ void OptionsGroup::update_script_presets(bool init) {
             if (init || get_field(key_opt.first)) {
                 boost::any val = key_opt.second.script->call_script_function_get_value(key_opt.second.opt);
                 if (val.empty()) {
-                    MessageDialog(nullptr, "Error, can't find the script to get the value for the widget '" + key_opt.first + "'", _L("Error"), wxOK | wxICON_ERROR).ShowModal();
+                    MessageDialog(nullptr, "Error, can't find the script to get the value for the widget '" + key_opt.first.key + "'", _L("Error"), wxOK | wxICON_ERROR).ShowModal();
                 } else {
                     this->set_value(key_opt.first, val, true, false);
                 }
@@ -667,106 +656,86 @@ void OptionsGroup::update_script_presets(bool init) {
         }
     }
 }
-bool ConfigOptionsGroup::has_option_def(const std::string &opt_key)
+bool ConfigOptionsGroup::has_option_def(const OptionKeyIdx &opt_key_idx)
 {
-    return this->m_options.find(opt_key) != this->m_options.end();
+    return this->m_options.find(opt_key_idx) != this->m_options.end();
 }
-const Option *ConfigOptionsGroup::get_option_def(const std::string &opt_key)
+const Option *ConfigOptionsGroup::get_option_def(const OptionKeyIdx &opt_key_idx)
 {
-    auto it = this->m_options.find(opt_key);
+    auto it = this->m_options.find(opt_key_idx);
     return it == m_options.end() ? nullptr : &it->second;
 }
 
-bool ConfigOptionsGroup::has_option(const std::string& opt_key, int opt_index /*= -1*/)
+bool ConfigOptionsGroup::has_option(const t_config_option_key& opt_key, int opt_index /*= -1*/)
 {
     if (!m_config->has(opt_key)) {
-        std::cerr << "No " << opt_key << " in ConfigOptionsGroup config.\n";
+        BOOST_LOG_TRIVIAL(error) << "No " << opt_key << " in ConfigOptionsGroup config.";
     }
 
-    std::string opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
-    return m_opt_map.find(opt_id) != m_opt_map.end();
+    return m_opt_set.find(OptionKeyIdx{opt_key, opt_index}) != m_opt_set.end();
 }
 
-Option ConfigOptionsGroup::create_option_from_def(const std::string &opt_key, int opt_index /*= -1*/)
+Option ConfigOptionsGroup::create_option_from_def(const t_config_option_key &opt_key, int32_t opt_index /*= -1*/)
 {
     if (!m_config->has(opt_key)) {
-        std::cerr << "No " << opt_key << " in ConfigOptionsGroup config.\n";
+        BOOST_LOG_TRIVIAL(error) << "No " << opt_key << " in ConfigOptionsGroup config.";
     }
+    //m_opt_set.emplace(opt_key, opt_index);
+    m_opt_set.insert(OptionKeyIdx{opt_key, opt_index});
 
-    std::string                 opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
-    std::pair<std::string, int> pair(opt_key, opt_index);
-    m_opt_map.emplace(opt_id, pair);
-
-    return Option(*m_config->def()->get(opt_key), opt_id);
+    return Option(*m_config->def()->get(opt_key), opt_index);
 }
 
-void ConfigOptionsGroup::register_to_search(const std::string& opt_key, const ConfigOptionDef& option_def, int opt_index /*= -1*/, bool reset)
-{ // fill group and category values just for options from Settings Tab
-    std::string opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
-    wxGetApp().sidebar().get_searcher().add_key(opt_id, static_cast<Preset::Type>(this->config_type()), this->title, this->config_category(), option_def, reset);
-}
-
-
-void ConfigOptionsGroup::on_change_OG(const t_config_option_key& opt_id, bool enable, const boost::any& value)
+void ConfigOptionsGroup::register_to_search(const t_config_option_key& opt_key, const ConfigOptionDef& option_def, int32_t opt_index /*= -1*/, bool reset)
 {
-	if (!m_opt_map.empty())
-	{
-		auto it = m_opt_map.find(opt_id);
-		if (it == m_opt_map.end())
-		{
-			OptionsGroup::on_change_OG(opt_id, enable, value);
-			return;
-		}
-
-		auto 				itOption  = it->second;
-		const std::string  &opt_key   = itOption.first;
-		int 			    opt_index = itOption.second;
-
-		this->change_opt_value(opt_key, enable, value, opt_index);
-	}
-
-	OptionsGroup::on_change_OG(opt_id, enable, value);
+    // fill group and category values just for options from Settings Tab
+    wxGetApp().sidebar().get_searcher().add_key(OptionKeyIdx{opt_key, opt_index}, static_cast<Preset::Type>(this->config_type()), this->title, this->config_category(), option_def, reset);
 }
 
-void ConfigOptionsGroup::back_to_initial_value(const std::string& opt_key)
-{
-	if (m_get_initial_config == nullptr)
-		return;
-	back_to_config_value(m_get_initial_config(), opt_key);
+void ConfigOptionsGroup::on_change_OG(const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
+    auto it = m_opt_set.find(opt_key_idx);
+    if(it != m_opt_set.end()) {
+        // in m_opt_set > real opt (not a script & can call change_opt_value)
+        this->change_opt_value(opt_key_idx.key, enabled, value, opt_key_idx.idx);
+    }
+    OptionsGroup::on_change_OG(opt_key_idx, enabled, value);
 }
 
-void ConfigOptionsGroup::back_to_sys_value(const std::string& opt_key)
-{
-	if (m_get_sys_config == nullptr)
-		return;
-	if (!have_sys_config())
-		return;
-	back_to_config_value(m_get_sys_config(), opt_key);
+void ConfigOptionsGroup::back_to_initial_value(const OptionKeyIdx &opt_key_idx) {
+    if (m_get_initial_config == nullptr)
+        return;
+    back_to_config_value(m_get_initial_config(), opt_key_idx);
 }
 
-void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, const std::string& opt_key)
+void ConfigOptionsGroup::back_to_sys_value(const OptionKeyIdx &opt_key_idx) {
+    if (m_get_sys_config == nullptr)
+        return;
+    if (!have_sys_config())
+        return;
+    back_to_config_value(m_get_sys_config(), opt_key_idx);
+}
+
+void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, const OptionKeyIdx& opt_key_idx)
 {
-	boost::any value;
+    boost::any value;
     bool enabled = true;
-    auto it_opt = m_options.find(opt_key);
-    auto it_opt_map = m_opt_map.find(opt_key);
-    //opt_key can contains the id & the idx
-    std::string opt_short_key = opt_key;
-    int opt_index = -1;
-	if (opt_key == "bed_shape") {
-        for (const std::string& key : {"bed_custom_texture", "bed_custom_model"}) {
-            const ConfigOptionString* option = config.option<ConfigOptionString>(key);
+    auto it_opt = m_options.find(opt_key_idx);
+    auto it_opt_set = m_opt_set.find(opt_key_idx);
+    const int opt_index = opt_key_idx.idx;
+    if (opt_key_idx.key == "bed_shape") {
+        for (const std::string &key : {"bed_custom_texture", "bed_custom_model"}) {
+            const ConfigOptionString *option = config.option<ConfigOptionString>(key);
             assert(option);
             this->change_opt_value(key, option->is_enabled(), option->value);
         }
-	}
-	if (opt_key == "extruders_count") {
-		auto   *nozzle_diameter = dynamic_cast<const ConfigOptionFloats*>(config.option("nozzle_diameter"));
-		value = int(nozzle_diameter->size());
-	} else if (opt_key == "milling_count") {
-		auto   *milling_diameter = dynamic_cast<const ConfigOptionFloats*>(config.option("milling_diameter"));
-		value = int(milling_diameter->size());
-	} else if (it_opt != m_options.end() && it_opt->second.opt.is_script) {
+    }
+    if (opt_key_idx.key == "extruders_count") {
+        auto *nozzle_diameter = dynamic_cast<const ConfigOptionFloats *>(config.option("nozzle_diameter"));
+        value = int(nozzle_diameter->size());
+    } else if (opt_key_idx.key == "milling_count") {
+        auto *milling_diameter = dynamic_cast<const ConfigOptionFloats *>(config.option("milling_diameter"));
+        value = int(milling_diameter->size());
+    } else if (it_opt != m_options.end() && it_opt->second.opt.is_script) {
         // when a scripted key is reset, reset its deps
         // call the reset function if it exits
         if (!it_opt->second.script->call_script_function_reset(it_opt->second.opt)) {
@@ -802,8 +771,8 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
                         const ConfigOption* conf_opt = initial_conf.option(dep_key);
                         assert(conf_opt->is_scalar());
                         // update the field
-                        tab->set_value(dep_key, conf_opt->get_any(), conf_opt->is_enabled());
-                        tab->on_value_change(dep_key, conf_opt->get_any());
+                        tab->set_value(OptionKeyIdx::scalar(dep_key), conf_opt->get_any(), conf_opt->is_enabled());
+                        tab->on_value_change(OptionKeyIdx::scalar(dep_key), conf_opt->get_any());
                     }
                 }
             }
@@ -813,51 +782,42 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
             }
         }
         return;
-    } else if (it_opt_map == m_opt_map.end() ||
-		    // This option doesn't have corresponded field
-             is_option_without_field(opt_key) ) {
-        const ConfigOption* option = config.option(opt_key);
+    } else if (it_opt_set == m_opt_set.end() ||
+               // This option doesn't have corresponded field
+             is_option_without_field(opt_key_idx.key) ) {
+        const ConfigOption* option = config.option(opt_key_idx.key);
         assert(option);
-        this->change_opt_value(opt_key, option->is_enabled(), option->get_any());
-        OptionsGroup::on_change_OG(opt_key, option->is_enabled(), value);
+        assert(opt_key_idx.idx < 0);
+        this->change_opt_value(opt_key_idx.key, option->is_enabled(), option->get_any(), opt_key_idx.idx);
+        OptionsGroup::on_change_OG(opt_key_idx, option->is_enabled(), value);
         return;
     } else {
-		auto opt_id = it_opt_map->first;
-        const auto& entry = m_opt_map.at(opt_id);
-        opt_short_key = entry.first;
-        opt_index = entry.second;
-        const ConfigOption* option = config.option(opt_short_key);
+        const ConfigOption* option = config.option(opt_key_idx.key);
         assert(option);
-        value = option->get_any(opt_index);
-        enabled = option->is_enabled(opt_index);
-	}
+        value = option->get_any(opt_key_idx.idx);
+        enabled = option->is_enabled(opt_key_idx.idx);
+    }
 
-    if (this->set_value(opt_key, value, enabled, false)) {
+    if (this->set_value(opt_key_idx, value, enabled, false)) {
         // assert(config.option(opt_short_key)); // extruder_count: not a real config item
-        on_change_OG(opt_key, config.has(opt_short_key) ? config.option(opt_short_key)->is_enabled(opt_index) : true, get_value(opt_key));
+        on_change_OG(opt_key_idx, config.has(opt_key_idx.key) ? config.option(opt_key_idx.key)->is_enabled(opt_key_idx.idx) : true, get_value(opt_key_idx));
     }
 }
 
-void ConfigOptionsGroup::on_kill_focus(const std::string& opt_key)
+void ConfigOptionsGroup::on_kill_focus(const OptionKeyIdx& opt_key)
 {
-    if (m_fill_empty_value)
-        m_fill_empty_value(opt_key);
-    else
-	    reload_config();
+    //not used: Deprecated
+    //if (m_fill_empty_value)
+    //    m_fill_empty_value(opt_key);
+    //else
+    reload_config();
 }
 
-void ConfigOptionsGroup::reload_config()
-{
-	for (auto &kvp : m_opt_map) {
-		// Name of the option field (name of the configuration key, possibly suffixed with '#' and the index of a scalar inside a vector.
-		const std::string &opt_id    = kvp.first;
-		// option key (may be scalar or vector)
-		const std::string &opt_key   = kvp.second.first;
-		// index in the vector option, zero for scalars
-		int 			   opt_index = kvp.second.second;
-        const ConfigOption* option = m_config->option(opt_key);
-        this->set_value(opt_id, option->get_any(opt_index), option->is_enabled(opt_index), false);
-	}
+void ConfigOptionsGroup::reload_config() {
+    for (auto &opt_key_idx : m_opt_set) {
+        const ConfigOption *option = m_config->option(opt_key_idx.key);
+        this->set_value(opt_key_idx, option->get_any(opt_key_idx.idx), option->is_enabled(opt_key_idx.idx), false);
+    }
     update_script_presets();
 }
 
@@ -1036,9 +996,9 @@ void ConfigOptionsGroup::sys_color_changed()
             update(line.extra_widget_sizer);
     }
 
-	// update undo buttons : rescale bitmaps
-	for (const auto& field : m_fields)
-		field.second->sys_color_changed();
+    // update undo buttons : rescale bitmaps
+    for (const auto &field : m_fields)
+        field.second->sys_color_changed();
 }
 
 void ConfigOptionsGroup::refresh()
@@ -1047,34 +1007,19 @@ void ConfigOptionsGroup::refresh()
         custom_ctrl->Refresh();
 }
 
-Field* ConfigOptionsGroup::get_fieldc(const t_config_option_key& opt_key, int opt_index)
-{
-	Field* field = get_field(opt_key);
-	if (field != nullptr)
-		return field;
-	std::string opt_id = "";
-	for (t_opt_map::iterator it = m_opt_map.begin(); it != m_opt_map.end(); ++it) {
-		if (opt_key == m_opt_map.at(it->first).first && opt_index == m_opt_map.at(it->first).second) {
-			opt_id = it->first;
-			break;
-		}
-	}
-	return opt_id.empty() ? nullptr : get_field(opt_id);
-}
+std::pair<OG_CustomCtrl *, bool *> ConfigOptionsGroup::get_custom_ctrl_with_blinking_ptr(
+    const t_config_option_key &opt_key, int32_t opt_index /* = -1*/) {
+    Field *field = get_field({opt_key, opt_index});
 
-std::pair<OG_CustomCtrl*, bool*> ConfigOptionsGroup::get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int opt_index/* = -1*/)
-{
-	Field* field = get_fieldc(opt_key, opt_index);
+    if (field)
+        return {custom_ctrl, field->get_blink_ptr()};
 
-	if (field)
-		return {custom_ctrl, field->get_blink_ptr()};
+    for (Line &line : m_lines)
+        for (const Option &opt : line.get_options())
+            if (opt.opt_key == opt_key && opt.opt_idx == opt_index && line.widget)
+                return {custom_ctrl, line.get_blink_ptr()};
 
-	for (Line& line : m_lines)
-		for (const Option& opt : line.get_options())
-			if (opt.opt_id == opt_key && line.widget)
-				return { custom_ctrl, line.get_blink_ptr() };
-
-	return { nullptr, nullptr };
+    return {nullptr, nullptr};
 }
 
 // Change an option on m_config, possibly call ModelConfig::touch().
@@ -1111,7 +1056,7 @@ bool OptionsGroup::launch_browser(const std::string& path_end)
 }
 
 // list of options, which doesn't have a related filed
-static const std::set<std::string> options_without_field = {
+static const std::set<t_config_option_key> options_without_field = {
     "compatible_printers",
     "compatible_prints",
     "bed_shape",
@@ -1120,7 +1065,7 @@ static const std::set<std::string> options_without_field = {
     "gcode_substitutions",
 };
 
-bool OptionsGroup::is_option_without_field(const std::string& opt_key)
+bool OptionsGroup::is_option_without_field(const t_config_option_key& opt_key)
 {
     return  options_without_field.find(opt_key) != options_without_field.end();
 }

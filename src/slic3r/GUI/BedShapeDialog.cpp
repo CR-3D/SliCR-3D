@@ -49,7 +49,6 @@ static std::string get_option_label(BedShape::Parameter param)
 void BedShape::append_option_line(ConfigOptionsGroupShp optgroup, Parameter param)
 {
     ConfigOptionDef def;
-    t_config_option_key key;
     switch (param) {
     case Parameter::RectSize:
         def.type = coPoint;
@@ -58,7 +57,7 @@ void BedShape::append_option_line(ConfigOptionsGroupShp optgroup, Parameter para
         def.max = 100000;
         def.label = get_option_label(param);
         def.tooltip = L("Size in X and Y of the rectangular plate.");
-        key = "rect_size";
+        def.opt_key = "rect_size";
         break;
     case Parameter::RectOrigin:
         def.type = coPoint;
@@ -67,7 +66,7 @@ void BedShape::append_option_line(ConfigOptionsGroupShp optgroup, Parameter para
         def.max = 100000;
         def.label = get_option_label(param);
         def.tooltip = L("Distance of the 0,0 G-code coordinate from the front left corner of the rectangle.");
-        key = "rect_origin";
+        def.opt_key = "rect_origin";
         break;
     case Parameter::Diameter:
         def.type = coFloat;
@@ -75,13 +74,13 @@ void BedShape::append_option_line(ConfigOptionsGroupShp optgroup, Parameter para
         def.sidetext = L("mm");
         def.label = get_option_label(param);
         def.tooltip = L("Diameter of the print bed. It is assumed that origin (0,0) is located in the center.");
-        key = "diameter";
+        def.opt_key = "diameter";
         break;
     default:
         assert(false);
     }
 
-    optgroup->append_single_option_line({ def, std::move(key) });
+    optgroup->append_single_option_line({ def, -1 });
 }
 
 wxString BedShape::get_name(PageType type)
@@ -126,20 +125,22 @@ wxString BedShape::get_full_name_with_params()
     return out;
 }
 
-void BedShape::apply_optgroup_values(ConfigOptionsGroupShp optgroup)
-{
+void BedShape::apply_optgroup_values(ConfigOptionsGroupShp optgroup) {
     switch (m_build_volume.type()) {
     case BuildVolume::Type::Circle:
-        optgroup->set_value("diameter", 2. * unscaled<double>(m_build_volume.circle().radius), true, false);
+        optgroup->set_value(OptionKeyIdx{"diameter", -1}, 2. * unscaled<double>(m_build_volume.circle().radius), true,
+                            false);
         break;
     default:
         // rectangle, convex, concave...
-        optgroup->set_value("rect_size", Vec2d(m_build_volume.bounding_volume().size().x(),
-                                               m_build_volume.bounding_volume().size().y()),
-                                               true, false);
-        optgroup->set_value("rect_origin", Vec2d(-m_build_volume.bounding_volume().min.x(),
-                                                 -m_build_volume.bounding_volume().min.y()),
-                                                  true, false);
+        optgroup->set_value(OptionKeyIdx{"rect_size", -1},
+                            Vec2d(m_build_volume.bounding_volume().size().x(),
+                                  m_build_volume.bounding_volume().size().y()),
+                            true, false);
+        optgroup->set_value(OptionKeyIdx{"rect_origin", -1},
+                            Vec2d(-m_build_volume.bounding_volume().min.x(),
+                                  -m_build_volume.bounding_volume().min.y()),
+                            true, false);
     }
 }
 
@@ -271,7 +272,7 @@ ConfigOptionsGroupShp BedShapePanel::init_shape_options_page(const wxString& tit
     ConfigOptionsGroupShp optgroup = std::make_shared<ConfigOptionsGroup>(panel, _L("Settings"));
 
     optgroup->title_width = 10;
-    optgroup->m_on_change = [this](t_config_option_key opt_key, bool enabled, boost::any value) {
+    optgroup->m_on_change = [this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
         assert(enabled);
         update_shape();
     };
@@ -296,7 +297,7 @@ wxPanel* BedShapePanel::init_texture_panel()
     ConfigOptionsGroupShp optgroup = std::make_shared<ConfigOptionsGroup>(panel, _L("Texture"));
 
     optgroup->title_width = 10;
-    optgroup->m_on_change = [this](t_config_option_key opt_key, bool enabled, boost::any value) {
+    optgroup->m_on_change = [this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
         assert(enabled);
         update_shape();
     };
@@ -378,7 +379,7 @@ wxPanel* BedShapePanel::init_model_panel()
     ConfigOptionsGroupShp optgroup = std::make_shared<ConfigOptionsGroup>(panel, _L("Model"));
 
     optgroup->title_width = 10;
-    optgroup->m_on_change = [this](t_config_option_key opt_key, bool enabled, boost::any value) {
+    optgroup->m_on_change = [this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
         assert(enabled);
         update_shape();
     };
@@ -490,10 +491,10 @@ void BedShapePanel::update_shape()
         Vec2d rect_size(Vec2d::Zero());
 		Vec2d rect_origin(Vec2d::Zero());
 
-		try { rect_size = boost::any_cast<Vec2d>(opt_group->get_value("rect_size")); }
+		try { rect_size = boost::any_cast<Vec2d>(opt_group->get_value({"rect_size", -1})); }
         catch (const std::exception& /* e */) { return; }
 
-        try { rect_origin = boost::any_cast<Vec2d>(opt_group->get_value("rect_origin")); }
+        try { rect_origin = boost::any_cast<Vec2d>(opt_group->get_value({"rect_origin", -1})); }
 		catch (const std::exception & /* e */)  { return; }
  		
 		auto x = rect_size(0);
@@ -521,7 +522,7 @@ void BedShapePanel::update_shape()
     case BedShape::PageType::Circle:
     {
         double diameter;
-		try { diameter = boost::any_cast<double>(opt_group->get_value("diameter")); }
+		try { diameter = boost::any_cast<double>(opt_group->get_value({"diameter", -1})); }
 		catch (const std::exception & /* e */) { return; } 
 
  		if (diameter == 0.0) return ;

@@ -43,6 +43,7 @@
 #include <boost/log/trivial.hpp>
 
 #include "libslic3r.h"
+#include "Config.hpp"
 #include "Utils.hpp"
 #include "PlaceholderParser.hpp"
 #include "GCode/Thumbnails.hpp"
@@ -1788,111 +1789,12 @@ bool PresetCollection::update_dirty()
     return was_dirty != is_dirty;
 }
 
-template<class T>
-void add_correct_opts_to_diff(const std::string &opt_key, t_config_option_keys& vec, const ConfigBase &other, const ConfigBase &this_c)
-{
-    const T* opt_init = static_cast<const T*>(other.option(opt_key));
-    const T* opt_cur = static_cast<const T*>(this_c.option(opt_key));
-    int opt_init_max_id = opt_init->size() - 1;
-    for (int i = 0; i < int(opt_cur->size()); i++)
-    {
-        int init_id = i <= opt_init_max_id ? i : 0;
-        if (opt_init_max_id < 0 || opt_cur->get_at(i) != opt_init->get_at(init_id))
-            vec.emplace_back(opt_key + "#" + std::to_string(i));
-    }
-}
-
-// list of options with vector variable, which is independent from number of extruders
-// //Superslicer: use opt.is_vector_extruder() instead.
-//static const std::set<std::string> independent_from_extruder_number_options = {
-//    "bed_shape",
-//    "compatible_printers",
-//    "compatible_prints",
-//    "filament_ramming_parameters",
-//    "gcode_substitutions",
-//    "post_process",
-//};
-//
-//bool PresetCollection::is_independent_from_extruder_number_option(const std::string& opt_key)
-//{
-//    return independent_from_extruder_number_options.find(opt_key) != independent_from_extruder_number_options.end();
-//}
-
-// Use deep_diff to correct return of changed options, considering individual options for each extruder.
-inline t_config_option_keys deep_diff(const ConfigBase &config_this, const ConfigBase &config_other, bool ignore_phony)
-{
-    t_config_option_keys diff;
-    for (const t_config_option_key &opt_key : config_this.keys()) {
-        const ConfigOption *this_opt  = config_this.option(opt_key);
-        const ConfigOption *other_opt = config_other.option(opt_key);
-        //dirty if both exist, they aren't both phony and value is different
-        if (this_opt != nullptr && other_opt != nullptr 
-            && (ignore_phony || !(this_opt->is_phony() && other_opt->is_phony()))
-            && ((*this_opt != *other_opt) || (this_opt->is_phony() != other_opt->is_phony())))
-        {
-            const ConfigOptionVectorBase *this_opt_vector = nullptr;
-            if (this_opt->is_vector()) {
-                this_opt_vector = static_cast<const ConfigOptionVectorBase*>(this_opt);
-            }
-            if (opt_key == "default_filament_profile") {
-                // Ignore this field, it is not presented to the user, therefore showing a "modified" flag for this parameter does not help.
-                // Also the length of this field may differ, which may lead to a crash if the block below is used.
-            } else if (this_opt_vector && !this_opt_vector->is_extruder_size()) {
-                // Scalar variable, or a vector variable, which is independent from number of extruders,
-                // thus the vector is presented to the user as a single input.
-                // Merill: these are 'button' special settings.
-                // note that thumbnails are not here because it has individual # entries
-                diff.emplace_back(opt_key);
-            } else if (opt_key == "thumbnails") {
-                // "thumbnails" can not contain extensions in old config but they are valid and use PNG extension by default
-                // So, check if "thumbnails" is really changed
-                // We will compare full thumbnails instead of exactly config values
-                auto [thumbnails, er]         = GCodeThumbnails::make_and_check_thumbnail_list(config_this);
-                auto [thumbnails_new, er_new] = GCodeThumbnails::make_and_check_thumbnail_list(config_other);
-                if (thumbnails != thumbnails_new || er != er_new)
-                    // if those strings are actually the same, erase them from the list of dirty oprions
-                    diff.emplace_back(opt_key);
-            } else {
-                switch (other_opt->type()) {
-                case coInts:    add_correct_opts_to_diff<ConfigOptionInts       >(opt_key, diff, config_other, config_this);  break;
-                case coBools:   add_correct_opts_to_diff<ConfigOptionBools      >(opt_key, diff, config_other, config_this);  break;
-                case coFloats:  add_correct_opts_to_diff<ConfigOptionFloats     >(opt_key, diff, config_other, config_this);  break;
-                case coStrings: add_correct_opts_to_diff<ConfigOptionStrings    >(opt_key, diff, config_other, config_this);  break;
-                case coPercents:add_correct_opts_to_diff<ConfigOptionPercents   >(opt_key, diff, config_other, config_this);  break;
-                case coFloatsOrPercents:add_correct_opts_to_diff<ConfigOptionFloatsOrPercents>(opt_key, diff, config_other, config_this);  break;
-                case coPoints:  add_correct_opts_to_diff<ConfigOptionPoints     >(opt_key, diff, config_other, config_this);  break;
-                default:        diff.emplace_back(opt_key);     break;
-                }
-                // "nozzle_diameter" is a vector option which contain info about diameter for each nozzle
-                // But in the same time size of this vector indicates about count of extruders,
-                // So, we need to add it to the diff if its size is changed.
-                if (opt_key == "nozzle_diameter" && 
-                    static_cast<const ConfigOptionFloats*>(this_opt)->size() != static_cast<const ConfigOptionFloats*>(other_opt)->size())
-                    diff.emplace_back(opt_key);
-                if (opt_key == "milling_diameter" && 
-                    static_cast<const ConfigOptionFloats*>(this_opt)->size() != static_cast<const ConfigOptionFloats*>(other_opt)->size())
-                    diff.emplace_back(opt_key);
-            }
-        }
-    }
-    return diff;
-}
-
 static constexpr const std::initializer_list<const char*> optional_keys { "compatible_prints", "compatible_printers" };
-
 bool PresetCollection::is_dirty(const Preset *edited, const Preset *reference)
 {
     if (edited != nullptr && reference != nullptr) {
         // Only compares options existing in both configs.
-        //don't consider phony field for equals (false param)
-        bool is_dirty = !reference->config.equals(edited->config, false);
-        if (is_dirty && edited->type != Preset::TYPE_FFF_FILAMENT) {
-            // for non-filaments preset check deep difference for compared configs
-            // there can be cases (as for thumbnails), when configs can logically equal
-            // even when their values are not equal.
-            is_dirty = !deep_diff(edited->config, reference->config, false).empty();
-        }
-        if (is_dirty)
+        if (! reference->config.equals(edited->config))
             return true;
         // The "compatible_printers" option key is handled differently from the others:
         // It is not mandatory. If the key is missing, it means it is compatible with any printer.
@@ -1903,21 +1805,74 @@ bool PresetCollection::is_dirty(const Preset *edited, const Preset *reference)
     }
     return false;
 }
+template<class T>
+void add_correct_opts_to_diff(const t_config_option_key &opt_key,
+                              std::map<OptionKeyIdx, uint16_t> &vec,
+                              const ConfigOption *option_cur,
+                              const ConfigOption *option_init) {
+    const T* opt_init = static_cast<const T*>(option_init);
+    const T* opt_cur = static_cast<const T*>(option_cur);
+    int opt_init_max_id = opt_init->size() - 1;
+    // emplace the whole vector if size changed.
+    if (opt_init->size() != opt_cur->size()) {
+        vec.emplace(OptionKeyIdx::scalar(opt_key), PresetCollection::DIRTY_VECTOR_CHANGE_SIZE);
+    }
+    for (int32_t i = 0; i < int32_t(opt_cur->size()); i++) {
+        // if (new one & we need to report new idx) or if hte value isn't the same.
+        if (i >= opt_init->size()) {
+            uint16_t status = PresetCollection::DIRTY_VECTOR_ADDED_IDX;
+            if (opt_cur->get_at(i) == opt_init->get_at(0)) {
+                status |= PresetCollection::DIRTY_VECTOR_SAME_AS_FIRST;
+            }
+            vec.emplace(OptionKeyIdx{opt_key, i}, status);
+        } else if (opt_cur->get_at(i) != opt_init->get_at(i)) {
+            vec.emplace(OptionKeyIdx{opt_key, i}, 0);
+        }
+    }
+}
 
-std::vector<std::string> PresetCollection::dirty_options(const Preset *edited, const Preset *reference, const bool deep_compare /*= false*/, const bool ignore_phony)
-{
-    std::vector<std::string> changed;
+// Use deep_diff to correct return of changed options, considering individual options for each extruder.
+inline std::map<OptionKeyIdx, uint16_t> deep_diff(const ConfigBase &config_this,
+                                                  const ConfigBase &config_other,
+                                                  bool ignore_phony) {
+    std::map<OptionKeyIdx, uint16_t> diff;
+    for (const t_config_option_key &opt_key : config_this.keys()) {
+        const ConfigOption *this_opt  = config_this.option(opt_key);
+        const ConfigOption *other_opt = config_other.option(opt_key);
+        //dirty if both exist, they aren't both phony and value is different
+        if (this_opt != nullptr && other_opt != nullptr 
+            && (ignore_phony || !(this_opt->is_phony() && other_opt->is_phony()))
+            && ((*this_opt != *other_opt) || (this_opt->is_phony() != other_opt->is_phony())))
+        {
+            switch (other_opt->type()) {
+            case coInts:    add_correct_opts_to_diff<ConfigOptionInts       >(opt_key, diff, this_opt, other_opt);  break;
+            case coBools:   add_correct_opts_to_diff<ConfigOptionBools      >(opt_key, diff, this_opt, other_opt);  break;
+            case coFloats:  add_correct_opts_to_diff<ConfigOptionFloats     >(opt_key, diff, this_opt, other_opt);  break;
+            case coStrings: add_correct_opts_to_diff<ConfigOptionStrings    >(opt_key, diff, this_opt, other_opt);  break;
+            case coPercents:add_correct_opts_to_diff<ConfigOptionPercents   >(opt_key, diff, this_opt, other_opt);  break;
+            case coFloatsOrPercents:add_correct_opts_to_diff<ConfigOptionFloatsOrPercents>(opt_key, diff, this_opt, other_opt);  break;
+            case coPoints:  add_correct_opts_to_diff<ConfigOptionPoints     >(opt_key, diff, this_opt, other_opt);  break;
+            case coGraphs:  add_correct_opts_to_diff<ConfigOptionGraphs     >(opt_key, diff, this_opt, other_opt);  break;
+            default: diff.emplace(OptionKeyIdx::scalar(opt_key), 0); break;
+            }
+        }
+    }
+    return diff;
+}
+
+std::map<OptionKeyIdx, uint16_t> PresetCollection::dirty_options(const Preset *edited,
+                                                         const Preset *reference,
+                                                         const bool ignore_phony /*= false*/) {
+    std::map<OptionKeyIdx, uint16_t> changed;
     if (edited != nullptr && reference != nullptr) {
         // Only compares options existing in both configs.
-        changed = deep_compare ?
-                deep_diff(edited->config, reference->config, !ignore_phony) :
-                reference->config.diff(edited->config, !ignore_phony);
+        changed = deep_diff(edited->config, reference->config, ignore_phony);
         // The "compatible_printers" option key is handled differently from the others:
         // It is not mandatory. If the key is missing, it means it is compatible with any printer.
         // If the key exists and it is empty, it means it is compatible with no printer.
         for (auto &opt_key : optional_keys)
             if (reference->config.has(opt_key) != edited->config.has(opt_key))
-                changed.emplace_back(opt_key);
+                changed.emplace(OptionKeyIdx::scalar(opt_key), 0);
     }
     return changed;
 }

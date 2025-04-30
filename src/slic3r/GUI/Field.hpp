@@ -41,9 +41,9 @@ namespace Slic3r { namespace GUI {
 
 class Field;
 using t_field = std::unique_ptr<Field>;
-using t_kill_focus = std::function<void(const std::string&)>;
-using t_change = std::function<void(const t_config_option_key&, bool enable, const boost::any&)>;
-using t_back_to_init = std::function<void(const std::string&)>;
+using t_kill_focus = std::function<void(const OptionKeyIdx&)>;
+using t_change = std::function<void(const OptionKeyIdx&, bool enable, const boost::any&)>;
+using t_back_to_init = std::function<void(const OptionKeyIdx&)>;
 
 wxString double_to_string(double const value, const int max_precision = 6);
 wxString get_points_string(const std::vector<Vec2d>& values);
@@ -301,8 +301,7 @@ public:
 
     /// Copy of ConfigOption for deduction purposes
     const ConfigOptionDef			m_opt {ConfigOptionDef()};
-	const t_config_option_key		m_opt_id;//! {""};
-	int								m_opt_idx = -1;
+    const OptionKeyIdx              m_opt_key_idx;
 
 	// for saving state
     bool                            m_is_enable{true};
@@ -341,8 +340,10 @@ public:
 
     void				field_changed() { on_change_field(); }
 
-    Field(const ConfigOptionDef& opt, const t_config_option_key& id) : m_opt(opt), m_opt_id(id), m_rich_tooltip_timer(this) {}
-    Field(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : m_parent(parent), m_opt(opt), m_opt_id(id), m_rich_tooltip_timer(this) {}
+    Field(const ConfigOptionDef &opt, const OptionKeyIdx &key_idx)
+        : m_opt(opt), m_opt_key_idx(key_idx), m_rich_tooltip_timer(this) {}
+    Field(wxWindow *parent, const ConfigOptionDef &opt, const OptionKeyIdx &key_idx)
+        : m_parent(parent), m_opt(opt), m_opt_key_idx(key_idx), m_rich_tooltip_timer(this) {}
     virtual ~Field();
 
     /// If you don't know what you are getting back, check both methods for nullptr. 
@@ -353,9 +354,9 @@ public:
 
     /// Factory method for generating new derived classes.
     template<class T>
-    static t_field Create(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id)// interface for creating shared objects
+    static t_field Create(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx& key_idx)// interface for creating shared objects
     {
-        auto p = Slic3r::make_unique<T>(parent, opt, id);
+        auto p = Slic3r::make_unique<T>(parent, opt, key_idx);
         p->PostInitialize();
 		return std::move(p); //!p;
     }
@@ -393,8 +394,8 @@ class TextField : public Field
 {
     using Field::Field;
 protected:
-    TextField(const ConfigOptionDef &opt, const t_config_option_key &id) : Field(opt, id) {}
-    TextField(wxWindow *parent, const ConfigOptionDef &opt, const t_config_option_key &id) : Field(parent, opt, id)
+    TextField(const ConfigOptionDef &opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+    TextField(wxWindow *parent, const ConfigOptionDef &opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx)
     {}
     ~TextField() {}
 
@@ -423,8 +424,8 @@ class TextCtrl : public TextField {
 #endif //__WXGTK__
 
 public:
-    TextCtrl(const ConfigOptionDef &opt, const t_config_option_key &id) : TextField(opt, id) {}
-	TextCtrl(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : TextField(parent, opt, id) {}
+    TextCtrl(const ConfigOptionDef &opt, const OptionKeyIdx &key_idx) : TextField(opt, key_idx) {}
+	TextCtrl(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : TextField(parent, opt, key_idx) {}
 	~TextCtrl() {}
 
     void BUILD() override;
@@ -448,8 +449,8 @@ public:
 class CheckBox : public Field {
 	using Field::Field;
 public:
-	CheckBox(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
-	CheckBox(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	CheckBox(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+	CheckBox(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx) {}
 	~CheckBox() {}
 
 	static wxWindow*	GetNewWin(wxWindow* parent, const wxString& label = wxEmptyString);
@@ -483,8 +484,8 @@ private:
 	static const int UNDEF_VALUE = INT_MIN;
 
 public:
-	SpinCtrl(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id), tmp_value(UNDEF_VALUE) {}
-	SpinCtrl(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id), tmp_value(UNDEF_VALUE) {}
+	SpinCtrl(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx), tmp_value(UNDEF_VALUE) {}
+	SpinCtrl(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx), tmp_value(UNDEF_VALUE) {}
 	~SpinCtrl() {}
 
 	int32_t         tmp_value;
@@ -533,8 +534,8 @@ class Choice : public TextField
 {
 	using TextField::TextField;
 public:
-    Choice(const ConfigOptionDef &opt, const t_config_option_key &id) : TextField(opt, id) {}
-    Choice(wxWindow *parent, const ConfigOptionDef &opt, const t_config_option_key &id) : TextField(parent, opt, id)
+    Choice(const ConfigOptionDef &opt, const OptionKeyIdx &key_idx) : TextField(opt, key_idx) {}
+    Choice(wxWindow *parent, const ConfigOptionDef &opt, const OptionKeyIdx &key_idx) : TextField(parent, opt, key_idx)
     {}
 	~Choice() {}
 
@@ -572,8 +573,8 @@ class ColourPicker : public Field {
 
     void            set_undef_value(wxColourPickerCtrl* field);
 public:
-	ColourPicker(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
-	ColourPicker(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	ColourPicker(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+	ColourPicker(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx) {}
 	~ColourPicker() {}
 
 	wxWindow*		window{ nullptr };
@@ -604,8 +605,8 @@ class GraphButton : public Field {
     using Field::Field;
     GraphData current_value;
 public:
-    GraphButton(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
-    GraphButton(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+    GraphButton(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+    GraphButton(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx) {}
     ~GraphButton() {}
 
     GraphBitmapButton*    window{ nullptr };
@@ -630,8 +631,8 @@ public:
 class PointCtrl : public Field {
 	using Field::Field;
 public:
-	PointCtrl(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
-	PointCtrl(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	PointCtrl(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+	PointCtrl(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx) {}
 	~PointCtrl();
 
 	wxSizer*		sizer{ nullptr };
@@ -668,8 +669,8 @@ public:
 class StaticText : public Field {
 	using Field::Field;
 public:
-	StaticText(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
-	StaticText(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	StaticText(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+	StaticText(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx) {}
 	~StaticText() {}
 
 	wxWindow*		window{ nullptr };
@@ -704,8 +705,8 @@ public:
 class SliderCtrl : public Field {
 	using Field::Field;
 public:
-	SliderCtrl(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
-	SliderCtrl(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	SliderCtrl(const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(opt, key_idx) {}
+	SliderCtrl(wxWindow* parent, const ConfigOptionDef& opt, const OptionKeyIdx &key_idx) : Field(parent, opt, key_idx) {}
 	~SliderCtrl() {}
 
 	wxSizer*		m_sizer{ nullptr };
