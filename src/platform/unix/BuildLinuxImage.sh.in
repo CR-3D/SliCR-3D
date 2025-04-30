@@ -100,10 +100,13 @@ then
 
     echo "> ls package/.."
     ls -al ..
+    
     echo "> ls package/../src"
     ls -al ../src
-    echo "> ls -al ROOT(build)/bin"
-    ls -al $ROOT/bin
+
+    echo "> ls -al ROOT(build)/package/bin"
+    ls -al $ROOT/package/bin
+
     echo "> ls -al ROOT(build)/src"
     ls -al $ROOT/src
     chmod +x ../src/build_appimage.sh
