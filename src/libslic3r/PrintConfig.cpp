@@ -2990,6 +2990,16 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloatOrPercent(75, true));
 
+    def = this->add("link_layer_heights", coBool);
+    def->label = L("Link Layer Heights");
+    def->full_label = L("Link Layer Heights");
+    def->category = OptionCategory::slicing;
+    def->tooltip = L("When this option is enabled the layer height of the first layer will be linked to the "
+                     "layer height of the rest of the object. This means that if you change the layer height "
+                     "of the object, the first layer height will also change.");
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionBool(true));
+
     def = this->add("first_layer_speed", coFloatOrPercent);
     def->label = L("Max");
     def->full_label = L("Default first layer speed");

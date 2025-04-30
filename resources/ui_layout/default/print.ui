@@ -206,6 +206,7 @@ group:Arachne perimeter generator (variable width)
 
 page:Slicing:layers
 group:Layer height
+	setting:link_layer_heights
 	setting:layer_height
 	setting:first_layer_height
 group:Filtering

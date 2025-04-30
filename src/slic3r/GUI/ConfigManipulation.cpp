@@ -62,6 +62,13 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
         is_msg_dlg_already_exist = false;
     }
 
+    // if linking layer heights is true then synchronize first and base height
+    if (config->opt_bool("link_layer_heights")) {
+       DynamicPrintConfig new_conf = *config;
+       new_conf.set_key_value("first_layer_height", new ConfigOptionFloatOrPercent(config->opt_float("layer_height"), 0));
+       apply(config, &new_conf);
+    }
+   
     double fill_density = config->option<ConfigOptionPercent>("fill_density")->value;
 
     if (config->opt_bool("spiral_vase") && !(

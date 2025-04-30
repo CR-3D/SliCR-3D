@@ -767,6 +767,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 fill_angle_follow_model))
     ((ConfigOptionFloatOrPercent,       first_layer_acceleration))
     ((ConfigOptionFloatOrPercent,       first_layer_acceleration_over_raft))
+    ((ConfigOptionBool,                 link_layer_heights))
     ((ConfigOptionFloatOrPercent,       first_layer_height))
     ((ConfigOptionFloatOrPercent,       first_layer_extrusion_width))
     ((ConfigOptionFloatOrPercent,       first_layer_extrusion_spacing))

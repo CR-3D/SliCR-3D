@@ -508,6 +508,7 @@ std::string Preset::trim_vendor_repo_prefix(const std::string& id, const VendorP
 
 static std::vector<std::string> s_Preset_print_options {
         "print_version",
+        "link_layer_heights",
         "layer_height", 
         "first_layer_height",
         "perimeters",
