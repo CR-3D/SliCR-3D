@@ -48,13 +48,13 @@ struct GroupAndCategory {
     ConfigOptionDef gui_opt;
 };
 
-struct Option {
+struct SearchOption {
 
 //private:
-    //Option() {}
+    //SearchOption() {}
 //public:
-//    bool operator<(const Option& other) const { return other.label > this->label; }
-    bool operator<(const Option& other) const {
+//    bool operator<(const SearchOption& other) const { return other.label > this->label; }
+    bool operator<(const SearchOption& other) const {
         if (this->type == other.type)
             if (this->key == other.key)
                 return this->idx < other.idx;
@@ -68,7 +68,7 @@ struct Option {
     // though for some languages (Chinese?) it may not work correctly.
     std::wstring    key; // opt_key (without the 'type;' as suffix)
     Preset::Type    type {Preset::TYPE_INVALID};
-    int16_t         idx;
+    int32_t         idx;
     ConfigOptionMode tags;
     std::wstring    label;
     std::wstring    label_local;
@@ -81,8 +81,8 @@ struct Option {
     std::wstring    tooltip_lowercase;
     std::wstring    tooltip_local_lowercase;
 
-    std::string     opt_key_with_idx() const;
-    std::string     opt_key() const;
+    //OptionKeyId     opt_key_with_idx() const;
+    t_config_option_key     opt_key() const;
 };
 
 struct FoundOption {
@@ -111,14 +111,15 @@ struct OptionViewParameters
 class OptionsSearcher
 {
     std::string                             search_line;
+    // key: type;opt_key#idx
     std::map<std::string, std::vector<GroupAndCategory>> groups_and_categories;
     PrinterTechnology                       printer_technology {ptAny};
     ConfigOptionMode                        current_tags {comNone};
 
-    std::vector<Option>                     options{};
+    std::vector<SearchOption>                     options{};
     bool sorted = false;
-    std::vector<Option>                     script_options{};
-    std::vector<Option>                     preferences_options {};
+    std::vector<SearchOption>                     script_options{};
+    std::vector<SearchOption>                     preferences_options {};
     std::vector<FoundOption>                found {};
     std::map<ConfigOptionMode, wxString>    tag_label_cache;
 
@@ -149,21 +150,21 @@ public:
     void check_and_update(  PrinterTechnology pt_in, 
                             ConfigOptionMode tags_in, 
                             std::vector<InputInfo> input_values);
-    void append_script_option(const ConfigOptionDef &opt, Preset::Type preset_type, int16_t idx);
+    void append_script_option(const ConfigOptionDef &opt, Preset::Type preset_type, int32_t idx);
     bool search();
     bool search(const std::string& search, bool force = false);
 
-    void add_key(const std::string& opt_key, Preset::Type type, const wxString& group, const wxString& category, const ConfigOptionDef& gui_opt, bool reset = false);
+    void add_key(const OptionKeyIdx& opt_key_idx, Preset::Type type, const wxString& group, const wxString& category, const ConfigOptionDef& gui_opt, bool reset = false);
 
     size_t size() const         { return found_size(); }
 
     const FoundOption& operator[](const size_t pos) const noexcept { return found[pos]; }
-    const Option& get_option(size_t pos_in_filter) const;
-    const Option& get_option(const std::string& opt_key, Preset::Type type) const;
-    Option get_option_names(const std::string& opt_key, Preset::Type type) const;
+    const SearchOption& get_option(size_t pos_in_filter) const;
+    const SearchOption& get_option(const t_config_option_key& opt_key, int32_t idx, Preset::Type type) const;
+    SearchOption get_option_names(const t_config_option_key& opt_key, int32_t idx, Preset::Type type) const;
 
     const std::vector<FoundOption>& found_options() { return found; }
-    const GroupAndCategory&         get_group_and_category (const std::string& opt_key, ConfigOptionMode tags) const;
+    const GroupAndCategory &get_group_and_category(const std::string &grp_key, ConfigOptionMode tags) const;
     std::string& search_string() { return search_line; }
 
     bool is_sorted() { return sorted; }

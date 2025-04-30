@@ -11,6 +11,7 @@
 
 #include "GUI_Utils.hpp"
 #include "wxExtensions.hpp"
+#include "libslic3r/Config.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
 class ScalableButton;
@@ -205,7 +206,7 @@ class DiffViewCtrl : public wxDataViewCtrl
 
     struct ItemData
     {
-        std::string     opt_key;
+        OptionKeyIdx    opt_key_idx;
         wxString        opt_name;
         wxString        old_val;
         wxString        mod_val;
@@ -232,7 +233,7 @@ public:
     void    AppendBmpTextColumn(const wxString& label, unsigned model_column, int width, bool set_expander = false);
     void    AppendToggleColumn_(const wxString& label, unsigned model_column, int width);
     void    Rescale(int em = 0);
-    void    Append(const std::string& opt_key, Preset::Type type, wxString category_name, wxString group_name, wxString option_name,
+    void    Append(const OptionKeyIdx& opt_key_idx, Preset::Type type, wxString category_name, wxString group_name, wxString option_name,
                    wxString old_value, wxString mod_value, wxString new_value, const std::string category_icon_name);
     void    Clear();
 
