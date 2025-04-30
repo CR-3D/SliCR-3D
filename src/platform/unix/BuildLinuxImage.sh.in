@@ -62,7 +62,7 @@ then
 
     # copy Resources
     cp -rf ../resources/ package/resources
-    cp -f bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
+    cp -f $ROOT/build/bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
     cp -f src/OCCTWrapper.so package/bin    
     ln -rs package/bin/@SLIC3R_APP_CMD@ package/bin/@GCODEVIEWER_APP_CMD@
     # remove unneeded po from resources
@@ -100,7 +100,7 @@ then
 
     echo "> ls -al ROOT(package)"
     ls -al $ROOT/build/package
-    
+
     echo "> ls -al ROOT(build)/src"
     ls -al $ROOT/build/src
 
