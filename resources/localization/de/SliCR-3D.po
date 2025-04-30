@@ -4176,7 +4176,7 @@ msgid "Allow empty layers"
 msgstr "Leere Schichten erlauben"
 
 msgid "Base Layer height"
-msgstr "Basis-Schichthöhe"
+msgstr "Schichthöhe"
 
 msgid "Height of the first layer"
 msgstr "Höhe der ersten Schicht"
