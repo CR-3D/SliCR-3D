@@ -24,7 +24,7 @@ set(GCODEVIEWER_APP_CMD "${SLIC3R_APP_CMD}-gcodeviewer")
 set(GCODEVIEWER_APP_PROG_ID "${SLIC3R_APP_NAME}.GCodeViewer.1")
 
 # string to be added after the SLIC3R_APP_NAME on some places
-set(SLIC3R_BASED_ON " based on PrusaSlicer and SuperSlicer")
+set(SLIC3R_BASED_ON "based on PrusaSlicer and SuperSlicer")
 
 # to get he github repo
 set(SLIC3R_GITHUB "CR-3D/SliCR-3D")

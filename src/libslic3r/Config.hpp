@@ -201,6 +201,46 @@ namespace Slic3r {
 typedef std::string                 t_config_option_key;
 typedef std::vector<std::string>    t_config_option_keys;
 
+// Name of the configuration option.+ the idx of the element used (if only an elemnt is needed)
+// idx is -1 if it's not a vector, or if the whole vector is used.
+struct OptionKeyIdx
+{
+    const t_config_option_key key;
+    // idx, -1 if the option is a scalar or it's for the whole vector and not a specific item
+    const int32_t idx;
+    
+    //C++20
+#if __cplusplus >= 202002L
+    auto operator<=>(const OptionKeyIdx&) const = default;
+#else
+    auto tie() const { return std::tie(key,idx); }
+    bool operator==(const OptionKeyIdx &other) const { return idx == other.idx && key == other.key; }
+    bool operator<(const OptionKeyIdx& other) const { return tie() < other.tie(); }
+#endif
+    static inline OptionKeyIdx scalar(const t_config_option_key &key) {
+        return OptionKeyIdx{key, -1};
+    }
+};
+// hash for unordered_map
+//inline void hash_combine(std::size_t& seed) { }
+//template <typename T, typename... Rest>
+//inline void hash_combine(size_t& seed, const T& v, Rest... rest)
+//{
+//    seed ^= ::qHash(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+//    (hashCombine(seed, rest), ...);
+//}
+//namespace std {
+//template<> struct hash<OptionKeyIdx>
+//{
+//    std::size_t operator()(const OptionKeyIdx &t) const {
+//        std::size_t ret = 0;
+//        hash_combine(ret, __VA_ARGS__);
+//        return ret;
+//    }
+//};
+//}
+//typedef std::string                 t_config_option_key_id;
+
 extern std::string  escape_string_cstyle(const std::string &str);
 extern std::string  escape_strings_cstyle(const std::vector<std::string> &strs);
 extern std::string  escape_strings_cstyle(const std::vector<std::string> &strs, const std::vector<bool> &enables);
@@ -2714,6 +2754,7 @@ public:
     // true if it's not a real option but a simplified/composite one that use angelscript for interaction.
     bool                                is_script = false;
     boost::any                          default_script_value;
+    // list of opt_key#idx strings that changes our computed value
     std::vector<std::string>            depends_on; // from Option
 
     // Definition of values / labels for a combo box.

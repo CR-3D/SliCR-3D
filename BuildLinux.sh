@@ -327,6 +327,7 @@ then
     ls -al $ROOT
     echo "> ls ROOT/build"
     ls -al $ROOT/build
+    mkdir $ROOT/build/bin
     echo "> ls -al ROOT/build/bin"
     ls -al $ROOT/build/bin
     echo "> ls -al ROOT/build/src"

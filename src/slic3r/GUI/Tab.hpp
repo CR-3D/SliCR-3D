@@ -153,9 +153,9 @@ public:
     void        msw_rescale();
     void        sys_color_changed();
     void        refresh();
-	Field*		get_field(const t_config_option_key& opt_key, int opt_index = -1) const;
+	Field*		get_field(const t_config_option_key& opt_key, int32_t opt_index = -1) const;
 	Line*		get_line(const t_config_option_key& opt_key);
-	bool		set_value(const t_config_option_key& opt_key, const boost::any& value, bool enabled);
+	bool		set_value(const OptionKeyIdx& opt_key_idx, const boost::any& value, bool enabled);
 	ConfigOptionsGroupShp	new_optgroup(const wxString& title, bool no_title = false, bool is_tab_opt = true, Preset::Type type_override = Preset::Type::TYPE_INVALID);
 	const ConfigOptionsGroupShp	get_optgroup(const wxString& title) const;
 
@@ -255,17 +255,19 @@ protected:
 
     ModeSizer*			m_mode_sizer {nullptr};
 
-   	struct PresetDependencies {
-		Preset::Type type	  = Preset::TYPE_INVALID;
-		wxWindow 	*checkbox = nullptr;
-		ScalableButton 	*btn  = nullptr;
-		std::string  key_list; // "compatible_printers"
-		std::string  key_condition;
-		wxString     dialog_title;
-		wxString     dialog_label;
-	};
-	PresetDependencies 	m_compatible_printers;
-	PresetDependencies 	m_compatible_prints;
+   	struct PresetDependencies
+    {
+        Preset::Type type = Preset::TYPE_INVALID;
+        wxWindow *checkbox = nullptr;
+        ScalableButton *btn = nullptr;
+        t_config_option_key key_list; // "compatible_printers"
+        t_config_option_key key_condition;
+        int32_t idx;
+        wxString dialog_title;
+        wxString dialog_label;
+    };
+    PresetDependencies m_compatible_printers;
+    PresetDependencies m_compatible_prints;
 
     /* Indicates, that default preset or preset inherited from default is selected
      * This value is used for a options color updating 
@@ -338,24 +340,25 @@ protected:
 	bool				m_show_incompatible_presets;
 
     script::ScriptContainer     m_script_exec;
-	static inline std::unordered_map<std::string, std::vector<std::pair<Preset::Type, std::string>>> depsid_2_tabtype_scriptids;
-	//static void register_setting_dependency(Tab &tab_script, std::string opt_id, Preset::Type dep_type, std::string dependency_opt_id);
-	//static void emit_dependency(Tab &tab_opt_changed, std::string opt_changed);
+    static inline std::unordered_map<std::string, std::vector<std::pair<Preset::Type, std::string>>> depsid_2_tabtype_scriptids;
+    //static void register_setting_dependency(Tab &tab_script, std::string opt_id, Preset::Type dep_type, std::string dependency_opt_id);
+    //static void emit_dependency(Tab &tab_opt_changed, std::string opt_changed);
 
     std::vector<Preset::Type>	m_dependent_tabs;
-	enum OptStatus {
-		osSystemValue = 1,
-		osInitValue = 2,
-		osSystemPhony = 4,
-		osInitPhony = 8,
-		osCurrentPhony = 16,
-	};
-	// map<opt_key, pair<idx, OptStatus>>
-    std::map<std::string, std::pair<int, int /*OptStatus*/>> m_options_list;
-    // map<opt_key, OptStatus> (script can't be vector)
-    std::map<std::string, int /*OptStatus*/> m_options_script;
-    std::vector<std::string>    m_options_dirty;
-	int							m_opt_status_value = 0;
+    enum OptStatus : uint16_t {
+        osSystemValue = 1 << 1,
+        osInitValue = 1 << 2,
+        osSystemPhony = 1 << 3,
+        osInitPhony = 1 << 4,
+        osCurrentPhony = 1 << 5,
+    };
+    // map<opt_key#id, tuple<opt_key, idx, OptStatus>>
+    //typedef std::tuple<t_config_option_key, int, int /*OptStatus*/> t_opt_tuple
+
+    std::map<OptionKeyIdx, uint16_t/*OptStatus*/> m_options_list;
+    std::map<std::string, uint16_t/*OptStatus*/> m_options_script;
+    std::set<OptionKeyIdx> m_options_dirty;
+    uint16_t m_opt_status_value = 0;
 
 	std::vector<GUI_Descriptions::ButtonEntry>	m_icon_descriptions = {};
 
@@ -441,7 +444,7 @@ public:
 	void		update_label_colours();
 	void		decorate();
 	void		update_changed_ui();
-	void		get_sys_and_mod_flags(const std::string& opt_key, bool& sys_page, bool& modified_page);
+    void        get_sys_and_mod_flags(const OptionKeyIdx &opt_key_id, bool &sys_page, bool &modified_page);
 	void		update_changed_tree_ui();
 	void		update_undo_buttons();
 
@@ -459,9 +462,9 @@ public:
 	virtual void	update() = 0;
 	virtual void	toggle_options() = 0;
 	virtual void	init_options_list();
-	void			emplace_option(const std::string &opt_key, bool respect_vec_values = false);
+    void            emplace_option(const t_config_option_key &opt_key, bool respect_vec_values = false);
 	void			load_initial_data();
-    void            add_dirty_setting(const std::string& opt_key);
+    void            add_dirty_setting(const OptionKeyIdx& opt_key);
 	void			update_dirty();
 	void			update_tab_ui();
 	void			load_config(const DynamicPrintConfig& config);
@@ -473,12 +476,12 @@ public:
     virtual void	sys_color_changed();
 	size_t          get_page_count() { return m_pages.size(); }
 	PageShp         get_page(size_t idx) { return m_pages[idx]; }
-	Field*			get_field(const t_config_option_key& opt_key, int opt_index = -1) const;
+	Field*			get_field(const t_config_option_key& opt_key, int32_t opt_index = -1) const;
 	Line*			get_line(const t_config_option_key& opt_key);
-	std::pair<OG_CustomCtrl*, bool*> get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int opt_index = -1);
+	std::pair<OG_CustomCtrl*, bool*> get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int32_t opt_index = -1);
 
-    Field*          get_field(Page*& selected_page, const t_config_option_key &opt_key, int opt_index = -1) const;
-	void			toggle_option(const std::string& opt_key, bool toggle, int opt_index = -1);
+    Field*          get_field(Page*& selected_page, const t_config_option_key &opt_key, int32_t opt_index = -1) const;
+	void			toggle_option(const std::string& opt_key, bool toggle, int32_t opt_index = -1);
 	wxSizer*		description_line_widget(wxWindow* parent, ogStaticText** StaticText, wxString text = wxEmptyString);
 	bool			current_preset_is_dirty() const;
 	bool			saved_preset_is_dirty() const;
@@ -490,11 +493,11 @@ public:
 	const PresetCollection* get_presets() const { return m_presets; }
     ConfigManipulation get_config_manipulation();
 
-    bool            set_value(const t_config_option_key& opt_key, const boost::any& value, bool enabled);
-	void			on_value_change(const std::string& opt_key, const boost::any& value);
+    bool            set_value(const OptionKeyIdx& opt_key_idx, const boost::any& value, bool enabled);
+    void            on_value_change(const OptionKeyIdx &opt_key_idx, const boost::any &value);
 
     void            update_wiping_button_visibility();
-	virtual void	activate_option(const std::string& opt_key, const wxString& category);
+	virtual void	activate_option(const OptionKeyIdx& opt_key_idx, const wxString& category);
 	void			cache_config_diff(const std::vector<std::string>& selected_options, const DynamicPrintConfig* config = nullptr);
 	void			apply_config_from_cache();
 
@@ -504,18 +507,18 @@ public:
     bool        validate_custom_gcodes_was_shown{ false };
 
 	// create a setting page from ui file. type_override is used by frequent settings.
-	std::vector<PageShp> create_pages(std::string setting_type_name, int idx = -1, Preset::Type type_override = Preset::Type::TYPE_INVALID);
+	std::vector<PageShp> create_pages(std::string setting_type_name, int32_t idx = -1, Preset::Type type_override = Preset::Type::TYPE_INVALID);
 	static t_change set_or_add(t_change previous, t_change toadd);
 
-    void						edit_custom_gcode(const t_config_option_key& opt_key);
-    virtual const std::string&	get_custom_gcode(const t_config_option_key& opt_key);
-    virtual void				set_custom_gcode(const t_config_option_key& opt_key, const std::string& value);
+    void                        edit_custom_gcode(const OptionKeyIdx &opt_key_idx);
+    virtual const std::string  &get_custom_gcode(const OptionKeyIdx &opt_key_idx);
+    virtual void                set_custom_gcode(const OptionKeyIdx &opt_key_idx, const std::string &value);
 
 protected:
-	void			create_line_with_widget(ConfigOptionsGroup* optgroup, const std::string& opt_key, const std::string& path, widget_t widget);
-	wxSizer*		compatible_widget_create(wxWindow* parent, PresetDependencies &deps, int setting_idx);
+	void			create_line_with_widget(ConfigOptionsGroup* optgroup, const std::string& opt_key, const std::string& path, int32_t idx, widget_t widget);
+	wxSizer*		compatible_widget_create(wxWindow* parent, PresetDependencies &deps, int32_t setting_idx);
 	void 			compatible_widget_reload(PresetDependencies &deps);
-	void			load_key_value(const std::string& opt_key, const boost::any& value, bool saved_value = false, int16_t extruder_id = -1);
+    void            load_key_value(const t_config_option_key& opt_key, const boost::any& value, bool saved_value = false, int16_t extruder_id = -1);
 
 	// return true if cancelled
 	bool			tree_sel_change_delayed();
@@ -548,11 +551,11 @@ public:
 	void		build() override;
 	void		toggle_options() override;
     void        update() {};
-	void		update_changed_setting(const std::string& opt_key);
+    void        update_changed_setting(const t_config_option_key &opt_key);
 	PrinterTechnology get_printer_technology() const override { return (m_type & Preset::Type::TYPE_TECHNOLOGY) == Preset::Type::TYPE_FFF ? PrinterTechnology::ptFFF : 
 																	   (m_type & Preset::Type::TYPE_TECHNOLOGY) == Preset::Type::TYPE_SLA ? PrinterTechnology::ptSLA :
 																	   PrinterTechnology::ptAny; }
-	virtual void	activate_option(const std::string& opt_key, const wxString& category) override;
+    virtual void activate_option(const OptionKeyIdx &opt_key_idx, const wxString &category) override;
     void set_freq_parent(wxWindow * freq_parent) { m_freq_parent = freq_parent;}
 	virtual PageShp create_options_page(const wxString &title, const std::string &icon) override;
 };
@@ -594,11 +597,11 @@ protected:
     BitmapComboBox* m_extruders_cb {nullptr};
     int             m_active_extruder {0};
 
-    //void            create_line_with_near_label_widget(ConfigOptionsGroupShp optgroup, const std::string &opt_key, int opt_index = 0);
-    //void            update_line_with_near_label_widget(ConfigOptionsGroupShp optgroup, const std::string &opt_key, int opt_index = 0, bool is_checked = true);
+    //void            create_line_with_near_label_widget(ConfigOptionsGroupShp optgroup, const std::string &opt_key, int32_t opt_index = 0);
+    //void            update_line_with_near_label_widget(ConfigOptionsGroupShp optgroup, const std::string &opt_key, int32_t opt_index = 0, bool is_checked = true);
     void            update_filament_overrides_page();
     void            create_extruder_combobox();
-	void 			update_volumetric_flow_preset_hints();
+    void            update_volumetric_flow_preset_hints();
 
     //std::map<std::string, wxWindow*> m_overrides_options;
 public:
@@ -629,8 +632,8 @@ public:
     void        update_extruder_combobox_visibility();
     int         get_active_extruder() const { return m_active_extruder; }
 
-	const std::string&	get_custom_gcode(const t_config_option_key& opt_key) override;
-	void				set_custom_gcode(const t_config_option_key& opt_key, const std::string& value) override;
+    const std::string  &get_custom_gcode(const OptionKeyIdx &opt_key_idx) override;
+    void                set_custom_gcode(const OptionKeyIdx &opt_key_idx, const std::string &value) override;
 
 protected:
     bool        select_preset_by_name(const std::string& name_w_suffix, bool force) override;

@@ -461,11 +461,12 @@ void FreqChangedParams::init()
         m_og->set_config(config);
         m_og->hide_labels();
         
-        m_og->m_on_change =
-        Tab::set_or_add(m_og->m_on_change, [tab_print, this](t_config_option_key opt_key, bool enabled, boost::any value)
+        m_og->m_on_change = Tab::set_or_add(m_og->m_on_change,
+                                            [tab_print, this](const OptionKeyIdx &opt_key_idx, bool enabled,
+                                                              boost::any value)
                         {
             assert(enabled); //TODO fix & test
-            const Option *opt_def = this->m_og->get_option_def(opt_key);
+            const Option *opt_def = this->m_og->get_option_def(opt_key_idx);
             if (opt_def && !opt_def->opt.is_script) {
                 tab_print->update_dirty();
                 tab_print->reload_config();
@@ -1383,9 +1384,14 @@ void Sidebar::search()
 void Sidebar::jump_to_option(const std::string& composite_key)
 {
     const auto        separator_pos = composite_key.find(";");
-    const std::string opt_key       = composite_key.substr(0, separator_pos);
+    std::string       opt_key       = composite_key.substr(0, separator_pos);
     const std::string tab_name      = composite_key.substr(separator_pos + 1, composite_key.length());
-    
+    int32_t           opt_idx       = -1;
+    if (size_t hpos = opt_key.find("#"); hpos != std::string::npos) {
+        opt_idx = std::atoi(opt_key.substr(hpos + 1).c_str());
+        opt_key = opt_key.substr(0, hpos);
+    }
+
     for (Tab* tab : wxGetApp().tabs_list) {
         if (tab->name() == tab_name) {
             check_and_update_searcher(true);
@@ -1394,9 +1400,9 @@ void Sidebar::jump_to_option(const std::string& composite_key)
             // so resort searcher before get an option
             // p->searcher.sort_options_by_key();
             assert(p->searcher.is_sorted());
-            const Search::Option& opt = p->searcher.get_option(opt_key, tab->type());
-            tab->activate_option(opt_key, boost::nowide::narrow(opt.category));
-            
+            const Slic3r::Search::SearchOption& opt = p->searcher.get_option(opt_key, opt_idx, tab->type());
+            tab->activate_option({opt_key, opt_idx}, boost::nowide::narrow(opt.category));
+
             // Revert sort of searcher back
             //p->searcher.sort_options_by_label();
             break;
@@ -1406,13 +1412,14 @@ void Sidebar::jump_to_option(const std::string& composite_key)
 
 void Sidebar::jump_to_option(const std::string& opt_key, Preset::Type type, const std::wstring& category)
 {
-    // const Search::Option& opt = p->searcher.get_option(opt_key, type);
-    wxGetApp().get_tab(type)->activate_option(opt_key, category);
+    //const Search::Option& opt = p->searcher.get_option(opt_key, type);
+    // note: not avaialble for indexed-options
+    wxGetApp().get_tab(type)->activate_option(OptionKeyIdx::scalar(opt_key), category);
 }
 
 void Sidebar::jump_to_option(size_t selected)
 {
-    const Search::Option& opt = p->searcher.get_option(selected);
+    const Slic3r::Search::SearchOption& opt = p->searcher.get_option(selected);
     if (opt.type == Preset::TYPE_PREFERENCES)
         wxGetApp().open_preferences(opt.opt_key(), boost::nowide::narrow(opt.group));
     else {
@@ -1440,16 +1447,8 @@ void Sidebar::jump_to_option(size_t selected)
                 return;
             }
         }
-        
-        wxGetApp().get_tab(opt.type, false)->activate_option(opt.opt_key_with_idx(), boost::nowide::narrow(opt.category));
-        // Switch to the Settings NotePad
-        if (opt.type == Preset::TYPE_PRINTER) {
-            wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPrinterSettings, false);
-        } else if (opt.type == Preset::TYPE_FFF_PRINT || opt.type == Preset::TYPE_PRINT1) {
-            wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPrintSettings, false);
-        } else if (opt.type == Preset::TYPE_FFF_FILAMENT || opt.type == Preset::TYPE_FFF) {
-            wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpFilamentSettings, false);
-        }
+
+        wxGetApp().get_tab(opt.type, false)->activate_option({opt.opt_key(), opt.idx}, boost::nowide::narrow(opt.category));
     }
     
 }
@@ -3813,8 +3812,8 @@ void Plater::priv::process_validation_warning(const std::vector<std::string>& wa
                 DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
                 config.set_key_value("support_material", new ConfigOptionBool(true));
                 config.set_key_value("support_material_auto", new ConfigOptionBool(false));
-                print_tab->on_value_change("support_material", config.opt_bool("support_material"));
-                print_tab->on_value_change("support_material_auto", config.opt_bool("support_material_auto"));
+                print_tab->on_value_change(OptionKeyIdx::scalar("support_material"), config.opt_bool("support_material"));
+                print_tab->on_value_change(OptionKeyIdx::scalar("support_material_auto"), config.opt_bool("support_material_auto"));
                 return true;
             };
         }
@@ -8940,7 +8939,7 @@ void Plater::send_gcode()
             wxGetApp().app_config->get_bool("use_binary_gcode_when_supported");
             const wxString error_str = check_binary_vs_ascii_gcode_extension(printer_technology(), ext, binary_output);
             if (! error_str.IsEmpty()) {
-                ErrorDialog(this, error_str, t_kill_focus([](const std::string& key) -> void { wxGetApp().sidebar().jump_to_option(key); })).ShowModal();
+                ErrorDialog(this, error_str, std::function<void(const std::string&)>([](const std::string& key) -> void { wxGetApp().sidebar().jump_to_option(key); })).ShowModal();
                 return;
             }
 

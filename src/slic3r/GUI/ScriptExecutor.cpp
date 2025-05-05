@@ -1478,7 +1478,7 @@ void ScriptContainer::call_script_function_set(const ConfigOptionDef &def, const
     for (const auto &data : to_update) {
         Tab *tab = wxGetApp().get_tab(data.first);
         for (auto opt_key : data.second.keys()) {
-            tab->on_value_change(opt_key, data.second.option(opt_key)->get_any(-1));
+            tab->on_value_change(OptionKeyIdx::scalar(opt_key), data.second.option(opt_key)->get_any(-1));
         }
     }
     // refresh the field if needed
@@ -1540,12 +1540,12 @@ bool ScriptContainer::call_script_function_reset(const ConfigOptionDef &def)
     for (const auto &data : to_update) {
         Tab *tab = wxGetApp().get_tab(data.first);
         for (auto opt_key : data.second.keys()) {
-            tab->on_value_change(opt_key, data.second.option(opt_key)->get_any(-1));
+            tab->on_value_change(OptionKeyIdx::scalar(opt_key), data.second.option(opt_key)->get_any(-1));
         }
     }
     // refresh the field if needed
     if (m_need_refresh && m_tab) {
-        Field *f = m_tab->get_field(def.opt_key);
+        Field* f = m_tab->get_field(def.opt_key, -1);
         if (f != nullptr) {
             f->set_any_value(call_script_function_get_value(def), false);
         }
