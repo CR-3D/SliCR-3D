@@ -2903,10 +2903,10 @@ void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result
     if (wxGetApp().is_editor()) {
         _set_warning_notification_if_needed(EWarning::ToolpathOutside);
         _set_warning_notification_if_needed(EWarning::GCodeConflict);
-        m_gcode_viewer.refresh(gcode_result, str_tool_colors);
-        set_as_dirty();
-        request_extra_frame();
     }
+    m_gcode_viewer.refresh(gcode_result, str_tool_colors);
+    set_as_dirty();
+    request_extra_frame();
 }
 
 void GLCanvas3D::refresh_gcode_preview_render_paths(bool keep_sequential_current_first, bool keep_sequential_current_last)
