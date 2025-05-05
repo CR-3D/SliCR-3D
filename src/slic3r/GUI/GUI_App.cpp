@@ -4041,15 +4041,15 @@ void GUI_App::on_version_read(wxCommandEvent &evt) {
         return;
     }
     // notification
-    /*
+    
      this->plater_->get_notification_manager()->push_notification(NotificationType::NewAppAvailable
      , NotificationManager::NotificationLevel::ImportantNotificationLevel
      , Slic3r::format(_u8L("New release version %1% is available."), evt.GetString())
      , _u8L("See Download page.")
-     , [](wxEvtHandler* evnthndlr) {wxGetApp().open_web_page_localized("https://www.prusa3d.com/slicerweb"); return
+     , [](wxEvtHandler* evnthndlr) {wxGetApp().open_web_page_localized("https://github.com/CR-3D/SliCR-3D/releases"); return
      true; }
      );
-     */
+     
     // updater
     // read triggered_by_user that was set when calling  GUI_App::app_version_check
     app_updater(m_app_updater->get_triggered_by_user());
