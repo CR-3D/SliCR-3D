@@ -49,7 +49,7 @@ done
 
 if [[ -n "$BUILD_APP" ]]
 then
-    echo -e "\n[8/9] Generating Linux app ..."
+    echo -e "\n[7/8] Generating Linux app ..."
     # create directory and copy into it
     if [ -d "package" ]
     then
@@ -62,7 +62,7 @@ then
 
     # copy Resources
     cp -rf ../resources/ package/resources
-    cp -f $ROOT/build/bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
+    cp -f bin/@SLIC3R_APP_CMD@ package/bin/@SLIC3R_APP_CMD@
     cp -f src/OCCTWrapper.so package/bin    
     ln -rs package/bin/@SLIC3R_APP_CMD@ package/bin/@GCODEVIEWER_APP_CMD@
     # remove unneeded po from resources
@@ -88,7 +88,7 @@ fi
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
-    echo -e "\n[9/9] Creating .tgz and Appimage for distribution ...\n"
+    echo -e "\n[8/8] Creating .tgz and Appimage for distribution ...\n"
 
     pushd package > /dev/null
     if [[ -z "$FORCE_GTK2" ]]
@@ -98,12 +98,14 @@ then
        tar -czvf ../@SLIC3R_APP_KEY@${VERSION_NUMBER}-linux-x64-GTK2.tgz .  &>/dev/null
     fi
 
-    echo "> ls -al ROOT(package)"
-    ls -al $ROOT/build/package
-
+    echo "> ls package/.."
+    ls -al ..
+    echo "> ls package/../src"
+    ls -al ../src
+    echo "> ls -al ROOT(build)/bin"
+    ls -al $ROOT/bin
     echo "> ls -al ROOT(build)/src"
-    ls -al $ROOT/build/src
-
+    ls -al $ROOT/src
     chmod +x ../src/build_appimage.sh
     ../src/build_appimage.sh
     popd  > /dev/null
