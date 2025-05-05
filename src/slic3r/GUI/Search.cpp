@@ -155,7 +155,7 @@ const GroupAndCategory& OptionsSearcher::get_group_and_category(const std::strin
 void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type type)
 {
     //const ConfigDef* defs = config->def();
-    auto emplace_option = [this, type](const t_config_option_key &opt_key, Preset::Type type, const int32_t idx)
+    auto emplace_option = [this](const t_config_option_key &opt_key, Preset::Type type, const int32_t idx)
     {
         std::string grp_key = get_group_key(opt_key, type, idx);
 
