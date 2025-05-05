@@ -4887,7 +4887,10 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
     if (wxGetApp().preset_bundle->physical_printers.get_selected_printer_config()) {
         DynamicPrintConfig *selected_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
         q->set_physical_printer_config(selected_printer_config);
+        wxGetApp().mainframe->show_printer_webview_tab(
+            wxGetApp().preset_bundle->physical_printers.get_selected_printer_config());
     } else {
+        wxGetApp().mainframe->remove_printer_webview_tab();
         q->sidebar().get_refresh_button()->Disable();
     }
     
@@ -4906,7 +4909,6 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
         wxQueueEvent(this->q, new SimpleEvent(EVT_REGENERATE_BED_THUMBNAILS));
         this->update();
         s_print_statuses.fill(PrintStatus::idle);
-
     }
     
 #ifdef __WXMSW__
