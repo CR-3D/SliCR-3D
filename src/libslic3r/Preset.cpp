@@ -43,7 +43,7 @@
 #include <boost/log/trivial.hpp>
 
 #include "libslic3r.h"
-#include "config.hpp"
+#include "Config.hpp"
 #include "Utils.hpp"
 #include "PlaceholderParser.hpp"
 #include "GCode/Thumbnails.hpp"
