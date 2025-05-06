@@ -478,12 +478,14 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
          || (layer_to_print.support_layer /* && layer_to_print.support_layer->has_extrusions() */)) {
 
             double extra_gap = (layer_to_print.support_layer ? bottom_cd : top_cd);
+            SupportZDistanceType distance_type = object.config().support_material_contact_distance_type.value;
             if (object.config().raft_layers.value > 0 && layer_to_print.layer()->id() <= object.config().raft_layers.value) {
                 extra_gap = raft_cd;
+                distance_type = object.config().raft_contact_distance_type.value;
             }
-            if (object.config().support_material_contact_distance_type.value == SupportZDistanceType::zdNone) {
+            if (distance_type == SupportZDistanceType::zdNone) {
                 extra_gap = layer_to_print.layer()->height;
-            } else if (object.config().support_material_contact_distance_type.value == SupportZDistanceType::zdFilament) {
+            } else if (distance_type == SupportZDistanceType::zdFilament) {
                 //compute the height of bridge.
                 if (layer_to_print.layer()->id() > 0 && !layer_to_print.layer()->regions().empty()) {
                     extra_gap += layer_to_print.layer()->regions().front()->bridging_flow(FlowRole::frSolidInfill).height();
@@ -491,6 +493,7 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
                     extra_gap += layer_to_print.layer()->height;
                 }
             } else { //SupportZDistanceType::zdPlane
+                assert(distance_type == SupportZDistanceType::zdPlane);
                 extra_gap += layer_to_print.layer()->height;
             }
 

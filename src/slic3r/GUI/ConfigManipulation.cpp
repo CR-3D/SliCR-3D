@@ -567,7 +567,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("support_material_speed", have_support_material || have_skirt || have_brim);
     toggle_field("brim_speed", have_brim || have_skirt);
 
-    toggle_field("raft_contact_distance", have_raft && !have_support_soluble);
+    bool have_raft_soluble = have_support_material && ((ConfigOptionEnumGeneric*)config->option("raft_contact_distance_type"))->value == zdNone;
+    toggle_field("raft_contact_distance", have_raft && !have_raft_soluble);
     for (auto el : { "raft_expansion", "first_layer_acceleration_over_raft", "first_layer_speed_over_raft",
         "raft_layer_height", "raft_interface_layer_height"})
         toggle_field(el, have_raft);

@@ -4881,6 +4881,22 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloat(0.1));
 
+    def = this->add("raft_contact_distance_type", coEnum);
+    def->label = L("Type");
+    def->full_label = L("Raft contact distance type");
+    def->category = OptionCategory::support;
+    def->tooltip = L("How to compute the vertical z-distance.\n"
+        "From filament: it uses the nearest bit of the filament. When a bridge is extruded, it goes below the current plane.\n"
+        "From plane: it uses the plane-z. Same as 'from filament' if no 'bridge' is extruded.\n"
+        "None: No z-offset. Useful for Soluble supports.\n");
+    def->set_enum<SupportZDistanceType>({
+        { "filament", L("From filament") },
+        { "plane",    L("From plane") },
+        { "none",     L("None (soluble)") }
+    });
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionEnum<SupportZDistanceType>(zdPlane));
+
     def = this->add("raft_expansion", coFloat);
     def->label = L("Raft expansion");
     def->category = OptionCategory::support;
@@ -9958,8 +9974,9 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "printer_custom_variables",
 "printhost_client_cert",
 "printhost_client_cert_password",
-"raft_layer_height",
+"raft_contact_distance_type",
 "raft_interface_layer_height",
+"raft_layer_height",
 "region_gcode",
 "remaining_times_type",
 "resolution_internal",
