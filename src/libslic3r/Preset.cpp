@@ -644,6 +644,7 @@ static std::vector<std::string> s_Preset_print_options {
         // support
         "support_material", "support_material_auto", "support_material_threshold", "support_material_enforce_layers",
         "raft_contact_distance",
+        "raft_contact_distance_type",
         "raft_expansion",
         "raft_first_layer_density", 
         "raft_first_layer_expansion",

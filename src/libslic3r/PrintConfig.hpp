@@ -782,6 +782,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                model_precision))
     ((ConfigOptionPercent,              perimeter_bonding))
     ((ConfigOptionFloat,                raft_contact_distance))
+    ((ConfigOptionEnum<SupportZDistanceType>, raft_contact_distance_type))
     ((ConfigOptionFloat,                raft_expansion))
     ((ConfigOptionPercent,              raft_first_layer_density))
     ((ConfigOptionFloat,                raft_first_layer_expansion))

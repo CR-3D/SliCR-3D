@@ -1424,6 +1424,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "overhangs_bridge_threshold"
                 || opt_key == "overhangs_bridge_upper_layers"
                 || opt_key == "raft_contact_distance"
+                || opt_key == "raft_contact_distance_type"
                 || opt_key == "raft_interface_layer_height"
                 || opt_key == "raft_layers"
                 || opt_key == "raft_layer_height"
@@ -2328,7 +2329,7 @@ void PrintObject::detect_surfaces_type()
                         // Note: PS 2.4 changed that by "no bridge"... i dont know why?
                         for (Surface& surface : bottom)
                             surface.surface_type = //stPosBottom | stDensSolid;
-                                (m_config.raft_layers.value > 0 && m_config.support_material_contact_distance_type.value != zdNone) ?
+                                (m_config.raft_layers.value > 0 && m_config.raft_contact_distance_type.value != zdNone) ?
                                 stPosBottom | stDensSolid | stModBridge : stPosBottom | stDensSolid;
                     }
                     
