@@ -3333,7 +3333,9 @@ void PrintObject::bridge_over_infill()
                     lower_layer_solids = shrink(lower_layer_solids, spacing); // first remove thin regions that will not support anything
                     lower_layer_solids = expand(lower_layer_solids, spacing + common_internal_bridge_min_width); // then expand back (opening), and further for parts supported by internal solids
                     // By shrinking the unsupported area, we avoid making bridges from narrow ensuring region along perimeters.
-                    unsupported_area   = shrink(unsupported_area, common_internal_bridge_min_width);
+                    if (common_internal_bridge_min_width > 0) {
+                        unsupported_area = shrink(unsupported_area, common_internal_bridge_min_width);
+                    }
                     unsupported_area   = diff(unsupported_area, lower_layer_solids);
                 } else {
                     // get the regions ordered per internal_bridge_min_width value
