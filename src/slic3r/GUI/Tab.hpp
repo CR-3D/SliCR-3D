@@ -513,6 +513,8 @@ public:
     virtual const std::string  &get_custom_gcode(const OptionKeyIdx &opt_key_idx);
     virtual void                set_custom_gcode(const OptionKeyIdx &opt_key_idx, const std::string &value);
 
+    ConfigManipulation &get_config_manipulation() { return m_config_manipulation; }
+
 protected:
 	void			create_line_with_widget(ConfigOptionsGroup* optgroup, const std::string& opt_key, const std::string& path, int32_t idx, widget_t widget);
 	wxSizer*		compatible_widget_create(wxWindow* parent, PresetDependencies &deps, int32_t setting_idx);
@@ -534,7 +536,7 @@ protected:
     virtual bool    delete_current_preset();
 
     ConfigManipulation m_config_manipulation;
-    ConfigManipulation get_config_manipulation();
+    ConfigManipulation create_config_manipulation();
 };
 
 class TabFrequent : public Tab
