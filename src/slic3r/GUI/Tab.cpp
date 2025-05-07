@@ -123,7 +123,7 @@ Tab::Tab(wxBookCtrlBase* parent, const wxString& title, Preset::Type type) :
 
     m_em_unit = em_unit(m_parent); //wxGetApp().em_unit();
 
-    m_config_manipulation = get_config_manipulation();
+    m_config_manipulation = create_config_manipulation();
 
     Bind(wxEVT_SIZE, ([](wxSizeEvent &evt) {
         //for (auto page : m_pages)
@@ -6565,7 +6565,7 @@ void TabSLAPrint::clear_pages()
     m_support_object_elevation_description_line = nullptr;
 }
 
-ConfigManipulation Tab::get_config_manipulation()
+ConfigManipulation Tab::create_config_manipulation()
 {
     auto load_config = [this]()
     {

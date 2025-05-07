@@ -545,8 +545,9 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
         // detect overhanging/bridging perimeters
         ExtrusionPaths paths;
 
-        bool can_overhang = (params.config.overhangs_width_speed.is_enabled() || params.config.overhangs_width.is_enabled())
-            && params.layer->id() >= params.object_config.raft_layers;
+        bool can_overhang = (params.config.overhangs_width_speed.is_enabled() ||
+                             params.config.overhangs_width.is_enabled()) &&
+            params.layer->id() > 0 && params.layer->id() >= params.object_config.raft_layers;
         if (params.object_config.support_material &&
             params.object_config.support_material_contact_distance_type.value == zdNone) {
             can_overhang = false;
@@ -881,11 +882,12 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
         if (empty) {
             dynamic_speed = std::move(*previous);
             previous->clear();
+            previous = &dynamic_speed;
         }
     }
     if (dynamic_enabled || (speed_enabled && (overhangs_width_speed < overhangs_width || !flow_enabled))) {
         bool empty = false;
-        if (!params.lower_slices_bridge_speed_small.empty()) {
+        if (!no_small_speed && !params.lower_slices_bridge_speed_small.empty()) {
             Polygons lower_slices_bridge_speed_small_clipped =
                 ClipperUtils::clip_clipper_polygons_with_subject_bbox(params.lower_slices_bridge_speed_small, bbox);
             if (!lower_slices_bridge_speed_small_clipped.empty()) {
@@ -907,14 +909,15 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
                     previous = &small_speed;
                 }
             } else {
-                empty = true;
+                empty = !no_small_speed;
             }
         } else {
-            empty = true;
+            empty = !no_small_speed;
         }
         if (empty) {
             small_speed = std::move(*previous);
             previous->clear();
+            previous = &small_speed;
         }
         empty = false;
         if (!params.lower_slices_bridge_speed_big.empty()) {
@@ -947,11 +950,12 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
         if (empty) {
             big_speed = std::move(*previous);
             previous->clear();
+            previous = &big_speed;
         }
     }
     if (flow_enabled) {
         bool empty = false;
-        if (!params.lower_slices_bridge_flow_small.empty()) {
+        if (!no_small_flow && !params.lower_slices_bridge_flow_small.empty()) {
             Polygons lower_slices_bridge_flow_small_clipped =
                 ClipperUtils::clip_clipper_polygons_with_subject_bbox(params.lower_slices_bridge_flow_small, bbox);
             if (!lower_slices_bridge_flow_small_clipped.empty()) {
@@ -973,14 +977,15 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
                     previous = &small_flow;
                 }
             } else {
-                empty = true;
+                empty = !no_small_flow;
             }
         } else {
-            empty = true;
+            empty = !no_small_flow;
         }
         if (empty) {
             small_flow = std::move(*previous);
             previous->clear();
+            previous = &small_flow;
         }
         empty = false;
         if (!params.lower_slices_bridge_flow_big.empty()) {
@@ -1013,6 +1018,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
         if (empty) {
             big_flow = std::move(*previous);
             previous->clear();
+            previous = &big_flow;
         }
     }
 
@@ -1124,21 +1130,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
 
     //common function with arachne to sort & merge extrusions.
     _sort_overhangs(params, paths, role, overhang_params);
-    
-#ifdef _DEBUG
-    {
-        Point last_pt = paths.front().last_point();
-        for (size_t idx = 1; idx < paths.size(); ++idx) {
-            const ExtrusionPath &path = paths[idx];
-            assert(path.polyline.size() >= 2);
-            assert(path.first_point() == last_pt);
-            for (size_t idx = 1; idx < path.size(); ++idx)
-                assert(!path.polyline.get_point(idx - 1).coincides_with_epsilon(path.polyline.get_point(idx)));
-            last_pt = path.last_point();
-        }
-    }
-#endif
-
+   
     assert(paths.size() == 1 || paths.front().first_point() == paths.back().last_point());
     return paths;
 }
@@ -1702,7 +1694,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
         ExtrusionPaths paths;
         // detect overhanging/bridging perimeters
         if ( (params.config.overhangs_width_speed.is_enabled() || params.config.overhangs_width.is_enabled())
-            && params.layer->id() >= params.object_config.raft_layers
+            && params.layer->id() > 0 && params.layer->id() >= params.object_config.raft_layers
             && !((params.object_config.support_material || params.object_config.support_material_enforce_layers > 0) &&
                 params.object_config.support_material_contact_distance.value == 0)) {
 
@@ -2152,6 +2144,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
     if (empty) {
         dynamic_speed = std::move(*previous);
         previous->clear();
+        previous = &dynamic_speed;
     }
 
     if (dynamic_enabled || (speed_enabled && (overhangs_width_speed < overhangs_width || !flow_enabled))) {
@@ -2196,15 +2189,16 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
                     previous = &small_speed;
                 }
             } else {
-                empty = true;
+                empty = !no_small_speed;
             }
         }
         if (empty) {
             small_speed = std::move(*previous);
             previous->clear();
+            previous = &small_speed;
         }
 
-        empty = params.lower_slices_bridge_speed_big.empty();
+        empty = !no_small_flow && params.lower_slices_bridge_speed_big.empty();
         if (!params.lower_slices_bridge_speed_big.empty()) {
 #ifdef _DEBUG
             Points outer_points;
@@ -2244,12 +2238,13 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
                     previous = &big_speed;
                 }
             } else {
-                empty = true;
+                empty = !no_small_flow;
             }
         }
         if (empty) {
             big_speed = std::move(*previous);
             previous->clear();
+            previous = &big_speed;
         }
     }
 
@@ -2300,6 +2295,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
         if (empty) {
             small_flow = std::move(*previous);
             previous->clear();
+            previous = &small_flow;
         }
         
         empty = params.lower_slices_bridge_flow_big.empty();
@@ -2348,6 +2344,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
         if (empty) {
             big_flow = std::move(*previous);
             previous->clear();
+            previous = &big_flow;
         }
     }
 

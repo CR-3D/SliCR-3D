@@ -66,6 +66,8 @@
 
 #include <LibBGCode/convert/convert.hpp>
 
+#include "libslic3r/ClipperUtils.hpp"
+#include "libslic3r/CustomGCode.hpp"
 #include "libslic3r/libslic3r.h"
 #include "libslic3r/Format/STL.hpp"
 #include "libslic3r/Format/AMF.hpp"
@@ -74,13 +76,16 @@
 #include "libslic3r/Format/OBJ.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
 #include "libslic3r/Model.hpp"
-#include "libslic3r/SLA/Hollowing.hpp"
-#include "libslic3r/SLA/SupportPoint.hpp"
-#include "libslic3r/SLA/ReprojectPointsOnMesh.hpp"
+#include "libslic3r/miniz_extension.hpp"
+#include "libslic3r/Platform.hpp"
 #include "libslic3r/Polygon.hpp"
+#include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Print.hpp"
 #include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/SLAPrint.hpp"
+#include "libslic3r/SLA/Hollowing.hpp"
+#include "libslic3r/SLA/SupportPoint.hpp"
+#include "libslic3r/SLA/ReprojectPointsOnMesh.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/ClipperUtils.hpp"
@@ -91,29 +96,39 @@
 #include "libslic3r/CSGMesh/ModelToCSGMesh.hpp"
 #include "libslic3r/CSGMesh/PerformCSGMeshBooleans.hpp"
 
+#include "3DBed.hpp"
+#include "3DScene.hpp"
+#include "BackgroundSlicingProcess.hpp"
+#include "Camera.hpp"
+#include "ConfigWizard.hpp"
+#include "FileArchiveDialog.hpp"
+#include "GLCanvas3D.hpp"
+#include "GLToolbar.hpp"
 #include "GUI.hpp"
 #include "GUI_App.hpp"
+#include "GUI_Factories.hpp"
+#include "GUI_Geometry.hpp"
 #include "GUI_ObjectList.hpp"
 #include "GUI_ObjectManipulation.hpp"
 #include "GUI_ObjectLayers.hpp"
-#include "GUI_Utils.hpp"
-#include "GUI_Geometry.hpp"
-#include "GUI_Factories.hpp"
-#include "wxExtensions.hpp"
-#include "MainFrame.hpp"
-#include "format.hpp"
-#include "3DScene.hpp"
-#include "GLCanvas3D.hpp"
-#include "Selection.hpp"
-#include "GLToolbar.hpp"
 #include "GUI_Preview.hpp"
-#include "3DBed.hpp"
-#include "Camera.hpp"
+#include "GUI_Utils.hpp"
+#include "InstanceCheck.hpp"
+#include "MainFrame.hpp"
 #include "Mouse3DController.hpp"
+#include "MsgDialog.hpp"
+#include "NotificationManager.hpp"
+#include "PresetComboBoxes.hpp"
+#include "PrintHostDialogs.hpp"
+#include "RemovableDriveManager.hpp"
+#include "Selection.hpp"
 #include "Tab.hpp"
+#include "WipeTowerDialog.hpp"
+#include "format.hpp"
+#include "wxExtensions.hpp"
+
 //#include "Jobs/ArrangeJob.hpp"
 #include "Jobs/ArrangeJob2.hpp"
-
 //#include "Jobs/FillBedJob.hpp"
 #include "Jobs/RotoptimizeJob.hpp"
 #include "Jobs/SLAImportJob.hpp"
@@ -121,9 +136,6 @@
 #include "Jobs/NotificationProgressIndicator.hpp"
 #include "Jobs/PlaterWorker.hpp"
 #include "Jobs/BoostThreadWorker.hpp"
-#include "BackgroundSlicingProcess.hpp"
-#include "PrintHostDialogs.hpp"
-#include "ConfigWizard.hpp"
 #include "../Utils/ASCIIFolding.hpp"
 #include "../Utils/PrintHost.hpp"
 #include "../Utils/FixModelByWin10.hpp"
@@ -150,10 +162,7 @@
 #include <wx/glcanvas.h> // Needs to be last because reasons :-/
 #include "WipeTowerDialog.hpp"
 
-#include "libslic3r/CustomGCode.hpp"
-#include "libslic3r/Platform.hpp"
 
-#include "Widgets/CheckBox.hpp"
 
 #include "GL/glew.h"
 
@@ -3006,6 +3015,9 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                     model = Slic3r::Model::read_from_archive(path.string(), &config_loaded, &config_substitutions,
                                                              only_if(load_config, Model::LoadAttribute::CheckVersion));
                     if (load_config && !config_loaded.empty()) {
+                        // loaded: allow to ask again for support_material_overhangs
+                        wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->get_config_manipulation().initialize_support_material_overhangs_queried(false);
+
                         // Based on the printer technology field found in the loaded config, select the base for the config,
                         loaded_printer_technology = Preset::printer_technology(config_loaded);
                         

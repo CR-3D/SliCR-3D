@@ -88,7 +88,7 @@ void append_loop_into_collection(ExtrusionEntityCollection& storage, ExtrusionRo
     double flow = params.flow.mm3_per_mm();
     double width = params.flow.width();
     double height = params.flow.height();
-    if (polygon.is_valid()) {
+    if (ensure_valid(polygon, params.fill_resolution / 2)) {
         //default to ccw
         polygon.make_counter_clockwise();
         ExtrusionPath path(ExtrusionAttributes{good_role, ExtrusionFlow{flow, float(width), float(height)}}, false);
