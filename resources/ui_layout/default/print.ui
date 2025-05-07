@@ -463,7 +463,10 @@ group:Raft
 	line:Contact Distance
 		setting:label$_:raft_contact_distance
 	end_line
-
+	line:Contact Distance Type
+		setting:label$_:raft_contact_distance_type
+	end_line
+	
 	line:First Layer Density
 		setting:label$_:raft_first_layer_density
 	line:First Layer Expansion

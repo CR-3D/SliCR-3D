@@ -123,7 +123,6 @@ using column_t = std::function<wxWindow*(wxWindow* parent, const Line&)>;
 
 using t_optionfield_map = std::map<OptionKeyIdx, t_field>;
 
-
 class OptionsGroup {
 protected:
 	wxStaticBox*	stb {nullptr};

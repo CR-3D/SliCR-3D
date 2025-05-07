@@ -478,12 +478,14 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
          || (layer_to_print.support_layer /* && layer_to_print.support_layer->has_extrusions() */)) {
 
             double extra_gap = (layer_to_print.support_layer ? bottom_cd : top_cd);
+            SupportZDistanceType distance_type = object.config().support_material_contact_distance_type.value;
             if (object.config().raft_layers.value > 0 && layer_to_print.layer()->id() <= object.config().raft_layers.value) {
                 extra_gap = raft_cd;
+                distance_type = object.config().raft_contact_distance_type.value;
             }
-            if (object.config().support_material_contact_distance_type.value == SupportZDistanceType::zdNone) {
+            if (distance_type == SupportZDistanceType::zdNone) {
                 extra_gap = layer_to_print.layer()->height;
-            } else if (object.config().support_material_contact_distance_type.value == SupportZDistanceType::zdFilament) {
+            } else if (distance_type == SupportZDistanceType::zdFilament) {
                 //compute the height of bridge.
                 if (layer_to_print.layer()->id() > 0 && !layer_to_print.layer()->regions().empty()) {
                     extra_gap += layer_to_print.layer()->regions().front()->bridging_flow(FlowRole::frSolidInfill).height();
@@ -491,6 +493,7 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
                     extra_gap += layer_to_print.layer()->height;
                 }
             } else { //SupportZDistanceType::zdPlane
+                assert(distance_type == SupportZDistanceType::zdPlane);
                 extra_gap += layer_to_print.layer()->height;
             }
 
@@ -4966,7 +4969,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         fake_path_wipe.attributes_mutable().mm3_per_mm = 0;
         assert(!fake_path_wipe.can_reverse());
         // put travel before wipe (if ensure extrude_path don't do anything, then it's just an extra travel lost in the gcode).
-        gcode += this->_before_extrude(fake_path_wipe, "travel to wipe", speed);
+        gcode += this->_travel_before_extrude(fake_path_wipe, "wipe", speed);
         gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_Start) + "\n";
         gcode += this->extrude_path(fake_path_wipe, "move inwards before retraction/seam", speed);
         gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_End) + "\n";
@@ -6767,15 +6770,11 @@ void GCodeGenerator::cooldown_marker_init() {
     }
 }
 
-std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std::string_view description_in, double speed_mm_s) {
+std::string GCodeGenerator::_travel_before_extrude(const ExtrusionPath &path, const std::string_view description_in, double speed_mm_s) {
     std::string gcode;
-    gcode.reserve(512);
     std::string description{ description_in };
 
     auto [/*double*/acceleration, /*double*/travel_acceleration] = _compute_acceleration(path);
-    // compute speed here to be able to know it for travel_deceleration_use_target
-    std::string speed_comment = "";
-    speed_mm_s = _compute_speed_mm_per_sec(path, speed_mm_s, m_overhang_fan_override, m_config.gcode_comments ? &speed_comment : nullptr);
 
     bool moved_to_point = last_pos_defined() && last_pos().coincides_with_epsilon(path.first_point());
     if (m_config.travel_deceleration_use_target) {
@@ -6929,6 +6928,20 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
     }
     assert(moved_to_point);
 
+    return gcode;
+}
+
+std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std::string_view description_in, double speed_mm_s) {
+    std::string gcode;
+    gcode.reserve(512);
+    std::string description{ description_in };
+
+    // compute speed here to be able to know it for travel_deceleration_use_target
+    std::string speed_comment = "";
+    speed_mm_s = _compute_speed_mm_per_sec(path, speed_mm_s, m_overhang_fan_override, m_config.gcode_comments ? &speed_comment : nullptr);
+
+    gcode += this->_travel_before_extrude(path, description_in, speed_mm_s);
+
     //if needed, write the gcode_label_objects_end then gcode_label_objects_start
     //should be already done by travel_to, but just in case
     _add_object_change_labels(gcode);
@@ -7060,7 +7073,6 @@ std::string GCodeGenerator::_after_extrude(const ExtrusionPath &path) {
                 gcode += ";_EXTRUDE_END\n";
                 m_check_markers--;
             }
-            assert(m_check_markers == 0);
         } else {
             // Notify Coolingbuffer that the current extrusion end.
             assert(m_check_markers > 0);
@@ -7070,8 +7082,8 @@ std::string GCodeGenerator::_after_extrude(const ExtrusionPath &path) {
                 gcode += ";_EXTRUDE_END\n";
                 m_check_markers--;
             }
-            assert(m_check_markers == 0);
         }
+        assert(m_check_markers == 0);
     }
 
     if (path.role() != ExtrusionRole::GapFill ) {

@@ -159,18 +159,18 @@ void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type ty
     {
         std::string grp_key = get_group_key(opt_key, type, idx);
 
-        assert(groups_and_categories.find(grp_key) == groups_and_categories.end()
-            || !groups_and_categories[grp_key].empty());
+        assert(this->groups_and_categories.find(grp_key) == this->groups_and_categories.end()
+            || !this->groups_and_categories[grp_key].empty());
 
-        for (const GroupAndCategory& gc : groups_and_categories[grp_key]) {
+        for (const GroupAndCategory& gc : this->groups_and_categories[grp_key]) {
             if (gc.group.IsEmpty() || gc.category.IsEmpty())
                 return;
 
             assert(opt_key == gc.gui_opt.opt_key);
             SearchOption option = create_option(opt_key, idx, type, gc);
             if (!option.label.empty()) {
-                options.push_back(std::move(option));
-                sorted = false;
+                this->options.push_back(std::move(option));
+                this->sorted = false;
             }
 
             //wxString suffix;
