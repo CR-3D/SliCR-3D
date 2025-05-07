@@ -801,6 +801,7 @@ static std::optional<std::pair<Point, size_t>> polyline_sample_next_point_at_dis
 
     fill_params.density     = float(roof ? support_params.interface_density : scaled<float>(flow.spacing()) / (scaled<float>(flow.spacing()) + float(support_infill_distance)));
     fill_params.dont_adjust = true;
+    fill_params.config = &support_params.default_region_config;
     
     filler->init_spacing(flow.spacing(), fill_params);
 

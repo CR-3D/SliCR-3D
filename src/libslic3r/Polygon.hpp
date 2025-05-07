@@ -92,7 +92,7 @@ public:
     bool is_clockwise() const;
     bool make_counter_clockwise();
     bool make_clockwise();
-    bool is_valid() const { return this->points.size() >= 3; assert_valid(); }
+    bool is_valid() const { assert_valid(); return this->points.size() >= 3; }
     void douglas_peucker(coord_t tolerance) override;
 
     // Does an unoriented polygon contain a point?
