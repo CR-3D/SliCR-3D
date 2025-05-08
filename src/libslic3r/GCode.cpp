@@ -601,13 +601,10 @@ namespace DoExport {
         const GCodeProcessorResult& result = processor.get_result();
         print_statistics.estimated_print_time.clear();
         print_statistics.estimated_print_time_str.clear();
-        print_statistics.estimated_normal_print_time.clear();
         print_statistics.estimated_print_time[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Normal)] =
             result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time;
         print_statistics.estimated_print_time_str[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Normal)] =
             get_time_dhms(result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time);
-        print_statistics.normal_print_time_seconds = result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time;
-        print_statistics.estimated_normal_print_time = get_time_dhms(print_statistics.normal_print_time_seconds);
         if(processor.is_stealth_time_estimator_enabled()){
             print_statistics.estimated_print_time[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Stealth)] =
                 result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Stealth)].time;
@@ -1384,8 +1381,9 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
 #endif
     }
      this->m_throw_if_canceled();
-     
-     print.set_status(int(0), std::string(L("Generating G-code layer %s / %s")), std::vector<std::string>{ std::to_string(0), std::to_string(layer_count()) }, PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
+
+    //now that we have the layer count, init the status
+    print.set_status(int(0), std::string(L("Generating G-code layer %s / %s")), std::vector<std::string>{ std::to_string(0), std::to_string(layer_count()) }, PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
 
     m_enable_cooling_markers = true;
 
@@ -1780,7 +1778,8 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
 
     // Collect custom seam data from all objects.
      print.set_status(0, L("Computing seam visibility areas: object %s / %s"),
-                      {"1", std::to_string(print.objects().size())}, PrintBase::SlicingStatus::SECONDARY_STATE);
+                      {"1", std::to_string(print.objects().size())},
+                      PrintBase::SlicingStatus::FORCE_SHOW | PrintBase::SlicingStatus::SECONDARY_STATE);
     m_seam_placer.init(print, this->m_throw_if_canceled);
 
     //activate first extruder is multi-extruder and not in start-gcode
@@ -1799,7 +1798,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                         break;
                     } else if (*ptr == 'A' && print.config().gcode_flavor.value == gcfKlipper) {
                         // ACTIVATE_EXTRUDER for klipper (if used)
-                        if (std::string::npos != start_gcode.find("T", size_t(ptr - start_gcode.data()))) {
+                        if (std::string::npos != start_gcode.find("ACTIVATE_EXTRUDER", size_t(ptr - start_gcode.data()))) {
                             find = true;
                             break;
                         }
@@ -6369,6 +6368,16 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
         } else if (path.role() == ExtrusionRole::GapFill) {
             speed = m_config.get_computed_value("gap_fill_speed");
             if(comment) *comment = "gap_fill_speed";
+            if (m_region) {
+                //compute intended perimeter flow
+                Flow fl = m_region->flow(*m_layer->object(), FlowRole::frPerimeter, m_layer->height, m_layer->id());
+                double max_vol_speed = fl.mm3_per_mm() * m_config.get_computed_value("perimeter_speed");
+                double current_vol_speed = path.mm3_per_mm() * speed;
+                if (max_vol_speed < current_vol_speed) {
+                    speed = max_vol_speed / path.mm3_per_mm();
+                    if(comment) *comment = "max_vol_speed (from " + (*comment) + ")";
+                }
+            }
         } else if (path.role() == ExtrusionRole::Ironing) {
             speed = m_config.get_computed_value("ironing_speed");
             if(comment) *comment = "ironing_speed";
@@ -6751,7 +6760,7 @@ void GCodeGenerator::cooldown_marker_init() {
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::None)]                 = "";
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::Perimeter)]            = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)]    = maybe_allow_speed_change;
-        _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::OverhangPerimeter)]    = allow_speed_change;
+        _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::OverhangPerimeter)]    = "";
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::InternalInfill)]       = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::SolidInfill)]          = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::TopSolidInfill)]       = allow_speed_change;
@@ -7165,10 +7174,9 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
     // check whether a straight travel move would need retraction
     bool needs_retraction = this->needs_retraction(this->last_pos_defined() ? travel : Polyline{point}, role);
-    
-    //if (m_config.only_retract_when_crossing_perimeters && this->last_pos_defined() &&
-      //  !(m_config.enforce_retract_first_layer && m_layer_index == 0))
-      //  needs_retraction = needs_retraction && this->can_cross_perimeter(travel, true);
+    if (m_config.only_retract_when_crossing_perimeters && this->last_pos_defined() &&
+        !(m_config.enforce_retract_first_layer && m_layer_index == 0))
+        needs_retraction = needs_retraction && this->can_cross_perimeter(travel, true);
 
     // Re-allow avoid_crossing_perimeters for the next travel moves
     m_avoid_crossing_perimeters.reset_once_modifiers();
@@ -7739,7 +7747,7 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
             assert(m_last_object_layer == m_layer || dynamic_cast<const Layer*>(m_layer) ||
                 (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z + EPSILON));
             assert(m_last_object_layer);
-           if (m_last_object_layer != nullptr && m_layer_slices_offseted.layer != m_last_object_layer) {
+            if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {
                 m_layer_slices_offseted.layer    = m_last_object_layer;
                 m_layer_slices_offseted.diameter = scale_t(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) / 2;
                 ExPolygons slices                = m_last_object_layer->lslices();
@@ -8067,7 +8075,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
             check_add_eol(gcode);
         }
 
-       if (m_config.enable_pressure_advance.get_at(extruder_id)) {
+        if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
             gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
         }
 
@@ -8157,7 +8165,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.enable_pressure_advance.get_at(extruder_id)) {
+    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
         gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
     }
 

@@ -1312,7 +1312,7 @@ void SeamPlacer::calculate_overhangs_and_layer_embedding(const PrintObject *po) 
                         }
                     };
                     bool should_compute_layer_embedding = regions_with_perimeter > 1;
-                    std::unique_ptr<PerimeterDistancer> current_layer_distancer = std::make_unique<PerimeterDistancer>(
+                    std::unique_ptr<PerimeterDistancer> current_layer_distancer        = std::make_unique<PerimeterDistancer>(
                         to_unscaled_linesf(po->layers()[layer_idx]->lslices()));
 
                     for (SeamCandidate &perimeter_point : layers[layer_idx].points) {
@@ -1415,7 +1415,7 @@ std::optional<std::pair<size_t, size_t>> SeamPlacer::find_next_seam_in_layer(
     return {};
 }
 
-// get the nearests points from layers above & below. stop when the seam_align_tolerable_dist_factor don't allow to jump to a point,
+// get the nearests points from layers above & below. stop when the seam_align_tolerable_dist_factor don't allow to jump to a point, 
 std::vector<std::pair<size_t, size_t>> SeamPlacer::find_seam_string(const PrintObject *po,
         std::pair<size_t, size_t> start_seam, const SeamPlacerImpl::SeamComparator &comparator) const {
     const std::vector<PrintObjectSeamData::LayerSeams> &layers = m_seam_per_object.find(po)->second.layers;
@@ -1597,7 +1597,7 @@ void SeamPlacer::align_seam_points(const PrintObject *po, const SeamPlacerImpl::
                     perimeter.final_seam_position.x() = unscaled(nearest_point.x());
                     perimeter.final_seam_position.y() = unscaled(nearest_point.y());
                     perimeter.finalized = true;
-                }
+                } 
             }
         }
         return;

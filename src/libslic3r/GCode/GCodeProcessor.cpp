@@ -69,7 +69,6 @@ const std::vector<std::string> GCodeProcessor::Reserved_Tags = {
     "_GP_ESTIMATED_PRINTING_TIME_PLACEHOLDER",
     " printing object",
     " stop printing object",
-    " PA_CHANGE:"
 };
 
 const float GCodeProcessor::Wipe_Width = 0.05f;
@@ -486,7 +485,6 @@ void GCodeProcessor::UsedFilaments::process_caches(const GCodeProcessor* process
 void GCodeProcessorResult::reset() {
     moves = std::vector<GCodeProcessorResult::MoveVertex>();
     bed_shape = Pointfs();
-    bed_exclude_area = std::string();
     max_print_height = 0.0f;
     z_offset = 0.0f;
     settings_ids.reset();
@@ -1842,7 +1840,7 @@ void GCodeProcessor::process_gcode_line(const GCodeReader::GCodeLine& line, bool
             //klipper extendt comands
             if (cmd_up == "TURN_OFF_HEATERS")
                 set_extruder_temp(0.0f, m_extruder_id);
-            else if (cmd_up == "T")
+            else if (cmd_up == "ACTIVATE_EXTRUDER")
                 process_klipper_ACTIVATE_EXTRUDER(line);
         }
         catch (...) {
@@ -2085,7 +2083,7 @@ template<typename T>
         }
     }
 }
-#pragma UNOPTIMIZE
+
 void GCodeProcessor::process_tags(const std::string_view comment, bool producers_enabled)
 {
     // producers tags

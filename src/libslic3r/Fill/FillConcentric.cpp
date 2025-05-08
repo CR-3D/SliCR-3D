@@ -297,6 +297,57 @@ FillConcentricWGapFill::fill_surface_extrusion(
                 }
             }
             //TODO: move items that are alone in a collection to the upper collection.
+            
+            //add gapfills
+            if (idx_bunch < bunch_2_gaps.size() && !bunch_2_gaps[idx_bunch].empty() && params.density >= 1) {
+                // get parameters 
+                coordf_t min = 0.2 * distance * (1 - INSET_OVERLAP_TOLERANCE);
+                //be sure we don't gapfill where the perimeters are already touching each other (negative spacing).
+                min = std::max(min, double(Flow::new_from_spacing((float)EPSILON, (float)params.flow.nozzle_diameter(), (float)params.flow.height(), (float)params.flow.spacing_ratio(), false).scaled_width()));
+                coordf_t real_max = 2.5 * distance;
+                coordf_t max = real_max;
+
+                // collapse 
+                ExPolygons gaps_ex = diff_ex(
+                    offset2_ex(bunch_2_gaps[idx_bunch], -min / 2, +min / 2),
+                    offset2_ex(bunch_2_gaps[idx_bunch], -max / 2, +max / 2),
+                    ApplySafetyOffset::Yes);
+                ThickPolylines polylines;
+                for (const ExPolygon& ex : gaps_ex) {
+                    //remove too small gaps that are too hard to fill.
+                    //ie one that are smaller than an extrusion with width of min and a length of max.
+                    if (ex.area() > min_gapfill_area) {
+                        Geometry::MedialAxis md{ ex, coord_t(real_max), coord_t(min), scale_t(params.flow.height()) };
+                        md.set_biggest_width(max);
+                        md.build(polylines);
+                    }
+                }
+
+                bool fill_bridge = good_role.is_bridge() || params.flow.bridge();
+                // allow bridged gapfill, mostly for support bottom interface.
+                assert(!good_role.is_bridge());
+                if (!polylines.empty()) {
+                    ExtrusionEntitiesPtr gap_fill_entities = Geometry::thin_variable_width(polylines, ExtrusionRole::GapFill, params.flow, scale_t(params.config->get_computed_value("resolution_internal")), true);
+                    if (!gap_fill_entities.empty()) {
+                        // set role if needed
+                        if (fill_bridge || (good_role != ExtrusionRole::SolidInfill && good_role != ExtrusionRole::TopSolidInfill)) {
+                            ExtrusionSetRole set_good_role(good_role);
+                            for (ExtrusionEntity* ptr : gap_fill_entities)
+                                ptr->visit(set_good_role);
+                        }
+
+                        //move them into the collection
+                        if (gap_fill_entities.size() == 1) {
+                            root_collection_nosort->append(std::move(gap_fill_entities));
+                        } else {
+                            ExtrusionEntityCollection gapsCollection;
+                            gapsCollection.append(std::move(gap_fill_entities));
+                            root_collection_nosort->append(std::move(gapsCollection));
+                        }
+                    }
+                }
+            }
+
         }
 
 
