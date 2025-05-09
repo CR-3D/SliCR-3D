@@ -4950,6 +4950,16 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                         (params.use_round_perimeters() ? ClipperLib::JoinType::jtRound : ClipperLib::JoinType::jtMiter),
                         (params.use_round_perimeters() ? params.get_min_round_spacing() : 3));
                 }
+
+                // look for gaps
+                if (has_gap_fill)
+                    // not using safety offset here would "detect" very narrow gaps
+                    // (but still long enough to escape the area threshold) that gap fill
+                    // won't be able to fill but we'd still remove from infill area
+                    append(gaps,
+                           diff_ex(offset(last, -float(0.5 * good_spacing)),
+                                   offset(next_onion, float(0.5 * good_spacing + 25)))); // safety offset
+
                 
                 std::vector<ExPolygonAsynch> *touse = nullptr;
                 std::vector<ExPolygonAsynch> copy;
@@ -5351,7 +5361,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
 #endif
 
     // fill gaps
-    ExPolygons gaps_ex;
+
     if (!gaps.empty()) {
         // collapse 
         double min = 0.2 * perimeter_width * (1 - INSET_OVERLAP_TOLERANCE);
