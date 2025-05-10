@@ -778,7 +778,7 @@ DynamicPrintConfig PresetBundle::full_fff_config() const
                 // Get an option, do not create if it does not exist.
                 const ConfigOption *opt_src = filament_configs.front()->option(key);
                 if (opt_src != nullptr)
-                    opt_dst->set(opt_src);
+                    opt_dst->set(*opt_src);
             } else {
                 // Setting a vector value from all filament_configs.
                 for (size_t i = 0; i < filament_opts.size(); ++ i)
@@ -1091,10 +1091,10 @@ void PresetBundle::load_config_file_config(const std::string &name_or_path, bool
                     continue;
                 if (other_opt->is_scalar()) {
                     for (size_t i = 0; i < configs.size(); ++ i)
-                        configs[i].option(key, false)->set(other_opt);
+                        configs[i].option(key, false)->set(*other_opt);
                 } else if (key != "compatible_printers" && key != "compatible_prints") {
                     for (size_t i = 0; i < configs.size(); ++ i)
-                        static_cast<ConfigOptionVectorBase*>(configs[i].option(key, false))->set_at(other_opt, 0, i);
+                        static_cast<ConfigOptionVectorBase*>(configs[i].option(key, false))->set_at(*other_opt, 0, i);
                 }
             }
             // Load the configs into this->filaments and make them active.

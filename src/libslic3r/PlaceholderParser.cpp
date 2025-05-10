@@ -1707,7 +1707,7 @@ namespace client
                 return;
 
             check_writable(ctx, lhs);
-            assert(lhs.opt->is_vector());
+            assert(lhs.opt && lhs.opt->is_vector());
             if (rhs.has_index() || ! rhs.opt->is_vector())
                 ctx->throw_exception("Cannot assign scalar to a vector", lhs.it_range);
             if (lhs.opt->type() != rhs.opt->type()) {
@@ -1725,7 +1725,7 @@ namespace client
                     ctx->throw_exception("Left hand side / right hand side vectors are not compatible.", lhs.it_range);
                 }
             }
-            const_cast<ConfigOption*>(lhs.opt)->set(rhs.opt);
+            const_cast<ConfigOption*>(lhs.opt)->set(*rhs.opt);
         }
 
         static bool vector_variable_new_from_copy(

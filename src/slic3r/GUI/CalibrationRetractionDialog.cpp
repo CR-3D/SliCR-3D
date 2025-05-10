@@ -88,13 +88,13 @@ void CalibrationRetractionDialog::remove_slowdown(wxCommandEvent& event_args) {
 
     const ConfigOptionFloats *fil_conf = filament_config->option<ConfigOptionFloats>("slowdown_below_layer_time");
     ConfigOptionFloats *new_fil_conf = new ConfigOptionFloats(5);
-    new_fil_conf->set(fil_conf);
+    new_fil_conf->set(*fil_conf);
     new_fil_conf->set_at(0, 0);
     new_filament_config.set_key_value("slowdown_below_layer_time", new_fil_conf); 
 
     fil_conf = filament_config->option<ConfigOptionFloats>("fan_below_layer_time");
     new_fil_conf = new ConfigOptionFloats(60);
-    new_fil_conf->set(fil_conf);
+    new_fil_conf->set(*fil_conf);
     new_fil_conf->set_at(0, 0);
     new_filament_config.set_key_value("fan_below_layer_time", new_fil_conf);
 

@@ -9021,7 +9021,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
                 case coFloatsOrPercents: {
                     for (size_t idx = 0; idx < default_opt->size(); idx++) {
                         if (std::abs(default_opt->get_float(idx)) > std::numeric_limits<int>::max() / 2) {
-                            default_opt->set(def->default_value.get(), idx);
+                            default_opt->set(*def->default_value, idx);
                             default_opt->set_enabled(false, idx);
                         }
                     }

@@ -2456,7 +2456,7 @@ void MainFrame::load_config(const DynamicPrintConfig& config)
 			for (const std::string &opt_key : tab->get_config()->diff(config))
 				// Ignore print_settings_id, printer_settings_id, filament_settings_id etc.
 				if (! boost::algorithm::ends_with(opt_key, "_settings_id"))
-					tab->get_config()->option(opt_key)->set(config.option(opt_key));
+					tab->get_config()->option(opt_key)->set(*config.option(opt_key));
         }
     
     wxGetApp().load_current_presets();

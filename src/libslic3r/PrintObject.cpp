@@ -4264,7 +4264,7 @@ static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPr
                     if (extruder > 0)
                         static_cast<ConfigOptionInt *>(my_opt)->value = (extruder);
                 } else
-                    my_opt->set(it->second.get());
+                    my_opt->set(*it->second);
             }
 }
 
