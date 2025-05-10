@@ -279,7 +279,7 @@ void PrintObject::make_perimeters()
     }
 
     BOOST_LOG_TRIVIAL(debug) << "Generating perimeters in parallel - start";
-    Slic3r::parallel_for(size_t(0), m_layers.size(),
+    Slic3r::not_parallel_for(size_t(0), m_layers.size(),
         [this](const size_t layer_idx) {
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                 m_print->throw_if_canceled();
@@ -4264,7 +4264,7 @@ static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPr
                     if (extruder > 0)
                         static_cast<ConfigOptionInt *>(my_opt)->value = (extruder);
                 } else
-                    my_opt->set(it->second.get());
+                    my_opt->set(*it->second);
             }
 }
 

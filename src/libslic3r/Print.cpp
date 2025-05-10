@@ -1218,7 +1218,7 @@ void Print::process()
     bool something_done = !is_step_done_unguarded(psSkirtBrim);
     BOOST_LOG_TRIVIAL(info) << "Starting the slicing process." << log_memory_info();
     secondary_status_counter_reset();
-    Slic3r::parallel_for(size_t(0), m_objects.size(),
+    Slic3r::not_parallel_for(size_t(0), m_objects.size(),
         [this](const size_t idx) {
             m_objects[idx]->make_perimeters();
         }

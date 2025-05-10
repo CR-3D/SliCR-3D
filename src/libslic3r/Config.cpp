@@ -1154,7 +1154,7 @@ void ConfigBase::apply_only(const ConfigBase &other, const t_config_option_keys 
 //          printf("Not found, therefore not initialized: %s\n", opt_key.c_str());
         } else {
             try {
-                my_opt->set(other_opt);
+                my_opt->set(*other_opt);
             } catch (ConfigurationException& e) {
                 throw ConfigurationException(std::string(e.what()) + ", when ConfigBase::apply_only on " + opt_key);
             }
@@ -1365,11 +1365,11 @@ bool ConfigBase::set_deserialize_raw(const t_config_option_key &opt_key_src, con
                         static_cast<ConfigOptionBool*>(opt)->value = ConfigHelpers::enum_looks_like_true_value(value);
                     } else {
                         // Just use the default of the option.
-                        opt->set(optdef->default_value.get());
+                        opt->set(*optdef->default_value);
                     }
                 } else {
                     // Deserialize failed, substitute with a default value.
-                    opt->set(optdef->default_value.get());
+                    opt->set(*optdef->default_value);
                 }
                 success = true;
                 substituted = true;
@@ -2319,7 +2319,7 @@ void StaticConfig::set_defaults()
             const ConfigOptionDef   *def = defs->get(key);
             ConfigOption            *opt = this->option(key);
             if (def != nullptr && opt != nullptr && def->default_value)
-                opt->set(def->default_value.get());
+                opt->set(*def->default_value);
         }
     }
 }
