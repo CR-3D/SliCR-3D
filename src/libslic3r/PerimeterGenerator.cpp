@@ -1046,7 +1046,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
 
     //common function with arachne to sort & merge extrusions.
     _sort_overhangs(params, paths, role, overhang_params);
-    
+
 #ifdef _DEBUG
     {
         Point last_pt = paths.front().last_point();
@@ -1061,6 +1061,10 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
     }
 #endif
 
+    //assert all overhang path have overhang attributes
+    for (const ExtrusionPath &path : paths) {
+        assert (!path.role().is_overhang() || path.attributes().overhang_attributes);
+    }
     assert(paths.size() == 1 || paths.front().first_point() == paths.back().last_point());
     return paths;
 }
@@ -1239,14 +1243,14 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
                 ExtrusionFlow(overhang_params.is_external ? params.ext_mm3_per_mm() : params.mm3_per_mm(),
                     overhang_params.is_external ? params.ext_perimeter_flow.width() : params.perimeter_flow.width(),
                     2 // layer height is used as id, temporarly
-            )};
+            ), OverhangAttributes{1, 1, 0}};
         } else {
             paths.front().attributes_mutable() = ExtrusionAttributes{
                 role | ExtrusionRoleModifier::ERM_Bridge,
                 ExtrusionFlow(params.m_mm3_per_mm_overhang,
                     params.overhang_flow.width(),
                     4 // layer height is used as id, temporarly
-            )};
+            ), OverhangAttributes{1, 2, 0}};
         }
     }
     for (int i = 1; i < paths.size(); i++) {
@@ -1295,7 +1299,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
             return false;
         });
         assert(!paths.empty());
-        
+
     for (int i = 1; i < paths.size(); i++) {
         assert(paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point()));
     }
@@ -1534,7 +1538,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
 #endif
         }
         if (!need_erase) {
-            last_type_fh = int(path.attributes_mutable().height);
+            last_type_fh = int(path.attributes().height);
             path.attributes_mutable().height = path.height() < overhang_params.layer_height_count - 2 ? (float) params.layer->height :
                                                                                  params.overhang_flow.height();
 #ifdef _DEBUG
@@ -2780,6 +2784,11 @@ ExtrusionPaths sort_extra_perimeters(const ExtrusionPaths& extra_perims, int ind
 
     for (ExtrusionPath &path : filtered) {
         assert(!path.can_reverse());
+    }
+
+    //assert all overhang path have overhang attributes
+    for (const ExtrusionPath &path : filtered) {
+        assert (!path.role().is_overhang() || path.attributes().overhang_attributes);
     }
 
     return filtered;
