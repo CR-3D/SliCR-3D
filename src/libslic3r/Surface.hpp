@@ -345,7 +345,7 @@ void ensure_valid(Surfaces &surfaces, coord_t resolution = SCALED_EPSILON);
 
 class SVG;
 
-extern const char* surface_type_to_color_name(const SurfaceType surface_type);
+extern const std::string surface_type_to_color_name(const SurfaceType surface_type, float saturation = 1);
 extern void export_surface_type_legend_to_svg(SVG &svg, const Point &pos);
 extern Point export_surface_type_legend_to_svg_box_size();
 extern bool export_to_svg(const char *path, const Surfaces &surfaces, const float transparency = 1.f);
