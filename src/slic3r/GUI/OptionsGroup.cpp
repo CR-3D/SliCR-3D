@@ -1015,24 +1015,9 @@ void ConfigOptionsGroup::refresh()
         custom_ctrl->Refresh();
 }
 
-Field *ConfigOptionsGroup::get_fieldc(const t_config_option_key &opt_key, int32_t opt_index) {
-    Field *field = get_field({opt_key, opt_index});
-    if (field != nullptr)
-        return field;
-    const OptionKeyIdx *p_opt_key_idx = nullptr;
-    //try again but allowing diffrent idx.
-    for (auto it = m_opt_set.begin(); it != m_opt_set.end(); ++it) {
-        if (opt_key == it->key /*&& opt_index == it->idx*/) {
-            p_opt_key_idx = &*it;
-            break;
-        }
-    }
-    return p_opt_key_idx ? get_field(*p_opt_key_idx) : nullptr;
-}
-
 std::pair<OG_CustomCtrl *, bool *> ConfigOptionsGroup::get_custom_ctrl_with_blinking_ptr(
     const t_config_option_key &opt_key, int32_t opt_index /* = -1*/) {
-    Field *field = get_fieldc(opt_key, opt_index);
+    Field *field = get_field({opt_key, opt_index});
 
     if (field)
         return {custom_ctrl, field->get_blink_ptr()};

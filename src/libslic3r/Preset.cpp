@@ -2791,7 +2791,7 @@ size_t ExtruderFilaments::update_compatible_internal(const PresetWithVendorProfi
                 continue;// Ignore this field, because this parameter is not related to the extruder but to whole printer.
             auto* opt = active_printer_config.option(key, false);
             if (opt != nullptr && opt->is_vector())
-                static_cast<ConfigOptionVectorBase*>(opt)->set_at(opt, 0, m_extruder_id);
+                static_cast<ConfigOptionVectorBase*>(opt)->set_at(*opt, 0, m_extruder_id);
         }
     }
     PresetWithVendorProfile active_printer_adjusted(printer_preset_adjusted, active_printer.vendor);

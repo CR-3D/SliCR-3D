@@ -2249,7 +2249,7 @@ void PrintObject::detect_surfaces_type()
                     ExPolygons     layerm_slices_surfaces = to_expolygons(layerm->slices().surfaces);
                     // no_perimeter_full_bridge allow to put bridges where there are nothing, hence adding area to slice, that's why we need to start from the result of PerimeterGenerator.
                     if (layerm->region().config().no_perimeter_unsupported_algo.value == npuaFilled) {
-                        append(layerm_slices_surfaces, to_expolygons(layerm->fill_surfaces().surfaces));
+                        append(layerm_slices_surfaces, layerm->fill_expolygons());
                         layerm_slices_surfaces = union_ex(layerm_slices_surfaces);
                         assert_valid(layerm_slices_surfaces);
                     }
@@ -4258,7 +4258,7 @@ static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPr
                     if (extruder > 0)
                         static_cast<ConfigOptionInt *>(my_opt)->value = (extruder);
                 } else
-                    my_opt->set(it->second.get());
+                    my_opt->set(*it->second);
             }
 }
 

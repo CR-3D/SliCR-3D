@@ -161,9 +161,6 @@
 
 #include <wx/glcanvas.h> // Needs to be last because reasons :-/
 #include "WipeTowerDialog.hpp"
-
-
-
 #include "GL/glew.h"
 
 using std::optional;

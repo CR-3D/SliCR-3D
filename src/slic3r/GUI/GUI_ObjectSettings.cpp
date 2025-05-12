@@ -252,7 +252,7 @@ void ObjectSettings::update_config_values(ModelConfig* config)
     {
         Field* field = nullptr;
         for (auto og : m_og_settings) {
-            field = og->get_fieldc(opt_key, opt_index);
+            field = og->get_field({opt_key, opt_index});
             if (field != nullptr)
                 break;
         }

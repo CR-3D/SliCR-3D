@@ -815,8 +815,10 @@ void Tab::update_changed_ui()
 {
     if (m_postpone_update_ui)
         return;
-    // need init before access
-    init_options_list();
+    // need init before access, if called very early.
+    if (m_options_list.empty()) {
+        init_options_list();
+    }
 
     // reset evrything
     for (auto &opt : m_options_list) {
@@ -1008,11 +1010,16 @@ void Tab::get_sys_and_mod_flags(const OptionKeyIdx& opt_key_id, bool& sys_page, 
     auto it_opt = m_options_list.find(opt_key_id);
     if (it_opt == m_options_list.end()) {
         if (opt_key_id.idx >= 0) {
-            assert(m_options_list.find(OptionKeyIdx::scalar(opt_key_id.key)) == m_options_list.end());
+            // vector can change their value, add new values into the m_options_list, to able to track them.
+            m_options_list[opt_key_id] = m_opt_status_value;
+            it_opt = m_options_list.find(opt_key_id);
+            //assert(m_options_list.find(OptionKeyIdx::scalar(opt_key_id.key)) == m_options_list.end());
         } else {
+            // ask for a scalar and it wasn't initialised? is this a real setting?
+            // maybe it's a script?
             assert(m_options_list.find(OptionKeyIdx{opt_key_id.key, 0}) == m_options_list.end());
+            return;
         }
-        return;
     }
 
     if (sys_page) sys_page = (it_opt->second & osSystemValue) != 0;
@@ -1108,8 +1115,10 @@ void Tab::update_undo_buttons()
 void Tab::on_roll_back_value(const bool to_sys /*= true*/)
 {
     if (!m_active_page) return;
-    // need init before access
-    init_options_list();
+    // need init before access, if called very early.
+    if (m_options_list.empty()) {
+        init_options_list();
+    }
 
     int os;
     if (to_sys)	{
@@ -3217,7 +3226,7 @@ void TabFilament::set_custom_gcode(const OptionKeyIdx& opt_key_idx, const std::s
 //        check_box->Bind(wxEVT_CHECKBOX, [optgroup_wk, opt_key, opt_index](wxCommandEvent& evt) {
 //                const bool is_checked = evt.IsChecked();
 //            if (auto optgroup_sh = optgroup_wk.lock(); optgroup_sh) {
-//                if (Field *field = optgroup_sh->get_fieldc(opt_key, opt_index); field != nullptr) {
+//                if (Field *field = optgroup_sh->get_field({opt_key, opt_index}); field != nullptr) {
 //                    field->toggle_widget_enable(is_checked);
 //                }
 //            }
@@ -3241,7 +3250,7 @@ void TabFilament::set_custom_gcode(const OptionKeyIdx& opt_key_idx, const std::s
 //    is_checked &= m_config->option(opt_key)->is_enabled(opt_index);
 //    CheckBox::SetValue(m_overrides_options[opt_key], is_checked);
 //
-//    Field* field = optgroup->get_fieldc(opt_key, opt_index);
+//    Field* field = optgroup->get_field({opt_key, opt_index});
 //    if (field != nullptr)
 //        field->toggle_widget_enable(is_checked);
 //}
@@ -3342,7 +3351,7 @@ void TabFilament::update_filament_overrides_page()
             is_checked = false;
         }
             
-        Field* field = this->get_field(opt_key, extruder_idx); //(*optgroup)->get_fieldc(opt_key, extruder_idx);
+        Field* field = this->get_field(opt_key, extruder_idx); //(*optgroup)->get_field({opt_key, extruder_idx});
         if (field != nullptr)
             field->toggle_widget_enable(is_checked);
         //update_line_with_near_label_widget(*optgroup, opt_key, extruder_idx, is_checked);
@@ -6213,8 +6222,8 @@ void Page::refresh()
 Field* Page::get_field(const t_config_option_key& opt_key, int32_t opt_index /*= -1*/) const
 {
     Field* field = nullptr;
-    for (auto opt : m_optgroups) {
-        field = opt->get_fieldc(opt_key, opt_index);
+    for (auto group : m_optgroups) {
+        field = group->get_field({opt_key, opt_index});
         if (field != nullptr)
             return field;
     }
@@ -6403,7 +6412,7 @@ static std::vector<std::string> get_override_opt_kyes_for_line(const std::string
 //            if (auto optgroup_sh = optgroup_wk.lock(); optgroup_sh) {
 //                auto opt_keys = get_override_opt_kyes_for_line(optgroup_sh->title.ToStdString(), key);
 //                for (const std::string& opt_key : opt_keys)
-//                    if (Field* field = optgroup_sh->get_fieldc(opt_key, 0); field != nullptr) {
+//                    if (Field* field = optgroup_sh->get_fieldc({opt_key, 0}); field != nullptr) {
 //                        field->toggle_widget_enable(is_checked);
 //                    }
 //            }

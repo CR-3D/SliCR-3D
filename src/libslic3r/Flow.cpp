@@ -307,8 +307,8 @@ Flow Flow::new_from_config(FlowRole role, const DynamicConfig& print_config, flo
     float overlap = 1.f;
     // (might be an absolute value, or a percent value, or zero for auto)
     if (role == frExternalPerimeter) {
-        config_width = print_config.opt<ConfigOptionFloatOrPercent>("external_perimeter_extrusion_width");
-        config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("external_perimeter_extrusion_spacing");
+        config_width.set(*print_config.option("external_perimeter_extrusion_width"));
+        config_spacing.set(*print_config.option("external_perimeter_extrusion_spacing"));
         // external peri spacing is only half spacing -> transform it into a full spacing
         if (!config_spacing.is_phony() && !config_spacing.value == 0) {
             double raw_spacing = config_spacing.get_abs_value(nozzle_diameter);
@@ -319,39 +319,39 @@ Flow Flow::new_from_config(FlowRole role, const DynamicConfig& print_config, flo
         }
         overlap = (float)print_config.get_abs_value("external_perimeter_overlap", 1.0);
     } else if (role == frPerimeter) {
-        config_width = print_config.opt<ConfigOptionFloatOrPercent>("perimeter_extrusion_width");
-        config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("perimeter_extrusion_spacing");
+        config_width.set(*print_config.option("perimeter_extrusion_width"));
+        config_spacing.set(*print_config.option("perimeter_extrusion_spacing"));
         overlap = (float)print_config.get_abs_value("perimeter_overlap", 1.);
     } else if (role == frInfill) {
-        config_width = print_config.opt<ConfigOptionFloatOrPercent>("infill_extrusion_width");
-        config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("infill_extrusion_spacing");
+        config_width.set(*print_config.option("infill_extrusion_width"));
+        config_spacing.set(*print_config.option("infill_extrusion_spacing"));
     } else if (role == frSolidInfill) {
-        config_width = print_config.opt<ConfigOptionFloatOrPercent>("solid_infill_extrusion_width");
-        config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("solid_infill_extrusion_spacing");
+        config_width.set(*print_config.option("solid_infill_extrusion_width"));
+        config_spacing.set(*print_config.option("solid_infill_extrusion_spacing"));
         overlap = (float)print_config.get_abs_value("solid_infill_overlap", 1.);
     } else if (role == frTopSolidInfill) {
-        config_width = print_config.opt<ConfigOptionFloatOrPercent>("top_infill_extrusion_width");
-        config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("top_infill_extrusion_spacing");
+        config_width.set(*print_config.option("top_infill_extrusion_width"));
+        config_spacing.set(*print_config.option("top_infill_extrusion_spacing"));
         overlap = (float)print_config.get_abs_value("top_solid_infill_overlap", 1.);
     } else {
         throw Slic3r::InvalidArgument("Unknown role");
     }
     if (first_layer) {
-        auto opt_fl_width = print_config.opt<ConfigOptionFloatOrPercent>("first_layer_extrusion_width");
-        auto opt_fli_width = print_config.opt<ConfigOptionFloatOrPercent>("first_layer_infill_extrusion_width");
+        auto opt_fl_width = print_config.option("first_layer_extrusion_width");
+        auto opt_fli_width = print_config.option("first_layer_infill_extrusion_width");
         if ((role == frInfill || role == frSolidInfill || role == frTopSolidInfill) && opt_fli_width->is_enabled()) {
-            config_width = opt_fli_width;
-            config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("first_layer_infill_extrusion_spacing");
+            config_width.set(*opt_fli_width);
+            config_spacing.set(*print_config.option("first_layer_infill_extrusion_spacing"));
         } else if (opt_fl_width->is_enabled()) {
-            config_width = opt_fl_width;
-            config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("first_layer_extrusion_spacing");
+            config_width.set(*opt_fl_width);
+            config_spacing.set(*print_config.option("first_layer_extrusion_spacing"));
         }
     }
 
     if (config_width.value == 0) {
         assert(config_spacing.value == 0);
-        config_width = print_config.opt<ConfigOptionFloatOrPercent>("extrusion_width");
-        config_spacing = print_config.opt<ConfigOptionFloatOrPercent>("extrusion_spacing");
+        config_width.set(*print_config.option("extrusion_width"));
+        config_spacing.set(*print_config.option("extrusion_spacing"));
     } else {
         assert(config_spacing.value > 0);
     }

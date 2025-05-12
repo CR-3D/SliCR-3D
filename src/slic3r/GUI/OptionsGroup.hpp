@@ -303,9 +303,7 @@ public:
 	int config_type() const throw() { return m_config_type; }
     // TODO: is it really useful? called by Tab::update_changed_tree_ui(), but can't he call options()?
     const std::set<OptionKeyIdx> &opt_set() const throw() { return m_opt_set; }
-    void copy_for_freq_settings(const ConfigOptionsGroup &origin) {
-        this->m_opt_set = std::set<OptionKeyIdx>(origin.m_opt_set.begin(), origin.m_opt_set.end());
-    }
+	void		copy_for_freq_settings(const ConfigOptionsGroup& origin) { this->m_opt_set = origin.m_opt_set; }
 
 	void 		set_config_category_and_type(const wxString &category, int type) { m_config_category = category; m_config_type = type; }
 	void        set_config(ConfigBase* config) { 
@@ -355,7 +353,6 @@ public:
     void        msw_rescale();
     void        sys_color_changed();
     void        refresh();
-	Field*		get_fieldc(const t_config_option_key& opt_key, int32_t opt_index);
 	std::pair<OG_CustomCtrl*, bool*>	get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int32_t opt_index/* = -1*/);
 
 private:
