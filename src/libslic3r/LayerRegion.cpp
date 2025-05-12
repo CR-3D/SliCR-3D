@@ -1309,9 +1309,9 @@ void LayerRegion::export_region_slices_to_svg(const char *path) const
     SVG svg(path, bbox);
     const float transparency = 0.5f;
     for (const Surface &surface : this->slices())
-        svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type), transparency);
+        svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type, 0.9f), transparency);
     for (const Surface &surface : this->fill_surfaces())
-        svg.draw(surface.expolygon.lines(), surface_type_to_color_name(surface.surface_type));
+        svg.draw(to_polylines(surface.expolygon), surface_type_to_color_name(surface.surface_type), scale_t(0.1));
     export_surface_type_legend_to_svg(svg, legend_pos);
     svg.Close();
 }
