@@ -382,6 +382,7 @@ void PrintConfigDef::init_common_params() {
     // defautl to none : only set if loaded. only write our version
     def->set_default_value(new ConfigOptionStringVersion());
     def->cli = ConfigOptionDef::nocli;
+    def->can_phony = true;
 
     def = this->add("printer_technology", coEnum);
     def->label = L("Printer technology");

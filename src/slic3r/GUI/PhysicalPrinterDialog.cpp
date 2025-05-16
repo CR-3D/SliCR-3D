@@ -319,10 +319,11 @@ void PhysicalPrinterDialog::update_printers()
     }
 }
 
-void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup *m_optgroup) {
+void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgroup)
+{
     m_optgroup->m_on_change = [this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
         assert(enabled);
-        if (opt_key_idx.key == "printhost_client_cert_enabled")
+        if(opt_key_idx.key == "printhost_client_cert_enabled")
             this->m_show_cert_fields = boost::any_cast<bool>(value);
         if (!this->m_show_cert_fields && !m_config->opt_string("printhost_client_cert").empty()) {
             m_config->option("printhost_client_cert")
@@ -425,7 +426,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup *m_optgr
         def.type = coBool;
         def.tooltip = L("Use this option to enable 2-way ssl authentication with you printer.");
         this->m_show_cert_fields = !m_config->opt_string("printhost_client_cert").empty();
-        def.set_default_value(new ConfigOptionBool{this->m_show_cert_fields});
+        def.set_default_value(new ConfigOptionBool{ this->m_show_cert_fields });
         def.opt_key = "printhost_client_cert_enabled";
         Option option(def);
         option.opt.width = Field::def_width_wider();
@@ -444,8 +445,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup *m_optgr
             wxFileDialog openFileDialog(this, _L("Open Client certificate file"), "", "", filemasks,
                                         wxFD_OPEN | wxFD_FILE_MUST_EXIST);
             if (openFileDialog.ShowModal() != wxID_CANCEL) {
-                m_optgroup->set_value(OptionKeyIdx::scalar("printhost_client_cert"),
-                                      std::move(openFileDialog.GetPath()), true, true);
+                m_optgroup->set_value(OptionKeyIdx::scalar("printhost_client_cert"), std::move(openFileDialog.GetPath()), true, true);
                 m_optgroup->get_field(OptionKeyIdx::scalar("printhost_client_cert"))->field_changed();
             }
         });
@@ -497,8 +497,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup *m_optgr
                 wxFileDialog openFileDialog(this, _L("Open CA certificate file"), "", "", filemasks,
                                             wxFD_OPEN | wxFD_FILE_MUST_EXIST);
                 if (openFileDialog.ShowModal() != wxID_CANCEL) {
-                    m_optgroup->set_value(OptionKeyIdx::scalar("printhost_cafile"), openFileDialog.GetPath(), true,
-                                          true);
+                    m_optgroup->set_value(OptionKeyIdx::scalar("printhost_cafile"), openFileDialog.GetPath(), true, true);
                     m_optgroup->get_field(OptionKeyIdx::scalar("printhost_cafile"))->field_changed();
                 }
             });
@@ -561,9 +560,10 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup *m_optgr
     m_last_host_type = opt->value;
     m_opened_as_connect = (m_last_host_type == htPrusaConnect);
 
-    Field *printhost_field = m_optgroup->get_field(OptionKeyIdx::scalar("print_host"));
-    if (printhost_field) {
-        text_ctrl *temp = dynamic_cast<text_ctrl *>(printhost_field->getWindow());
+    Field* printhost_field = m_optgroup->get_field(OptionKeyIdx::scalar("print_host"));
+    if (printhost_field)
+    {
+        text_ctrl* temp = dynamic_cast<text_ctrl*>(printhost_field->getWindow());
         if (temp) {
             temp->Bind(wxEVT_TEXT, ([printhost_field, temp](wxEvent &e) {
 #ifndef __WXGTK__
@@ -586,8 +586,8 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup *m_optgr
 
     // Always fill in the "printhost_port" combo box from the config and select it.
     {
-        Choice *choice = dynamic_cast<Choice *>(m_optgroup->get_field(OptionKeyIdx::scalar("printhost_port")));
-        const std::vector<std::string> choice_values = {m_config->opt_string("printhost_port")};
+        Choice* choice = dynamic_cast<Choice*>(m_optgroup->get_field(OptionKeyIdx::scalar("printhost_port")));
+        const std::vector<std::string> choice_values = { m_config->opt_string("printhost_port") };
         choice->set_values(choice_values);
         choice->set_selection();
     }
@@ -770,7 +770,7 @@ void PhysicalPrinterDialog::update_host_type(bool printer_change) {
         }
     }
 
-    Field *ht = m_optgroup->get_field(OptionKeyIdx::scalar("host_type"));
+    Field* ht = m_optgroup->get_field(OptionKeyIdx::scalar("host_type"));
     wxArrayString types;
     int last_in_conf = m_config->option("host_type")->get_int(); //  this is real position in last choice
 
