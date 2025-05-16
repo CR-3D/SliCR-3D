@@ -27,18 +27,24 @@ class ExPolygon
 {
 public:
     ExPolygon() = default;
-	ExPolygon(const ExPolygon &other) = default;
+    ExPolygon(const ExPolygon &other) = default;
     ExPolygon(ExPolygon &&other) = default;
-	explicit ExPolygon(const Polygon &contour) : contour(contour) {}
-	explicit ExPolygon(Polygon &&contour) : contour(std::move(contour)) {}
-	explicit ExPolygon(const Points &contour) : contour(contour) {}
-	explicit ExPolygon(Points &&contour) : contour(std::move(contour)) {}
-	explicit ExPolygon(const Polygon &contour, const Polygon &hole) : contour(contour) { holes.emplace_back(hole); }
-	explicit ExPolygon(Polygon &&contour, Polygon &&hole) : contour(std::move(contour)) { holes.emplace_back(std::move(hole)); }
-	explicit ExPolygon(const Points &contour, const Points &hole) : contour(contour) { holes.emplace_back(hole); }
-	explicit ExPolygon(Points &&contour, Polygon &&hole) : contour(std::move(contour)) { holes.emplace_back(std::move(hole)); }
-	ExPolygon(std::initializer_list<Point> contour) : contour(contour) {}
-	ExPolygon(std::initializer_list<Point> contour, std::initializer_list<Point> hole) : contour(contour), holes({ hole }) {}
+    explicit ExPolygon(const Polygon &contour) : contour(contour) {}
+    explicit ExPolygon(Polygon &&contour) : contour(std::move(contour)) {}
+    explicit ExPolygon(const Points &contour) : contour(contour) {}
+    explicit ExPolygon(Points &&contour) : contour(std::move(contour)) {}
+    explicit ExPolygon(const Polygon &contour, const Polygon &hole) : contour(contour) { holes.emplace_back(hole); }
+    explicit ExPolygon(const Polygon &contour, const Polygons &holes) : contour(contour), holes(holes) {}
+    explicit ExPolygon(Polygon &&contour, Polygon &&hole) : contour(std::move(contour)) {
+        holes.emplace_back(std::move(hole));
+    }
+    explicit ExPolygon(const Points &contour, const Points &hole) : contour(contour) { holes.emplace_back(hole); }
+    explicit ExPolygon(Points &&contour, Polygon &&hole) : contour(std::move(contour)) {
+        holes.emplace_back(std::move(hole));
+    }
+    ExPolygon(std::initializer_list<Point> contour) : contour(contour) {}
+    ExPolygon(std::initializer_list<Point> contour, std::initializer_list<Point> hole)
+        : contour(contour), holes({hole}) {}
 
     ExPolygon& operator=(const ExPolygon &other) = default;
     ExPolygon& operator=(ExPolygon &&other) = default;
@@ -143,6 +149,7 @@ inline size_t number_polygons(const ExPolygons &expolys)
 
 inline ExPolygon to_expolygon(const Polygon &other)
 {
+    assert(other.is_counter_clockwise());
     ExPolygon ex;
     ex.contour = other;
     return ex;
@@ -150,15 +157,23 @@ inline ExPolygon to_expolygon(const Polygon &other)
 
 inline ExPolygon to_expolygon(Polygon &&other)
 {
+    assert(other.is_counter_clockwise());
     ExPolygon ex;
     ex.contour = std::move(other);
     return ex;
 }
 
-inline ExPolygons to_expolygon(const Polygons &other)
+inline ExPolygons convert_to_expolygons(const Polygons &other)
 {
     ExPolygons exs;
-    for (const Polygon &po : other) exs.emplace_back(to_expolygon(po));
+    for (size_t i = 0; i < other.size(); i++) {
+        if (other[i].is_counter_clockwise()) {
+            exs.emplace_back(other[i]);
+        } else {
+            assert(!exs.empty());
+            exs.back().holes.emplace_back(other[i]);
+        }
+    }
     return exs;
 }
 
@@ -345,8 +360,14 @@ inline Polygons to_polygons(const ExPolygon &src)
     return polygons;
 }
 
+
+inline Polygons to_polygons_unsafe(const ExPolygons &src) {
+    // can be used for asserts, dsiplay, when it isn't fed into clipper
+}
+
 inline Polygons to_polygons(const ExPolygons &src)
 {
+    // FIXME: put "inside" polygon after the "outside" ones, so the holes of the "outside" don't erase the "inside" contour
     Polygons polygons;
     polygons.reserve(number_polygons(src));
     for (const ExPolygon& ex_poly : src) {
@@ -355,6 +376,20 @@ inline Polygons to_polygons(const ExPolygons &src)
         polygons.push_back(ex_poly.contour);
         polygons.insert(polygons.end(), ex_poly.holes.begin(), ex_poly.holes.end());
     }
+#ifdef _DEBUG
+    // check hole ordering
+    Polygons holes;
+    for (size_t i = src.size() - 1; i < src.size(); i--) {
+        for (Polygon &hole : holes) {
+            // a big hole need to be before than the contour that lie inside.
+            assert(!hole.contains(src[i].contour.front()));
+        }
+        for (Polygon hole : src[i].holes) {
+            hole.make_counter_clockwise();
+            holes.push_back(std::move(hole));
+        }
+    }
+#endif
     return polygons;
 }
 
