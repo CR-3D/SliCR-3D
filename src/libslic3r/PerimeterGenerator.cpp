@@ -514,6 +514,33 @@ static void fuzzy_extrusion_line(Arachne::ExtrusionLine &ext_lines, double fuzzy
     }
 }
 
+static void variable_width_classic(const ThickPolylines &polylines,
+                                   ExtrusionRole role,
+                                   const Flow &flow,
+                                   std::vector<ExtrusionEntity*> &out)
+{
+    // This value determines granularity of adaptive width, as G-code does not allow
+    // variable extrusion within a single move; this value shall only affect the amount
+    // of segments, and any pruning shall be performed before we apply this tolerance.
+    const auto tolerance = float(scale_(0.05));
+    for (const ThickPolyline &p : polylines) {
+        ExtrusionMultiPath multi_path = ::Slic3r::PerimeterGenerator::PerimeterGenerator::thick_polyline_to_multi_path(p, role, flow, tolerance, tolerance);
+        // Append paths to collection.
+        if (!multi_path.paths.empty()) {
+            for (auto it = std::next(multi_path.paths.begin()); it != multi_path.paths.end(); ++it) {
+               // assert(it->polyline.points.size() >= 2);
+                assert(std::prev(it)->polyline.back() == it->polyline.front());
+            }
+
+            if (multi_path.paths.front().first_point() == multi_path.paths.back().last_point())
+                out.emplace_back(new ExtrusionLoop(std::move(multi_path.paths)));
+            else
+                out.emplace_back(new ExtrusionMultiPath(std::move(multi_path)));
+        }
+    }
+}
+
+
 ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Parameters &params,
     const PerimeterGeneratorLoops &loops, ThickPolylines &thin_walls, int count_since_overhang /*= -1*/) const
 {
@@ -610,12 +637,8 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
     }
     assert(coll.size() == loops.size());
     // append thin walls to the nearest-neighbor search (only for first iteration)
-    if (!thin_walls.empty()) {
-        append(coll, Geometry::thin_variable_width(thin_walls, ExtrusionRole::ThinWall, params.ext_perimeter_flow,
-                                                   std::max(params.ext_perimeter_flow.scaled_width() / 4,
-                                                            scale_t(params.print_config.resolution)),
-                                                   false));
-        //don't add again
+    if (! thin_walls.empty()) {
+        variable_width_classic(thin_walls, ExtrusionRole::ExternalPerimeter, params.ext_perimeter_flow, coll);
         thin_walls.clear();
     }
     // traverse children and build the final collection
@@ -1658,32 +1681,6 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
 
     for (int i = 1; i < paths.size(); i++) {
         assert(paths[i - 1].last_point().coincides_with(paths[i].first_point()));
-    }
-}
-
-static void variable_width_classic(const ThickPolylines &polylines,
-                                   ExtrusionRole role,
-                                   const Flow &flow,
-                                   std::vector<ExtrusionEntity*> &out)
-{
-    // This value determines granularity of adaptive width, as G-code does not allow
-    // variable extrusion within a single move; this value shall only affect the amount
-    // of segments, and any pruning shall be performed before we apply this tolerance.
-    const auto tolerance = float(scale_(0.05));
-    for (const ThickPolyline &p : polylines) {
-        ExtrusionMultiPath multi_path = ::Slic3r::PerimeterGenerator::PerimeterGenerator::thick_polyline_to_multi_path(p, role, flow, tolerance, tolerance);
-        // Append paths to collection.
-        if (!multi_path.paths.empty()) {
-            for (auto it = std::next(multi_path.paths.begin()); it != multi_path.paths.end(); ++it) {
-               // assert(it->polyline.points.size() >= 2);
-                assert(std::prev(it)->polyline.back() == it->polyline.front());
-            }
-
-            if (multi_path.paths.front().first_point() == multi_path.paths.back().last_point())
-                out.emplace_back(new ExtrusionLoop(std::move(multi_path.paths)));
-            else
-                out.emplace_back(new ExtrusionMultiPath(std::move(multi_path)));
-        }
     }
 }
 
@@ -3771,44 +3768,12 @@ void PerimeterGenerator::process(// Input:
 
         if (overhang_speed_enabled || overhang_flow_enabled || overhang_dynamic_enabled || overhang_extra_enabled) {
             // FIXME: can remove thinalls from support. you need to take them back, but they are computed in // ...
-            coord_t offset_unprintable = scale_t(this->params.overhang_flow.nozzle_diameter() *
-                                                 ( 1 - params.config.thin_perimeters.get_abs_value(0.5)));
-            if (params.config.thin_walls.value) {
-                // not ideal...
-                coord_t min_width = scale_t(params.config.thin_walls_min_width.get_abs_value(params.ext_perimeter_flow.nozzle_diameter()));
-                offset_unprintable = std::min(offset_unprintable, min_width / 2);
-            }
-            offset_unprintable -= SCALED_EPSILON;
-            assert(offset_unprintable > SCALED_EPSILON);
+            coord_t offset_unprintable = scale_t(this->params.overhang_flow.nozzle_diameter() * 0.5);
+
             assert_valid(*lower_slices);
             ExPolygons lower_slices_storage = offset2_ex(*lower_slices, -offset_unprintable, offset_unprintable);
             const ExPolygons *simplified = &lower_slices_storage;
-            //simplify the lower slices if too high (means low number) resolution (we can be very aggressive here)
-            if (get_resolution(0, false, &srf_to_use) < min_feature / 2) {
-                ExPolygons simplified_storage;
-                for (const ExPolygon& expoly : *simplified) {
-                    expoly.simplify(min_feature, simplified_storage);
-                }
-                lower_slices_storage = simplified_storage;
-            } else {
-                ensure_valid(lower_slices_storage, std::max(SCALED_EPSILON * 2, get_resolution(0, false, &srf_to_use)));
-            }
-            //{
-            //    static int isaqsdsdfsdfqzfn = 0;
-            //    std::stringstream stri;
-            //    stri << params.layer->id() << "_compute_overhang_" <<this->slices->surfaces.size()<<"_" <<isaqsdsdfsdfqzfn++ << ".svg";
-            //    SVG svg(stri.str());
-            //    for(auto &surface : this->slices->surfaces)
-            //        svg.draw(surface.expolygon, "grey");
-            //    svg.draw(srf_to_use.expolygon, "green");
-            //    svg.draw(to_polylines(*lower_slices), "blue", scale_t(0.045));
-            //    svg.draw(to_polylines(offset_ex(*lower_slices, -scale_t(this->params.overhang_flow.nozzle_diameter()*0.75))), "cyan", scale_t(0.035));
-            //    svg.draw(to_polylines(offset_ex(*lower_slices, -scale_t(this->params.overhang_flow.nozzle_diameter()))), "teal", scale_t(0.03));
-            //    svg.draw(to_polylines(lower_slices_storage), "purple", scale_t(0.02));
-            //    svg.draw(to_polylines(offset(*simplified, (coordf_t)(overhangs_width_speed_110 + SCALED_EPSILON - params.get_ext_perimeter_width() / 2))), "yellow", scale_t(0.015));
-            //    svg.draw(to_polylines(offset(*simplified,(coordf_t)(overhangs_width_flow_110 + SCALED_EPSILON - params.get_ext_perimeter_width() / 2))), "orange", scale_t(0.01));
-            //    svg.Close();
-            //}
+
             //for overhangs detection
             if (overhang_speed_enabled && (overhangs_width_speed < overhangs_width_flow || !overhang_flow_enabled)) {
                 params.lower_slices_bridge_speed_small = offset(*simplified, (coordf_t)(overhangs_width_speed_90 + SCALED_EPSILON - params.get_ext_perimeter_width() / 2));
@@ -4719,10 +4684,14 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // the minimum thickness of a single loop is:
                     // ext_width/2 + ext_spacing/2 + spacing/2 + width/2
                 coordf_t good_spacing    = params.get_ext_perimeter_width() / 2;
+
+                                next_onion = params.config.thin_walls ?
+                    offset2_ex(last, -float(ext_perimeter_width / 2. + ext_min_spacing / 2. - 1),
+                               +float(ext_min_spacing / 2. - 1)) :
+                    offset_ex(last, -float(ext_perimeter_width / 2.));
+
                 // look for thin walls
                 if (params.config.thin_walls) {
-                    // the following offset2 ensures almost nothing in @thin_walls is narrower than $min_width
-                    // (actually, something larger than that still may exist due to mitering or other causes)
                     coord_t min_width = coord_t(scale_(params.ext_perimeter_flow.nozzle_diameter() / 3));
                     ExPolygons expp = opening_ex(
                         // medial axis requires non-overlapping geometry
@@ -4731,42 +4700,39 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     // the maximum thickness of our thin wall area is equal to the minimum thickness of a single loop
                     for (ExPolygon &ex : expp)
                         ex.medial_axis(min_width, ext_perimeter_width + ext_perimeter_spacing2, thin_walls_thickpolys);
-                }
-
+                            }
 
                 if (params.spiral_vase && all_next_onion->size() > 1) {
                     assert(contour_count > 0);
                     // Remove all but the largest area polygon.
                     keep_largest_contour_only(*all_next_onion);
                 }
-            } else {
-                //FIXME Is this offset correct if the line width of the inner perimeters differs
-                // from the line width of the infill?
-                const coord_t good_spacing = (perimeter_idx == 1) ? params.get_ext_perimeter_spacing2() : params.get_perimeter_spacing();
+              } else {
+                        // FIXME Is this offset correct if the line width of the inner perimeters differs
+                        //  from the line width of the infill?
+                        const coord_t good_spacing = (perimeter_idx == 1) ? params.get_ext_perimeter_spacing2() :
+                                                                            params.get_perimeter_spacing();
+                        next_onion = params.config.thin_walls ?
+                            // This path will ensure, that the perimeters do not overfill, as in
+                            // prusa3d/Slic3r GH #32, but with the cost of rounding the perimeters
+                            // excessively, creating gaps, which then need to be filled in by the not very
+                            // reliable gap fill algorithm.
+                            // Also the offset2(perimeter, -x, x) may sometimes lead to a perimeter, which is larger than
+                            // the original.
+                            offset2_ex(last, -float(good_spacing + min_spacing / 2. - 1.), float(min_spacing / 2. - 1.)) :
+                            // If "detect thin walls" is not enabled, this paths will be entered, which
+                            // leads to overflows, as in prusa3d/Slic3r GH #32
+                            offset_ex(last, -float(good_spacing));
 
-                next_onion = params.config.thin_walls ?
-                    // This path will ensure, that the perimeters do not overfill, as in 
-                    // prusa3d/Slic3r GH #32, but with the cost of rounding the perimeters
-                    // excessively, creating gaps, which then need to be filled in by the not very 
-                    // reliable gap fill algorithm.
-                    // Also the offset2(perimeter, -x, x) may sometimes lead to a perimeter, which is larger than
-                    // the original.
-                    offset2_ex(last,
-                            - float(good_spacing + min_spacing / 2. - 1.),
-                            float(min_spacing / 2. - 1.)) :
-                    // If "detect thin walls" is not enabled, this paths will be entered, which 
-                    // leads to overflows, as in prusa3d/Slic3r GH #32
-                    offset_ex(last, - float(good_spacing));
-
-                // look for gaps
-                if (has_gap_fill)
-                    // not using safety offset here would "detect" very narrow gaps
-                    // (but still long enough to escape the area threshold) that gap fill
-                    // won't be able to fill but we'd still remove from infill area
-                    append(gaps,
-                           diff_ex(offset(last, -float(0.5 * good_spacing)),
-                                   offset(next_onion, float(0.5 * good_spacing + 25)))); // safety offset
-
+                        // look for gaps
+                        if (has_gap_fill)
+                            // not using safety offset here would "detect" very narrow gaps
+                            // (but still long enough to escape the area threshold) that gap fill
+                            // won't be able to fill but we'd still remove from infill area
+                            append(gaps,
+                                   diff_ex(offset(last, -float(0.5 * good_spacing)),
+                                           offset(next_onion, float(0.5 * good_spacing + 25)))); // safety offset
+                    }
                 
                 std::vector<ExPolygonAsynch> *touse = nullptr;
                 std::vector<ExPolygonAsynch> copy;
@@ -4780,14 +4746,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                 assert(touse);
                 assert_check_ExPolygonAsynch(*touse);
                 bool round_peri = params.config.perimeter_round_corners.value;
-
-                bool special_area = contour_count == 0 || holes_count == 0;
-                if (special_area && (params.config.thin_walls || params.spiral_vase)) {
-                    area_used = next_onion;
-                    for (auto &expolycontainer : *touse) area_used.push_back(expolycontainer.expoly);
-                    all_next_onion = &area_used;
-                }
-            } 
+                float min_round_spacing = round_peri ? unscaled(params.get_perimeter_width()) / 10 : 0;
 
             if (next_onion.empty() && last_asynch.empty()) {
                 // Store the number of loops actually generated.
@@ -5070,37 +5029,9 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
                     }
                     peri_entities.append(extr_loop);
                 }
-
-                // append thin walls
-                if (!thin_walls_thickpolys.empty()) {
-                    if (params.object_config.thin_walls_merge.value) {
-                        _merge_thin_walls(params, peri_entities, thin_walls_thickpolys);
-                    } else {
-                        peri_entities.append(
-                            Geometry::thin_variable_width(thin_walls_thickpolys, ExtrusionRole::ThinWall, params.ext_perimeter_flow,
-                                                          std::max(params.get_ext_perimeter_width() / 4,
-                                                                   scale_t(params.print_config.resolution)),
-                                                          false));
-                    }
-                    thin_walls_thickpolys.clear();
-                }
             } else {
-#if _DEBUG
-                for (const PerimeterGeneratorLoop &epl : contours.front()) {
-                    assert_check_polygon(epl.polygon);
-                }
-#endif
-                if (params.object_config.thin_walls_merge.value) {
-                    ThickPolylines no_thin_walls;
-                    peri_entities = this->_traverse_loops_classic(params, contours.front(), no_thin_walls);
-#if _DEBUG
-                    LoopAssertVisitor visitor;
-                    peri_entities.visit(visitor);
-#endif
-                    _merge_thin_walls(params, peri_entities, thin_walls_thickpolys);
-                } else {
-                    peri_entities = this->_traverse_loops_classic(params, contours.front(), thin_walls_thickpolys);
-                }
+
+            peri_entities = this->_traverse_loops_classic(params, contours.front(), thin_walls_thickpolys);
             }
         } else {
             // no loop perimeter : ignore perimeter_loop and thin_walls_merge

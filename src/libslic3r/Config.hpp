@@ -1454,8 +1454,8 @@ private:
 class ConfigOptionStringVersion : public ConfigOptionString
 {
 public:
-    ConfigOptionStringVersion() : ConfigOptionString(std::string{}) {}
-    explicit ConfigOptionStringVersion(std::string value) : ConfigOptionString(std::move(value)) {}
+    ConfigOptionStringVersion() : ConfigOptionString(std::string{}) { this->set_phony(true); }
+    explicit ConfigOptionStringVersion(std::string value) : ConfigOptionString(std::move(value)) { this->set_phony(true); }
     ConfigOption*           clone() const override { return new ConfigOptionStringVersion(*this); }
 
     std::string serialize() const override

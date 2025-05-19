@@ -1374,7 +1374,7 @@ void UnsavedChangesDialog::update_tree(Preset::Type type, PresetCollection* pres
                 // It can be for dirty_options: "default_print_profile", "printer_model", "printer_settings_id",
                 // because of they don't exist in searcher
                 if ((std::set<std::string>{"default_print_profile", "printer_model", "printer_settings_id",
-                                           "filament_settings_id", "print_settings_id", "inherits"})
+                                           "filament_settings_id", "print_settings_id", "inherits", "print_version"})
                         .count(opt_key_id.key) > 0)
                 continue;
 
