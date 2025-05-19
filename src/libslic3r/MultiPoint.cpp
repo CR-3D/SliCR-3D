@@ -386,24 +386,51 @@ Points MultiPoint::_douglas_peucker_plus(const Points& pts, const double toleran
         assert(!result_pts[i - 1].coincides_with_epsilon(result_pts[i]));
     return result_pts;
 }
-#ifdef _DEBUGINFO
-// to create a cpp multipoint to create test units.
-std::string MultiPoint::to_debug_string()
-{
-    if (points.empty()) {
-        return "{}";
-    }
-    std::string ret;
-    for (Point pt : points) {
-        ret += std::string(",Point{") + std::to_string(pt.x()) + std::string(",") + std::to_string(pt.y()) +
-            std::string("}");
-    }
-    assert(!ret.empty());
-    ret[0] = '{';
-    ret += std::string("}");
-    return ret;
+
+ double MultiPoint::squaredDistanceToLineSegment(const Point &p, const Point &v, const Point &w) {
+    // Calculate the squared length of the line segment
+    double l2 = (v - w).squaredNorm();
+    // If the segment is a single point, return the squared distance to that point
+    if (l2 == 0.0)
+        return (p - v).squaredNorm();
+    // Project point p onto the line defined by v and w, and clamp the projection to the segment
+    double t = std::max(0.0, std::min(1.0, ((p - v).dot(w - v)) / l2));
+    // Compute the projection point
+    Point projection{v.x() + t * (w.x() - v.x()), v.y() + t * (w.y() - v.y())};
+    // Return the squared distance between the point and the projection
+    return (p - projection).squaredNorm();
 }
-#endif
+
+// Orca: Distancing function used by IOI wall ordering algorithm for arachne
+/**
+ * @brief Calculates the minimum distance between two lines defined by sets of points.
+ *
+ * @param A The first set of points defining a polyline.
+ * @param B The second set of points defining a polyline.
+ * @return double The minimum distance between the two polylines.
+ */
+double MultiPoint::minimumDistanceBetweenLinesDefinedByPoints(const Points &A, const Points &B) {
+    double min_distance = std::numeric_limits<double>::infinity();
+
+    // Calculate the minimum distance between segments in A and points in B
+    for (size_t i = 0; i < A.size() - 1; ++i) {
+        for (const auto &b : B) {
+            double distance = squaredDistanceToLineSegment(b, A[i], A[i + 1]);
+            min_distance = std::min(min_distance, std::sqrt(distance));
+        }
+    }
+
+    // Calculate the minimum distance between segments in B and points in A
+    for (size_t i = 0; i < B.size() - 1; ++i) {
+        for (const auto &a : A) {
+            double distance = squaredDistanceToLineSegment(a, B[i], B[i + 1]);
+            min_distance = std::min(min_distance, std::sqrt(distance));
+        }
+    }
+
+    return min_distance;
+}
+
 
 void MultiPoint3::translate(double x, double y)
 {

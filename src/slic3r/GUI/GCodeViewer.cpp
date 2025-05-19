@@ -1590,7 +1590,7 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
                 m_extrusions.ranges.volumetric_flow.update_from(curr.mm3_per_mm);
                 for (size_t i = 0; i < gcode_result.print_statistics.modes.size(); ++i) {
                     // only the first & the last are usefull
-                    m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
+               //     m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
                 }
             }
             [[fallthrough]];
