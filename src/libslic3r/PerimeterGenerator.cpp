@@ -5294,69 +5294,122 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
             NEXT_CONTOUR:;
             }
         }
-        //remove all empty perimeters
-        while(contours.size() > 1 && contours.back().empty())
-            contours.pop_back();
-        while(contours.size() > 1 && contours.front().empty())
-            contours.erase(contours.begin());
-        // fuse all unfused 
-        // at this point, all loops should be in contours[0] (= contours.front() )
-        // or no perimeters nor holes have been generated, too small area.
-        assert(contours.size()<=1);
-        assert(contours.empty() || contours.front().size() >= 1);
+
         // collection of loops to add into loops
-        ExtrusionEntityCollection peri_entities;
-        if (!contours.empty()) {
-            if (params.config.perimeter_loop.value) {
-                // onlyone_perimeter = >fusion all perimeterLoops
-                for (PerimeterGeneratorLoop &loop : contours.front()) {
-                    ExtrusionLoop extr_loop = this->_traverse_and_join_loops(params, loop, get_all_childs(loop),
-                                                                             loop.polygon.points.front());
-                    // ExtrusionLoop extr_loop = this->_traverse_and_join_loops_old(loop, loop.polygon.points.front(), true);
-                    if (extr_loop.paths.back().polyline.back() != extr_loop.paths.front().polyline.front()) {
-                        extr_loop.paths.back().polyline.append(extr_loop.paths.front().polyline.front());
-                        assert(false);
+        ExtrusionEntityCollection peri_entities = _traverse_loops_classic(params, contours.front(),
+                                                                          thin_walls_thickpolys);
+
+
+ // if brim will be printed, reverse the order of perimeters so that
+            // we continue inwards after having finished the brim
+            // TODO: add test for perimeter order
+            bool is_outer_wall_first = this->params.config.wall_sequence == WallSequence::OuterInner;
+        if (is_outer_wall_first ||
+            // BBS: always print outer wall first when there indeed has brim.
+                (this->params.layer->id() == 0 &&
+             this->params.object_config.brim_width.value > 0))
+                peri_entities.reverse();
+        // Orca: sandwich mode. Apply after 1st layer.
+        else if ((this->params.config.wall_sequence == WallSequence::InnerOuterInner) && params.layer->id() > 0) {
+                peri_entities.reverse();            // reverse all entities - order them from external to internal
+                if (peri_entities.entities().size() > 2) { // 3 walls minimum needed to do inner outer inner ordering
+                    int position = 0; // index to run the re-ordering for multiple external perimeters in a single island.
+                    int arr_i, arr_j = 0;    // indexes to run through the walls in the for loops
+                    int outer, first_internal, second_internal, max_internal, current_perimeter; // allocate index values
+                    
+                    // Initiate reorder sequence to bring any index 1 (first internal) perimeters ahead of any second internal perimeters
+                    // Leaving these out of order will result in print defects on the external wall as they will be extruded prior to any
+                    // external wall. To do the re-ordering, we are creating two extrusion arrays - reordered_extrusions which will contain
+                    // the reordered extrusions and skipped_extrusions will contain the ones that were skipped in the scan
+                    ExtrusionEntityCollection reordered_extrusions, skipped_extrusions;
+                    bool found_second_internal = false; // helper variable to indicate the start of a new island
+                    
+                    for (auto extrusion_to_reorder : peri_entities.entities()) { // scan the perimeters to reorder
+                        switch (extrusion_to_reorder->inset_idx) {
+                            case 0: // external perimeter
+                                if(found_second_internal){ //new island - move skipped extrusions to reordered array
+                                    for(auto extrusion_skipped : skipped_extrusions)
+                                        reordered_extrusions.append(*extrusion_skipped);
+                                    skipped_extrusions.clear();
+                                }
+                                reordered_extrusions.append(*extrusion_to_reorder);
+                                break;
+                            case 1: // first internal perimeter
+                                reordered_extrusions.append(*extrusion_to_reorder);
+                                break;
+                            default: // second internal+ perimeter -> put them in the skipped extrusions array
+                                skipped_extrusions.append(*extrusion_to_reorder);
+                                found_second_internal = true;
+                                break;
+                        }
                     }
-                    peri_entities.append(extr_loop);
+                    if (peri_entities.entities().size() > reordered_extrusions.size()) {
+                        // we didnt find any more islands, so lets move the remaining skipped perimeters to the reordered extrusions list.
+                        for(auto extrusion_skipped : skipped_extrusions)
+                            reordered_extrusions.append(*extrusion_skipped);
+                        skipped_extrusions.clear();
+                    }
+                    
+                    // Now start the sandwich mode wall re-ordering using the reordered_extrusions as the basis
+                    // scan to find the external perimeter, first internal, second internal and last perimeter in the island.
+                    // We then advance the position index to move to the second "island" and continue until there are no more
+                    // perimeters left.
+                    while (position < reordered_extrusions.size()) {
+                        outer = first_internal = second_internal = current_perimeter = -1; // initialise all index values to -1
+                        max_internal = reordered_extrusions.size()-1; // initialise the maximum internal perimeter to the last perimeter on the extrusion list
+                        // run through the walls to get the index values that need re-ordering until the first one for each
+                        // is found. Start at "position" index to enable the for loop to iterate for multiple external
+                        // perimeters in a single island
+                        for (arr_i = position; arr_i < reordered_extrusions.size(); ++arr_i) {
+                            switch (reordered_extrusions.entities()[arr_i]->inset_idx) {
+                                case 0: // external perimeter
+                                    if (outer == -1)
+                                        outer = arr_i;
+                                    break;
+                                case 1: // first internal wall
+                                    if (first_internal==-1 && arr_i>outer && outer!=-1){
+                                        first_internal = arr_i;
+                                    }
+                                    break;
+                                case 2: // second internal wall
+                                    if (second_internal == -1 && arr_i > first_internal && outer!=-1){
+                                        second_internal = arr_i;
+                                    }
+                                    break;
+                            }
+                                if (outer > -1 && first_internal > -1 && second_internal > -1 &&
+                                reordered_extrusions.entities()[arr_i]->inset_idx ==
+                                        0) { // found a new external perimeter after we've found all three perimeters
+                                             // to re-order -> this means we entered a new island.
+                                arr_i=arr_i-1; //step back one perimeter
+                                max_internal = arr_i; // new maximum internal perimeter is now this as we have found a new external perimeter, hence a new island.
+                                break; // exit the for loop
+                            }
+                        }
+                    
+                        if (outer > -1 && first_internal > -1 && second_internal > -1) { // found perimeters to re-order?
+                            ExtrusionEntityCollection inner_outer_extrusions; // temporary collection to hold extrusions for reordering
+            
+                            for (arr_j = max_internal; arr_j >=position; --arr_j){ // go inside out towards the external perimeter (perimeters in reverse order) and store all internal perimeters until the first one identified with inset index 2
+                                if(arr_j >= second_internal){
+                                    inner_outer_extrusions.append(*reordered_extrusions.entities()[arr_j]);
+                                    current_perimeter++;
+                                }
+                            }
+                            
+                            for (arr_j = position; arr_j < second_internal; ++arr_j){ // go outside in and map the remaining perimeters (external and first internal wall(s)) using the outside in wall order
+                                inner_outer_extrusions.append(*reordered_extrusions.entities()[arr_j]);
+                            }
+                            
+                            for(arr_j = position; arr_j <= max_internal; ++arr_j) // replace perimeter array with the new re-ordered array
+                                peri_entities.replace(arr_j, *inner_outer_extrusions.entities()[arr_j - position]);
+                        } else
+                            break;
+                        // go to the next perimeter from the current position to continue scanning for external walls in the same island
+                        position = arr_i + 1;
+                    }
                 }
-            } else {
-
-            peri_entities = this->_traverse_loops_classic(params, contours.front(), thin_walls_thickpolys);
             }
-        } else {
-            // no loop perimeter : ignore perimeter_loop and thin_walls_merge
-            peri_entities = this->_traverse_loops_classic(params, {}, thin_walls_thickpolys);
-        }
-#if _DEBUG
-        LoopAssertVisitor visitor;
-        peri_entities.visit(visitor);
-#endif
-        // remove the un-needed top collection if only one child.
-        //peri_entities.visit(CollectionSimplifyVisitor{});
-        if (peri_entities.entities().size() == 1) {
-            if (ExtrusionEntityCollection *coll_child = dynamic_cast<ExtrusionEntityCollection *>(
-                    peri_entities.set_entities().front());
-                coll_child != nullptr) {
-                peri_entities.set_can_sort_reverse(coll_child->can_sort(), coll_child->can_reverse());
-                peri_entities.append_move_from(*coll_child);
-                peri_entities.remove(0);
-            }
-        }
-
-        //{
-        //    static int aodfjiaqsdz = 0;
-        //    std::stringstream stri;
-        //    stri << params.layer->id() << "_perimeter_loops_" << (aodfjiaqsdz++) << ".svg";
-        //    SVG svg(stri.str());
-        //    svg.draw(surface.expolygon, "grey");
-        //    struct TempVisitor : public ExtrusionVisitorRecursiveConst {
-        //        SVG* svg;
-        //        virtual void use(const ExtrusionPath& path) override { svg->draw(path.polyline, "green"); }
-        //    } bbvisitor;
-        //    bbvisitor.svg = &svg;
-        //    peri_entities.visit(bbvisitor);
-        //    svg.Close();
-        //}
 
         // append perimeters for this slice as a collection
         if (!peri_entities.empty()) {
@@ -5364,10 +5417,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
             loops.append(peri_entities);
         }
     } // for each loop of an island
-#if _DEBUG
-    LoopAssertVisitor visitor;
-    loops.visit(visitor);
-#endif
+
 
     // fill gaps
 
