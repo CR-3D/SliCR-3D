@@ -726,6 +726,7 @@ void Layer::make_perimeters()
                             && config.overhangs_width           == other_config.overhangs_width
                             && config.overhangs_reverse         == other_config.overhangs_reverse
                             && config.overhangs_reverse_threshold == other_config.overhangs_reverse_threshold
+                            && config.wall_sequence               == other_config.wall_sequence
                             && config.perimeter_acceleration    == other_config.perimeter_acceleration
                             && config.perimeter_direction       == other_config.perimeter_direction
                             && config.perimeter_extrusion_width == other_config.perimeter_extrusion_width

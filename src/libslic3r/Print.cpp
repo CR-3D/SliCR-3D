@@ -373,6 +373,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "min_layer_height"
             || opt_key == "max_layer_height"
             || opt_key == "filament_max_overlap"
+            || opt_key == "wall_sequence"
             || opt_key == "gcode_min_resolution") {
             osteps.emplace_back(posPerimeters);
             osteps.emplace_back(posInfill);
