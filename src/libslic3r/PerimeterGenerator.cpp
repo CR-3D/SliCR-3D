@@ -3152,7 +3152,8 @@ ProcessSurfaceResult PerimeterGenerator::process_arachne(const Parameters &param
         ExPolygons fill_clip;
         
         //has to set the outer polygon to the centerline of the external perimeter
-        split_top_surfaces(lower_slices, upper_slices, offset_ex(last, -params.get_ext_perimeter_spacing()/2), result.top_fills, non_top_polygons, result.fill_clip);
+        split_top_surfaces(lower_slices, upper_slices, offset_ex(last, -params.get_ext_perimeter_spacing() / 2),
+                           result.top_fills, non_top_polygons, result.fill_clip, loop_number - 1);
 
         if (result.top_fills.empty()) {
             // No top surfaces, no special handling needed
@@ -3438,31 +3439,31 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
                                             const ExPolygons &orig_polygons,
                                             ExPolygons &      top_fills,
                                             ExPolygons &      non_top_polygons,
-                                            ExPolygons &      fill_clip)
+                                            ExPolygons &      fill_clip,
+                                            int peri_count
+)
 {
     // other perimeters
-    coord_t perimeter_width   = params.perimeter_flow.scaled_width();
-    coord_t perimeter_spacing = params.perimeter_flow.scaled_spacing();
+    const coord_t perimeter_width   = params.perimeter_flow.scaled_width();
+    const coord_t perimeter_spacing = params.perimeter_flow.scaled_spacing();
 
     // external perimeters
-    coord_t ext_perimeter_width   = params.ext_perimeter_flow.scaled_width();
-    coord_t ext_perimeter_spacing = params.ext_perimeter_flow.scaled_spacing();
+    const coord_t ext_perimeter_width   = params.ext_perimeter_flow.scaled_width();
+    const coord_t ext_perimeter_spacing = params.ext_perimeter_flow.scaled_spacing();
 
-    double  fill_nozzle_diameter = params.solid_infill_flow.nozzle_diameter();
+    const double fill_nozzle_diameter = params.solid_infill_flow.nozzle_diameter();
 
-    bool has_gap_fill = params.config.gap_fill_enabled &&
+    const bool has_gap_fill = params.config.gap_fill_enabled &&
                         !params.use_arachne;
 
     // split the polygons with top/not_top
     // get the offset from solid surface anchor*
-    const int32_t peri_count = params.config.perimeters.value;
-    const double max_perimeters_width = unscaled(double(params.get_ext_perimeter_width() + ext_perimeter_spacing * int(peri_count - int(1)))); 
+    const double max_perimeters_width = unscaled(double(params.get_ext_perimeter_width() + perimeter_spacing * int(peri_count - 1))); 
     coord_t offset_top_surface = scale_t(params.config.external_infill_margin.get_abs_value(peri_count == 0 ? 0. : max_perimeters_width));
     // if possible, try to not push the extra perimeters inside the sparse infill
-    if (offset_top_surface > 0.9 * (peri_count <= 1 ? 0. : (ext_perimeter_spacing * (peri_count - 1))))
-        offset_top_surface -= coord_t(0.9 * (peri_count <= 1 ? 0. : (ext_perimeter_spacing * (peri_count - 1))));
-    else
-        offset_top_surface = 0;
+    offset_top_surface = std::min(offset_top_surface, perimeter_spacing / 3);
+    //offset_top_surface = (peri_count + 1) * perimeter_spacing -perimeter_width +
+    //      ;
     // don't takes into account too thin areas
     // skip if the exposed area is smaller than "min_width_top_surface"
     coordf_t min_width_top_surface = std::max(coordf_t(params.get_ext_perimeter_spacing() / 2 + 10),
@@ -3470,7 +3471,7 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
 
     Polygons grown_upper_slices;
     if (!params.config.only_one_perimeter_top_other_algo.value) {
-        grown_upper_slices = offset(*upper_slices, min_width_top_surface);
+        grown_upper_slices = offset2(*upper_slices, - min_width_top_surface - offset_top_surface, min_width_top_surface);
     } else {
         ExPolygons grown_accumulator;
         // make thin upper surfaces disapear with -+offset_top_surface
@@ -3478,17 +3479,15 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
         // remove polygon too thin (but don't mess with holes)
         for (const ExPolygon &expoly_to_grow : *this->upper_slices) {
             // only offset the contour, as it can merge holes
-            Polygons contour = offset2(ExPolygons{ExPolygon{expoly_to_grow.contour}}, -offset_top_surface,
-                                       offset_top_surface + min_width_top_surface +
-                                           (this->mill_extra_size > SCALED_EPSILON ? (double) mill_extra_size : 0));
+            Polygons contour = offset2(ExPolygons{ExPolygon{expoly_to_grow.contour}}, - min_width_top_surface - offset_top_surface,
+                                       min_width_top_surface + (this->mill_extra_size > SCALED_EPSILON ? (double) mill_extra_size : 0));
             if (!contour.empty()) {
                 if (expoly_to_grow.holes.empty()) {
                     for (Polygon &p : contour) grown_accumulator.push_back(ExPolygon{p});
                 } else {
                     Polygons holes = expoly_to_grow.holes;
                     for (Polygon &h : holes) h.reverse();
-                    holes = offset(holes,
-                                   - min_width_top_surface
+                    holes = offset(holes, - offset_top_surface
                         - ((this->mill_extra_size > SCALED_EPSILON) ? (double) mill_extra_size : 0));
                     for (ExPolygon p : diff_ex(contour, holes)) grown_accumulator.push_back(p);
                 }
@@ -3508,24 +3507,40 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
     fill_clip = offset_ex(orig_polygons, -coordf_t(params.get_ext_perimeter_spacing()));
     // Check whether surface be bridge or not
     ExPolygons bridge_checker;
+    // maybe add a parameter to fuse bridge in the one-perimeter area, instead of excuding it.
     if (lower_slices != nullptr) {
         // BBS: get the Polygons below the polygon this layer
         Polygons lower_polygons_series_clipped = ClipperUtils::clip_clipper_polygons_with_subject_bbox(*lower_slices, last_box);
-        coordf_t bridge_offset = std::max(coordf_t(params.get_ext_perimeter_spacing()), coordf_t(perimeter_width));
+        coordf_t bridge_offset = perimeter_spacing * peri_count;
         // SoftFever: improve bridging
-        const coordf_t bridge_margin = scale_d(params.config.bridged_infill_margin.get_abs_value(unscaled(perimeter_width)));
-        bridge_checker = offset_ex(diff_ex(orig_polygons, lower_polygons_series_clipped, ApplySafetyOffset::Yes),
-                                   1.5 * bridge_offset + bridge_margin + perimeter_spacing / 2);
+        bridge_offset += scale_d(params.config.bridged_infill_margin.get_abs_value(unscaled(params.get_ext_perimeter_width())));
+        bridge_checker = diff_ex(orig_polygons, lower_polygons_series_clipped, ApplySafetyOffset::Yes);
+        // increase by a perimeter at a time and clip it to avoid going over a gap
+        // these quantum tunneling areas can be erased by a offset2, but that big offset2 may also erase evrything. so it needs to be small.
+        while (bridge_offset > SCALED_EPSILON) {
+            coordf_t current_offset = perimeter_spacing;
+            if (bridge_offset < perimeter_spacing * 1.5) {
+                current_offset = bridge_offset;
+            }
+            bridge_offset -= current_offset;
+            bridge_checker = offset_ex(bridge_checker, current_offset);
+            // the offset2 reduce a bit the overlap with top infill on the edges with high bridge_offset. can be improved.
+            bridge_checker = offset2_ex(intersection_ex(bridge_checker, orig_polygons), -current_offset, current_offset);
+        }
     }
-    ExPolygons delete_bridge = diff_ex(orig_polygons, bridge_checker, ApplySafetyOffset::Yes);
+    const ExPolygons *orig_poly_without_bridge = &orig_polygons;
+    if (!bridge_checker.empty()) {
+        bridge_checker = diff_ex(orig_polygons, bridge_checker, ApplySafetyOffset::Yes);
+        orig_poly_without_bridge = &bridge_checker;
+    }
     // get the real top surface
     ExPolygons top_polygons;
     if (this->mill_extra_size < SCALED_EPSILON) {
-        top_polygons = diff_ex(delete_bridge, upper_polygons_series_clipped, ApplySafetyOffset::Yes);
+        top_polygons = diff_ex(*orig_poly_without_bridge, upper_polygons_series_clipped, ApplySafetyOffset::Yes);
     } else if (this->unmillable.empty()) {
-        top_polygons = diff_ex(delete_bridge, offset_ex(upper_polygons_series_clipped, (double) mill_extra_size), ApplySafetyOffset::Yes);
+        top_polygons = diff_ex(*orig_poly_without_bridge, offset_ex(upper_polygons_series_clipped, (double) mill_extra_size), ApplySafetyOffset::Yes);
     } else {
-        top_polygons = diff_ex(delete_bridge,
+        top_polygons = diff_ex(*orig_poly_without_bridge,
                                diff_ex(offset_ex(upper_polygons_series_clipped, (double) mill_extra_size), 
                                    unmillable, ApplySafetyOffset::Yes));
     }
@@ -3534,8 +3549,7 @@ void PerimeterGenerator::split_top_surfaces(const ExPolygons *lower_slices,
     // get the not-top surface, from the "real top" but enlarged by external_infill_margin (and the
     // min_width_top_surface we removed a bit before)
     // also remove the params.get_ext_perimeter_spacing()/2 width because we are faking the external perimeter, and we will remove params.get_ext_perimeter_spacing()2
-    ExPolygons inner_polygons = diff_ex(orig_polygons,
-                                        offset_ex(top_polygons, offset_top_surface + min_width_top_surface - double(params.get_ext_perimeter_spacing() / 2)),
+    ExPolygons inner_polygons = diff_ex(orig_polygons, offset_ex(top_polygons, - double(params.get_ext_perimeter_spacing() / 2)),
                                         ApplySafetyOffset::Yes);
     // get the enlarged top surface, by using inner_polygons instead of upper_slices, and clip it for it to be exactly
     // the polygons to fill.
@@ -5041,7 +5055,8 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &     
             if (perimeter_idx == 0 && (params.config.only_one_perimeter_top && this->upper_slices != NULL)
                 && contour_count > 1 && holes_count > 1) {
                 ExPolygons next;
-                split_top_surfaces(this->lower_slices, this->upper_slices, last, results.top_fills, next, results.fill_clip);
+                split_top_surfaces(this->lower_slices, this->upper_slices, last, results.top_fills, next,
+                                   results.fill_clip, std::max(contour_count, holes_count) - 1);
                 last = next;
             }
             

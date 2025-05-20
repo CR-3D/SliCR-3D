@@ -267,7 +267,9 @@ private:
                             const ExPolygons &orig_polygons,
                             ExPolygons &      top_fills,
                             ExPolygons &      non_top_polygons,
-                            ExPolygons &      fill_clip);
+                            ExPolygons &      fill_clip,
+                            int nb_peri_to_print
+    );
 
 };
 
