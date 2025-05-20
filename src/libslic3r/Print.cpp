@@ -1343,10 +1343,7 @@ void Print::process()
             GetPathsVisitor visitor;
             this->m_skirt.visit(visitor);
             this->m_brim.visit(visitor);
-#if _DEBUG
-            this->m_skirt.visit(get_loops);
-            for (auto loop : get_loops.loops) assert(loop->is_counter_clockwise());
-#endif
+
             tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, visitor.paths.size() + visitor.paths3D.size()),
                 [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count](const tbb::blocked_range<size_t>& range) {
