@@ -262,6 +262,15 @@ static const t_config_enum_values s_keys_map_SupportZDistanceType{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SupportZDistanceType)
 
+//BBS
+static t_config_enum_values s_keys_map_WallSequence {
+    { "inner wall/outer wall",     int(WallSequence::InnerOuter) },
+    { "outer wall/inner wall",     int(WallSequence::OuterInner) },
+    { "inner-outer-inner wall",    int(WallSequence::InnerOuterInner)}
+
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WallSequence)
+
 static const t_config_enum_values s_keys_map_SLADisplayOrientation{{"landscape", sladoLandscape},
                                                                    {"portrait", sladoPortrait}};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLADisplayOrientation)
@@ -5868,6 +5877,27 @@ void PrintConfigDef::init_fff_params() {
     def->max_literal = {500, false};
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(20, false));
+
+    def = this->add("wall_sequence", coEnum);
+    def->label = L("Walls printing order");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Print sequence of the internal (inner) and external (outer) walls.\n\n"
+                     "Use Inner/Outer for best overhangs. This is because the overhanging walls can adhere to a neighbouring perimeter while printing. "
+                     "However, this option results in slightly reduced surface quality as the external perimeter is deformed by being squashed to the internal perimeter.\n\n"
+                     "Use Inner/Outer/Inner for the best external surface finish and dimensional accuracy as the external wall is printed undisturbed from an internal perimeter. "
+                     "However, overhang performance will reduce as there is no internal perimeter to print the external wall against. "
+                     "This option requires a minimum of 3 walls to be effective as it prints the internal walls from the 3rd perimeter onwards first, "
+                     "then the external perimeter and, finally, the first internal perimeter. "
+                     "This option is recommended against the Outer/Inner option in most cases.\n\n"
+                     "Use Outer/Inner for the same external wall quality and dimensional accuracy benefits of Inner/Outer/Inner option. "
+                     "However, the z seams will appear less consistent as the first extrusion of a new layer starts on a visible surface.\n\n ");
+    def->set_enum<WallSequence>({
+        {"inner wall/outer wall", "Inner/Outer"},
+        {"outer wall/inner wall", "Outer/Inner"},
+        {"inner-outer-inner wall", "Inner/Outer/Inner"},
+    });
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionEnum<WallSequence>(WallSequence::InnerOuter));
 
     def = this->add("solid_infill_below_area", coFloat);
     def->label = L("Solid infill threshold area");

@@ -103,6 +103,8 @@ public:
     virtual void visit(ExtrusionVisitorConst &visitor) const = 0;
     void visit(ExtrusionVisitor &&visitor); // note: need 'using ExtrusionEntity::visit;' to be called from children classes
     void visit(ExtrusionVisitorConst &&visitor) const;
+
+    int inset_idx = -1;
 };
 
 
