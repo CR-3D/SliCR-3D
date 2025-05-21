@@ -253,7 +253,10 @@ private:
 
     // transform loops into ExtrusionEntityCollection, adding also thin walls into it.
     ExtrusionEntityCollection _traverse_loops_classic(const Parameters &params,
-        const PerimeterGeneratorLoops &loops, ThickPolylines &thin_walls, int count_since_overhang = -1) const;
+        const PerimeterGeneratorLoops &loops,
+        ThickPolylines &thin_walls,
+        int count_since_overhang = -1) const;
+
     ExtrusionEntityCollection _traverse_extrusions(const Parameters &params,
         std::vector<PerimeterGeneratorArachneExtrusion>& pg_extrusions);
     // try to merge thin walls to a current perimeter exrusion or just add it to the end of the list.

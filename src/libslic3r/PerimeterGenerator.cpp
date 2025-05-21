@@ -1,4 +1,4 @@
-#include "clipper/clipper_z.hpp"
+ #include "clipper/clipper_z.hpp"
 
 #include "PerimeterGenerator.hpp"
 
@@ -549,7 +549,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
     ExtrusionEntitiesPtr coll;
     for (const PerimeterGeneratorLoop &loop : loops) {
         bool is_external = loop.is_external();
-        
+
         ExtrusionRole role = ExtrusionRole::None;
         ExtrusionLoopRole loop_role = ExtrusionLoopRole::elrDefault;
         role = is_external ? ExtrusionRole::ExternalPerimeter : ExtrusionRole::Perimeter;
@@ -561,15 +561,15 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
         } else {
             loop_role = loop.is_contour ? ExtrusionLoopRole::elrDefault : ExtrusionLoopRole::elrHole;
         }
-
-        if (params.config.external_perimeters_vase.value && params.config.external_perimeters_first.value && is_external) {
+        if (params.config.external_perimeters_vase.value && params.config.external_perimeters_first.value &&
+            is_external) {
             if (params.config.external_perimeters_first_force.value ||
                 (loop.is_contour && params.config.external_perimeters_nothole.value) ||
                 (!loop.is_contour && params.config.external_perimeters_hole.value)) {
-                loop_role = (ExtrusionLoopRole)(loop_role | ExtrusionLoopRole::elrVase);
+                loop_role = (ExtrusionLoopRole) (loop_role | ExtrusionLoopRole::elrVase);
             }
         }
-        
+
         // detect overhanging/bridging perimeters
         ExtrusionPaths paths;
 
@@ -584,26 +584,23 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             paths = this->create_overhangs_classic(params, loop.polygon.split_at_first_point(), role, is_external);
         } else {
             for (size_t idx = 1; idx < loop.polygon.size(); ++idx)
-                assert(!loop.polygon.points[idx-1].coincides_with_epsilon(loop.polygon.points[idx]));
-            paths.emplace_back(
-                loop.polygon.split_at_first_point(),
-                ExtrusionAttributes{
-                    role,
-                    ExtrusionFlow{
-                        is_external ? params.ext_mm3_per_mm() : params.mm3_per_mm(),
-                        is_external ? params.ext_perimeter_flow.width() : params.perimeter_flow.width(),
-                        float(params.layer->height)
-                    }
-                },
-                false
-            );
+                assert(!loop.polygon.points[idx - 1].coincides_with_epsilon(loop.polygon.points[idx]));
+            paths.emplace_back(loop.polygon.split_at_first_point(),
+                               ExtrusionAttributes{role,
+                                                   ExtrusionFlow{is_external ? params.ext_mm3_per_mm() :
+                                                                               params.mm3_per_mm(),
+                                                                 is_external ? params.ext_perimeter_flow.width() :
+                                                                               params.perimeter_flow.width(),
+                                                                 float(params.layer->height)}},
+                               false);
             assert(paths.back().mm3_per_mm() == paths.back().mm3_per_mm());
             assert(paths.back().width() == paths.back().width());
             assert(paths.back().height() == paths.back().height());
         }
 
         if (loop.fuzzify) {
-            double nozle_diameter = is_external ? params.ext_perimeter_flow.nozzle_diameter() : params.perimeter_flow.nozzle_diameter();
+            double nozle_diameter = is_external ? params.ext_perimeter_flow.nozzle_diameter() :
+                                                  params.perimeter_flow.nozzle_diameter();
             double fuzzy_skin_thickness = params.config.fuzzy_skin_thickness.get_abs_value(nozle_diameter);
             double fuzzy_skin_point_dist = params.config.fuzzy_skin_point_dist.get_abs_value(nozle_diameter);
             fuzzy_paths(paths, scale_d(fuzzy_skin_thickness), scale_d(fuzzy_skin_point_dist));
@@ -617,16 +614,60 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
         variable_width_classic(thin_walls, ExtrusionRole::ExternalPerimeter, params.ext_perimeter_flow, coll);
         thin_walls.clear();
     }
-
     // traverse children and build the final collection
     Point zero_point(0, 0);
-    //result is  [idx, needReverse] ?
+    // result is  [idx, needReverse] ?
     std::vector<std::pair<size_t, bool>> chain = chain_extrusion_entities(coll, &zero_point);
+    assert(coll.size() == chain.size());
+    for (const ExtrusionEntity *loop : coll)
+        assert(loop);
     ExtrusionEntityCollection coll_out;
+    if (chain.empty()) {
+        return coll_out;
+    }
 
-    //move from coll to coll_out and getting children of each in the same time. (deep first)
-    for (const std::pair<size_t, bool> &idx : chain) {
+    // little check: if you have external holes with only one extrusion and internal things, please draw the internal
+    // first, just in case it can help print the hole better.
+    std::vector<std::pair<size_t, bool>> better_chain;
+    {
+        std::vector<std::pair<size_t, bool>> alone_holes;
+        std::vector<std::pair<size_t, bool>> keep_ordering;
+        std::vector<std::pair<size_t, bool>> thin_walls;
+        for (const std::pair<size_t, bool> &idx : chain) {
+            if (idx.first < loops.size()) {
+                if (!loops[idx.first].is_external() ||
+                    (!loops[idx.first].is_contour && !loops[idx.first].children.empty())) {
+                    alone_holes.push_back(idx);
+                } else {
+                    keep_ordering.push_back(idx);
+                }
+            } else {
+                thin_walls.push_back(idx);
+            }
+        }
+        append(better_chain, std::move(alone_holes));
+        append(better_chain, std::move(keep_ordering));
+        append(better_chain, std::move(thin_walls));
+    }
+    assert(better_chain.size() == chain.size());
 
+    // if brim will be printed, reverse the order of perimeters so that
+    // we continue inwards after having finished the brim
+    const bool reverse_contour = (params.layer->id() == 0 && params.object_config.brim_width.value > 0) ||
+        (params.config.external_perimeters_first.value &&
+         (params.config.external_perimeters_nothole.value || params.config.external_perimeters_first_force.value));
+    const bool reverse_hole = (params.layer->id() == 0 && params.object_config.brim_width_interior.value > 0) ||
+        (params.config.external_perimeters_first.value &&
+         (params.config.external_perimeters_hole.value || params.config.external_perimeters_first_force.value));
+
+    const bool CCW_contour = params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CW ||
+        params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CCW;
+    const bool CCW_hole = params.config.perimeter_direction.value == PerimeterDirection::pdCW_CCW ||
+        params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CCW;
+
+
+    // move from coll to coll_out and getting children of each in the same time. (deep first)
+    for (const std::pair<size_t, bool> &idx : better_chain) {
         if (idx.first >= loops.size()) {
             // this is a thin wall
             // let's get it from the sorted collection as it might have been reversed
@@ -635,6 +676,12 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             coll[idx.first] = nullptr;
             if (idx.second) {
                 coll_out.entities().back()->reverse();
+            }
+            // if thin extrusion is a loop, make it ccw like a normal contour.
+            if (ExtrusionLoop *loop = dynamic_cast<ExtrusionLoop *>(coll_out.entities().back())) {
+                if (loop->is_clockwise()) {
+                    loop->reverse();
+                }
             }
         } else {
             const PerimeterGeneratorLoop &loop = loops[idx.first];
@@ -5136,13 +5183,13 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &param
             }
         }
 
-//remove all empty perimeters
-        /*
+
+
+        //remove all empty perimeters
         while(contours.size() > 1 && contours.back().empty())
             contours.pop_back();
         while(contours.size() > 1 && contours.front().empty())
             contours.erase(contours.begin());
-        */
         // fuse all unfused 
         // at this point, all loops should be in contours[0] (= contours.front() )
         // or no perimeters nor holes have been generated, too small area.
@@ -5315,6 +5362,18 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &param
             }
         }
     }
+
+        // remove the un-needed top collection if only one child.
+        //peri_entities.visit(CollectionSimplifyVisitor{});
+        if (peri_entities.entities().size() == 1) {
+            if (ExtrusionEntityCollection *coll_child = dynamic_cast<ExtrusionEntityCollection *>(
+                    peri_entities.set_entities().front());
+                coll_child != nullptr) {
+                peri_entities.set_can_sort_reverse(coll_child->can_sort(), coll_child->can_reverse());
+                peri_entities.append_move_from(*coll_child);
+                peri_entities.remove(0);
+            }
+        }
 
     // append perimeters for this slice as a collection
     if (!peri_entities.empty())
