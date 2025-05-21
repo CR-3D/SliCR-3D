@@ -3369,15 +3369,24 @@ void GCodeViewer::refresh_render_paths(bool keep_sequential_current_first, bool 
         if (found)
             break;
     }
-    
+
     // update_print_min_max if activated
     Extrusions::Range *range = const_cast<GCodeViewer::Extrusions::Ranges&>(m_extrusions.ranges).get(m_view_type); // this break const-correctness
     if (range && !range->is_whole_print_mode()) {
         range->reset_print_min_max();
-        for (const auto &[tbuffer_id, ibuffer_id, path_id, sub_path_id] : paths) {
-            const Path &path = m_buffers[tbuffer_id].paths[path_id];
-            if (path.type == EMoveType::Extrude) {
-                range->update_print_min_max(path.get_value(m_view_type));
+        if (m_view_type == EViewType::LayerTime) {
+            for (size_t i = 0; i < m_layers_times.size(); ++i) {
+                for (size_t layer_id = m_layers_z_range[0];
+                     layer_id < m_layers_z_range[1] && layer_id < m_layers_times[i].size(); ++layer_id) {
+                    range->update_print_min_max(m_layers_times[i][layer_id]);
+                }
+            }
+        } else {
+            for (const auto &[tbuffer_id, ibuffer_id, path_id, sub_path_id] : paths) {
+                const Path &path = m_buffers[tbuffer_id].paths[path_id];
+                if (path.type == EMoveType::Extrude) {
+                    range->update_print_min_max(path.get_value(m_view_type));
+                }
             }
         }
     }
