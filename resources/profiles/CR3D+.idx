@@ -36,3 +36,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.35 Updated speeds and acceleration for printers
 0.0.36 Daily update; Speed settings changed
 0.0.37 fix 'No Filament' crash
+0.0.38 filament_max_volumetric_speed set to 30
