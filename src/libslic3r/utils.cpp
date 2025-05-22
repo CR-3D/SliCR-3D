@@ -251,17 +251,42 @@ static std::atomic<bool> debug_out_path_called(false);
 
 std::string debug_out_path(const char *name, ...)
 {
-	static constexpr const char *SLIC3R_DEBUG_OUT_PATH_PREFIX = "out/";
-    if (! debug_out_path_called.exchange(true)) {
-		std::string path = boost::filesystem::system_complete(SLIC3R_DEBUG_OUT_PATH_PREFIX).string();
+    static constexpr const char *SLIC3R_DEBUG_OUT_PATH_PREFIX = "out/";
+    if (!debug_out_path_called.exchange(true)) {
+        std::string path = boost::filesystem::system_complete(SLIC3R_DEBUG_OUT_PATH_PREFIX).string();
         printf("Debugging output files will be written to %s\n", path.c_str());
     }
-	char buffer[2048];
-	va_list args;
-	va_start(args, name);
-	std::vsprintf(buffer, name, args);
-	va_end(args);
-	return std::string(SLIC3R_DEBUG_OUT_PATH_PREFIX) + std::string(buffer);
+    char buffer[2048];
+    va_list args;
+    va_start(args, name);
+    std::vsprintf(buffer, name, args);
+    va_end(args);
+    return std::string(SLIC3R_DEBUG_OUT_PATH_PREFIX) + std::string(buffer);
+}
+std::string debug_out_path_uniqueid(std::string name, ...) {
+    static int uniqueid = 0;
+    //search for .svg
+    size_t dot_pos = name.find_last_of('.');
+    if (dot_pos == std::string::npos) {
+        name += std::string("_");
+        name += std::to_string(uniqueid++);
+        name += std::string(".svg");
+    } else {
+        name = name.substr(0, dot_pos) + std::string("_") + std::to_string(uniqueid++) + name.substr(dot_pos);
+    }
+    
+    static constexpr const char *SLIC3R_DEBUG_OUT_PATH_PREFIX = "out/";
+    if (!debug_out_path_called.exchange(true)) {
+        std::string path = boost::filesystem::system_complete(SLIC3R_DEBUG_OUT_PATH_PREFIX).string();
+        printf("Debugging output files will be written to %s\n", path.c_str());
+    }
+    char buffer[2048];
+    va_list args;
+    va_start(args, name);
+    //name = debug_out_path(name.c_str(), args);
+    std::vsprintf(buffer, name.c_str(), args);
+    va_end(args);
+    return std::string(SLIC3R_DEBUG_OUT_PATH_PREFIX) + std::string(buffer);
 }
 
 #ifdef _WIN32

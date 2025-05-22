@@ -1383,6 +1383,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
      this->m_throw_if_canceled();
 
     m_enable_cooling_markers = true;
+    m_last_object_layer = nullptr;
 
     m_volumetric_speed = DoExport::autospeed_volumetric_limit(print);
      this->m_throw_if_canceled();
@@ -7727,7 +7728,10 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
             m_config.avoid_crossing_perimeters) {
             assert(m_last_object_layer == m_layer || dynamic_cast<const Layer*>(m_layer) ||
                 (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z + EPSILON));
-            assert(m_last_object_layer);
+            if (!m_last_object_layer) {
+                // we didn't see any object yet (we are on the raft)
+                return true;
+            }
             if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {
                 m_layer_slices_offseted.layer    = m_last_object_layer;
                 m_layer_slices_offseted.diameter = scale_t(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) / 2;

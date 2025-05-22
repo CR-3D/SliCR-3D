@@ -3187,7 +3187,7 @@ bool FillRectilinear::fill_surface_by_multilines(const Surface *surface, FillPar
     }
 
     assert_valid(fill_lines); // totest, remove if triggered, else remove this & ensure_valid
-    ensure_valid(fill_lines, std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
+    ensure_valid(fill_lines, params.fill_resolution);
 
     if (params.dont_connect() || fill_lines.size() <= 1) {
         if (fill_lines.size() > 1)
@@ -3196,7 +3196,7 @@ bool FillRectilinear::fill_surface_by_multilines(const Surface *surface, FillPar
     } else
         connect_infill(std::move(fill_lines), surface->expolygon, poly_with_offset_base.polygons_outer, polylines_out, scale_t(this->get_spacing()), params);
 
-    ensure_valid(polylines_out, std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
+    ensure_valid(polylines_out, params.fill_resolution);
     assert_valid(polylines_out);
     return true;
 }
@@ -3297,7 +3297,7 @@ Polylines FillSupportBase::fill_surface(const Surface *surface, const FillParams
             for (Point &pt : pl.points)
                 pt.rotate(cos_a, sin_a);
     }
-    ensure_valid(polylines_out, std::max(SCALED_EPSILON * 10, params.fill_resolution / 10));
+    ensure_valid(polylines_out, params.fill_resolution);
     return polylines_out;
 }
 
@@ -3525,7 +3525,7 @@ FillRectilinearWGapFill::split_polygon_gap_fill(const Surface &surface, const Fi
     //choose the best one
     rectilinear = rectilinear_areas1.size() <= rectilinear_areas2.size() + 1 || rectilinear_areas2.empty() ? rectilinear_areas1 : rectilinear_areas2;
     ensure_valid(rectilinear);
-    //get gapfill
+    // get gapfill (offset2 to remove artifacts from rectilinear's expolygon offset2)
     gapfill = diff_ex(ExPolygons{ surface.expolygon }, rectilinear);
     ensure_valid(gapfill);
 }
@@ -3536,17 +3536,8 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
     coll_nosort->set_can_sort_reverse(false, false); //can be sorted inside the pass but thew two pass need to be done one after the other
     ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
 
-    //// remove areas for gapfill 
-    //// factor=0.5 : remove area smaller than a spacing. factor=1 : max spacing for the gapfill (but not the width)
-    ////choose between 2 to avoid dotted line  effect.
-    //float factor1 = 0.99f;
-    //float factor2 = 0.7f;
-    //ExPolygons rectilinear_areas1 = offset2_ex(ExPolygons{ surface->expolygon }, -params.flow.scaled_spacing() * factor1, params.flow.scaled_spacing() * factor1);
-    //ExPolygons rectilinear_areas2 = offset2_ex(ExPolygons{ surface->expolygon }, -params.flow.scaled_spacing() * factor2, params.flow.scaled_spacing() * factor2);
-    //std::cout << "FillRectilinear2WGapFill use " << (rectilinear_areas1.size() <= rectilinear_areas2.size() + 1 ? "1" : "2") << "\n";
-    //ExPolygons &rectilinear_areas = rectilinear_areas1.size() <= rectilinear_areas2.size() + 1 ? rectilinear_areas1 : rectilinear_areas2;
-    //ExPolygons gapfill_areas = diff_ex(ExPolygons{ surface->expolygon }, rectilinear_areas);
     ExPolygons rectilinear_areas, gapfill_areas;
+    // remove areas for gapfill 
     split_polygon_gap_fill(*surface, params, rectilinear_areas, gapfill_areas);
     double rec_area = 0;
     for (ExPolygon &p : rectilinear_areas)rec_area += p.area();
@@ -3584,7 +3575,7 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
 
         coll_nosort->append(ExtrusionEntitiesPtr{ eec });
 
-        unextruded_areas = ensure_valid(params.fill_resolution, diff_ex(rectilinear_areas, union_safety_offset_ex(eec->polygons_covered_by_spacing(params.flow.spacing_ratio(), 10))));
+        unextruded_areas = ensure_valid(diff_ex(rectilinear_areas, union_safety_offset_ex(eec->polygons_covered_by_spacing(params.flow.spacing_ratio(), 10))));
     }
     else
         unextruded_areas = rectilinear_areas;

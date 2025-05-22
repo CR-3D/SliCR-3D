@@ -258,6 +258,7 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
     if (params.base_raft_layers > 0) {
         params.interface_raft_layers = std::min(params.base_raft_layers - 1, (size_t)std::max(1, object_config.support_material_interface_layers.value));
         params.base_raft_layers -= params.interface_raft_layers;
+        assert(params.base_raft_layers > 0);
 
         if (object_config.raft_layer_height.value == 0) {
             if (object_config.support_material_layer_height.value == 0) {
@@ -304,6 +305,8 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
         // Raise first object layer Z by the thickness of the raft itself plus the extra distance required by the support material logic.
         //FIXME The last raft layer is the contact layer, which shall be printed with a bridging flow for ease of separation. Currently it is not the case.
 		if (params.raft_layers() == 1) {
+            assert(params.base_raft_layers == 1);
+            assert(params.interface_raft_layers == 0);
             // There is only the contact layer.
             params.contact_raft_layer_height = first_layer_height;
             params.raft_contact_top_z        = first_layer_height;

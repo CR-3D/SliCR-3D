@@ -90,12 +90,12 @@ Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) c
     surface->expolygon.assert_valid();
     // Perform offset.
     Slic3r::ExPolygons expp = offset_ex(surface->expolygon, scale_d(0 - 0.5 * this->get_spacing()));
-    ensure_valid(expp, std::max(SCALED_EPSILON, params.fill_resolution));
+    ensure_valid(expp);
     // Create the infills for each of the regions.
     Polylines polylines_out;
     for (ExPolygon &expoly : expp) {
         _fill_surface_single(params, surface->thickness_layers, _infill_direction(surface), std::move(expoly), polylines_out);
-        ensure_valid(polylines_out, std::max(SCALED_EPSILON, params.fill_resolution / 4));
+        ensure_valid(polylines_out, params.fill_resolution);
     }
     assert(get_spacing() >= 0);
     return polylines_out;
@@ -3637,7 +3637,7 @@ FillWithPerimeter::fill_surface_extrusion(const Surface* surface, const FillPara
                                             ClipperLib::jtMiter, scale_d(this->get_spacing()) * 10);
     //fix a bug that can happens when (positive) offsetting with a big miter limit and two island merge. See https://github.com/supermerill/SuperSlicer/issues/609
     path_perimeter = intersection_ex(path_perimeter, offset_ex(surface->expolygon, scale_d(-this->get_spacing() / 2)));
-    ensure_valid(path_perimeter, params.fill_resolution);
+    ensure_valid(path_perimeter);
     for (ExPolygon& expolygon : path_perimeter) {
         expolygon.assert_valid();
 
@@ -3671,7 +3671,7 @@ FillWithPerimeter::fill_surface_extrusion(const Surface* surface, const FillPara
             // === extrude infill ===
             //50% overlap with the new perimeter
             ExPolygons path_inner = offset2_ex(ExPolygons{ expolygon }, scale_d(-this->get_spacing() * (ratio_fill_inside+0.5)), scale_d(this->get_spacing()/2));
-            ensure_valid(path_inner, params.fill_resolution);
+            ensure_valid(path_inner);
             for (ExPolygon& expolygon : path_inner) {
                 expolygon.assert_valid();
                 Surface surfInner(*surface, expolygon);
