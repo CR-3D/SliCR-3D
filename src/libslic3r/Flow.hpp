@@ -146,7 +146,9 @@ public:
 
     //low level constructor
     static Flow new_from_config_width(FlowRole role, const ConfigOptionFloatOrPercent& width, const ConfigOptionFloatOrPercent& spacing, float nozzle_diameter, float height, float spacing_ratio);
-    static Flow bridging_flow(float dmr, float nozzle_diameter) { return Flow{ dmr, dmr, bridge_extrusion_spacing(dmr), nozzle_diameter, 0, true }; }
+    static Flow bridging_flow(float width, float height, float nozzle_diameter) {
+        return Flow{width, height, bridge_extrusion_spacing(0.44f), nozzle_diameter, 0, true};
+    }
     // old constructors don't use them. They are used by the good constructors from PrintRegion or the default_flow().
     static Flow new_from_config_width(FlowRole role, const ConfigOptionFloatOrPercent& width, const ConfigOptionFloatOrPercent& spacing, float nozzle_diameter, float height, float spacing_ratio, float bridge_flow_ratio);
     // Create a flow from the spacing of extrusion lines.

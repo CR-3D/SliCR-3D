@@ -29,3 +29,4 @@ min_slic3r_version = 2.7.0-rc4
 0.0.31 updated L1 to set 2 nozzles instead of 1
 0.0.32 changed 'thin_walls_min_width' from 33% to 100% since it overextruded way too much with our profiles.
 0.0.33 updated to work with 2.7.0
+0.0.34 updated start gcode for all printers & complete refactoring of profiles

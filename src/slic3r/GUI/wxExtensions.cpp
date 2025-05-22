@@ -456,16 +456,16 @@ wxBitmapBundle* get_bmp_bundle(const std::string& bmp_name_in, int width/* = 16*
     if (new_color.empty() || new_color.size() > 7 || new_color.size() < 6) {
         try {
             uint32_t color_int = Slic3r::GUI::wxGetApp().app_config->create_color(0.86f, 0.93f);
-            changes.add("#ED6B21", color_int);
-            changes.add("#ed6b21", color_int);
+            changes.add("#1A7476", color_int);
+            changes.add("#1A7476", color_int);
             changes.add("#ED8D21", Slic3r::GUI::wxGetApp().app_config->create_color(0.5f, 0.93f));
             changes.add("#2172eb", color_int);
         }
         catch (std::exception /*e*/) {
         }
     } else {
-        changes.add("#ED6B21", new_color.size() == 7 ? new_color : (std::string("#") + new_color));
-        changes.add("#ed6b21", new_color.size() == 7 ? new_color : (std::string("#") + new_color));
+        changes.add("#1A7476", new_color.size() == 7 ? new_color : (std::string("#") + new_color));
+        changes.add("#1A7476", new_color.size() == 7 ? new_color : (std::string("#") + new_color));
         //changes.add("#ED8D21", new_color.size() == 7 ? new_color : (std::string("#") + new_color));
         changes.add("#2172eb", new_color.size() == 7 ? new_color : (std::string("#") + new_color));
     }

@@ -3,18 +3,17 @@ name: C/C++ Release candidate ubuntu-GTK2
 on:
   push:
     branches:
-      - rc
-      - debug_ubuntu
+      - master_27
 
 jobs:
 
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v3
       with:
-        ref: 'rc'
+        ref: 'master_27'
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.13
       with:
@@ -25,6 +24,8 @@ jobs:
       run: sudo apt update
     - name: install gtk2
       run: sudo apt install libgtk2.0-dev
+    - name: Install WebKit GTK
+      run: sudo apt install libwebkit2gtk-4.0-dev
     - name: install libs
       run: sudo ./BuildLinux.sh -u
     - name: dep cache
@@ -35,9 +36,10 @@ jobs:
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -dr -g 2
+      run: ./BuildLinux.sh -g 2 -d
+      
     - name: slicer, tar & appimage
-      run: ./BuildLinux.sh -si -g 2
+      run: ./BuildLinux.sh -g 2 -s -i
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

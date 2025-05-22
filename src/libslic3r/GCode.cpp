@@ -50,10 +50,11 @@
 #include "format.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <chrono>
 #include <map>
-#include <math.h>
 #include <unordered_set>
 #include <optional>
 #include <string>
@@ -74,21 +75,21 @@
 #include "SVG.hpp"
 
 #include <fast_float/fast_float.h>
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 // Intel redesigned some TBB interface considerably when merging TBB with their oneAPI set of libraries, see GH #7332.
 // We are using quite an old TBB 2017 U7. Before we update our build servers, let's use the old API, which is deprecated in up to date TBB.
 #if ! defined(TBB_VERSION_MAJOR)
-    #include <tbb/version.h>
+    #include <oneapi/tbb/version.h>
 #endif
 #if ! defined(TBB_VERSION_MAJOR)
     static_assert(false, "TBB_VERSION_MAJOR not defined");
 #endif
 #if TBB_VERSION_MAJOR >= 2021
-    #include <tbb/parallel_pipeline.h>
+    #include <oneapi/tbb/parallel_pipeline.h>
     using slic3r_tbb_filtermode = tbb::filter_mode;
 #else
-    #include <tbb/pipeline.h>
+    #include <oneapi/tbb/pipeline.h>
     using slic3r_tbb_filtermode = tbb::filter;
 #endif
 
@@ -101,7 +102,6 @@ using namespace std::literals::string_view_literals;
 #undef NDEBUG
 #endif
 
-#include <assert.h>
 
 namespace Slic3r {
 
@@ -478,12 +478,14 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
          || (layer_to_print.support_layer /* && layer_to_print.support_layer->has_extrusions() */)) {
 
             double extra_gap = (layer_to_print.support_layer ? bottom_cd : top_cd);
+            SupportZDistanceType distance_type = object.config().support_material_contact_distance_type.value;
             if (object.config().raft_layers.value > 0 && layer_to_print.layer()->id() <= object.config().raft_layers.value) {
                 extra_gap = raft_cd;
+                distance_type = object.config().raft_contact_distance_type.value;
             }
-            if (object.config().support_material_contact_distance_type.value == SupportZDistanceType::zdNone) {
+            if (distance_type == SupportZDistanceType::zdNone) {
                 extra_gap = layer_to_print.layer()->height;
-            } else if (object.config().support_material_contact_distance_type.value == SupportZDistanceType::zdFilament) {
+            } else if (distance_type == SupportZDistanceType::zdFilament) {
                 //compute the height of bridge.
                 if (layer_to_print.layer()->id() > 0 && !layer_to_print.layer()->regions().empty()) {
                     extra_gap += layer_to_print.layer()->regions().front()->bridging_flow(FlowRole::frSolidInfill).height();
@@ -491,6 +493,7 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
                     extra_gap += layer_to_print.layer()->height;
                 }
             } else { //SupportZDistanceType::zdPlane
+                assert(distance_type == SupportZDistanceType::zdPlane);
                 extra_gap += layer_to_print.layer()->height;
             }
 
@@ -598,13 +601,10 @@ namespace DoExport {
         const GCodeProcessorResult& result = processor.get_result();
         print_statistics.estimated_print_time.clear();
         print_statistics.estimated_print_time_str.clear();
-        print_statistics.estimated_normal_print_time.clear();
         print_statistics.estimated_print_time[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Normal)] =
             result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time;
         print_statistics.estimated_print_time_str[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Normal)] =
             get_time_dhms(result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time);
-        print_statistics.normal_print_time_seconds = result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal)].time;
-        print_statistics.estimated_normal_print_time = get_time_dhms(print_statistics.normal_print_time_seconds);
         if(processor.is_stealth_time_estimator_enabled()){
             print_statistics.estimated_print_time[static_cast<uint8_t>(PrintEstimatedStatistics::ETimeMode::Stealth)] =
                 result.print_statistics.modes[static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Stealth)].time;
@@ -1775,7 +1775,8 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
 
     // Collect custom seam data from all objects.
      print.set_status(0, L("Computing seam visibility areas: object %s / %s"),
-                      {"1", std::to_string(print.objects().size())}, PrintBase::SlicingStatus::SECONDARY_STATE);
+                      {"1", std::to_string(print.objects().size())},
+                      PrintBase::SlicingStatus::FORCE_SHOW | PrintBase::SlicingStatus::SECONDARY_STATE);
     m_seam_placer.init(print, this->m_throw_if_canceled);
 
     //activate first extruder is multi-extruder and not in start-gcode
@@ -4643,22 +4644,38 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         }
 
         //TODO change below things to avoid deleting more than one path, or at least preserve their flow
-        
+
+        // to change the flow, to converve the right amount of plastic (even if we remove more of it in the end)
+        auto ratio_length = [](const Point& last_point, const Point& new_pt, Point &last_proj_point, const Line &projection_line)->double {
+            Point new_proj = new_pt.projection_onto(projection_line.a, projection_line.b);
+            double dist_proj = last_proj_point.distance_to(new_proj);
+            double dist = last_point.distance_to(new_pt);
+            last_proj_point = new_proj;
+            assert(dist >= dist_proj);
+            assert(dist > 0);
+            return dist > 0 ? (dist_proj / dist) : 0;
+        };
         //reduce the flow of the notch path, as it's longer than previously
         // test if the path isn't too curved/sharp
         coordf_t length_temp = notch_length;
         if (length_temp * length_temp < 
             1.4 * notch_extrusion_start.front().polyline.front().distance_to_square(notch_extrusion_start.back().polyline.back())) {
             //create a gentle curve
-            Point p1 = Line(moved_start, Line(start_point, notch_extrusion_start.front().polyline.front()).midpoint()).midpoint();
-            Point p2 = Line(p1, building_paths.front().first_point()).midpoint();
-            p2 = Line(p2, notch_extrusion_start.back().polyline.back()).midpoint();
+
+            Point midpoint_temp = Line(moved_start, next_point).midpoint();
+            Point p1 = Line(moved_start, start_point).midpoint();
+            p1 = p1 + Line(p1, midpoint_temp).vector() * 0.3;
+            Point p2 = Line(start_point, next_point).midpoint();
+            p2 = p2 + Line(p2, midpoint_temp).vector() * 0.3;
             ExtrusionPath model(notch_extrusion_start.front());
             model.polyline.clear();
             notch_extrusion_start.clear();
-            create_new_extrusion(notch_extrusion_start, model, 0.25f, moved_start, p1);
-            create_new_extrusion(notch_extrusion_start, model, 0.5f, p1, p2);
-            create_new_extrusion(notch_extrusion_start, model, 0.75f, p2, building_paths.front().first_point());
+            Line projection_line(start_point, next_point);
+            Point proj_point = start_point;
+            // we reduce the flow even more to have a "hole" inside.
+            create_new_extrusion(notch_extrusion_start, model, ratio_length(moved_start, p1, proj_point, projection_line) * 0.5f, moved_start, p1);
+            create_new_extrusion(notch_extrusion_start, model, ratio_length(p1, p2, proj_point, projection_line) * 0.75f, p1, p2);
+            create_new_extrusion(notch_extrusion_start, model, ratio_length(p2, next_point, proj_point, projection_line) * .9f, p2, next_point);
         } //else : keep the path as-is
         for (ExtrusionPath &ep : notch_extrusion_start) {
             assert(!ep.can_reverse());
@@ -4668,25 +4685,21 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         if (length_temp * length_temp < 
             1.4 * notch_extrusion_end.front().polyline.front().distance_to_square(notch_extrusion_end.back().polyline.back())) {
             //create a gentle curve
-            Point p1 = Line(moved_end, notch_extrusion_end.front().polyline.front()).midpoint();
-            Point p2 = Line(p1, building_paths.back().last_point()).midpoint();
-            p2 = Line(p2, notch_extrusion_end.front().polyline.front()).midpoint();
+            Point midpoint_temp = Line(moved_end, prev_point).midpoint();
+            Point p1 = Line(moved_end, end_point).midpoint();
+            p1 = p1 + Line(p1, midpoint_temp).vector() * 0.3;
+            Point p2 = Line(end_point, prev_point).midpoint();
+            p2 = p2 + Line(p2, midpoint_temp).vector() * 0.3;
+
             float flow_ratio = 0.75f;
-            auto check_length_clipped = [&building_paths, &end_point, notch_length](const Point& pt_to_check) {
-                if (notch_length > 0) {
-                    double dist = pt_to_check.projection_onto(building_paths.back().last_point(), end_point).distance_to(end_point);
-                    if (dist < notch_length) {
-                        return false;
-                    }
-                }
-                return true;
-            };
             ExtrusionPath model = notch_extrusion_end.front();
             model.polyline.clear();
             notch_extrusion_end.clear();
-            create_new_extrusion(notch_extrusion_end, model, check_length_clipped(p2)?0.75f:0.f, building_paths.back().last_point(), p2);
-            create_new_extrusion(notch_extrusion_end, model, check_length_clipped(p1) ? 0.5f : 0.f, p2, p1);
-            create_new_extrusion(notch_extrusion_end, model, 0.f, p1, moved_end);
+            Line projection_line(prev_point, end_point);
+            Point proj_point = prev_point;
+            create_new_extrusion(notch_extrusion_end, model, ratio_length(prev_point, p2, proj_point, projection_line) * 0.75f, building_paths.back().last_point(), p2);
+            create_new_extrusion(notch_extrusion_end, model, ratio_length(p2, p1, proj_point, projection_line) * 0.5f, p2, p1);
+            create_new_extrusion(notch_extrusion_end, model, ratio_length(p1, moved_end, proj_point, projection_line) * 0.25f, p1, moved_end);
         } //else : keep the path as-is
     }
     for (ExtrusionPath &ep : notch_extrusion_start) {
@@ -4910,9 +4923,13 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         pt.rotate(angle, current_point);
         //check if we can go to higher dist
         if (nozzle_diam != 0 && setting_max_depth > nozzle_diam * 0.55) {
-            // call travel_to to trigger retract, so we can check it (but don't use the travel)
-            travel_to(gcode, pt, wipe_paths.front().role());
-            if (m_writer.tool()->need_unretract()) {
+            // check if retraction
+            bool has_retraction = !this->last_pos_defined();
+            if (!has_retraction) {
+                Polyline travel = Polyline(this->last_pos(), pt);
+                has_retraction = this->needs_retraction(travel, original_loop.paths.front().role(), scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) * 3);
+            }
+            if (has_retraction) {
                 this->m_throw_if_canceled();
                 dist = coordf_t(check_wipe::max_depth(wipe_paths, scale_t(setting_max_depth), scale_t(nozzle_diam), [current_pos, current_point, vec_dist, vec_norm, angle](coord_t dist)->Point {
                     Point pt = Point::round(current_pos + vec_dist * (2 * dist / vec_norm));
@@ -4931,7 +4948,11 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
         ExtrusionPath fake_path_wipe(ArcPolyline(Polyline{ pt , current_point }), wipe_paths.front().attributes(), wipe_paths.front().can_reverse());
         fake_path_wipe.attributes_mutable().mm3_per_mm = 0;
         assert(!fake_path_wipe.can_reverse());
-        gcode += extrude_path(fake_path_wipe, "move inwards before retraction/seam", speed);
+        // put travel before wipe (if ensure extrude_path don't do anything, then it's just an extra travel lost in the gcode).
+        gcode += this->_travel_before_extrude(fake_path_wipe, "wipe", speed);
+        gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_Start) + "\n";
+        gcode += this->extrude_path(fake_path_wipe, "move inwards before retraction/seam", speed);
+        gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Wipe_End) + "\n";
     }
     
     //extrusion notch start if any
@@ -5841,8 +5862,10 @@ void GCodeGenerator::extrude_ironing(const ExtrudeArgs &print_args, const LayerI
         }
         if (!temp_fill_extrusions.empty()) {
             set_region_for_extrude(print, nullptr, &layerm, gcode);
-            for (const ExtrusionEntityReference &fill : chain_extrusion_references(temp_fill_extrusions, last_pos_defined() ? &last_pos() : nullptr))
+            for (const ExtrusionEntityReference &fill :
+                 chain_extrusion_references(temp_fill_extrusions, last_pos_defined() ? &last_pos() : nullptr)) {
                 gcode += this->extrude_entity(fill, "ironing"sv);
+            }
         }
         it = it_end;
         m_region = nullptr;
@@ -6326,6 +6349,16 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
         } else if (path.role() == ExtrusionRole::GapFill) {
             speed = m_config.get_computed_value("gap_fill_speed");
             if(comment) *comment = "gap_fill_speed";
+            if (m_region) {
+                //compute intended perimeter flow
+                Flow fl = m_region->flow(*m_layer->object(), FlowRole::frPerimeter, m_layer->height, m_layer->id());
+                double max_vol_speed = fl.mm3_per_mm() * m_config.get_computed_value("perimeter_speed");
+                double current_vol_speed = path.mm3_per_mm() * speed;
+                if (max_vol_speed < current_vol_speed) {
+                    speed = max_vol_speed / path.mm3_per_mm();
+                    if(comment) *comment = "max_vol_speed (from " + (*comment) + ")";
+                }
+            }
         } else if (path.role() == ExtrusionRole::Ironing) {
             speed = m_config.get_computed_value("ironing_speed");
             if(comment) *comment = "ironing_speed";
@@ -6409,7 +6442,7 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
     // compute overhangs dynamic if needed
     // OverhangPerimeter or OverhangExternalPerimeter
     // don't need to do anything on first layer, as there is no overhangs? (at least, the data to compute them is not generated)
-    if (path.role().is_overhang() && path.attributes().overhang_attributes.has_value()) {
+    if (/*path.role().is_overhang() && */path.attributes().overhang_attributes.has_value()) {
         assert(this->layer()->id() > 0);
         double my_speed = speed;
         if(comment) *comment = "overhangs_speed";
@@ -6727,15 +6760,11 @@ void GCodeGenerator::cooldown_marker_init() {
     }
 }
 
-std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std::string_view description_in, double speed_mm_s) {
+std::string GCodeGenerator::_travel_before_extrude(const ExtrusionPath &path, const std::string_view description_in, double speed_mm_s) {
     std::string gcode;
-    gcode.reserve(512);
     std::string description{ description_in };
 
     auto [/*double*/acceleration, /*double*/travel_acceleration] = _compute_acceleration(path);
-    // compute speed here to be able to know it for travel_deceleration_use_target
-    std::string speed_comment = "";
-    speed_mm_s = _compute_speed_mm_per_sec(path, speed_mm_s, m_overhang_fan_override, m_config.gcode_comments ? &speed_comment : nullptr);
 
     bool moved_to_point = last_pos_defined() && last_pos().coincides_with_epsilon(path.first_point());
     if (m_config.travel_deceleration_use_target) {
@@ -6889,6 +6918,20 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
     }
     assert(moved_to_point);
 
+    return gcode;
+}
+
+std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std::string_view description_in, double speed_mm_s) {
+    std::string gcode;
+    gcode.reserve(512);
+    std::string description{ description_in };
+
+    // compute speed here to be able to know it for travel_deceleration_use_target
+    std::string speed_comment = "";
+    speed_mm_s = _compute_speed_mm_per_sec(path, speed_mm_s, m_overhang_fan_override, m_config.gcode_comments ? &speed_comment : nullptr);
+
+    gcode += this->_travel_before_extrude(path, description_in, speed_mm_s);
+
     //if needed, write the gcode_label_objects_end then gcode_label_objects_start
     //should be already done by travel_to, but just in case
     _add_object_change_labels(gcode);
@@ -7020,7 +7063,6 @@ std::string GCodeGenerator::_after_extrude(const ExtrusionPath &path) {
                 gcode += ";_EXTRUDE_END\n";
                 m_check_markers--;
             }
-            assert(m_check_markers == 0);
         } else {
             // Notify Coolingbuffer that the current extrusion end.
             assert(m_check_markers > 0);
@@ -7030,8 +7072,8 @@ std::string GCodeGenerator::_after_extrude(const ExtrusionPath &path) {
                 gcode += ";_EXTRUDE_END\n";
                 m_check_markers--;
             }
-            assert(m_check_markers == 0);
         }
+        assert(m_check_markers == 0);
     }
 
     if (path.role() != ExtrusionRole::GapFill ) {
@@ -8014,7 +8056,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
             check_add_eol(gcode);
         }
 
-       if (m_config.enable_pressure_advance.get_at(extruder_id)) {
+        if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
             gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
         }
 
@@ -8104,7 +8146,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.enable_pressure_advance.get_at(extruder_id)) {
+    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
         gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
     }
 

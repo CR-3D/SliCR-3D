@@ -60,9 +60,7 @@ enum class NotificationType
 	// Like NewAppAvailable but with text and link for alpha / bet release
 	NewAlphaAvailable,
 	NewBetaAvailable,
-    NoNewReleaseAvailable,
-    // Progress bar of download next version app.
-    AppDownload,
+	NoNewReleaseAvailable,
 	// Notification on the start of PrusaSlicer, when updates of system profiles are detected.
 	// Contains a hyperlink to execute installation of the new system profiles.
 	PresetUpdateAvailable,
@@ -88,6 +86,7 @@ enum class NotificationType
 	// Progress bar with info from Print Host Upload Queue dialog.
 	PrintHostUpload,
 	// Progress bar of download next version app.
+	AppDownload,
 	// Progress bar with cancel button, cannot be closed
 	// On end of slicing and G-code processing (the full G-code preview is available),
 	// contains a hyperlink to export the G-code to a removable media or hdd.
@@ -218,7 +217,6 @@ public:
 	void set_sla(bool b) { set_fff(!b); }
 	// Exporting finished, show this information with path, button to open containing folder and if ejectable - eject button
 	void push_exporting_finished_notification(const std::string& path, const std::string& dir_path, bool on_removable);
-    void push_bulk_exporting_finished_notification(const std::string& dir_path, bool on_removable);
 	// notifications with progress bar
 	// print host upload
 	void push_upload_job_notification(int id, float filesize, const std::string& filename, const std::string& host, float percentage = 0);
@@ -285,11 +283,6 @@ public:
 	bool update_notifications(GLCanvas3D& canvas);
 	// returns number of all notifications shown
 	size_t get_notification_count() const;
-    
-    // Recommendation
-    void push_recommendation_notification(const std::string& text);
-    
-    
 private:
 	// duration 0 means not disapearing
 	struct NotificationData {
@@ -786,15 +779,10 @@ private:
 	class ExportFinishedNotification : public PopNotification
 	{
 	public:
-		ExportFinishedNotification(
-            const NotificationData& n,
-            NotificationIDProvider& id_provider,
-            wxEvtHandler* evt_handler,
-            bool to_removable,
-            const std::string& export_dir_path
-        ):
-            PopNotification(n, id_provider, evt_handler)
+		ExportFinishedNotification(const NotificationData& n, NotificationIDProvider& id_provider, wxEvtHandler* evt_handler, bool to_removable,const std::string& export_path,const std::string& export_dir_path)
+			: PopNotification(n, id_provider, evt_handler)
 			, m_to_removable(to_removable)
+			, m_export_path(export_path)
 			, m_export_dir_path(export_dir_path)
 		    {
 				m_multiline = true;
@@ -929,7 +917,7 @@ private:
 	// non-static so its not loaded too early. If static, the translations wont load correctly.
 	const std::vector<NotificationData> basic_notifications = {
 	{NotificationType::Mouse3dDisconnected, NotificationLevel::RegularNotificationLevel, 10,  _u8L("3D Mouse disconnected.") },
-	{NotificationType::PresetUpdateAvailable, NotificationLevel::ImportantNotificationLevel, 20,  _u8L("Profile updates are available."),  _u8L("Click to update."),
+	{NotificationType::PresetUpdateAvailable, NotificationLevel::ImportantNotificationLevel, 20,  _u8L("Configuration update is available."),  _u8L("See more."),
 		[](wxEvtHandler* evnthndlr) {
 			if (evnthndlr != nullptr)
 				wxPostEvent(evnthndlr, PresetUpdateAvailableClickedEvent(EVT_PRESET_UPDATE_AVAILABLE_CLICKED));

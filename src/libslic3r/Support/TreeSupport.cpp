@@ -29,15 +29,15 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <optional>
-#include <stdio.h>
 #include <string>
 #include <string_view>
 
 #include <boost/log/trivial.hpp>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 // #define TREESUPPORT_DEBUG_SVG
 
@@ -330,21 +330,27 @@ ExPolygons to_expolys(Polygons polys) {
                 //enforcers_layers[layer_id] = union_(enforcers_layers[layer_id]);
                 //check_self_intersections(enforcers_layers[layer_id], "generate_overhangs - enforcers");
                 //check_self_intersections(to_polygons(lower_layer.lslices()), "generate_overhangs - lowerlayers");
-                    if (ExPolygons enforced_overhangs =
-                            intersection_ex(raw_overhangs_calculated ?
-                                                raw_overhangs :
-                                                diff_ex(current_layer.lslices(), lower_layer.lslices()),
-                                            enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
-                    ! enforced_overhangs.empty()) {
+                if (ExPolygons enforced_overhangs =
+                        intersection_ex(raw_overhangs_calculated ?
+                                            raw_overhangs :
+                                            diff_ex(current_layer.lslices(), lower_layer.lslices()),
+                                        enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
+                ! enforced_overhangs.empty()) {
                     //FIXME this is a hack to make enforcers work on steep overhangs.
                     //check_self_intersections(enforced_overhangs, "generate_overhangs - enforced overhangs1");
                     //Polygons enforced_overhangs_prev = enforced_overhangs;
                     //check_self_intersections(to_polygons(union_ex(enforced_overhangs)), "generate_overhangs - enforced overhangs11");
                     //check_self_intersections(offset(union_ex(enforced_overhangs),
                     //FIXME enforcer_overhang_offset is a fudge constant!
-                    enforced_overhangs = diff_ex(offset_ex(enforced_overhangs, enforcer_overhang_offset),
-                        lower_layer.lslices());
-                        
+                    //enforced_overhangs = diff_ex(offset_ex(enforced_overhangs, enforcer_overhang_offset),
+                    //    lower_layer.lslices());
+                    ExPolygons to_union_enforced_overhangs = enforced_overhangs;
+                    for (ExPolygon enforced_overhang : enforced_overhangs) {
+                        ExPolygons grown_enforced_overhangs = diff_ex(offset_ex(enforced_overhang, enforcer_overhang_offset), lower_layer.lslices());
+                        // one fix: remove thin areas that where created from jumps into other islands.
+                        append(to_union_enforced_overhangs, offset2_ex(grown_enforced_overhangs, -enforcer_overhang_offset/2, enforcer_overhang_offset/2));
+                    }
+                    enforced_overhangs = union_ex(to_union_enforced_overhangs);
 #ifdef TREESUPPORT_DEBUG_SVG
 //                    if (! intersecting_edges(enforced_overhangs).empty()) 
                     {
@@ -796,6 +802,7 @@ static std::optional<std::pair<Point, size_t>> polyline_sample_next_point_at_dis
 
     fill_params.density     = float(roof ? support_params.interface_density : scaled<float>(flow.spacing()) / (scaled<float>(flow.spacing()) + float(support_infill_distance)));
     fill_params.dont_adjust = true;
+    fill_params.config = &support_params.default_region_config;
     
     filler->init_spacing(flow.spacing(), fill_params);
 

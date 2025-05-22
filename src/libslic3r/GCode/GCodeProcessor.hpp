@@ -300,6 +300,8 @@ namespace Slic3r {
             Flags flags;
             FeedrateProfile feedrate_profile;
             Trapezoid trapezoid;
+            // idx of moves to update when time is recomputed.
+            std::vector<size_t> moves;
 
             // Calculates this block's trapezoid
             void calculate_trapezoid();
@@ -370,8 +372,8 @@ namespace Slic3r {
             void reset();
 
             // Simulates firmware st_synchronize() call
-            void simulate_st_synchronize(float additional_time = 0.0f);
-            void calculate_time(size_t keep_last_n_blocks = 0, float additional_time = 0.0f);
+            void simulate_st_synchronize_call(std::vector<GCodeProcessorResult::MoveVertex> &moves, float additional_time = 0.0f);
+            void calculate_time(std::vector<GCodeProcessorResult::MoveVertex> &moves, size_t keep_last_n_blocks = 0, float additional_time = 0.0f);
         };
 
         struct TimeProcessor
@@ -893,6 +895,7 @@ namespace Slic3r {
         float get_filament_load_time(size_t extruder_id);
         float get_filament_unload_time(size_t extruder_id);
         void  set_extruder_temp(float new_temp, size_t extruder_id);
+        void  move_next_layer_id();
 
         void process_custom_gcode_time(CustomGCode::Type code);
         void process_filaments(CustomGCode::Type code);

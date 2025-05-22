@@ -70,26 +70,32 @@ Flow LayerRegion::bridging_flow(FlowRole role, BridgeType force_type) const
     const PrintRegion       &region         = this->region();
     const PrintRegionConfig &region_config  = region.config();
     const PrintObject       &print_object   = *this->layer()->object();
-    // Here this->extruder(role) - 1 may underflow to MAX_INT, but then the get_at() will follback to zero'th element, so everything is all right.
-    float nozzle_diameter = float(print_object.print()->config().nozzle_diameter.get_at(region.extruder(role, *this->layer()->object()) - 1));
-    double diameter = 0;
-    BridgeType bridge_type = force_type == BridgeType::btNone ? region_config.bridge_type : force_type;
-    if (bridge_type == BridgeType::btFromFlow ) {
-        Flow reference_flow = flow(role);
-        diameter = sqrt(4 * reference_flow.mm3_per_mm() / PI);
-    } else if (bridge_type == BridgeType::btFromHeight) {
-        diameter = m_layer->height;
-    } else /*if (bridge_type == BridgeType::btFromNozzle)*/ {
-        // The good Slic3r way: Use rounded extrusions.
+        // The old Slic3r way (different from all other slicers): Use rounded extrusions.
         // Get the configured nozzle_diameter for the extruder associated to the flow role requested.
-        // Applies default bridge spacing.
-        diameter =  nozzle_diameter;
+        // Here this->extruder(role) - 1 may underflow to MAX_INT, but then the get_at() will follback to zero'th element, so everything is all right.
+    float nozzle_diameter = float(print_object.print()->config().nozzle_diameter.get_at(region.extruder(role, *this->layer()->object()) - 1));
+    BridgeType bridge_type = force_type == BridgeType::btNone ? region_config.bridge_type : force_type;
+
+    float bridge_width;
+    float bridge_height;
+
+    if (bridge_type == BridgeType::btFromFlow) {
+        Flow reference_flow = flow(role);
+        float diameter = sqrt(4 * reference_flow.mm3_per_mm() / PI);
+        bridge_width = diameter;
+        bridge_height = diameter;
     }
-    return Flow::bridging_flow(float(sqrt(force_type == BridgeType::btNone ? region_config.bridge_flow_ratio.get_abs_value(1.) : 0.95f) * diameter) , nozzle_diameter);
-    /* else {
-        // The same way as other slicers: Use normal extrusions. Apply bridge_flow_ratio while maintaining the original spacing.
-        return this->flow(role).with_flow_ratio(region_config.bridge_flow_ratio, overlap_percent);
-    }*/
+    else if (bridge_type == BridgeType::btFromHeight) {
+        bridge_height = m_layer->height;
+        bridge_width = float(sqrt(region_config.bridge_flow_ratio.get_abs_value(1.)) * nozzle_diameter);
+    }
+    else {
+        bridge_height = nozzle_diameter;
+        bridge_width  = float(sqrt(region_config.bridge_flow_ratio.get_abs_value(1.)) * nozzle_diameter);
+    }
+
+    return Flow::bridging_flow( bridge_width, bridge_height, nozzle_diameter);
+    
 }
 
 // Fill in layerm->m_fill_surfaces by trimming the layerm->slices by layerm->fill_expolygons.
@@ -1181,6 +1187,7 @@ void LayerRegion::prepare_fill_surfaces()
         the only meaningful information returned by psPerimeters. */
     
     bool spiral_vase = this->layer()->object()->print()->config().spiral_vase;
+    coordf_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
 
     // if no solid layers are requested, turn top/bottom surfaces to internal
     // For Lightning infill, infill_only_where_needed is ignored because both
@@ -1231,9 +1238,10 @@ void LayerRegion::prepare_fill_surfaces()
                     if (intersect.size() == 1 && cut.empty())
                         continue;
                     if (!intersect.empty()) {
-                        // not possible ot have no cut if the intersect size is > 1.
+                        ensure_valid(intersect, scaled_resolution);
+                        ensure_valid(cut, scaled_resolution);
+                        //not possible to have empty cut with more than one intersect
                         assert(!cut.empty());
-                        intersect[0].assert_valid();
                         surface->expolygon = std::move(intersect[0]);
                         for (int i = 1; i < intersect.size(); i++) {
                             srfs_to_add.emplace_back(*surface, std::move(intersect[i]));
@@ -1307,9 +1315,9 @@ void LayerRegion::export_region_slices_to_svg(const char *path) const
     SVG svg(path, bbox);
     const float transparency = 0.5f;
     for (const Surface &surface : this->slices())
-        svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type), transparency);
+        svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type, 0.9f), transparency);
     for (const Surface &surface : this->fill_surfaces())
-        svg.draw(surface.expolygon.lines(), surface_type_to_color_name(surface.surface_type));
+        svg.draw(to_polylines(surface.expolygon), surface_type_to_color_name(surface.surface_type), scale_t(0.1));
     export_surface_type_legend_to_svg(svg, legend_pos);
     svg.Close();
 }
@@ -1359,10 +1367,11 @@ void LayerRegion::simplify_extrusion_entity()
         enable_arc_fitting = ArcFittingType::Disabled;
     coordf_t scaled_resolution = scale_d(print_config.resolution.value);
     if (enable_arc_fitting != ArcFittingType::Disabled) {
-        scaled_resolution = scale_d(print_config.arc_fitting_resolution.get_abs_value(unscaled(scaled_resolution)));
+        scaled_resolution = scale_d(print_config.arc_fitting_resolution.get_abs_value(std::max(EPSILON, unscaled(scaled_resolution))));
     }
     if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting != ArcFittingType::Disabled ? SCALED_EPSILON * 2 : SCALED_EPSILON;
-    
+    scaled_resolution = std::max(double(SCALED_EPSILON), scaled_resolution);
+
 	//Ligne 652:     SimplifyVisitor(coordf_t scaled_resolution, ArcFittingType use_arc_fitting, const ConfigOptionFloatOrPercent *arc_fitting_tolearance)
     //call simplify for all paths
     Slic3r::SimplifyVisitor visitor{ scaled_resolution , enable_arc_fitting, &print_config.arc_fitting_tolerance, enable_arc_fitting != ArcFittingType::Disabled ? SCALED_EPSILON * 2 : SCALED_EPSILON };

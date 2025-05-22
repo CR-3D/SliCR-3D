@@ -4,6 +4,8 @@ about: Old bug report template do modify manually
 
 ---
 
+If you have some questions or want to have a second look an your problem, feel free to pay us a visit on discord.
+
 **Bug description**
 A clear and concise description of what the bug is.
 

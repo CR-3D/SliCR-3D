@@ -78,6 +78,11 @@ class PhysicalPrinterDialog : public DPIDialog
 
     wxBoxSizer*         m_presets_sizer                 {nullptr};
 
+    wxString m_stored_host;
+    PrintHostType m_last_host_type;
+    bool m_opened_as_connect{false};
+
+
     void build_printhost_settings(ConfigOptionsGroup* optgroup);
     void OnOK(wxEvent& event);
     void AddPreset(wxEvent& event);

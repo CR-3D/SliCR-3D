@@ -7,17 +7,6 @@
 
 #include <boost/log/trivial.hpp>
 
-/*
-#include <memory.h>
-#include <string.h>
-#include <float.h>
-
-#include "../libslic3r.h"
-#include "../PrintConfig.hpp"
-#include "../Utils.hpp"
-#include "Print.hpp"
-*/
-
 
 namespace Slic3r {
 
@@ -27,7 +16,10 @@ const std::string& FanMover::process_gcode(const std::string& gcode, bool flush)
 
     // recompute buffer time to recover from rounding
     m_buffer_time_size = 0;
-    for (auto& data : m_buffer) m_buffer_time_size += data.time;
+    for (auto &data : m_buffer) {
+        assert(data.time >= 0 && data.time < 1000000 && !std::isnan(data.time));
+        m_buffer_time_size += data.time;
+    }
 
     if(!gcode.empty())
         m_parser.parse_buffer(gcode,
@@ -316,8 +308,12 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
     double time = 0;
     int16_t fan_speed = -1;
     if (cmd.length() > 1) {
-        if (line.has_f())
-            m_current_speed = line.f() / 60.0f;
+        if (::toupper(cmd[0]) == 'G') {
+            assert(!line.has_f() || line.f() > 0);
+            if (line.has_f() && line.f() > 0) {
+                m_current_speed = line.f() / 60.0f;
+            }
+        }
         switch (::toupper(cmd[0])) {
         case 'A':
             _process_ACTIVATE_EXTRUDER(line.raw());
@@ -335,7 +331,9 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
                 double dist = distx * distx + disty * disty + distz * distz;
                 if (dist > 0) {
                     dist = std::sqrt(dist);
+                    assert(m_current_speed > 0 && m_current_speed < 1000000 && !std::isnan(m_current_speed));
                     time = dist / m_current_speed;
+                    assert(time >= 0 && time < 1000000 && !std::isnan(time));
                 }
             } else if (::atoi(&cmd[1]) == 2 || ::atoi(&cmd[1]) == 3) {
                 // TODO: compute real dist
@@ -344,7 +342,9 @@ void FanMover::_process_gcode_line(GCodeReader& reader, const GCodeReader::GCode
                 double dist = distx * distx + disty * disty;
                 if (dist > 0) {
                     dist = std::sqrt(dist);
+                    assert(m_current_speed > 0 && m_current_speed < 1000000 && !std::isnan(m_current_speed));
                     time = dist / m_current_speed;
+                    assert(time >= 0 && time < 1000000 && !std::isnan(time));
                 }
             }
             break;

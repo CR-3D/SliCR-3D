@@ -134,22 +134,7 @@ void load_preset(const VendorProfile &vendor_profile, PrstPtr preset_to_load)
     PresetCollection         *presets = nullptr;
     PresetBundle default_bundle; //bundle with only default presets
     PhysicalPrinterCollection *ph_printers = nullptr;
-    std::string               ph_printer_name;
-    
-    std::vector<std::string> loaded_fff_prints;
-    std::vector<std::string> loaded_filaments;
-    std::vector<std::string> loaded_sla_prints;
-    std::vector<std::string> loaded_sla_materials;
-    std::vector<std::string> loaded_printers;
-    std::vector<std::string> loaded_physical_printers;
-    std::string              active_print;
-    std::vector<std::string> active_filaments;
-    std::string              active_sla_print;
-    std::string              active_sla_material;
-    std::string              active_printer;
-    std::string              active_physical_printer;
-    size_t                   presets_loaded = 0;
-    size_t                   ph_printers_loaded = 0;
+
     bool is_print = false;
     bool is_printer = false;
 
@@ -234,7 +219,7 @@ void load_preset(const VendorProfile &vendor_profile, PrstPtr preset_to_load)
     //DynamicPrintConfig&       config = preset_to_load->con;
     //DynamicPrintConfig        config_no_prusa_convert;
     //DynamicPrintConfig        config_no_legacy_composite;
-    std::string 			  alias_name;
+    std::string               alias_name;
     std::vector<std::string>  renamed_from;
     std::map<std::pair<t_config_option_key, std::string>, std::vector<std::pair<t_config_option_key, std::string>>> opts_prusa_transformed;
         std::map<t_config_option_key, std::string> opts_deleted;
@@ -983,7 +968,7 @@ std::pair<VendorProfile, std::vector<PrstPtr>> load_sections(const std::string &
     for (PrstPtr &prst : ordered_presets_filament) {
         update_preset(vp, prst);
     }
-    std::vector<PrstPtr> ordered_presets_material = get_configbundle_hierarchy(tree, "material");
+    std::vector<PrstPtr> ordered_presets_material = get_configbundle_hierarchy(tree, "sla_material");
     add_common_deps(ordered_presets_material);
     // Apply the dependencies in their topological ordering.
     for (PrstPtr &prst : ordered_presets_material) {

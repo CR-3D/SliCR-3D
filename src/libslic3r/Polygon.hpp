@@ -92,11 +92,9 @@ public:
     bool is_clockwise() const;
     bool make_counter_clockwise();
     bool make_clockwise();
-    bool is_valid() const { return this->points.size() >= 3; assert_valid(); }
+    bool is_valid() const { assert_valid(); return this->points.size() >= 3; }
     void douglas_peucker(coord_t tolerance) override;
-    
-    void assert_valid() const;
-    
+        
     // Does an unoriented polygon contain a point?
     bool contains(const Point &point) const { return Slic3r::contains(*this, point, true); }
     // Approximate on boundary test.
@@ -129,6 +127,17 @@ public:
     size_t remove_collinear(coord_t max_offset);
     size_t remove_collinear_angle(double angle);
 
+    #ifdef _DEBUGINFO
+    void assert_valid() const override {
+        assert(size() > 2);
+        for (size_t i_pt = 1; i_pt < size(); ++i_pt)
+            release_assert(!points[i_pt - 1].coincides_with_epsilon(points[i_pt]));
+        release_assert(!points.front().coincides_with_epsilon(points.back()));
+    }
+#else
+    void assert_valid() const {}
+#endif
+
     using iterator = Points::iterator;
     using const_iterator = Points::const_iterator;
 };
@@ -155,10 +164,17 @@ bool        has_duplicate_points(const Polygons &polys);
 bool remove_same_neighbor(Polygon &polygon);
 bool remove_same_neighbor(Polygons &polygons);
 // remove any point that are at epsilon  (or resolution) 'distance' (douglas_peuckere algo for now) and all polygons that are too small to be valid
+
 void ensure_valid(Polygons &polygons, coord_t resolution = SCALED_EPSILON);
-void assert_valid(const Polygons &polygons);
 Polygons ensure_valid(Polygons &&polygons, coord_t resolution = SCALED_EPSILON);
 Polygons ensure_valid(coord_t resolution, Polygons &&polygons);
+// return false if the polygon isn't valid and need to be removed.
+bool ensure_valid(Polygon &polygon, coord_t resolution = SCALED_EPSILON);
+#ifdef _DEBUGINFO
+void assert_valid(const Polygons &polygons);
+#else
+inline void assert_valid(const Polygons &polygons) {}
+#endif
 
 inline double total_length(const Polygons &polylines) {
     double total = 0;
@@ -271,12 +287,25 @@ inline Polyline to_polyline(const Polygon &polygon)
     return out;
 }
 
+// to have easier time with svg output.
+inline Polylines to_polylines(const Polygon &polygon)
+{
+    Polylines out;
+    assert(!polygon.empty());
+    if (!polygon.empty()) {
+        out.push_back(to_polyline(polygon));
+    }
+    return out;
+}
+
 inline Polylines to_polylines(const Polygons &polygons)
 {
     Polylines out;
     out.reserve(polygons.size());
-    for (const Polygon &polygon : polygons)
-        out.emplace_back(to_polyline(polygon));
+    for (const Polygon &polygon : polygons) {
+        assert(!polygon.empty());
+        out.push_back(to_polyline(polygon));
+    }
     return out;
 }
 

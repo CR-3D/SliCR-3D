@@ -290,7 +290,7 @@ void AppConfig::set_defaults()
             set("check_material_export", "0");
 
         if (get("show_unknown_setting").empty())
-            set("show_unknown_setting", "1");
+            set("show_unknown_setting", "0");
 
         if (get("use_custom_toolbar_size").empty())
             set("use_custom_toolbar_size", "0");

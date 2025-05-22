@@ -68,6 +68,22 @@ void Layer::make_slices()
         ensure_valid(slices, std::max(scale_t(this->object()->print()->config().resolution), SCALED_EPSILON));
         for (ExPolygon &poly : slices) poly.assert_valid();
         // lslices are sorted by topological order from outside to inside from the clipper union used above
+#ifdef _DEBUG
+        if (slices.size() > 1) {
+            std::vector<BoundingBox> bboxes;
+            bboxes.emplace_back(slices[0].contour.points);
+            for (size_t check_idx = 1; check_idx < slices.size(); ++check_idx) {
+                assert(bboxes.size() == check_idx);
+                bboxes.emplace_back(slices[check_idx].contour.points);
+                for (size_t bigger_idx = 0; bigger_idx < check_idx; ++bigger_idx) {
+                    // higher idx can be inside holes, but not the opposite!
+                    if (bboxes[check_idx].contains(bboxes[bigger_idx])) {
+                        assert(!slices[check_idx].contour.contains(slices[bigger_idx].contour.first_point()));
+                    }
+                }
+            }
+        }
+#endif
         this->set_lslices() = slices;
     }
 
@@ -710,6 +726,7 @@ void Layer::make_perimeters()
                             && config.overhangs_width           == other_config.overhangs_width
                             && config.overhangs_reverse         == other_config.overhangs_reverse
                             && config.overhangs_reverse_threshold == other_config.overhangs_reverse_threshold
+                            && config.wall_sequence               == other_config.wall_sequence
                             && config.perimeter_acceleration    == other_config.perimeter_acceleration
                             && config.perimeter_direction       == other_config.perimeter_direction
                             && config.perimeter_extrusion_width == other_config.perimeter_extrusion_width
@@ -727,7 +744,6 @@ void Layer::make_perimeters()
                             && config.thin_walls                == other_config.thin_walls
                             && config.thin_walls_acceleration   == other_config.thin_walls_acceleration
                             && config.thin_walls_min_width      == other_config.thin_walls_min_width
-                            && config.thin_walls_overlap        == other_config.thin_walls_overlap
                             && config.thin_perimeters           == other_config.thin_perimeters
                             && config.thin_perimeters_all       == other_config.thin_perimeters_all
                             && config.thin_walls_speed          == other_config.thin_walls_speed
@@ -797,6 +813,7 @@ void Layer::make_perimeters()
                     //        LayerRegion &layerm = *m_regions[region_id];
                     //        // Separate the fill surfaces.
                     //        ExPolygons expp = intersection_ex(to_expolygons(new_slices.surfaces), fill_expolygons);
+                    //        ensure_valid(expp, scaled_resolution);
                     //        layerm.m_fill_expolygons = expp;
                     //        if (layerm_config != m_regions[region_id]) {
                     //            layerm.m_fill_no_overlap_expolygons = (layerm_config)->fill_no_overlap_expolygons();
@@ -991,6 +1008,7 @@ void Layer::sort_perimeters_into_islands(
                 LayerRegion &l = *m_regions[region_idx];
                 ExPolygons l_slices_exp = to_expolygons(l.slices().surfaces);
                 l.m_fill_expolygons = intersection_ex(l_slices_exp, fill_expolygons);
+                ensure_valid(l.m_fill_expolygons, scaled_resolution);
                 //copy m_fill_no_overlap_expolygons in sister LayerRegion. It will serve as a mask (with intersection). TODO: maybe to intersection(m_fill_no_overlap_expolygons, l.slices().surfaces)
                 if (&this_layer_region != &l) {
                     assert(l.m_fill_no_overlap_expolygons.empty());
@@ -1092,9 +1110,11 @@ void Layer::sort_perimeters_into_islands(
                         fills[new_positions[old_pos]]       = std::move(fills_temp[old_pos]);
                         fill_bboxes[new_positions[old_pos]] = std::move(fill_bboxes_temp[old_pos]);
                     }
+                    assert_valid(fills);
                 }
             } while (sort_region_id != -1);
         } else {
+            ensure_valid(fill_expolygons, scaled_resolution);
             this_layer_region.m_fill_expolygons        = std::move(fill_expolygons);
             this_layer_region.m_fill_expolygons_bboxes = std::move(fill_expolygons_bboxes);
         }

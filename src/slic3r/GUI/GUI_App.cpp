@@ -217,14 +217,19 @@ public:
 
         wxDisplay main_display;
         wxRect display_size = main_display.GetClientArea();
+        wxSize ppi = main_display.GetPPI();
         //display_size.width = 1920;
         // the scaling factor is for text, not pictures.
         //double scaling = main_display.GetScaleFactor();
         
+        if (ppi.x != 0 && ppi.y != 0) {
+            scaling = scaling * ppi.y / 80.;
+        }
+
         //check if the spashscreen fit
-        scaling = std::min(
+        scaling = std::min( scaling, std::min(
             (display_size.width - display_size.x) * 0.8 / width,
-            (display_size.height - display_size.y) * 0.8 / height);
+            (display_size.height - display_size.y) * 0.8 / height));
         // if screen very small, use all the space avaialble
         if (scaling < 0.5) {
             scaling = std::min(
@@ -235,6 +240,8 @@ public:
             // don't grow with fractional scaling
             if (scaling > 1.8) {
                 scaling = 2 * int(scaling * 0.56);
+            } else if (scaling > 1.4) {
+                scaling = 1.5;
             } else {
                 scaling = 1.;
             }
@@ -1843,7 +1850,7 @@ void GUI_App::update_ui_colours_from_appconfig() {
         color_from_int(app_config->create_color(1.00f, 0.99f, AppConfig::EAppColorType::Main));
     m_color_selected_btn_bg = is_dark_mode ?
         color_from_int(app_config->create_color(0.35f, 0.37f, AppConfig::EAppColorType::Main)) :
-        color_from_int(app_config->create_color(0.05f, 0.9f, AppConfig::EAppColorType::Main));
+        color_from_int(app_config->create_color(0.51f, 0.47f, AppConfig::EAppColorType::Main));
 #endif
 
     // also update imgui color cache... can be moved if you have a better placee it
@@ -3762,7 +3769,7 @@ void GUI_App::show_downloader_registration_dialog() {
         auto downloader_worker = new DownloaderUtils::Worker(nullptr);
         downloader_worker->perform_register(app_config->get("url_downloader_dest"));
 #ifdef __linux__
-        if (downloader_worker->get_perform_registration_linux())
+        if (downloader_worker->perform_registration_linux())
             DesktopIntegrationDialog::perform_downloader_desktop_integration();
 #endif // __linux__
     } else {
@@ -4034,15 +4041,15 @@ void GUI_App::on_version_read(wxCommandEvent &evt) {
         return;
     }
     // notification
-    /*
+    
      this->plater_->get_notification_manager()->push_notification(NotificationType::NewAppAvailable
      , NotificationManager::NotificationLevel::ImportantNotificationLevel
      , Slic3r::format(_u8L("New release version %1% is available."), evt.GetString())
      , _u8L("See Download page.")
-     , [](wxEvtHandler* evnthndlr) {wxGetApp().open_web_page_localized("https://www.prusa3d.com/slicerweb"); return
+     , [](wxEvtHandler* evnthndlr) {wxGetApp().open_web_page_localized("https://github.com/CR-3D/SliCR-3D/releases"); return
      true; }
      );
-     */
+     
     // updater
     // read triggered_by_user that was set when calling  GUI_App::app_version_check
     app_updater(m_app_updater->get_triggered_by_user());

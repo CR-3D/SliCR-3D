@@ -73,6 +73,9 @@ then
     exit -1
 fi
 
+BUILD_ARCH="x86_64"
+BUILD_ARCH_x86="x86_64"
+
 while getopts ":idaxbhcsltwrv" opt; do
   case ${opt} in
     i )
@@ -151,14 +154,44 @@ fi
 echo "Build architecture: ${BUILD_ARCH}"
 echo "Build IMG_ARCH=${BUILD_IMG_ARCH}\n"
 
-echo "\n/Applications:\n"
+echo "\nls /Applications:\n"
 ls /Applications
-echo "\n/Applications/Xcode_13.2.1.app:\n"
-ls /Applications/Xcode_13.2.1.app
-echo "\n/Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
-ls /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
-echo "\n/Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib:\n"
-ls /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib
+echo "\nnls /Applications/Xcode_14.3.1.app:\n"
+ls /Applications/Xcode_14.3.1.app
+echo "\nnls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/lib:\n"
+ls /Applications/Xcode_14.3.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.3.sdk/usr/lib
+echo "\nnls /Applications/Xcode_15.2.0.app:\n"
+ls /Applications/Xcode_15.2.0.app
+echo "\nnls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/usr/lib:\n"
+ls /Applications/Xcode_15.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.2.sdk/usr/lib
+echo "\nnls /Applications/Xcode_15.4.0.app:\n"
+ls /Applications/Xcode_15.4.0.app
+echo "\nnls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/usr/lib:\n"
+ls /Applications/Xcode_15.4.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/usr/lib
+echo "\nnls /Applications/Xcode_16.2.0.app:\n"
+ls /Applications/Xcode_16.2.0.app
+echo "\nnls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs:\n"
+ls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs
+echo "\nnls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/lib:\n"
+ls /Applications/Xcode_16.2.0.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.2.sdk/usr/lib
+
+# if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+# then
+    # echo "Switch to xcode Xcode_14.3.1"
+    # sudo xcode-select -s /Applications/Xcode_14.3.1.app/Contents/Developer
+    # sudo mv -f /Applications/Xcode_15.0.1.app /Applications/NO_Xcode_15.0.1.app
+    # sudo mv -f /Applications/Xcode_15.0.app /Applications/NO_Xcode_15.0.app
+    # sudo mv -f /Applications/Xcode_15.1.0.app Applications/NO_Xcode_15.1.0.app
+    # sudo mv -f /Applications/Xcode_15.1.app /Applications/NO_Xcode_15.1.app
+    # sudo mv -f /Applications/Xcode_15.2.0.app /Applications/NO_Xcode_15.2.0.app
+    # sudo mvv /Applications/Xcode_15.2.app /Applications/NO_Xcode_15.2.app
+# fi
 
 # Iconv: /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/lib/libiconv.tbd
 echo "\nbrew --prefix libiconv:\n"
@@ -174,7 +207,7 @@ brew --prefix zstd
 export $BUILD_ARCH
 export LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix zstd)/lib/
 
-echo -n "[1/9] Updating submodules..."
+echo -n "[1/8] Updating submodules..."
 {
     # update submodule profiles
     pushd resources/profiles
@@ -186,12 +219,12 @@ echo "done"
 
 if [[ -n "$VERSION_DATE" ]]
 then
-	echo -n "[2/9] Changing date in version ... "
+	echo -n "[2/8] Changing date in version ... "
     # change date in version
     sed "s/+UNKNOWN/-$(date '+%F')/" version.inc > version.date.inc
 	echo "done"
 else
-	echo -n "[2/9] Changing date in version: remove UNKNOWN ... "
+	echo -n "[2/8] Changing date in version: remove UNKNOWN ... "
     sed "s/+UNKNOWN//" version.inc > version.date.inc
 	echo "done"
 fi
@@ -209,7 +242,7 @@ then
     then
         mkdir deps/build
     fi
-    echo -e " \n[3/9] Configuring dependencies ... \n"
+    echo -e " \n[3/8] Configuring dependencies ... \n"
     BUILD_ARGS=""
     if [[ -n "$BUILD_ARCH" ]]
     then
@@ -220,9 +253,16 @@ then
         BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
     fi
     # cmake deps
-    echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.15\" ${BUILD_ARCH} "
-    pushd deps/build > /dev/null
-    cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" $BUILD_ARGS
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+    then
+        echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
+        pushd deps/build > /dev/null
+        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
+    else
+        echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
+        pushd deps/build > /dev/null
+        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
+    fi
     if [ $? -eq 0 ]
     then
         echo -e "\n ... done\n"
@@ -231,7 +271,7 @@ then
         exit 1 # terminate and indicate error
     fi
 
-    echo -e "[4/9] Building dependencies ...\n"
+    echo -e "[4/8] Building dependencies ...\n"
 
     # make deps
     make -j$NCORES
@@ -243,20 +283,12 @@ then
         exit 1 # terminate and indicate error
     fi
 
-    echo -e "[5/9] Renaming wxscintilla library ...\n"
-
-    # rename wxscintilla
-    pushd destdir/usr/local/lib > /dev/null
-    cp libwxscintilla-3.2.a libwx_osx_cocoau_scintilla-3.2.a
-
     popd > /dev/null
-    popd > /dev/null
-    echo -e "\n ... done\n"
 fi
 
 if [[ -n "$BUILD_CLEANDEPEND" ]]
 then
-    echo -e "[6/9] Cleaning dependencies...\n"
+    echo -e "[5/8] Cleaning dependencies...\n"
     pushd deps/build
     pwd
     rm -fr dep_*
@@ -266,7 +298,7 @@ fi
 
 if [[ -n "$BUILD_SLIC3R" ]]
 then
-    echo -e "[5/9] Configuring Slicer ...\n"
+    echo -e "[4/8] Configuring Slicer ...\n"
 
     if [[ -n $BUILD_WIPE ]]
     then
@@ -304,7 +336,12 @@ then
 
     # cmake
     pushd build > /dev/null
-    cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+    then
+        cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
+    else
+        cmake .. -DCMAKE_PREFIX_PATH="$PWD/../deps/build/destdir/usr/local" -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" -DSLIC3R_STATIC=1 ${BUILD_ARGS}
+    fi
     if [ $? -eq 0 ]
     then
         echo -e "\n ... done\n"
@@ -316,7 +353,7 @@ then
     # make Slic3r
     if [[ -z "$BUILD_XCODE" ]]
     then
-        echo -e "\n[6/9] Building Slicer ...\n"
+        echo -e "\n[5/8] Building Slicer ...\n"
         make -j$NCORES Slic3r
         if [ $? -eq 0 ]
         then
@@ -327,7 +364,7 @@ then
         fi
     fi
 
-    echo -e "\n[7/9] Generating language files ...\n"
+    echo -e "\n[6/8] Generating language files ...\n"
     #make .mo
     if [[ -n "$UPDATE_POTFILE" ]]
     then
@@ -360,9 +397,9 @@ then
     chmod 755 $ROOT/build/src/BuildMacOSImage.sh
     pushd build  > /dev/null
     echo "> $ROOT/build/src/BuildMacOSImage.sh -i ${BUILD_IMG_ARCH}"
-    if [[ -n "$BUILD_DOWNLOAD_DEP" ]]
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
     then
-        $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH
+        $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH -z
     else
         $ROOT/build/src/BuildMacOSImage.sh -i $BUILD_IMG_ARCH -z
     fi

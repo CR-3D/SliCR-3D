@@ -10,6 +10,7 @@
 #include "Utils.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <deque>
 #include <queue>
@@ -19,8 +20,8 @@
 
 #include <boost/log/trivial.hpp>
 
-#include <tbb/parallel_for.h>
-#include <tbb/scalable_allocator.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/scalable_allocator.h>
 
 #include <ankerl/unordered_dense.h>
 
@@ -36,7 +37,6 @@
 // #define SLIC3R_TRIANGLEMESH_DEBUG
 #endif
 
-#include <assert.h>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/lock_guard.hpp>
 

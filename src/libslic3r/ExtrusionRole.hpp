@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <cstdint>
+#include <cassert>
 
 namespace Slic3r {
 //that's good and clean but a pain in the ass to debug with the debuggeur.
@@ -191,7 +192,7 @@ public:
     }
 
     //modifiers
-    static constexpr const ExtrusionRoleModifier Bridge{ExtrusionRoleModifier::ERM_Bridge};
+    //static constexpr const ExtrusionRoleModifier Bridge{ExtrusionRoleModifier::ERM_Bridge};
 
     static constexpr const ExtrusionRoleModifier None{};
     // Internal perimeter, not bridging.

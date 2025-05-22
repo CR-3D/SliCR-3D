@@ -780,7 +780,7 @@ DynamicPrintConfig PresetBundle::full_fff_config() const
                 // Get an option, do not create if it does not exist.
                 const ConfigOption *opt_src = filament_configs.front()->option(key);
                 if (opt_src != nullptr)
-                    opt_dst->set(opt_src);
+                    opt_dst->set(*opt_src);
             } else {
                 // Setting a vector value from all filament_configs.
                 for (size_t i = 0; i < filament_opts.size(); ++ i)
@@ -872,15 +872,15 @@ DynamicPrintConfig PresetBundle::full_sla_config() const
     out.erase("compatible_printers");
     out.erase("compatible_printers_condition");
     out.erase("inherits");
-    
+
     out.option<ConfigOptionString >("sla_print_settings_id",    true)->value  = this->sla_prints.get_selected_preset_name();
     out.option<ConfigOptionString >("sla_material_settings_id", true)->value  = this->sla_materials.get_selected_preset_name();
     out.option<ConfigOptionString >("printer_settings_id",      true)->value  = this->printers.get_selected_preset_name();
     out.option<ConfigOptionString >("physical_printer_settings_id", true)->value = this->physical_printers.get_selected_printer_name();
 
-    out.option<ConfigOptionBool >("sla_print_settings_id",      true)->value  = this->sla_prints.get_selected_preset().is_dirty;
-    out.option<ConfigOptionBool >("sla_material_settings_id",   true)->value  = this->sla_materials.get_selected_preset().is_dirty;
-    out.option<ConfigOptionBool >("printer_settings_id",        true)->value  = this->printers.get_selected_preset().is_dirty;
+    out.option<ConfigOptionBool >("sla_print_settings_modified",      true)->value  = this->sla_prints.get_selected_preset().is_dirty;
+    out.option<ConfigOptionBool >("sla_material_settings_modified",   true)->value  = this->sla_materials.get_selected_preset().is_dirty;
+    out.option<ConfigOptionBool >("printer_settings_modified",        true)->value  = this->printers.get_selected_preset().is_dirty;
 
     // Serialize the collected "compatible_printers_condition" and "inherits" fields.
     // There will be 1 + num_exturders fields for "inherits" and 2 + num_extruders for "compatible_printers_condition" stored.
@@ -1093,10 +1093,10 @@ void PresetBundle::load_config_file_config(const std::string &name_or_path, bool
                     continue;
                 if (other_opt->is_scalar()) {
                     for (size_t i = 0; i < configs.size(); ++ i)
-                        configs[i].option(key, false)->set(other_opt);
+                        configs[i].option(key, false)->set(*other_opt);
                 } else if (key != "compatible_printers" && key != "compatible_prints") {
                     for (size_t i = 0; i < configs.size(); ++ i)
-                        static_cast<ConfigOptionVectorBase*>(configs[i].option(key, false))->set_at(other_opt, 0, i);
+                        static_cast<ConfigOptionVectorBase*>(configs[i].option(key, false))->set_at(*other_opt, 0, i);
                 }
             }
             // Load the configs into this->filaments and make them active.
@@ -1243,11 +1243,12 @@ static void flatten_configbundle_hierarchy(boost::property_tree::ptree &tree, co
         const_cast<pt::ptree*>(prst.node)->erase("inherits");
         if (! inherits_system.empty()) {
             // Loaded a user config bundle, where a profile inherits a system profile.
-			// User profile should be derived from a single system profile only.
-			assert(inherits_system.size() == 1);
-			if (inherits_system.size() > 1)
-				BOOST_LOG_TRIVIAL(error) << "flatten_configbundle_hierarchy: The preset " << prst.name << " inherits from more than single system preset";
-			prst.node->put("inherits", Slic3r::escape_string_cstyle(inherits_system.front()));
+            // User profile should be derived from a single system profile only.
+            assert(inherits_system.size() == 1);
+            if (inherits_system.size() > 1)
+                BOOST_LOG_TRIVIAL(error) << "flatten_configbundle_hierarchy: The preset " << prst.name
+                                         << " inherits from more than single system preset";
+            prst.node->put("inherits", Slic3r::escape_string_cstyle(inherits_system.front()));
         }
     }
 

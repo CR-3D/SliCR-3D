@@ -14,6 +14,7 @@
 
 #include <wx/tokenzr.h>
 
+#include "libslic3r/Config.hpp"
 #include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Color.hpp"
@@ -67,7 +68,7 @@ static std::string def_text_color()
     return encode_color(ColorRGB(def_colour.Red(), def_colour.Green(), def_colour.Blue()));
 }
 static std::string grey     = "#808080";
-static std::string orange   = "#ed6b21";
+static std::string orange   = "#1A7476";
 
 static void color_string(wxString& str, const std::string& color)
 {
@@ -593,15 +594,6 @@ void DiffModel::Clear()
         Delete(wxDataViewItem(m_preset_nodes.back().get()));
 }
 
-
-static std::string get_pure_opt_key(std::string opt_key)
-{
-    const int pos = opt_key.find("#");
-    if (pos > 0)
-        boost::erase_tail(opt_key, opt_key.size() - pos);
-    return opt_key;
-}    
-
 // ----------------------------------------------------------------------------
 //                  DiffViewCtrl
 // ----------------------------------------------------------------------------
@@ -662,11 +654,16 @@ void DiffViewCtrl::Rescale(int em /*= 0*/)
 }
 
 
-void DiffViewCtrl::Append(  const std::string& opt_key, Preset::Type type, 
-                            wxString category_name, wxString group_name, wxString option_name,
-                            wxString old_value, wxString mod_value, wxString new_value, const std::string category_icon_name)
-{
-    ItemData item_data = { opt_key, option_name, old_value, mod_value, new_value, type };
+void DiffViewCtrl::Append(const OptionKeyIdx &opt_key_idx,
+                          Preset::Type type,
+                          wxString category_name,
+                          wxString group_name,
+                          wxString option_name,
+                          wxString old_value,
+                          wxString mod_value,
+                          wxString new_value,
+                          const std::string category_icon_name) {
+    ItemData item_data = { opt_key_idx, option_name, old_value, mod_value, new_value, type };
 
     wxString old_val = get_short_string(item_data.old_val);
     wxString mod_val = get_short_string(item_data.mod_val);
@@ -769,7 +766,7 @@ std::vector<std::string> DiffViewCtrl::options(Preset::Type type, bool selected)
 
     for (auto item : m_items_map) {
         if (item.second.type == type && model->IsEnabledItem(item.first) == selected)
-            ret.emplace_back(get_pure_opt_key(item.second.opt_key));
+            ret.emplace_back(item.second.opt_key_idx.key);
     }
 
     return ret;
@@ -781,7 +778,7 @@ std::vector<std::string> DiffViewCtrl::selected_options()
 
     for (auto item : m_items_map)
         if (model->IsEnabledItem(item.first))
-            ret.emplace_back(get_pure_opt_key(item.second.opt_key));
+            ret.emplace_back(item.second.opt_key_idx.key);
 
     return ret;
 }
@@ -1067,24 +1064,6 @@ bool UnsavedChangesDialog::save(PresetCollection* dependent_presets, bool show_s
     return true;
 }
 
-static size_t get_id_from_opt_key(std::string opt_key)
-{
-    int pos = opt_key.find("#");
-    if (pos > 0) {
-        boost::erase_head(opt_key, pos + 1);
-        return static_cast<size_t>(atoi(opt_key.c_str()));
-    }
-    return size_t(-1);
-}
-
-static wxString get_full_label(std::string opt_key, const DynamicPrintConfig& config)
-{
-    opt_key = get_pure_opt_key(opt_key);
-
-    const ConfigOptionDef* opt = config.def()->get(opt_key);
-    return opt->full_label.empty() ? opt->label : opt->full_label;
-}
-
 wxString graph_to_string(const GraphData &graph)
 {
     wxString str = "";
@@ -1098,10 +1077,10 @@ wxString graph_to_string(const GraphData &graph)
     return str;
 }
 
-static wxString get_string_value(std::string opt_key, const DynamicPrintConfig& config)
+static wxString get_string_value(const OptionKeyIdx &opt_key_id, const DynamicPrintConfig& config)
 {
-    size_t opt_idx = get_id_from_opt_key(opt_key);
-    opt_key = get_pure_opt_key(opt_key);
+    int32_t opt_idx = opt_key_id.idx;
+    const std::string &opt_key = opt_key_id.key;
 
     wxString serialized_str = _L("Undef");
 
@@ -1111,7 +1090,7 @@ static wxString get_string_value(std::string opt_key, const DynamicPrintConfig& 
     
     
     const ConfigOption* option = config.option(opt_key);
-    bool full_serialize = option->size() > 1 && (opt_idx < 0 || opt_idx >= option->size());
+    bool full_serialize = option->size() > 1 && (opt_idx < 0 || opt_idx >= int32_t(option->size()));
     if (!full_serialize && !option->is_scalar()) {
         opt_idx = 0;
     }
@@ -1205,7 +1184,7 @@ static wxString get_string_value(std::string opt_key, const DynamicPrintConfig& 
             break;
         }
         if (!strings->empty()) {
-            if (opt_idx < strings->size()) {
+            if (opt_idx < int32_t(strings->size())) {
                 serialized_str = option->is_enabled(opt_idx) ? "" : "Disabled:";
                 serialized_str += from_u8(strings->get_at(opt_idx));
             } else {
@@ -1371,8 +1350,7 @@ void UnsavedChangesDialog::update_tree(Preset::Type type, PresetCollection* pres
         m_tree->model->AddPreset(type, from_u8(presets->get_edited_preset().name), old_pt, from_u8(new_selected_preset));
 
         // Collect dirty options.
-        const bool deep_compare = type != Preset::TYPE_FFF_FILAMENT && type != Preset::TYPE_SLA_MATERIAL;
-        auto dirty_options = presets->current_dirty_options(deep_compare);
+        std::map<OptionKeyIdx, uint16_t> dirty_options = presets->dirty_options(&presets->get_edited_preset(), &presets->get_selected_preset());
 
         // process changes of extruders count
         if (type == Preset::TYPE_PRINTER && old_pt == ptFFF &&
@@ -1384,33 +1362,33 @@ void UnsavedChangesDialog::update_tree(Preset::Type type, PresetCollection* pres
 
             assert(category_icon_map.find(wxGetApp().get_tab(type)->get_page(0)->title()) != category_icon_map.end());
             if(wxGetApp().get_tab(type)->get_page_count() > 0)
-                m_tree->Append("extruders_count", type, wxGetApp().get_tab(type)->get_page(0)->title()/*_L("General")*/, _L("Capabilities"), local_label, old_val, mod_val, new_val, 
+                m_tree->Append(OptionKeyIdx::scalar("extruders_count"), type, wxGetApp().get_tab(type)->get_page(0)->title()/*_L("General")*/, _L("Capabilities"), local_label, old_val, mod_val, new_val, 
                     category_icon_map.find(wxGetApp().get_tab(type)->get_page(0)->title()) != category_icon_map.end() ? category_icon_map.at(wxGetApp().get_tab(type)->get_page(0)->title()) : "wrench"/*category_icon_map.at("General")*/);
         }
         //TODO same for milling head?
 
-        for (const std::string& opt_key : dirty_options) {
-            const Search::Option& option = searcher.get_option(opt_key, type); //FIXME serach for current mode.
-            if (option.opt_key_with_idx() != opt_key) {
+        for (auto &[opt_key_id, flag] : dirty_options) {
+            const Search::SearchOption& option = searcher.get_option(opt_key_id.key, opt_key_id.idx, type); //FIXME serach for current mode.
+            if (option.opt_key() != opt_key_id.key || option.idx != opt_key_id.idx) {
                 // When founded option isn't the correct one.
                 // It can be for dirty_options: "default_print_profile", "printer_model", "printer_settings_id",
                 // because of they don't exist in searcher
                 if ((std::set<std::string>{"default_print_profile", "printer_model", "printer_settings_id",
-                                           "filament_settings_id", "print_settings_id", "inherits"})
-                        .count(opt_key) > 0)
+                                           "filament_settings_id", "print_settings_id", "inherits", "print_version"})
+                        .count(opt_key_id.key) > 0)
                 continue;
 
                 // may be a setting that isn't in the gui, but is still in the system (like seam_position when we use s_seam_position instead of it)
                 // TODO find a way to show the script widget. maybe the script widget must register itself for all dependencies (for the mode).
-                m_tree->Append(opt_key, type, "hidden", "hidden", opt_key,
-                    get_string_value(opt_key, old_config), get_string_value(opt_key, mod_config), get_string_value(opt_key, new_config), "wrench");
+                m_tree->Append(opt_key_id, type, "hidden", "hidden", opt_key_id.key,
+                    get_string_value(opt_key_id, old_config), get_string_value(opt_key_id, mod_config), get_string_value(opt_key_id, new_config), "wrench");
                 continue;
 
             }
 
-            m_tree->Append(opt_key, type, option.category_local, option.group_local, option.label_local,
-                get_string_value(opt_key, old_config), get_string_value(opt_key, mod_config),
-                     m_tree->has_new_value_column() ? get_string_value(opt_key, new_config) : "",
+            m_tree->Append(opt_key_id, type, option.category_local, option.group_local, option.label_local,
+                get_string_value(opt_key_id, old_config), get_string_value(opt_key_id, mod_config),
+                     m_tree->has_new_value_column() ? get_string_value(opt_key_id, new_config) : "",
                      category_icon_map.find(option.category) != category_icon_map.end() ? category_icon_map.at(option.category) : "wrench");
         }
     }
@@ -1944,23 +1922,23 @@ void DiffPresetDialog::update_tree()
             wxString left_val = from_u8((boost::format("%1%") % left_config.opt<ConfigOptionStrings>("extruder_colour")->size()).str());
             wxString right_val = from_u8((boost::format("%1%") % right_congig.opt<ConfigOptionStrings>("extruder_colour")->size()).str());
 
-            m_tree->Append("extruders_count", type, _L("General"), _L("Capabilities"), local_label, left_val, right_val, "", category_icon_map.at("General"));
+            m_tree->Append(OptionKeyIdx::scalar("extruders_count"), type, _L("General"), _L("Capabilities"), local_label, left_val, right_val, "", category_icon_map.at("General"));
         }
 
-        for (const std::string& opt_key : dirty_options) {
-            wxString left_val = get_string_value(opt_key, left_config);
-            wxString right_val = get_string_value(opt_key, right_congig);
+        for (auto &[opt_key_id, flag] : dirty_options) {
+            wxString left_val = get_string_value(opt_key_id, left_config);
+            wxString right_val = get_string_value(opt_key_id, right_congig);
 
-            Search::Option option = searcher.get_option_names(opt_key/*, get_full_label(opt_key, left_config)*/, type);
-            if (option.opt_key_with_idx() != opt_key) {
+            Search::SearchOption option = searcher.get_option_names(opt_key_id.key, opt_key_id.idx, type);
+            if (option.opt_key() != opt_key_id.key || option.idx != opt_key_id.idx) {
                 // temporary solution, just for testing
-                m_tree->Append(opt_key, type, _L("Undef category"), _L("Undef group"), opt_key, left_val, right_val, "", "question");
+                m_tree->Append(opt_key_id, type, _L("Undef category"), _L("Undef group"), opt_key_id.key, left_val, right_val, "", "question");
                 // When founded option isn't the correct one.
                 // It can be for dirty_options: "default_print_profile", "printer_model", "printer_settings_id",
                 // because of they don't exist in searcher
                 continue;
             }
-            m_tree->Append(opt_key, type, option.category_local, option.group_local, option.label_local,
+            m_tree->Append(opt_key_id, type, option.category_local, option.group_local, option.label_local,
                 left_val, right_val, "", category_icon_map.at(option.category));
         }
     }

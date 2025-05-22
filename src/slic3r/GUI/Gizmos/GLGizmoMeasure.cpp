@@ -18,7 +18,7 @@
 
 #include <GL/glew.h>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #include <wx/clipbrd.h>
 

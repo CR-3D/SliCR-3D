@@ -10,10 +10,10 @@
 #ifndef slic3r_FillBase_hpp_
 #define slic3r_FillBase_hpp_
 
-#include <assert.h>
-#include <memory.h>
-#include <float.h>
-#include <stdint.h>
+#include <cassert>
+#include <cfloat>
+#include <cstdint>
+#include <memory>
 #include <stdexcept>
 
 #include <type_traits>

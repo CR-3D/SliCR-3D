@@ -62,6 +62,13 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
         is_msg_dlg_already_exist = false;
     }
 
+    // if linking layer heights is true then synchronize first and base height
+    if (config->opt_bool("link_layer_heights")) {
+       DynamicPrintConfig new_conf = *config;
+       new_conf.set_key_value("first_layer_height", new ConfigOptionFloatOrPercent(config->opt_float("layer_height"), 0));
+       apply(config, &new_conf);
+    }
+   
     double fill_density = config->option<ConfigOptionPercent>("fill_density")->value;
 
     if (config->opt_bool("spiral_vase") && !(
@@ -260,8 +267,6 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
         }
     }
 
-    static bool support_material_overhangs_queried = false;
-
     // Check "support_material" and "overhangs" relations only on global settings level
     if (is_global_config && config->opt_bool("support_material")) {
         // Ask only once.
@@ -269,7 +274,8 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             m_support_material_overhangs_queried = true;
             if (!config->option("overhangs_width_speed")->is_enabled()) {
                 wxString msg_text = _(L("Supports work better, if the following feature is enabled:\n"
-                    "- overhangs threshold for speed & fan"));
+                    "- overhangs threshold for speed & fan\n"
+                    "- overhangs threshold for flow"));
                 if (is_global_config) {
                     msg_text += "\n\n" + _(L("Shall I adjust those settings for supports?"));
                     MessageDialog dialog(m_msg_dlg_parent, msg_text, _L("Support Generator"), wxICON_WARNING | wxYES | wxNO);
@@ -278,12 +284,13 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
                     if (answer == wxID_YES) {
                         // Enable "detect bridging perimeters".
                         new_conf.set_key_value("overhangs_width_speed", config->option("overhangs_width_speed")->clone()->set_enabled(true));
+                        new_conf.set_key_value("overhangs_width", config->option("overhangs_width")->clone()->set_enabled(true));
                     } else if (answer == wxID_NO) {
                         // Do nothing, leave supports on and "detect bridging perimeters" off.
                     } else if (answer == wxID_CANCEL) {
                         // Disable supports.
                         new_conf.set_key_value("support_material", new ConfigOptionBool(false));
-                        support_material_overhangs_queried = false;
+                        m_support_material_overhangs_queried = false;
                     }
                     apply(config, &new_conf);
                 }
@@ -353,16 +360,22 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
     bool has_spiral_vase = have_perimeters && config->opt_bool("spiral_vase");
     
-    //bool pa = config->opt_bool("enable_pressure_advance");
-    //toggle_field("pressure_advance", pa);
+    toggle_field("perimeter_generator", have_perimeters);
+    bool have_arachne = have_perimeters && config->opt_enum<PerimeterGeneratorType>("perimeter_generator") == PerimeterGeneratorType::Arachne;
+    bool have_perimeter_hole = !have_arachne && (config->opt_int("perimeters") == config->opt_int("perimeters_hole") || !config->is_enabled("perimeters_hole"));
+    for (auto el : {"wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle",
+                    "wall_distribution_count", "min_feature_size", "min_bead_width"}) {
+        toggle_field(el, have_arachne);
+    }
+    toggle_field("perimeters_hole", !have_arachne);
     
-    bool have_arachne = have_perimeters && (config->opt_int("perimeters") == config->opt_int("perimeters_hole") || !config->is_enabled("perimeters_hole"));
-    toggle_field("perimeter_generator", have_arachne);
-    have_arachne = have_arachne && config->opt_enum<PerimeterGeneratorType>("perimeter_generator") == PerimeterGeneratorType::Arachne;
-    for (auto el : { "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle", "wall_distribution_count", "min_feature_size", "min_bead_width", "aaa" })
-       toggle_field(el, have_arachne);
 
-    bool has_external_peri_not_loop = config->opt_bool("external_perimeters_first") && !config->opt_bool("perimeter_loop");
+    for (auto el : {"perimeter_loop", "thin_perimeters", "perimeter_round_corners"})
+        toggle_field(el, have_perimeters && !have_arachne);
+
+    bool have_perimeter_loop = config->opt_bool("perimeter_loop") && !have_arachne;
+
+    bool has_external_peri_not_loop = config->opt_bool("external_perimeters_first") && !have_perimeter_loop;
     toggle_field("external_perimeters_vase", has_external_peri_not_loop);
     toggle_field("external_perimeters_first_force", has_external_peri_not_loop && !have_arachne );
     bool is_ext_forced = config->opt_bool("external_perimeters_first_force");
@@ -371,9 +384,6 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
     toggle_field("perimeter_bonding", config->opt_bool("external_perimeters_first") && !have_arachne && config->option("perimeter_overlap")->get_float() == 100.f && config->option("external_perimeter_overlap")->get_float() == 100.f);
 
-    for (auto el : {"perimeter_loop", "extra_perimeters_on_overhangs",
-        "thin_perimeters", "perimeter_round_corners"})
-        toggle_field(el, have_perimeters && !have_arachne);
     
     toggle_field("no_perimeter_unsupported_algo", have_perimeters);
     toggle_field("only_one_perimeter_top", have_perimeters);
@@ -382,10 +392,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("overhangs_reverse", have_overhangs_reverse);
 
     toggle_field("overhangs_reverse_threshold", have_overhangs_reverse && config->opt_bool("overhangs_reverse"));
-
-    toggle_field("overhangs_reverse_threshold", have_perimeters && config->opt_bool("overhangs_reverse"));
-
-    toggle_field("overhangs_speed_enforce", have_perimeters && !config->opt_bool("perimeter_loop"));
+    toggle_field("overhangs_speed_enforce", have_perimeters && !have_perimeter_loop);
     toggle_field("min_width_top_surface", have_perimeters && config->opt_bool("only_one_perimeter_top"));
     toggle_field("thin_perimeters_all", have_perimeters && config->option("thin_perimeters")->get_float() != 0 && !have_arachne);
     bool have_thin_wall = !have_arachne && have_perimeters;
@@ -396,13 +403,30 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     for (auto el : { "seam_angle_cost", "seam_travel_cost", "seam_visibility" })
         toggle_field(el, have_perimeters && config->option<ConfigOptionEnum<SeamPosition>>("seam_position")->value == SeamPosition::spCost);
 
-    toggle_field("perimeter_loop_seam", config->opt_bool("perimeter_loop"));
+    toggle_field("perimeter_loop_seam", have_perimeter_loop);
 
     bool have_notch = have_perimeters && (config->option("seam_notch_all")->get_float() != 0 ||
                                           config->option("seam_notch_inner")->get_float() != 0 ||
                                           config->option("seam_notch_outer")->get_float() != 0);
     toggle_field("seam_notch_angle", have_notch);
 
+    bool have_gap_fill = !have_arachne;
+    toggle_field("gap_fill_enabled", have_gap_fill);
+    for (auto el : { "gap_fill_last"})
+        toggle_field(el, have_gap_fill && config->opt_bool("gap_fill_enabled"));
+    if (have_gap_fill) {
+        have_gap_fill = config->opt_bool("gap_fill_enabled");
+        for (InfillPattern ip : {config->opt_enum<InfillPattern>("bottom_fill_pattern"),
+                                 config->opt_enum<InfillPattern>("solid_fill_pattern"),
+                                 config->opt_enum<InfillPattern>("top_fill_pattern")}) {
+            if (ip == InfillPattern::ipConcentricGapFill || ip == InfillPattern::ipRectilinearWGapFill ||
+                ip == InfillPattern::ipMonotonicWGapFill) {
+                have_gap_fill = true;
+            }
+        }
+    }
+    for (auto el : { "gap_fill_extension", "gap_fill_max_width", "gap_fill_min_area", "gap_fill_min_length", "gap_fill_min_width" })
+        toggle_field(el, have_gap_fill);
     // gap fill  can appear in infill
     toggle_field("gap_fill_speed", have_perimeters && config->opt_bool("gap_fill_enabled"));
 
@@ -546,7 +570,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("support_material_speed", have_support_material || have_skirt || have_brim);
     toggle_field("brim_speed", have_brim || have_skirt);
 
-    toggle_field("raft_contact_distance", have_raft && !have_support_soluble);
+    bool have_raft_soluble = have_support_material && ((ConfigOptionEnumGeneric*)config->option("raft_contact_distance_type"))->value == zdNone;
+    toggle_field("raft_contact_distance", have_raft && !have_raft_soluble);
     for (auto el : { "raft_expansion", "first_layer_acceleration_over_raft", "first_layer_speed_over_raft",
         "raft_layer_height", "raft_interface_layer_height"})
         toggle_field(el, have_raft);

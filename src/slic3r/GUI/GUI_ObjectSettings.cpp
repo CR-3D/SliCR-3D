@@ -99,7 +99,9 @@ bool ObjectSettings::update_settings_list()
 
         auto extra_column = [config, this](wxWindow* parent, const Line& line)
 		{
-			auto opt_key = (line.get_options())[0].opt_id;  //we assume that we have one option per line
+            assert(!line.get_options().empty());
+            t_config_option_key opt_key = (line.get_options())[0].opt_key; // we assume that we have one option per line
+            assert((line.get_options())[0].opt_idx < 0);
 
 			auto btn = new ScalableButton(parent, wxID_ANY, m_bmp_delete);
             btn->SetToolTip(_(L("Remove parameter")));
@@ -120,15 +122,15 @@ bool ObjectSettings::update_settings_list()
 			return btn;
 		};
 
-        for (auto& cat : cat_options)
+        for (auto& [opt_category, opt_keys] : cat_options)
         {
-            categories.push_back(cat.first);
+            categories.push_back(opt_category);
 
-            auto optgroup = std::make_shared<ConfigOptionsGroup>(m_og->ctrl_parent(), _(toString(cat.first)), config, false, extra_column);
+            auto optgroup = std::make_shared<ConfigOptionsGroup>(m_og->ctrl_parent(), _(toString(opt_category)), config, false, extra_column);
             optgroup->title_width = 15;
             optgroup->sidetext_width = 5;
 
-            optgroup->m_on_change = [this, config](const t_config_option_key& opt_idv, bool enabled, const boost::any& value) {
+            optgroup->m_on_change = [this, config](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
                                     this->update_config_values(config);
                                     wxGetApp().obj_list()->changed_object(); };
 
@@ -142,10 +144,10 @@ bool ObjectSettings::update_settings_list()
                 ctrl->SetBitmapCurrent(m_bmp_delete_focus.bmp());
             };
 
-            const bool is_extruders_cat = cat.first == OptionCategory::extruders;
-            for (auto& opt : cat.second)
+            const bool is_extruders_cat = opt_category == OptionCategory::extruders;
+            for (const std::string &opt_key : opt_keys)
             {
-                Option option = optgroup->get_option_and_register(opt);
+                Option option = optgroup->get_option_and_register(opt_key);
                 option.opt.width = 12;
                 if (!option.opt.full_label.empty())
                     option.opt.label = option.opt.full_label;
@@ -160,12 +162,16 @@ bool ObjectSettings::update_settings_list()
                 option.opt.label = label;
             }
             optgroup->activate();
-            for (auto& opt : cat.second)
-                optgroup->get_field(opt)->m_on_change = [optgroup](const std::string& opt_id, bool enabled, const boost::any& value) {
+            for (const std::string &opt_key : opt_keys) {
+                assert(opt_key.find("#") == std::string::npos);
+                // there is only scalar object (or the full vector in string format)
+                optgroup->get_field(OptionKeyIdx::scalar(opt_key))->m_on_change = [optgroup]
+                    (const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
                     // first of all take a snapshot and then change value in configuration
-                    wxGetApp().plater()->take_snapshot(format_wxstr(_L("Change Option %s"), opt_id));
-                    optgroup->on_change_OG(opt_id, enabled, value);
+                    wxGetApp().plater()->take_snapshot(format_wxstr(_L("Change Option %s"), opt_key_idx.key));
+                    optgroup->on_change_OG(opt_key_idx, enabled, value);
                 };
+            }
 
             optgroup->reload_config();
 
@@ -246,7 +252,7 @@ void ObjectSettings::update_config_values(ModelConfig* config)
     {
         Field* field = nullptr;
         for (auto og : m_og_settings) {
-            field = og->get_fieldc(opt_key, opt_index);
+            field = og->get_field({opt_key, opt_index});
             if (field != nullptr)
                 break;
         }

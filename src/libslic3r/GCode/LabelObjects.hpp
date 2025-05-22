@@ -3,6 +3,9 @@
 
 #include <string>
 #include <unordered_map>
+#include "../BoundingBox.hpp"
+
+#include "../BoundingBox.hpp"
 
 namespace Slic3r {
 

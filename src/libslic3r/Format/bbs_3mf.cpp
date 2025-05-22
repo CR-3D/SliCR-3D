@@ -47,8 +47,8 @@
 
 namespace pt = boost::property_tree;
 
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_reduce.h>
 
 #include <expat.h>
 #include <Eigen/Dense>

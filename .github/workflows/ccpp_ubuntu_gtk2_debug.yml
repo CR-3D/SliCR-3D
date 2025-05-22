@@ -8,7 +8,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v3
@@ -34,9 +34,9 @@ jobs:
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -dr -b debug -g 2
+      run: ./BuildLinux.sh -bgd
     - name: build slicer, tar & appimage
-      run: ./BuildLinux.sh -siv -b debug -g 2
+      run: ./BuildLinux.sh -bgsiv
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

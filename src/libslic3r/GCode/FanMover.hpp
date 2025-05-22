@@ -77,6 +77,7 @@ public:
 
 private:
     BufferData& put_in_buffer(BufferData&& data) {
+        assert(data.time >= 0 && data.time < 1000000 && !std::isnan(data.time));
          m_buffer_time_size += data.time;
         if (data.fan_speed >= 0 && !m_buffer.empty() && m_buffer.back().fan_speed >= 0) {
             // erase last item
@@ -87,6 +88,7 @@ private:
         return m_buffer.back();
     }
     std::list<BufferData>::iterator remove_from_buffer(std::list<BufferData>::iterator data) {
+        assert(data->time >= 0 && data->time < 1000000 && !std::isnan(data->time));
         m_buffer_time_size -= data->time;
         return m_buffer.erase(data);
     }

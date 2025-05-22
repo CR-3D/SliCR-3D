@@ -14,8 +14,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/log/trivial.hpp>
+#include <cassert>
+#include <cfloat>
 #include <iostream>
-#include <float.h>
 #include <unordered_set>
 
 #if 0
@@ -24,7 +25,6 @@
     #undef NDEBUG
 #endif
 
-#include <assert.h>
 
 #include <fast_float/fast_float.h>
 
@@ -1013,6 +1013,7 @@ std::string CoolingBuffer::apply_layer_cooldown(
         for (int i = 0; i < uint8_t(GCodeExtrusionRole::Count); i++) {
             // this setting is disbaled. As default is not, it will use the default value
             // (but for overhangs that use perimeter/external (they are given by the gcode tags)
+            //TODO: a different tag for both
             if (default_fan_speed[i] < 0 && i != uint8_t(GCodeExtrusionRole::OverhangPerimeter)) {
                 default_fan_speed[i] = initial_default_fan_speed;
             }
@@ -1050,8 +1051,8 @@ std::string CoolingBuffer::apply_layer_cooldown(
                 double t = (layer_time - slowdown_below_layer_time) / (fan_below_layer_time - slowdown_below_layer_time);
                 for (size_t etype_idx = 0; etype_idx < etype_can_increase_fan.size(); etype_idx++) {
                     uint16_t idx = uint8_t(etype_can_increase_fan[etype_idx]);
-                    if (fan_speeds[idx] < max_fan_speed) // if max speed is lower, this will reduce speed, so don't do it.
-                        fan_speeds[idx] = std::clamp(int(t * (fan_speeds[idx] < 0 ? 0 : fan_speeds[idx]) + (1. - t) * max_fan_speed + 0.5), 0, 255);
+                    if (fan_speeds[idx] < max_fan_speed && fan_speeds[idx] >=0) // if max speed is lower, this will reduce speed, so don't do it.
+                        fan_speeds[idx] = std::clamp(int(t * (fan_speeds[idx] < 0 ? 0 : fan_speeds[idx]) + (1. - t) * max_fan_speed + 0.5), 0, 100);
                 }
                 custom_fan_speed_limits.first = fan_speeds[0];
             }
@@ -1066,7 +1067,7 @@ std::string CoolingBuffer::apply_layer_cooldown(
                 for (size_t etype_idx = 0; etype_idx < etype_can_ramp_up_fan.size(); etype_idx++) {
                     uint16_t idx = uint8_t(etype_can_ramp_up_fan[etype_idx]);
                     if (fan_speeds[idx] > 0) {
-                        fan_speeds[idx] = std::clamp(int(float(fan_speeds[idx] < 0 ? 0 : fan_speeds[idx]) * factor + 0.01f), 0, 255);
+                        fan_speeds[idx] = std::clamp(int(float(fan_speeds[idx] < 0 ? 0 : fan_speeds[idx]) * factor + 0.01f), 0, 100);
                     }
                 }
                 custom_fan_speed_limits.second = fan_speeds[0];
@@ -1298,7 +1299,9 @@ std::string CoolingBuffer::apply_layer_cooldown(
                     //    continue;
                     if (fan_control[uint8_t(extrude_tree[i])]) {
                         if (std::max(override_min_fan_speed, fan_speeds[uint8_t(extrude_tree[i])]) != current_fan_speed) {
-                            current_fan_speed = fan_speeds[uint8_t(extrude_tree[i])];
+                            if (fan_speeds[uint8_t(extrude_tree[i])] >= 0) {
+                                current_fan_speed = fan_speeds[uint8_t(extrude_tree[i])];
+                            }
                             std::string comment;
                             if (override_min_fan_speed > current_fan_speed) {
                                 current_fan_speed = override_min_fan_speed;

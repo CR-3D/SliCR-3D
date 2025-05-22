@@ -29,8 +29,8 @@ public:
     
 protected:
     void create_buttons(wxStdDialogButtonSizer* sizer) override;
-    void create_geometry_single(wxCommandEvent& event_args) { create_geometry("/cube/CR-3D_Calibration_Cube.3mf"); }
-    void create_geometry_dual(wxCommandEvent& event_args) { create_geometry("/cube/CR-3D_Dual_Calibration_Cube_Extruder.3mf"); }
+    void create_geometry_single(wxCommandEvent& event_args) { create_geometry("/cube/CR-3D_Calibration_Cube_Single.3mf"); }
+    void create_geometry_dual(wxCommandEvent& event_args) { create_geometry("/cube/CR-3D_Calibration_Cube_IDEX.3mf"); }
 };
 
 class CalibrationCr3dSampleCardDialog : public CalibrationCr3dAbstractDialog

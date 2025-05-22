@@ -11,7 +11,7 @@
 #include <locale>
 #include <ctime>
 #include <cstdarg>
-#include <stdio.h>
+#include <cstdio>
 
 #include "Platform.hpp"
 #include "Time.hpp"

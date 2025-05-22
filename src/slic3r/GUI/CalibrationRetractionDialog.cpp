@@ -1,17 +1,20 @@
 #include "CalibrationRetractionDialog.hpp"
-#include "I18N.hpp"
+
 #include "libslic3r/Model.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/AppConfig.hpp"
-// #include "Jobs/ArrangeJob2.hpp"
 #include "GLCanvas3D.hpp"
 #include "GUI.hpp"
 #include "GUI_ObjectList.hpp"
+#include "I18N.hpp"
+#include "MsgDialog.hpp"
 #include "Plater.hpp"
 #include "Tab.hpp"
+
 #include <wx/scrolwin.h>
 #include <wx/display.h>
 #include <wx/file.h>
+#include <wx/wupdlock.h>
 #include "wxExtensions.hpp"
 #include "Jobs/ArrangeJob2.hpp"
 
@@ -97,13 +100,13 @@ void CalibrationRetractionDialog::remove_slowdown(wxCommandEvent& event_args) {
 
     const ConfigOptionFloats *fil_conf = filament_config->option<ConfigOptionFloats>("slowdown_below_layer_time");
     ConfigOptionFloats *new_fil_conf = new ConfigOptionFloats(5);
-    new_fil_conf->set(fil_conf);
+    new_fil_conf->set(*fil_conf);
     new_fil_conf->set_at(0, 0);
     new_filament_config.set_key_value("slowdown_below_layer_time", new_fil_conf); 
 
     fil_conf = filament_config->option<ConfigOptionFloats>("fan_below_layer_time");
     new_fil_conf = new ConfigOptionFloats(60);
-    new_fil_conf->set(fil_conf);
+    new_fil_conf->set(*fil_conf);
     new_fil_conf->set_at(0, 0);
     new_filament_config.set_key_value("fan_below_layer_time", new_fil_conf);
 
@@ -160,6 +163,14 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     full_print_config.apply(*print_config);
     full_print_config.apply(*printer_config);
     full_print_config.apply(*filament_config);
+
+    // check if the printer has use_firmware_retraction
+    if (printer_config->opt_bool("use_firmware_retraction")) {
+        MessageDialog dialog(this, _L("The current printer profile has the firmware retraction enabled. This calibration can't work with this setting enabled."), _L("Firmware retraction enabled"),
+            wxICON_WARNING | wxOK);
+        dialog.Show();
+        return;
+    }
 
     double retraction_start = 0;
     std::string str = temp_start->GetValue().ToStdString();
@@ -242,7 +253,6 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
         current_obj->config.set_key_value("only_one_perimeter_top", new ConfigOptionBool(false));
         current_obj->config.set_key_value("overhangs_width_speed", (new ConfigOptionFloatOrPercent(0,false))->set_can_be_disabled(true));
         current_obj->config.set_key_value("thin_walls", new ConfigOptionBool(true));
-        current_obj->config.set_key_value("thin_walls_min_width", new ConfigOptionFloatOrPercent(2,true));
         current_obj->config.set_key_value("gap_fill_enabled", new ConfigOptionBool(false));
         current_obj->config.set_key_value("first_layer_height", new ConfigOptionFloatOrPercent(nozzle_diameter / 2., false));
         current_obj->config.set_key_value("layer_height", new ConfigOptionFloat(nozzle_diameter / 2.));

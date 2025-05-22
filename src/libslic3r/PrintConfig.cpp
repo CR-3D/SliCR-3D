@@ -43,7 +43,7 @@
 #include <boost/nowide/iostream.hpp>
 
 #include <algorithm>
-#include <float.h>
+#include <cfloat>
 
 namespace Slic3r {
 
@@ -262,6 +262,15 @@ static const t_config_enum_values s_keys_map_SupportZDistanceType{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SupportZDistanceType)
 
+//BBS
+static t_config_enum_values s_keys_map_WallSequence {
+    { "inner wall/outer wall",     int(WallSequence::InnerOuter) },
+    { "outer wall/inner wall",     int(WallSequence::OuterInner) },
+    { "inner-outer-inner wall",    int(WallSequence::InnerOuterInner)}
+
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WallSequence)
+
 static const t_config_enum_values s_keys_map_SLADisplayOrientation{{"landscape", sladoLandscape},
                                                                    {"portrait", sladoPortrait}};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLADisplayOrientation)
@@ -382,6 +391,7 @@ void PrintConfigDef::init_common_params() {
     // defautl to none : only set if loaded. only write our version
     def->set_default_value(new ConfigOptionStringVersion());
     def->cli = ConfigOptionDef::nocli;
+    def->can_phony = true;
 
     def = this->add("printer_technology", coEnum);
     def->label = L("Printer technology");
@@ -819,7 +829,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
 
     def = this->add("bridge_fan_speed", coInts);
-    def->label = L("Bridges fan speed");
+    def->label = L("Bridge Infill fan speed");
     def->category = OptionCategory::cooling;
     def->tooltip = L("This fan speed is enforced during bridges and overhangs. It won't slow down the fan if it's "
                      "currently running at a higher speed."
@@ -944,7 +954,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("bridge_speed", coFloatOrPercent);
     def->label = L("Bridges");
-    def->full_label = L("Bridge speed");
+    def->full_label = L("Bridge Infill speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing bridges."
                      "\nThis can be expressed as a percentage (for example: 60%) over the Default speed."
@@ -2990,6 +3000,16 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloatOrPercent(75, true));
 
+    def = this->add("link_layer_heights", coBool);
+    def->label = L("Link Layer Heights");
+    def->full_label = L("Link Layer Heights");
+    def->category = OptionCategory::slicing;
+    def->tooltip = L("When this option is enabled the layer height of the first layer will be linked to the "
+                     "layer height of the rest of the object. This means that if you change the layer height "
+                     "of the object, the first layer height will also change.");
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionBool(true));
+
     def = this->add("first_layer_speed", coFloatOrPercent);
     def->label = L("Max");
     def->full_label = L("Default first layer speed");
@@ -3328,6 +3348,8 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("xyz decimals");
     def->category = OptionCategory::output;
     def->tooltip = L("Choose how many digits after the dot for xyz coordinates.");
+    def->min = 0;
+    def->max = 7;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionInt(3));
 
@@ -3335,6 +3357,8 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Extruder decimals");
     def->category = OptionCategory::output;
     def->tooltip = L("Choose how many digits after the dot for extruder moves.");
+    def->min = 0;
+    def->max = 7;
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionInt(5));
 
@@ -3725,7 +3749,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionBool(true));
 
     def = this->add("internal_bridge_fan_speed", coInts);
-    def->label = L("Infill bridges fan speed");
+    def->label = L("Internal Bridge Infill fan speed");
     def->category = OptionCategory::cooling;
     def->tooltip = L("This fan speed is enforced during all infill bridges. It won't slow down the fan if it's "
                      "currently running at a higher speed."
@@ -3752,8 +3776,7 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionFloatOrPercent(300, true));
 
     def = this->add("internal_bridge_speed", coFloatOrPercent);
-    def->label = L("Internal bridges");
-    def->full_label = L("Internal bridge speed");
+    def->label = L("Internal Bridge Infill speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing the bridges that support the top layer.\nCan be a % of the bridge speed.");
     def->sidetext = L("mm/%");
@@ -4605,8 +4628,8 @@ void PrintConfigDef::init_fff_params() {
     def->full_label = L("Overhangs speed");
     def->category = OptionCategory::speed;
     def->tooltip = L("Speed for printing overhangs."
-                     "\nCan be a % of the bridge speed."
-                     "\nSet zero to use autospeed for this feature.");
+        "\nCan be a % of the bridge infill speed."
+        "\nSet zero to use autospeed for this feature.");
     def->sidetext = L("mm/s");
     def->ratio_over = "bridge_speed";
     def->min = 0;
@@ -4885,7 +4908,7 @@ void PrintConfigDef::init_fff_params() {
         "This setting allows you to reduce the overlap between the perimeters, to reduce the impact of the "
         "perimeters' artifacts."
         " 100% means that no gap is left, and 0% means that perimeters are not touching each other anymore."
-        "\nIt's very experimental, please report about the usefulness. It may be removed if there is no use for it.");
+        "\nIt's very experimental, please report about the usefulness.");
     def->sidetext = L("%");
     def->min = 0;
     def->max = 100;
@@ -4948,13 +4971,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("perimeters_hole", coInt);
     def->label = L("Max perimeter count for holes");
     def->category = OptionCategory::perimeter;
-    def->tooltip = L(
-        "This option sets the number of perimeters to have over holes."
-        " Note that if a hole-perimeter fuse with the contour, then it will go around like a contour perimeter.."
-        "\nIf disabled, holes will have the same number of perimeters as contour."
-        "\nNote that Slic3r may increase this number automatically when it detects "
-        "sloping surfaces which benefit from a higher number of perimeters "
-        "if the Extra Perimeters option is enabled.");
+    def->tooltip = L("This option sets the number of perimeters to have over holes."
+                   " Note that if a hole-perimeter fuse with the contour, then it will go around like a contour perimeter."
+                   "\nIf disabled, holes will have the same number of perimeters as contour. Cannot be enabled at the same time as Arachne generator."
+                   "\nNote that Slic3r may increase this number automatically when it detects "
+                   "sloping surfaces which benefit from a higher number of perimeters "
+                   "if the Extra Perimeters option is enabled.");
     def->sidetext = L("(minimum).");
     def->min = 0;
     def->max = 10000;
@@ -5154,6 +5176,22 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloat(0.1));
 
+    def = this->add("raft_contact_distance_type", coEnum);
+    def->label = L("Type");
+    def->full_label = L("Raft contact distance type");
+    def->category = OptionCategory::support;
+    def->tooltip = L("How to compute the vertical z-distance.\n"
+        "From filament: it uses the nearest bit of the filament. When a bridge is extruded, it goes below the current plane.\n"
+        "From plane: it uses the plane-z. Same as 'from filament' if no 'bridge' is extruded.\n"
+        "None: No z-offset. Useful for Soluble supports.\n");
+    def->set_enum<SupportZDistanceType>({
+        { "filament", L("From filament") },
+        { "plane",    L("From plane") },
+        { "none",     L("None (soluble)") }
+    });
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionEnum<SupportZDistanceType>(zdPlane));
+
     def = this->add("raft_expansion", coFloat);
     def->label = L("Raft expansion");
     def->category = OptionCategory::support;
@@ -5297,19 +5335,18 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->precision = 6;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent(0, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
     def = this->add("resolution_internal", coFloat);
     def->label = L("Internal resolution");
     def->category = OptionCategory::slicing;
     def->tooltip = L("Minimum detail resolution, used for internal structures (gapfill and some infill patterns)."
-                     "\nDon't put a too-small value (0.05mm is way too low for many printers), as it may create too "
-                     "many very small segments that may be difficult to display and print.");
+            "\nDon't put a too-small value, as it may create too many very small segments that may be difficult to display and print if your main resolution parameter is also very small.");
     def->sidetext = L("mm");
-    def->min = 0.001;
+    def->min = 0.0001;
     def->precision = 8;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloat(0.1));
+    def->set_default_value(new ConfigOptionFloat(0.025));
 
     def = this->add("retract_before_travel", coFloats);
     def->label = L("Minimum travel after retraction");
@@ -5841,6 +5878,27 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(20, false));
 
+    def = this->add("wall_sequence", coEnum);
+    def->label = L("Walls printing order");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Print sequence of the internal (inner) and external (outer) walls.\n\n"
+                     "Use Inner/Outer for best overhangs. This is because the overhanging walls can adhere to a neighbouring perimeter while printing. "
+                     "However, this option results in slightly reduced surface quality as the external perimeter is deformed by being squashed to the internal perimeter.\n\n"
+                     "Use Inner/Outer/Inner for the best external surface finish and dimensional accuracy as the external wall is printed undisturbed from an internal perimeter. "
+                     "However, overhang performance will reduce as there is no internal perimeter to print the external wall against. "
+                     "This option requires a minimum of 3 walls to be effective as it prints the internal walls from the 3rd perimeter onwards first, "
+                     "then the external perimeter and, finally, the first internal perimeter. "
+                     "This option is recommended against the Outer/Inner option in most cases.\n\n"
+                     "Use Outer/Inner for the same external wall quality and dimensional accuracy benefits of Inner/Outer/Inner option. "
+                     "However, the z seams will appear less consistent as the first extrusion of a new layer starts on a visible surface.\n\n ");
+    def->set_enum<WallSequence>({
+        {"inner wall/outer wall", "Inner/Outer"},
+        {"outer wall/inner wall", "Outer/Inner"},
+        {"inner-outer-inner wall", "Inner/Outer/Inner"},
+    });
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionEnum<WallSequence>(WallSequence::InnerOuter));
+
     def = this->add("solid_infill_below_area", coFloat);
     def->label = L("Solid infill threshold area");
     def->category = OptionCategory::infill;
@@ -6047,6 +6105,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("start_gcode", coString);
     def->label = L("Start G-code");
+    def->category = OptionCategory::customgcode;
     def->tooltip = L("This start procedure is inserted at the beginning, possibly prepended by "
                      "temperature-changing commands and others. See 'autoemit_temperature_commands' and 'start_gcode_manual'.");
     def->multiline = true;
@@ -6777,6 +6836,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
+    
     def = this->add("thin_walls_min_width", coFloatOrPercent);
     def->label = L("Min width");
     def->full_label = L("Thin walls min width");
@@ -6791,7 +6851,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->max_literal = {20, true};
     def->set_default_value(new ConfigOptionFloatOrPercent(33, true));
-
+/*
     def = this->add("thin_walls_overlap", coFloatOrPercent);
     def->label = L("Overlap");
     def->full_label = L("Thin wall overlap");
@@ -6813,7 +6873,7 @@ void PrintConfigDef::init_fff_params() {
         " You can deactivate this if you are using thin walls as a custom support, to reduce adhesion a little.");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionBool(true));
-
+*/
     def = this->add("thin_walls_acceleration", coFloatOrPercent);
     def->label = L("Thin Walls");
     def->full_label = L("Thin walls acceleration");
@@ -8524,11 +8584,11 @@ void PrintConfigDef::init_sla_params() {
     def->set_default_value(new ConfigOptionString());
     def->cli = ConfigOptionDef::nocli;
 
-    def = this->add("sla_print_settings_id", coBool);
+    def = this->add("sla_print_settings_modified", coBool);
     def->set_default_value(new ConfigOptionBool(false));
     def->cli = ConfigOptionDef::nocli;
 
-    def = this->add("sla_print_settings_modified", coString);
+    def = this->add("sla_print_settings_id", coString);
     def->set_default_value(new ConfigOptionString(""));
     def->cli = ConfigOptionDef::nocli;
 
@@ -8840,7 +8900,8 @@ inline void for_ech_entry(std::unordered_map<t_config_option_key, std::pair<t_co
                           std::initializer_list<t_config_option_key> &&list,
                           const std::function<void(t_config_option_key &opt_key, std::string &value)> &do_something) {
     for (const t_config_option_key &key : list) {
-        if (auto last_search_result = dict.find(key); last_search_result != dict.end() && last_search_result->second.first == key) {
+        if (auto last_search_result = dict.find(key); last_search_result != dict.end()) {
+            // assert(last_search_result->second.first == key); it's possibly different because of alias.
             do_something(last_search_result->second.first, last_search_result->second.second);
         }
     }
@@ -8849,7 +8910,7 @@ inline void for_ech_entry(std::unordered_map<t_config_option_key, std::pair<t_co
                           const std::set<t_config_option_key> &list,
                           const std::function<void(t_config_option_key &opt_key, std::string &value)> &do_something) {
     for (const t_config_option_key &key : list) {
-        if (last_search_result = dict.find(key); last_search_result != dict.end() && last_search_result->second.first == key) {
+        if (last_search_result = dict.find(key); last_search_result != dict.end()) {
             do_something(last_search_result->second.first, last_search_result->second.second);
         }
     }
@@ -9372,7 +9433,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
                 case coFloatsOrPercents: {
                     for (size_t idx = 0; idx < default_opt->size(); idx++) {
                         if (std::abs(default_opt->get_float(idx)) > std::numeric_limits<int>::max() / 2) {
-                            default_opt->set(def->default_value.get(), idx);
+                            default_opt->set(*def->default_value, idx);
                             default_opt->set_enabled(false, idx);
                         }
                     }
@@ -10314,8 +10375,9 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "printer_custom_variables",
 "printhost_client_cert",
 "printhost_client_cert_password",
-"raft_layer_height",
+"raft_contact_distance_type",
 "raft_interface_layer_height",
+"raft_layer_height",
 "region_gcode",
 "remaining_times_type",
 "resolution_internal",
@@ -10359,12 +10421,10 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "support_material_interface_layer_height",
 "support_material_bottom_interface_pattern",
 "support_material_layer_height",
+"thin_walls_min_width",
 "thin_perimeters_all",
 "thin_perimeters",
 "thin_walls_acceleration",
-"thin_walls_merge",
-"thin_walls_min_width",
-"thin_walls_overlap",
 "thin_walls_speed",
 "thumbnails_color",
 "thumbnails_custom_color",

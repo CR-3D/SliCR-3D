@@ -7,7 +7,6 @@
 #include "AppUpdater.hpp"
 
 #include <atomic>
-#include <regex>
 #include <thread>
 #include <string>
 
@@ -15,9 +14,8 @@
 #include <boost/log/trivial.hpp>
 #include <boost/nowide/fstream.hpp>
 #include <boost/nowide/convert.hpp>
+#include <boost/nowide/cstdio.hpp>
 #include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <curl/curl.h>
 
 #include "slic3r/GUI/format.hpp"
@@ -48,11 +46,11 @@ bool run_file(const boost::filesystem::path &path) {
     if (!res) {
         std::string full_message = GUI::format(_u8L("Running downloaded instaler of %1% has failed:\n%2%"),
                                                SLIC3R_APP_NAME, msg);
-        BOOST_LOG_TRIVIAL(error) << full_message; // lm: maybe UI error msg?  // dk: bellow. (maybe some general show
-                                                  // error evt would be better?)
+        BOOST_LOG_TRIVIAL(error) << full_message;
         wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
         evt->SetString(full_message);
-        GUI::wxGetApp().QueueEvent(evt);
+        if (wxApp::GetInstance() != nullptr)
+            GUI::wxGetApp().QueueEvent(evt);
     }
     return res;
 }
@@ -116,6 +114,7 @@ struct AppUpdater::priv
     priv();
     // Download file. What happens with the data is specified in completefn.
     bool http_get_file(const std::string &url,
+                       size_t size_limit,
                        std::function<bool(Http::Progress)> progress_fn,
                        std::function<bool(std::string /*body*/, std::string &error_message)> completefn,
                        std::string &error_message) const;
@@ -127,7 +126,7 @@ struct AppUpdater::priv
     // gets version file via http
     void version_check(const std::string &version_check_url);
 #if 0
-	// parsing of Prusaslicer.version2 
+	// parsing of Prusaslicer.version2
 	void parse_version_string_old(const std::string& body) const;
 #endif
     // parses ini tree of version file, saves to m_online_version_data and queue event(s) to UI
@@ -163,16 +162,17 @@ AppUpdater::priv::priv()
     if (!downloads_path.empty()) {
         m_default_dest_folder = std::move(downloads_path);
     }
-    BOOST_LOG_TRIVIAL(trace) << "App updater default download path: "
-                             << m_default_dest_folder; // lm:Is this an error? // dk: changed to trace
+    BOOST_LOG_TRIVIAL(trace) << "App updater default download path: " << m_default_dest_folder;
 }
 
 bool AppUpdater::priv::http_get_file(const std::string &url,
+                                     size_t size_limit,
                                      std::function<bool(Http::Progress)> progress_fn,
                                      std::function<bool(std::string /*body*/, std::string &error_message)> complete_fn,
                                      std::string &error_message) const {
     bool res = false;
     Http::get(url)
+        .size_limit(size_limit)
         .on_progress([&, progress_fn](Http::Progress progress, bool &cancel) {
             // progress function returns true as success (to continue)
             cancel = (m_cancel ? true : !progress_fn(std::move(progress)));
@@ -208,47 +208,57 @@ boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &d
         BOOST_LOG_TRIVIAL(error) << message;
         wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
         evt->SetString(message);
-        GUI::wxGetApp().QueueEvent(evt);
+        if (wxApp::GetInstance() != nullptr)
+            GUI::wxGetApp().QueueEvent(evt);
         return boost::filesystem::path();
     }
 
     boost::filesystem::path tmp_path = dest_path;
     tmp_path += format(".%1%%2%", std::to_string(GUI::GLCanvas3D::timestamp_now()), ".download");
     FILE *file;
-    wxString temp_path_wstring(tmp_path.wstring());
-    file = fopen(temp_path_wstring.c_str(), "wb");
+    file = boost::nowide::fopen(tmp_path.string().c_str(), "wb");
     assert(file != NULL);
     if (file == NULL) {
         std::string line1 = GUI::format(_u8L("Download from %1% couldn't start:"), data.url);
         std::string line2 = GUI::format(_u8L("Can't create file at %1%"), tmp_path.string());
         std::string message = GUI::format("%1%\n%2%", line1, line2);
         BOOST_LOG_TRIVIAL(error) << message;
-        wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
-        evt->SetString(message);
-        GUI::wxGetApp().QueueEvent(evt);
+        if (wxApp::GetInstance() != nullptr) {
+            wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
+            evt->SetString(message);
+            GUI::wxGetApp().QueueEvent(evt);
+        }
         return boost::filesystem::path();
     }
 
     std::string error_message;
     bool res = http_get_file(
-        data.url
+        data.url,
+        256 * 1024 * 1024
+        // on_progress
         ,
         [&last_gui_progress](Http::Progress progress) {
+
             // progress event
             size_t gui_progress = progress.dltotal > 0 ? 100 * progress.dlnow / progress.dltotal : 0;
             BOOST_LOG_TRIVIAL(debug) << "App download " << gui_progress << "% " << progress.dlnow << " of "
                                      << progress.dltotal;
             if (last_gui_progress < gui_progress && (last_gui_progress != 0 || gui_progress != 100)) {
                 last_gui_progress = gui_progress;
-                wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_PROGRESS);
-                evt->SetString(GUI::from_u8(std::to_string(gui_progress)));
-                GUI::wxGetApp().QueueEvent(evt);
+                if (wxApp::GetInstance() != nullptr) {
+                    wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_PROGRESS);
+                    evt->SetString(GUI::from_u8(std::to_string(gui_progress)));
+                    GUI::wxGetApp().QueueEvent(evt);
+                }
             }
             return true;
         }
         // on_complete
         ,
         [&file, dest_path, tmp_path](std::string body, std::string &error_message) {
+            // Size check. Does always 1 char == 1 byte?
+            size_t body_size = body.size();
+
             if (file == NULL) {
                 error_message = GUI::format(_u8L("Can't create file at %1%"), tmp_path.string());
                 return false;
@@ -265,23 +275,26 @@ boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &d
             return true;
         },
         error_message);
-        
     if (!res) {
         if (m_cancel) {
             BOOST_LOG_TRIVIAL(info) << error_message;
-            wxCommandEvent *evt = new wxCommandEvent(
-                EVT_SLIC3R_APP_DOWNLOAD_FAILED); // FAILED with empty msg only closes progress notification
-            GUI::wxGetApp().QueueEvent(evt);
+            if (wxApp::GetInstance() != nullptr) {
+                wxCommandEvent *evt = new wxCommandEvent(
+                    EVT_SLIC3R_APP_DOWNLOAD_FAILED); // FAILED with empty msg only closes progress notification
+                GUI::wxGetApp().QueueEvent(evt);
+            }
         } else {
             std::string message = (error_message.empty() ? std::string() :
                                                            GUI::format(_u8L("Downloading new %1% has failed:\n%2%"),
                                                                        SLIC3R_APP_NAME, error_message));
-            wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
-            if (!message.empty()) {
-                BOOST_LOG_TRIVIAL(error) << message;
-                evt->SetString(message);
+            if (wxApp::GetInstance() != nullptr) {
+                wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
+                if (!message.empty()) {
+                    BOOST_LOG_TRIVIAL(error) << message;
+                    evt->SetString(message);
+                }
+                GUI::wxGetApp().QueueEvent(evt);
             }
-            GUI::wxGetApp().QueueEvent(evt);
         }
         return boost::filesystem::path();
     }
@@ -291,84 +304,28 @@ boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &d
 
 bool AppUpdater::priv::run_downloaded_file(boost::filesystem::path path) {
     assert(!path.empty());
-    return run_file(path);
+    return false;
 }
 
-void AppUpdater::priv::version_check(const std::string &version_check_url) {}
-
-#define VERSION_FROM_GITHUB 1
-// #define VERSION_FROM_PRUSA 1
-
-// Parses version string obtained in sync_version() and sends events to UI thread.
-// Version string must contain release version on first line. Follows non-mandatory alpha / beta releases on following
-// lines (alpha=2.0.0-alpha1). github verison
-#if VERSION_FROM_GITHUB
-// parse the string, if it doesn't contain a valid version string, return invalid version.
-Semver get_version(const std::string &str, const std::regex &regexp) {
-    std::smatch match;
-    if (std::regex_match(str, match, regexp)) {
-        std::string version_cleaned = match[0];
-        const std::optional<Semver> version = Semver::parse(version_cleaned);
-        if (version.has_value()) {
-            return *version;
-        }
-    }
-    return Semver::invalid();
+void AppUpdater::priv::version_check(const std::string &version_check_url) {
+    assert(!version_check_url.empty());
+    std::string error_message;
+    bool res = http_get_file(
+        version_check_url,
+        1024
+        // on_progress
+        ,
+        [](Http::Progress progress) { return true; }
+        // on_complete
+        ,
+        [&](std::string body, std::string &error_message) {
+            boost::trim(body);
+            parse_version_string(body);
+            return true;
+        },
+        error_message);
 }
 
-void AppUpdater::priv::parse_version_string(const std::string &constbody) {
-    boost::property_tree::ptree root;
-    std::stringstream json_stream(constbody);
-    boost::property_tree::read_json(json_stream, root);
-    bool i_am_pre = false;
-    // at least two number, use '.' as separator. can be followed by -Az23 for prereleased and +Az42 for metadata
-    std::regex matcher("[0-9]+\\.[0-9]+(\\.[0-9]+)*(-[A-Za-z0-9]+)?(\\+[A-Za-z0-9]+)?");
-
-    Semver current_version(SLIC3R_VERSION_FULL);
-    Semver best_pre(1, 0, 0, 0);
-    Semver best_release(1, 0, 0, 0);
-    std::string best_pre_url;
-    std::string best_release_url;
-    const std::regex reg_num("([0-9]+)");
-    for (auto json_version : root) {
-        std::string tag = json_version.second.get<std::string>("tag_name");
-        for (std::regex_iterator it = std::sregex_iterator(tag.begin(), tag.end(), reg_num);
-             it != std::sregex_iterator(); ++it) {}
-        Semver tag_version = get_version(tag, matcher);
-        if (current_version == tag_version)
-            i_am_pre = json_version.second.get<bool>("prerelease");
-        if (json_version.second.get<bool>("prerelease")) {
-            if (best_pre < tag_version) {
-                best_pre = tag_version;
-                best_pre_url = json_version.second.get<std::string>("html_url");
-            }
-        } else {
-            if (best_release < tag_version) {
-                best_release = tag_version;
-                best_release_url = json_version.second.get<std::string>("html_url");
-            }
-        }
-    }
-
-    // if release is more recent than beta, use release anyway
-    if (best_pre < best_release) {
-        best_pre = best_release;
-        best_pre_url = best_release_url;
-    }
-    // if we're the most recent, don't do anything
-    if ((i_am_pre ? best_pre : best_release) <= current_version)
-        return;
-
-    BOOST_LOG_TRIVIAL(info) << format("Got %1% online version: `%2%`. Sending to GUI thread...", SLIC3R_APP_NAME,
-                                      i_am_pre ? best_pre : best_release);
-
-    wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
-    evt->SetString((i_am_pre ? best_pre : best_release).to_string());
-    GUI::wxGetApp().QueueEvent(evt);
-}
-#endif
-// PRUSASLICER version
-#if VERSION_FROM_PRUSA
 void AppUpdater::priv::parse_version_string(const std::string &body) {
     size_t start = body.find('[');
     if (start == std::string::npos) {
@@ -382,9 +339,11 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
         // Lets send event with current version, this way if user triggered this check, it will notify him about no
         // new version online.
         std::string version = Semver().to_string();
-        wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
-        evt->SetString(GUI::from_u8(version));
-        GUI::wxGetApp().QueueEvent(evt);
+        if (wxApp::GetInstance() != nullptr) {
+            wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
+            evt->SetString(GUI::from_u8(version));
+            GUI::wxGetApp().QueueEvent(evt);
+        }
         return;
     }
     std::string tree_string = body.substr(start);
@@ -415,15 +374,20 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
 #else
             "release:linux"
 #endif
-            // lm:Related to the ifdefs. We should also support BSD, which behaves similar to Linux in most cases.
-            //  Unless you have a reason not to, I would consider doing _WIN32, elif __APPLE__, else ... Not just
-            //  here. dk: so its ok now or we need to specify BSD?
         ) {
             for (const auto &data : section.second) {
                 if (data.first == "url") {
                     new_data.url = data.second.data();
                     new_data.target_path = m_default_dest_folder / AppUpdater::get_filename_from_url(new_data.url);
                     BOOST_LOG_TRIVIAL(info) << format("parsing version string: url: %1%", new_data.url);
+                } else if (data.first == "size") {
+                    new_data.size = std::stoi(data.second.data());
+                    BOOST_LOG_TRIVIAL(info) << format("parsing version string: expected size: %1%", new_data.size);
+                } else if (data.first == "action") {
+                    std::string action = data.second.data();
+                    if (action == "browser") {
+                        new_data.action = AppUpdaterURLAction::AUUA_OPEN_IN_BROWSER;
+                    }
                 }
             }
         }
@@ -435,7 +399,9 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
                 // release version - save and send to UI layer
                 if (data.first == "release") {
                     std::string version = data.second.data();
-                    std::optional<Semver> release_version = Semver::parse(version);
+                    boost::optional<Semver> release_version = Semver::parse(version) ?
+                        boost::optional<Semver>(*Semver::parse(version)) :
+                        boost::none;
                     if (!release_version) {
                         BOOST_LOG_TRIVIAL(error)
                             << format("Received invalid contents from version file: Not a correct semver: `%1%`",
@@ -460,10 +426,12 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
                 }
             }
             // find recent version that is newer than last full release.
-            std::optional<Semver> recent_version;
+            boost::optional<Semver> recent_version;
             std::string version_string;
             for (const std::string &ver_string : prerelease_versions) {
-                std::optional<Semver> ver = Semver::parse(ver_string);
+                boost::optional<Semver> ver = Semver::parse(ver_string) ?
+                    boost::optional<Semver>(*Semver::parse(ver_string)) :
+                    boost::none;
                 if (ver && *new_data.version < *ver &&
                     ((recent_version && *recent_version < *ver) || !recent_version)) {
                     recent_version = ver;
@@ -471,7 +439,7 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
                 }
             }
             // send prerelease version to UI layer
-            if (recent_version) {
+            if (recent_version && wxApp::GetInstance() != nullptr) {
                 BOOST_LOG_TRIVIAL(info) << format("Got %1% online version: `%2%`. Sending to GUI thread...",
                                                   SLIC3R_APP_NAME, version_string);
                 wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE);
@@ -488,11 +456,12 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
     std::string version = new_data.version.get().to_string();
     BOOST_LOG_TRIVIAL(info) << format("Got %1% online version: `%2%`. Sending to GUI thread...", SLIC3R_APP_NAME,
                                       version);
-    wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
-    evt->SetString(GUI::from_u8(version));
-    GUI::wxGetApp().QueueEvent(evt);
+    if (wxApp::GetInstance() != nullptr) {
+        wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
+        evt->SetString(GUI::from_u8(version));
+        GUI::wxGetApp().QueueEvent(evt);
+    }
 }
-#endif
 
 #if 0 // lm:is this meant to be ressurected? //dk: it is code that parses PrusaSlicer.version2 in 2.4.0, It was
       // deleted from PresetUpdater.cpp and I would keep it here for possible reference.
@@ -506,15 +475,17 @@ void AppUpdater::priv::parse_version_string_old(const std::string& body) const
 		version = body.substr(0, first_nl_pos);
 	else
 		version = body;
-	std::optional<Semver> release_version = Semver::parse(version);
+	boost::optional<Semver> release_version = Semver::parse(version);
 	if (!release_version) {
 		BOOST_LOG_TRIVIAL(error) << format("Received invalid contents from `%1%`: Not a correct semver: `%2%`", SLIC3R_APP_NAME, version);
 		return;
 	}
 	BOOST_LOG_TRIVIAL(info) << format("Got %1% online version: `%2%`. Sending to GUI thread...", SLIC3R_APP_NAME, version);
-	wxCommandEvent* evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
-	evt->SetString(GUI::from_u8(version));
-	GUI::wxGetApp().QueueEvent(evt);
+    if (wxApp::GetInstance() != nullptr) {
+        wxCommandEvent* evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
+        evt->SetString(GUI::from_u8(version));
+        GUI::wxGetApp().QueueEvent(evt);
+    }
 
 	// alpha / beta version
 	std::vector<std::string> prerelease_versions;
@@ -548,15 +519,15 @@ void AppUpdater::priv::parse_version_string_old(const std::string& body) const
 		}
 	}
 	// find recent version that is newer than last full release.
-	std::optional<Semver> recent_version;
+	boost::optional<Semver> recent_version;
 	for (const std::string& ver_string : prerelease_versions) {
-		std::optional<Semver> ver = Semver::parse(ver_string);
+		boost::optional<Semver> ver = Semver::parse(ver_string);
 		if (ver && *release_version < *ver && ((recent_version && *recent_version < *ver) || !recent_version)) {
 			recent_version = ver;
 			version = ver_string;
 		}
 	}
-	if (recent_version) {
+	if (recent_version && wxApp::GetInstance() != nullptr) {
 		BOOST_LOG_TRIVIAL(info) << format("Got %1% online version: `%2%`. Sending to GUI thread...", SLIC3R_APP_NAME, version);
 		wxCommandEvent* evt = new wxCommandEvent(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE);
 		evt->SetString(GUI::from_u8(version));
@@ -603,8 +574,6 @@ void AppUpdater::sync_download() {
         p->m_download_ongoing = true;
         if (boost::filesystem::path dest_path = p->download_file(input_data); boost::filesystem::exists(dest_path)) {
             if (input_data.start_after) {
-                p->run_downloaded_file(std::move(dest_path));
-            } else {
                 GUI::desktop_open_folder(dest_path.parent_path());
             }
         }

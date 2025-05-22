@@ -18,8 +18,8 @@
 
 #include <iostream>
 #include <ctime>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstdio>
 
 #include <wx/wx.h>
 #include <wx/scrolwin.h>
@@ -64,7 +64,7 @@ namespace GUI {
     class ExecVar {
     public:
         boost::process::opstream pyin;
-        boost::asio::io_service ios;
+        boost::asio::io_context ios;
         std::future<std::string> data_out;
         std::future<std::string> data_err;
         std::unique_ptr<boost::process::child> process;

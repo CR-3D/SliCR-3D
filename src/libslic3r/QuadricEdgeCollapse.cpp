@@ -6,7 +6,7 @@
 #include <tuple>
 #include <optional>
 #include "MutablePriorityQueue.hpp"
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 using namespace Slic3r;
 

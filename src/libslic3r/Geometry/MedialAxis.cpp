@@ -2721,7 +2721,7 @@ unsafe_variable_width(const ThickPolyline& polyline, const ExtrusionRole role, c
         if (path.polyline.empty()) {
             if (wanted_width != current_flow.width()) {
                 if (current_flow.bridge()) {
-                    current_flow = Flow::bridging_flow(current_flow.height(), (float) wanted_width);
+                    current_flow = Flow::bridging_flow(current_flow.width(), current_flow.height(), (float) wanted_width);
                 } else {
                     current_flow = current_flow.with_width((float) wanted_width);
                 }
@@ -2746,7 +2746,7 @@ unsafe_variable_width(const ThickPolyline& polyline, const ExtrusionRole role, c
                 paths.push_back(path);
                 if (wanted_width != current_flow.width()) {
                     if (current_flow.bridge()) {
-                        current_flow = Flow::bridging_flow(current_flow.height(), (float) wanted_width);
+                        current_flow = Flow::bridging_flow(current_flow.width(), current_flow.height(), (float) wanted_width);
                     } else {
                         current_flow = current_flow.with_width((float) wanted_width);
                     }

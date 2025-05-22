@@ -1000,7 +1000,7 @@ void MainFrame::update_title()
         }
     }
 
-    title += wxString(SLIC3R_APP_NAME) + "_" + wxString(SLIC3R_VERSION);
+    title += wxString(SLIC3R_APP_NAME) + " " + wxString(SLIC3R_VERSION) ;
     if (wxGetApp().is_editor() && !has_name)
         title += (" " + _L(SLIC3R_BASED_ON));
 
@@ -1121,8 +1121,11 @@ void MainFrame::init_tabpanel()
                     this->m_plater->select_view_3D("Preview");
                     this->m_plater->refresh_print();
                     this->m_plater->Refresh();
-                } else
+                } else {
                     this->m_plater->select_view_3D("Preview");
+                    this->m_plater->refresh_print();
+                    this->m_plater->Refresh();
+                }
             } else if (bt_idx_sel == 2) {
                 this->m_webViewPanel->m_webView->Show();
                 this->m_webViewPanel->m_combo_printer->update();
@@ -2441,10 +2444,10 @@ void MainFrame::load_config(const DynamicPrintConfig& config)
     for (auto tab : wxGetApp().tabs_list)
         if (tab->supports_printer_technology(printer_technology) && tab->completed()) {
             // Only apply keys, which are present in the tab's config. Ignore the other keys.
-            for (const std::string &opt_key : tab->get_config()->diff(config))
-                // Ignore print_settings_id, printer_settings_id, filament_settings_id etc.
-                if (! boost::algorithm::ends_with(opt_key, "_settings_id"))
-                    tab->get_config()->option(opt_key)->set(config.option(opt_key));
+			for (const std::string &opt_key : tab->get_config()->diff(config))
+				// Ignore print_settings_id, printer_settings_id, filament_settings_id etc.
+				if (! boost::algorithm::ends_with(opt_key, "_settings_id"))
+					tab->get_config()->option(opt_key)->set(*config.option(opt_key));
         }
     
     wxGetApp().load_current_presets();

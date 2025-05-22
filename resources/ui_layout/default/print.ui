@@ -70,18 +70,16 @@ group:Quality
 		setting:label$_:perimeter_reverse
 	end_line
 
+	line:Wall Sequence
+		setting:label$_:wall_sequence
+	end_line
+
 group:Thin Walls
 	line:Thin Walls
 		setting:label$_:thin_walls
 	end_line
 	line:Thin Walls Min Width
-		setting:width$5:thin_walls_min_width
-	end_line
-	line:Thin Walls Overlap
-		setting:width$5:thin_walls_overlap
-	end_line
-	line:Thin Walls Merge
-		setting:thin_walls_merge
+		setting:label$_:thin_walls_min_width
 	end_line
 
 group:Avoid crossing perimeters
@@ -161,7 +159,6 @@ group:sidetext_width$5:Gap Fill
 		setting:label$_:gap_fill_enabled
 	end_line
 
-
 group:sidetext_width$5:Advanced
 	setting:width$25:no_perimeter_unsupported_algo
 	line:One-loop perimeters
@@ -213,6 +210,7 @@ group:Arachne perimeter generator (variable width)
 
 page:Slicing:layers
 group:Layer height
+	setting:link_layer_heights
 	setting:layer_height
 	setting:first_layer_height
 group:Filtering
@@ -469,7 +467,10 @@ group:Raft
 	line:Contact Distance
 		setting:label$_:raft_contact_distance
 	end_line
-
+	line:Contact Distance Type
+		setting:label$_:raft_contact_distance_type
+	end_line
+	
 	line:First Layer Density
 		setting:label$_:raft_first_layer_density
 	line:First Layer Expansion
@@ -816,8 +817,9 @@ group:Overlap
 		setting:bridge_overlap_min
 		setting:bridge_overlap
 	end_line
+
 	line:Infill Overlap
-	setting:label$_:infill_overlap
+		setting:label$_:infill_overlap
 	end_line
 
 group:Flow

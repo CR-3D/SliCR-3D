@@ -21,8 +21,8 @@
 #include <boost/nowide/cstdio.hpp>
 #include <boost/filesystem/path.hpp>
 
-#include <float.h>
-#include <assert.h>
+#include <cassert>
+#include <cfloat>
 
 #if __has_include(<charconv>)
     #include <charconv>
@@ -69,7 +69,6 @@ const std::vector<std::string> GCodeProcessor::Reserved_Tags = {
     "_GP_ESTIMATED_PRINTING_TIME_PLACEHOLDER",
     " printing object",
     " stop printing object",
-    " PA_CHANGE:"
 };
 
 const float GCodeProcessor::Wipe_Width = 0.05f;
@@ -234,12 +233,12 @@ void GCodeProcessor::TimeMachine::reset()
     layers_time = std::vector<float>();
 }
 
-void GCodeProcessor::TimeMachine::simulate_st_synchronize(float additional_time)
+void GCodeProcessor::TimeMachine::simulate_st_synchronize_call(std::vector<GCodeProcessorResult::MoveVertex> &moves, float additional_time)
 {
     if (!enabled)
         return;
 
-    calculate_time(0, additional_time);
+    calculate_time(moves, 0, additional_time);
 }
 
 static void planner_forward_pass_kernel(GCodeProcessor::TimeBlock& prev, GCodeProcessor::TimeBlock& curr)
@@ -312,7 +311,7 @@ static void recalculate_trapezoids(std::vector<GCodeProcessor::TimeBlock>& block
     }
 }
 
-void GCodeProcessor::TimeMachine::calculate_time(size_t keep_last_n_blocks, float additional_time)
+void GCodeProcessor::TimeMachine::calculate_time(std::vector<GCodeProcessorResult::MoveVertex> &moves, size_t keep_last_n_blocks, float additional_time)
 {
     if (!enabled || blocks.size() < 2)
         return;
@@ -358,6 +357,13 @@ void GCodeProcessor::TimeMachine::calculate_time(size_t keep_last_n_blocks, floa
             [](const StopTime& t, unsigned int value) { return t.g1_line_id < value; });
         if (it_stop_time != stop_times.end() && it_stop_time->g1_line_id == block.g1_line_id)
             it_stop_time->elapsed_time = time;
+
+        //update moves
+        for (size_t idx : block.moves) {
+            assert(moves.size() > idx);
+            moves[idx].move_time = time;
+        }
+
     }
 
     if (keep_last_n_blocks)
@@ -479,7 +485,6 @@ void GCodeProcessor::UsedFilaments::process_caches(const GCodeProcessor* process
 void GCodeProcessorResult::reset() {
     moves = std::vector<GCodeProcessorResult::MoveVertex>();
     bed_shape = Pointfs();
-    bed_exclude_area = std::string();
     max_print_height = 0.0f;
     z_offset = 0.0f;
     settings_ids.reset();
@@ -1454,7 +1459,7 @@ void GCodeProcessor::finalize(bool perform_post_process)
     for (size_t i = 0; i < static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Count); ++i) {
         TimeMachine& machine = m_time_processor.machines[i];
         TimeMachine::CustomGCodeTime& gcode_time = machine.gcode_time;
-        machine.calculate_time();
+        machine.calculate_time(m_result.moves);
         if (gcode_time.needed && gcode_time.cache != 0.0f)
             gcode_time.times.push_back({ CustomGCode::ColorChange, gcode_time.cache });
     }
@@ -1665,7 +1670,7 @@ std::vector<float> GCodeProcessor::get_layers_time(PrintEstimatedStatistics::ETi
 {
     return (mode < PrintEstimatedStatistics::ETimeMode::Count) ?
         m_time_processor.machines[static_cast<size_t>(mode)].layers_time :
-        std::vector<float>();
+        std::vector<float>();;
 }
 
 std::string get_klipper_param(std::string key, std::string line) {
@@ -1813,6 +1818,10 @@ void GCodeProcessor::set_extruder_temp(float temp, size_t extruder_id) {
         if (extruder_id < m_extruder_temps.size())
             m_extruder_temps[extruder_id] = temp;
     }
+}
+
+void GCodeProcessor::move_next_layer_id() {
+    ++m_layer_id;
 }
 
 void GCodeProcessor::process_gcode_line(const GCodeReader::GCodeLine& line, bool producers_enabled)
@@ -2074,7 +2083,7 @@ template<typename T>
         }
     }
 }
-#pragma UNOPTIMIZE
+
 void GCodeProcessor::process_tags(const std::string_view comment, bool producers_enabled)
 {
     // producers tags
@@ -2229,7 +2238,7 @@ void GCodeProcessor::process_tags(const std::string_view comment, bool producers
 
     // layer change tag
     if (comment == reserved_tag(ETags::Layer_Change)) {
-        ++m_layer_id;
+        move_next_layer_id();
         if (m_spiral_vase_active) {
             if (m_result.moves.empty() || m_result.spiral_vase_layers.empty())
                 // add a placeholder for layer height. the actual value will be set inside process_G1() method
@@ -2367,7 +2376,7 @@ bool GCodeProcessor::process_cura_tags(const std::string_view comment)
     tag = "LAYER:";
     pos = comment.find(tag);
     if (pos != comment.npos) {
-        ++m_layer_id;
+        move_next_layer_id();
         return true;
     }
 
@@ -2508,7 +2517,7 @@ bool GCodeProcessor::process_simplify3d_tags(const std::string_view comment)
         const std::string_view data = cmt.substr(pos + tag.length());
         size_t end_start = data.find("end");
         if (end_start == data.npos)
-            ++m_layer_id;
+            move_next_layer_id();
 
         return true;
     }
@@ -2559,7 +2568,7 @@ bool GCodeProcessor::process_craftware_tags(const std::string_view comment)
     // layer
     pos = comment.find(" Layer #");
     if (pos == 0) {
-        ++m_layer_id;
+        move_next_layer_id();
         return true;
     }
 
@@ -2620,7 +2629,7 @@ bool GCodeProcessor::process_ideamaker_tags(const std::string_view comment)
     // layer
     pos = comment.find("LAYER:");
     if (pos == 0) {
-        ++m_layer_id;
+        move_next_layer_id();
         return true;
     }
 
@@ -2728,7 +2737,7 @@ bool GCodeProcessor::process_kissslicer_tags(const std::string_view comment)
     // layer
     pos = comment.find(" BEGIN_LAYER_");
     if (pos == 0) {
-        ++m_layer_id;
+        move_next_layer_id();
         return true;
     }
 
@@ -3150,7 +3159,7 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
         m_current_time[i] += block.time() * machine.time_acceleration;
         if (blocks.size() > TimeProcessor::Planner::refresh_threshold) {
             //note: machine is queue_size behind the real time.
-            machine.calculate_time(TimeProcessor::Planner::queue_size);
+            machine.calculate_time(m_result.moves, TimeProcessor::Planner::queue_size);
         }
     }
 
@@ -4854,7 +4863,6 @@ void GCodeProcessor::store_move_vertex(EMoveType type, bool internal_only)
         m_line_id + 1 :
         ((type == EMoveType::Seam) ? m_last_line_id : m_line_id);
     assert(type != EMoveType::Noop);
-//    std::cout<<"store_move_vertex @"<<m_time_processor.machines[0].time<<"\n";
     // push_back(GCodeProcessorResult::MoveVertex{})
     m_result.moves.emplace_back(
         m_last_line_id,
@@ -4871,10 +4879,17 @@ void GCodeProcessor::store_move_vertex(EMoveType type, bool internal_only)
         m_mm3_per_mm,
         m_fan_speed,
         m_extruder_temps[m_extruder_id],
-        m_current_time[0], // note: m_time_processor.machines[0].time, is too slow to recompute.
+        m_current_time[0], // note: m_time_processor.machines[0].time, is too slow to recompute. it will be updated when recomputed.
         m_layer_id,
         internal_only
     );
+
+    //push id of the move to time update
+    TimeMachine& machine = m_time_processor.machines.front();
+    // note: machine.blocks can be empty if called from process_toolchange (or other not-G1 G2 G3 gcode)
+    if (!machine.blocks.empty()) {
+        machine.blocks.back().moves.push_back(m_result.moves.size() - 1);
+    }
 
     // stores stop time placeholders for later use
     if (type == EMoveType::Color_change || type == EMoveType::Pause_Print) {
@@ -5025,7 +5040,7 @@ void GCodeProcessor::process_custom_gcode_time(CustomGCode::Type code)
         gcode_time.needed = true;
         //FIXME this simulates st_synchronize! is it correct?
         // The estimated time may be longer than the real print time.
-        machine.simulate_st_synchronize();
+        machine.simulate_st_synchronize_call(m_result.moves);
         if (gcode_time.cache != 0.0f) {
             gcode_time.times.push_back({ code, gcode_time.cache });
             gcode_time.cache = 0.0f;
@@ -5045,7 +5060,7 @@ void GCodeProcessor::process_filaments(CustomGCode::Type code)
 void GCodeProcessor::simulate_st_synchronize(float additional_time)
 {
     for (size_t i = 0; i < static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Count); ++i) {
-        m_time_processor.machines[i].simulate_st_synchronize(additional_time);
+        m_time_processor.machines[i].simulate_st_synchronize_call(m_result.moves, additional_time);
     }
 }
 

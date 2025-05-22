@@ -21,7 +21,6 @@
 #include "Thread.hpp"
 #include "Utils.hpp"
 #include "libslic3r.h"
-#include "tbb/parallel_for.h"
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
 #include "tbb/parallel_reduce.h"
@@ -32,7 +31,6 @@
 #include <cstdio>
 #include <functional>
 #include <limits>
-#include <math.h>
 #include <oneapi/tbb/concurrent_vector.h>
 #include <oneapi/tbb/parallel_for.h>
 #include <optional>
@@ -230,16 +228,22 @@ SliceConnection estimate_slice_connection(size_t slice_idx, const Layer *layer)
 
     std::unordered_set<size_t> linked_slices_below;
     for (const auto &link : slice.overlaps_below) { linked_slices_below.insert(link.slice_idx); }
+    if (linked_slices_below.empty())
+        return connection;
 
     ExPolygons below{};
     for (const auto &linked_slice_idx_below : linked_slices_below) { below.push_back(lower_layer->lslices()[linked_slice_idx_below]); }
     Polygons below_polys = to_polygons(below);
+    if (below_polys.empty())
+        return connection;
 
     BoundingBox below_bb = get_extents(below_polys);
 
     Polygons overlap = intersection(ClipperUtils::clip_clipper_polygons_with_subject_bbox(slice_polys, below_bb),
                                     ClipperUtils::clip_clipper_polygons_with_subject_bbox(below_polys, slice_bb));
     ensure_valid(overlap);
+    if (overlap.empty())
+        return connection;
 
     const Integrals integrals{overlap};
     connection.area += integrals.area;
@@ -1124,7 +1128,7 @@ SliceMappings update_active_object_parts(const Layer                        *lay
                                   centroid.head<2>().cwiseProduct(centroid.head<2>()));
                 float xy_variance      = variance.x() + variance.y();
                 float arm_len_estimate = std::max(1.0f, bottom_z - (conn.centroid_accumulator.z() / conn.area));
-                return conn.area * sqrt(xy_variance) / arm_len_estimate;
+                return conn.area * sqrtf(xy_variance) / arm_len_estimate;
             };
 
 #ifdef DETAILED_DEBUG_LOGS

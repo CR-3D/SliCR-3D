@@ -3,20 +3,19 @@ name: C/C++ Release candidate ubuntu-GTK3
 on:
   push:
     branches:
-      - rc
-      - debug_ubuntu
-      - master_27_dev
+      - master_27
+
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     env:
       EXEC_NAME: "${{ github.event.repository.name }}"
     steps:
     - uses: actions/checkout@v3
       with:
-        ref: 'rc'
+        ref: 'master_27'
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.13
       with:
@@ -27,6 +26,8 @@ jobs:
       run: sudo apt update
     - name: install gtk3
       run: sudo apt install libgtk-3-dev
+    - name: Install WebKit GTK
+      run: sudo apt install libwebkit2gtk-4.0-dev
     - name: install libs
       run: sudo ./BuildLinux.sh -u
     - name: dep cache
@@ -37,9 +38,9 @@ jobs:
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -dr -g 3
+      run: ./BuildLinux.sh -d
     - name: slicer, tar & appimage
-      run: ./BuildLinux.sh -si -g 3
+      run: ./BuildLinux.sh -si
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

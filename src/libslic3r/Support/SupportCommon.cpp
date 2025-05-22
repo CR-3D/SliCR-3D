@@ -11,11 +11,12 @@
 #include "../MutablePolygon.hpp"
 #include "../Geometry.hpp"
 #include "../Point.hpp"
+#include "../Thread.hpp"
 
 #include <cmath>
 #include <boost/container/static_vector.hpp>
 
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #include "SupportCommon.hpp"
 #include "SupportLayer.hpp"
@@ -198,7 +199,7 @@ std::pair<SupportGeneratorLayersPtr, SupportGeneratorLayersPtr> generate_interfa
                     assert_valid(intermediate_layer.polygons);
                     if (subtract){
                         // Trim the base interface layer with the interface layer.
-                        layer_new.polygons = diff(std::move(layer_new.polygons), *subtract);
+                        layer_new.polygons = ensure_valid(support_params.resolution, diff(std::move(layer_new.polygons), *subtract));
                     //FIXME filter layer_new.polygons islands by a minimum area?
         //                  $interface_area = [ grep abs($_->area) >= $area_threshold, @$interface_area ];
                     }
@@ -208,9 +209,9 @@ std::pair<SupportGeneratorLayersPtr, SupportGeneratorLayersPtr> generate_interfa
             }
             return nullptr;
         };
-        tbb::parallel_for(tbb::blocked_range<int>(0, int(intermediate_layers.size())),
+        Slic3r::parallel_for(size_t(0), intermediate_layers.size(),
             [&bottom_contacts, &top_contacts, &top_interface_layers, &top_base_interface_layers, &intermediate_layers, &insert_layer, &support_params,
-             snug_supports, &interface_layers, &base_interface_layers](const tbb::blocked_range<int>& range) {                
+             snug_supports, &interface_layers, &base_interface_layers](size_t idx_intermediate_layer) {                
                 // Gather the top / bottom contact layers intersecting with num_interface_layers resp. num_interface_layers_only intermediate layers above / below
                 // this intermediate layer.
                 // Index of the first top contact layer intersecting the current intermediate layer.
@@ -222,7 +223,7 @@ std::pair<SupportGeneratorLayersPtr, SupportGeneratorLayersPtr> generate_interfa
                 // Index of the first top contact interface layer intersecting the current intermediate layer.
                 auto idx_top_base_interface_first = -1;
                 auto num_intermediate = int(intermediate_layers.size());
-                for (int idx_intermediate_layer = range.begin(); idx_intermediate_layer < range.end(); ++ idx_intermediate_layer) {
+                {
                     SupportGeneratorLayer &intermediate_layer = *intermediate_layers[idx_intermediate_layer];
                     assert_valid(intermediate_layer.polygons);
                     Polygons polygons_top_contact_projected_interface;
@@ -231,14 +232,14 @@ std::pair<SupportGeneratorLayersPtr, SupportGeneratorLayersPtr> generate_interfa
                     Polygons polygons_bottom_contact_projected_base;
                     if (support_params.num_top_interface_layers > 0) {
                         // Top Z coordinate of a slab, over which we are collecting the top / bottom contact surfaces
-                        coordf_t top_z              = intermediate_layers[std::min(num_intermediate - 1, idx_intermediate_layer + int(support_params.num_top_interface_layers) - 1)]->print_z;
+                        coordf_t top_z              = intermediate_layers[std::min(num_intermediate - 1, int(idx_intermediate_layer + support_params.num_top_interface_layers) - 1)]->print_z;
                         coordf_t top_inteface_z     = std::numeric_limits<coordf_t>::max();
                         if (support_params.num_top_base_interface_layers > 0)
                             // Some top base interface layers will be generated.
                             top_inteface_z = support_params.num_top_interface_layers_only() == 0 ?
                                 // Only base interface layers to generate.
                                 - std::numeric_limits<coordf_t>::max() :
-                                intermediate_layers[std::min(num_intermediate - 1, idx_intermediate_layer + int(support_params.num_top_interface_layers_only()) - 1)]->print_z;
+                                intermediate_layers[std::min(num_intermediate - 1, int(idx_intermediate_layer + support_params.num_top_interface_layers_only()) - 1)]->print_z;
                         // Move idx_top_contact_first up until above the current print_z.
                         idx_top_contact_first = idx_higher_or_equal(top_contacts, idx_top_contact_first, [&intermediate_layer](const SupportGeneratorLayer *layer){ return layer->print_z >= intermediate_layer.print_z; }); //  - EPSILON
                         // Collect the top contact areas above this intermediate layer, below top_z.
@@ -255,14 +256,14 @@ std::pair<SupportGeneratorLayersPtr, SupportGeneratorLayersPtr> generate_interfa
                     }
                     if (support_params.num_bottom_interface_layers > 0) {
                         // Bottom Z coordinate of a slab, over which we are collecting the top / bottom contact surfaces
-                        coordf_t bottom_z           = intermediate_layers[std::max(0, idx_intermediate_layer - int(support_params.num_bottom_interface_layers) + 1)]->bottom_z;
+                        coordf_t bottom_z           = intermediate_layers[std::max(0, int(idx_intermediate_layer - support_params.num_bottom_interface_layers) + 1)]->bottom_z;
                         coordf_t bottom_interface_z = - std::numeric_limits<coordf_t>::max();
                         if (support_params.num_bottom_base_interface_layers > 0)
                             // Some bottom base interface layers will be generated.
                             bottom_interface_z = support_params.num_bottom_interface_layers_only() == 0 ? 
                                 // Only base interface layers to generate.
                                 std::numeric_limits<coordf_t>::max() :
-                                intermediate_layers[std::max(0, idx_intermediate_layer - int(support_params.num_bottom_interface_layers_only()))]->bottom_z;
+                                intermediate_layers[std::max(0, int(idx_intermediate_layer - support_params.num_bottom_interface_layers_only()))]->bottom_z;
                         // Move idx_bottom_contact_first up until touching bottom_z.
                         idx_bottom_contact_first = idx_higher_or_equal(bottom_contacts, idx_bottom_contact_first, [bottom_z](const SupportGeneratorLayer *layer){ return layer->print_z >= bottom_z - EPSILON; });
                         // Collect the top contact areas above this intermediate layer, below top_z.
@@ -721,8 +722,7 @@ static inline void tree_supports_generate_paths(
                 ExPolygons level2 = offset2_ex({ expoly }, -1.5 * flow.scaled_width(), 0.5 * flow.scaled_width());
                 ensure_valid(level2, support_params.resolution);
                 if (level2.size() == 1) {
-                    Polylines polylines;
-                    extrusion_entities_append_paths(*eec, draw_perimeters(expoly, clip_length), { ExtrusionRole::SupportMaterial, flow },
+                    extrusion_entities_append_paths(*eec, ensure_valid(draw_perimeters(expoly, clip_length), support_params.resolution), { ExtrusionRole::SupportMaterial, flow },
                         // Disable reversal of the path, always start with the anchor, always print CCW.
                         false);
                     expoly = level2.front();
@@ -753,7 +753,6 @@ static inline void tree_supports_generate_paths(
                 pl.reverse();
             pl.points.emplace_back(pl.points.front());
             pl.clip_end(clip_length);
-            pl.assert_valid();
             if (pl.size() < 2)
                 continue;
             // Find the foot of the seam point on anchor_candidates. Only pick an anchor point that was created by offsetting the source contour.
@@ -791,7 +790,6 @@ static inline void tree_supports_generate_paths(
                 // Try to cut an anchor from the closest_contour.
                 // Both closest_contour and pl are CW oriented.
                 pl.points.emplace_back(closest_point.cast<coord_t>());
-            pl.assert_valid();
                 const ClipperLib_Z::Path &path = *closest_contour;
                 double remaining_length = anchor_length - (seam_pt - closest_point).norm();
                 int i = closest_point_idx;
@@ -803,14 +801,12 @@ static inline void tree_supports_generate_paths(
                 if (remaining_length < (1. - closest_point_t) * l) {
                     // Just trim the current line.
                     pl.points.emplace_back((closest_point + v * (remaining_length / l)).cast<coord_t>());
-            pl.assert_valid();
                 } else {
                     // Take the rest of the current line, continue with the other lines.
                     Point pt_path_j(path[j].x(),path[j].y());
                     if (!pl.points.back().coincides_with_epsilon(pt_path_j)) {
                         pl.points.emplace_back(pt_path_j);
                     }
-            pl.assert_valid();
                     pi = pj;
                     for (i = j; path[i].z() == idx_loop && remaining_length > 0; i = j, pi = pj) {
                         j = next_idx_modulo(i, path);
@@ -823,19 +819,19 @@ static inline void tree_supports_generate_paths(
                         }
                         if (remaining_length <= l) {
                             pl.points.emplace_back((pi + v * (remaining_length / l)).cast<coord_t>());
-            pl.assert_valid();
                             break;
                         }
                         pl.points.emplace_back(path[j].x(), path[j].y());
-            pl.assert_valid();
                         remaining_length -= l;
                     }
                 }
             }
             // Start with the anchor.
             pl.reverse();
-            pl.assert_valid();
-            polylines.emplace_back(std::move(pl));
+            ensure_valid(pl, support_params.resolution);
+            if (!pl.empty()) {
+                polylines.emplace_back(std::move(pl));
+            }
         }
 
         ExtrusionEntityCollection &out = eec ? *eec : dst;
@@ -1375,7 +1371,7 @@ static void modulate_extrusion_by_overlapping_layers(
             }
             path_ends.emplace_back(std::pair<Point, Point>(polylines.back().points.front(), polylines.back().points.back()));
         }
-       // assert_valid(polylines);
+        assert_valid(polylines);
     }
     // Destroy the original extrusion paths, their polylines were moved to path_fragments already.
     // This will be the destination for the new paths.
@@ -1391,9 +1387,9 @@ static void modulate_extrusion_by_overlapping_layers(
         assert_valid(polygons_trimming);
         frag.polylines = intersection_pl(path_fragments.back().polylines, polygons_trimming);
         ensure_valid(frag.polylines, this_layer.resolution);
-        //assert_valid(frag.polylines);
+        assert_valid(frag.polylines);
         path_fragments.back().polylines = diff_pl(path_fragments.back().polylines, polygons_trimming);
-        //assert_valid(path_fragments.back().polylines);
+        assert_valid(path_fragments.back().polylines);
         // Adjust the extrusion parameters for a reduced layer height and a non-bridging flow (nozzle_dmr = -1, does not matter).
         assert(this_layer.print_z > overlapping_layer.print_z);
         float old_height = frag.flow.height;
@@ -1446,7 +1442,7 @@ static void modulate_extrusion_by_overlapping_layers(
     for (size_t i_overlapping_layer = 0; i_overlapping_layer <= n_overlapping_layers; ++ i_overlapping_layer) {
         const Polylines &polylines = path_fragments[i_overlapping_layer].polylines;
         for (size_t i_polyline = 0; i_polyline < polylines.size(); ++ i_polyline) {
-            polylines[i_polyline].MultiPoint::assert_valid();
+            polylines[i_polyline].assert_valid();
             // Map a starting point of a polyline to a pair of <layer, polyline>
             if (polylines[i_polyline].points.size() >= 2) {
                 map_fragment_starts.insert(ExtrusionPathFragmentEnd(i_overlapping_layer, i_polyline, true));
@@ -1767,11 +1763,14 @@ void generate_support_toolpaths(
                 // value that guarantees that all layers are correctly aligned.
                 spacing = support_params.raft_interface_flow.spacing();
                 assert(!raft_layer.bridging);
-                float nzd     = support_params.raft_interface_flow.nozzle_diameter();
-                flow          = !raft_layer.bridging ?
-                                    Flow::new_from_width(float(support_params.raft_interface_flow.width()), nzd, float(raft_layer.height),
-                                                support_params.raft_interface_flow.spacing_ratio()) :
-                                    Flow::bridging_flow(nzd * std::sqrt(support_params.raft_bridge_flow_ratio), nzd);
+                float nzd = support_params.raft_interface_flow.nozzle_diameter();
+                float height = float(raft_layer.height);
+                float width = nzd * std::sqrt(support_params.raft_bridge_flow_ratio);
+
+                flow = !raft_layer.bridging ?
+                    Flow::new_from_width(float(support_params.raft_interface_flow.width()), nzd, height,
+                                         support_params.raft_interface_flow.spacing_ratio()) :
+                    Flow::bridging_flow(width, height, nzd);
                 //flow          = Flow(float(support_params.raft_interface_flow.width()), float(raft_layer.height), support_params.raft_interface_flow.nozzle_diameter());
                 density       = float(support_params.raft_interface_density);
             } else
@@ -1828,12 +1827,10 @@ void generate_support_toolpaths(
                                                                 size_t(-1) :
                                                                 (slicing_params.base_raft_layers + slicing_params.interface_raft_layers - 1);
 
-    //Slic3r::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),
-        //[&config, &slicing_params, &support_params, &support_layers, &bottom_contacts, &top_contacts, &intermediate_layers, &interface_layers, &base_interface_layers, &layer_caches, &loop_interface_processor,
-            //&bbox_object, n_raft_layers, link_max_length_factor, &filler_first_layer, raft_top_interface_idx]
-            //(const tbb::blocked_range<size_t>& range) {
-    {
-        const tbb::blocked_range<size_t> range(n_raft_layers, support_layers.size());
+    tbb::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),
+        [&config, &slicing_params, &support_params, &support_layers, &bottom_contacts, &top_contacts, &intermediate_layers, &interface_layers, &base_interface_layers, &layer_caches, &loop_interface_processor,
+            &bbox_object, n_raft_layers, link_max_length_factor, &filler_first_layer, raft_top_interface_idx]
+            (const tbb::blocked_range<size_t>& range) {
         // Indices of the 1st layer in their respective container at the support layer height.
         size_t idx_layer_bottom_contact   = size_t(-1);
         size_t idx_layer_top_contact      = size_t(-1);
@@ -2003,11 +2000,18 @@ void generate_support_toolpaths(
                                                                                                filler_intermediate_interface.get();
                     if (raft_contact)
                         filler = filler_raft_contact.get();
-                    Flow  interface_flow = layer_ex.layer->bridging ?
-                        Flow::bridging_flow(layer_ex.layer->height, support_params.support_material_bottom_interface_flow.nozzle_diameter()) :
-                        (raft_contact ? &support_params.raft_interface_flow : 
-                         interface_as_base ? &support_params.support_material_flow : &support_params.support_material_interface_flow)
-                                                  ->with_height(float(layer_ex.layer->height));
+                    float height = layer_ex.layer->height;
+                    float nozzle_diameter = support_params.support_material_bottom_interface_flow.nozzle_diameter();
+                    float bridge_flow_ratio =
+                        support_params.raft_bridge_flow_ratio; // or another appropriate ratio depending on context
+                    float width = nozzle_diameter * std::sqrt(bridge_flow_ratio);
+
+                    Flow interface_flow = layer_ex.layer->bridging ?
+                        Flow::bridging_flow(width, height, nozzle_diameter) :
+                        (raft_contact          ? &support_params.raft_interface_flow :
+                             interface_as_base ? &support_params.support_material_flow :
+                                                 &support_params.support_material_interface_flow)
+                            ->with_height(height);
                     // filler->layer_id = support_layer_id; // don't do that, or the filler will rotate thigns from that layerid
                     filler->z             = support_layer.print_z;
                     float    supp_density = support_params.interface_density;
@@ -2192,7 +2196,7 @@ void generate_support_toolpaths(
                     support_layer.support_islands_bboxes.emplace_back(get_extents(expoly).inflated(SCALED_EPSILON));
             }
         } // for each support_layer_id
-    }//);
+    });
 
     // Now modulate the support layer height in parallel.
     tbb::parallel_for(tbb::blocked_range<size_t>(n_raft_layers, support_layers.size()),

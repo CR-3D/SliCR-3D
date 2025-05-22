@@ -149,8 +149,6 @@ void s_not_thick_bridge_set(bool set)
 		set_custom_bool(0,"not_thick_bridge", set);
 	}
 	if (set) {
-		if (get_int("bridge_type") != 3) // current flow
-			set_int("bridge_type", 3);
 		float overlap = compute_overlap();
 		set_float("bridge_overlap", overlap);
 		set_float("bridge_overlap_min", overlap);

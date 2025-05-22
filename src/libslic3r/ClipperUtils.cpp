@@ -77,7 +77,7 @@ namespace ClipperUtils {
     // Useful as an optimization for expensive ClipperLib operations, for example when clipping source polygons one by one
     // with a set of polygons covering the whole layer below.
     template<typename PointsType>
-    inline void clip_clipper_polygon_with_subject_bbox_templ(const PointsType &src, const BoundingBox &bbox, PointsType &out)
+    inline void clip_clipper_polyline_with_subject_bbox_templ(const PointsType &src, const BoundingBox &bbox, PointsType &out)
     {
         using PointType = typename PointsType::value_type;
 
@@ -120,47 +120,49 @@ namespace ClipperUtils {
         }
 
         // Never produce just a single point output polygon.
-        if (! out.empty())
+        if (!out.empty()) {
             if (int sides_next = sides(out.front());
                 // The last point is inside. Take it.
                 sides_this == 0 ||
                 // Either this point is outside and previous or next is inside, or
                 // the edge possibly cuts corner of the bounding box.
-                (sides_prev & sides_this & sides_next) == 0)
+                (sides_prev & sides_this & sides_next) == 0) {
                 out.emplace_back(src.back());
+            }
+        }
         // hack bugfix https://github.com/prusa3d/PrusaSlicer/issues/13356
         if(out.size() < 3)
             out.clear();
         assert(out.size() > 2 || out.empty());
     }
 
-    void clip_clipper_polygon_with_subject_bbox(const Points &src, const BoundingBox &bbox, Points &out)
-        { clip_clipper_polygon_with_subject_bbox_templ(src, bbox, out); }
-    void clip_clipper_polygon_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox, ZPoints &out)
-        { clip_clipper_polygon_with_subject_bbox_templ(src, bbox, out); }
+    void clip_clipper_polyline_with_subject_bbox(const Points &src, const BoundingBox &bbox, Points &out)
+        { clip_clipper_polyline_with_subject_bbox_templ(src, bbox, out); }
+    void clip_clipper_polyline_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox, ZPoints &out)
+        { clip_clipper_polyline_with_subject_bbox_templ(src, bbox, out); }
 
     template<typename PointsType>
-    [[nodiscard]] PointsType clip_clipper_polygon_with_subject_bbox_templ(const PointsType &src, const BoundingBox &bbox)
+    [[nodiscard]] PointsType clip_clipper_polyline_with_subject_bbox_templ(const PointsType &src, const BoundingBox &bbox)
     {
         PointsType out;
-        clip_clipper_polygon_with_subject_bbox(src, bbox, out);
+        clip_clipper_polyline_with_subject_bbox(src, bbox, out);
         return out;
     }
 
-    [[nodiscard]] Points clip_clipper_polygon_with_subject_bbox(const Points &src, const BoundingBox &bbox)
-        { return clip_clipper_polygon_with_subject_bbox_templ(src, bbox); }
-    [[nodiscard]] ZPoints clip_clipper_polygon_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox)
-        { return clip_clipper_polygon_with_subject_bbox_templ(src, bbox); }
+    [[nodiscard]] Points clip_clipper_polyline_with_subject_bbox(const Points &src, const BoundingBox &bbox)
+        { return clip_clipper_polyline_with_subject_bbox_templ(src, bbox); }
+    [[nodiscard]] ZPoints clip_clipper_polyline_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox)
+        { return clip_clipper_polyline_with_subject_bbox_templ(src, bbox); }
 
     void clip_clipper_polygon_with_subject_bbox(const Polygon &src, const BoundingBox &bbox, Polygon &out)
     {
-        clip_clipper_polygon_with_subject_bbox(src.points, bbox, out.points);
+        clip_clipper_polyline_with_subject_bbox_templ(src.points, bbox, out.points);
     }
 
     [[nodiscard]] Polygon clip_clipper_polygon_with_subject_bbox(const Polygon &src, const BoundingBox &bbox)
     {
         Polygon out;
-        clip_clipper_polygon_with_subject_bbox(src.points, bbox, out.points);
+        clip_clipper_polyline_with_subject_bbox_templ(src.points, bbox, out.points);
         return out;
     }
 
@@ -200,6 +202,50 @@ namespace ClipperUtils {
                   out.end());
         return out;
     }
+
+    [[nodiscard]] ExPolygons clip_clipper_expolygons_with_subject_bbox(const ExPolygons &src, const BoundingBox &bbox)
+    {
+        ExPolygons out;
+        Polygons temp;
+        out.reserve(number_polygons(src));
+        for (const ExPolygon &exp : src) {
+            temp.clear();
+            temp.emplace_back();
+            clip_clipper_polygon_with_subject_bbox(exp.contour, bbox, temp.back());
+            if (temp.back().empty()) {
+                // contour out of bounds, nothing is left.
+                continue;
+            } else if (temp.back().size() == exp.contour.size()) {
+                //no modification
+                out.push_back(exp);
+                continue;
+            }
+            bool need_union = false;
+            for (const Polygon &hole : exp.holes) {
+                temp.emplace_back();
+                clip_clipper_polygon_with_subject_bbox(hole, bbox, temp.back());
+                if (temp.back().empty() ) {
+                    // hole out of bounds, nothing is left.
+                    temp.pop_back();
+                } else if (temp.back().size() == exp.contour.size()) {
+                    //no modification
+                } else {
+                    need_union = true;
+                }
+            }
+            if (need_union) {
+                append(out, union_ex(temp));
+            } else {
+                out.emplace_back();
+                out.back().contour = temp.front();
+                if (temp.size() > 1) {
+                    out.back().holes.assign(temp.begin() + 1, temp.end());
+                }
+            }
+        }
+        return out;
+    }
+
 }
 
 
@@ -211,7 +257,9 @@ static ExPolygons PolyTreeToExPolygons(ClipperLib::PolyTree &&polytree)
             size_t cnt = expolygons->size();
             expolygons->resize(cnt + 1);
             (*expolygons)[cnt].contour.points = std::move(polynode.Contour);
-            if ((*expolygons)[cnt].contour.size() < 4 && !(*expolygons)[cnt].contour.is_counter_clockwise()) {
+            double area = std::abs((*expolygons)[cnt].contour.area());
+            // I saw a clockwise artifact with 4 points
+            if ((*expolygons)[cnt].contour.size() < 5 && !(*expolygons)[cnt].contour.is_counter_clockwise()) {
                 assert( std::abs((*expolygons)[cnt].contour.area()) < SCALED_EPSILON * SCALED_EPSILON * SCALED_EPSILON);
                 // error, delete.
                 (*expolygons).pop_back();
@@ -677,18 +725,25 @@ Slic3r::ExPolygons opening_ex(const Slic3r::Polygons& polygons, const double del
 
 bool test_path(const ClipperLib::Path &path) {
 
-    double area = std::abs(ClipperLib::Area(path));
+    double area = ClipperLib::Area(path);
     // get highest dist, but as it's n² in complexity, i use 2*dist to center wich is 2n in complexity
-    ClipperLib::cInt max_dist_sqrd = 0;
+    ClipperLib::cInt max_dist_sqr= 0;
+    // Centroid need the signed area.
     ClipperLib::IntPoint centroid = ClipperLib::Centroid(path, area);
+    area = std::abs(area);
     for (const ClipperLib::IntPoint& pt : path) {
         // &0x3FFFFFFF to let  (dx * dx + dy * dy) be storable into a int64
         ClipperLib::cInt dx = std::abs(pt.x() - centroid.x()) & 0x3FFFFFFF;
         ClipperLib::cInt dy = std::abs(pt.y() - centroid.y()) & 0x3FFFFFFF;
-        ClipperLib::cInt dist_sqrd = (dx * dx + dy * dy);
-        max_dist_sqrd = std::max(max_dist_sqrd, dist_sqrd);
+        ClipperLib::cInt dist_sqr = (dx * dx + dy * dy);
+        // store a bit more than the max (up to x2), but good enough as it avoid a branch.
+        max_dist_sqr = max_dist_sqr | dist_sqr; //std::max(max_dist_sqrd, dist_sqrd);
     }
-    return (area < (SCALED_EPSILON + SCALED_EPSILON) * std::sqrt(max_dist_sqrd));
+    // max_dist is the "biggest radius"
+    // area is < 2*max_dist * 2*max_dist
+    // here we create the min area posible: a cube with the radius x 2*Epsilon
+    // if it's lower than that, it means that the polygon is too small or too narrow.
+    return (area < (2 * SCALED_EPSILON) * std::sqrt(max_dist_sqr));
 }
 
 void remove_small_areas(ClipperLib::Paths& paths) {

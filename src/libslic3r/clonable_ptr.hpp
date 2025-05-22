@@ -18,7 +18,7 @@
  * or copy at http://opensource.org/licenses/MIT)
  */
 
-#include "assert.h"
+#include <cassert>
 
 namespace Slic3r {
 

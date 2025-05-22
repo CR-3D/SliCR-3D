@@ -112,13 +112,13 @@ protected:
 	std::vector<ConfigOptionsGroup*> optgroups();
 
 	void append_bool_option( std::shared_ptr<ConfigOptionsGroup> optgroup,
-								const std::string& opt_key,
+								const t_config_option_key& opt_key,
 								const std::string& label,
 								const std::string& tooltip,
 								bool def_val,
 								ConfigOptionMode mode = ConfigOptionMode::comNone);
 	void append_int_option( std::shared_ptr<ConfigOptionsGroup> optgroup,
-								const std::string& opt_key,
+								const t_config_option_key& opt_key,
 								const std::string& label,
 								const std::string& tooltip,
 								int option_width,
@@ -128,14 +128,14 @@ protected:
 								int32_t max = std::numeric_limits<int32_t>::max());
 	
 	void append_color_option( std::shared_ptr<ConfigOptionsGroup> optgroup,
-								const std::string& opt_key,
+								const t_config_option_key& opt_key,
 								const std::string& label,
 								const std::string& tooltip,
 								std::string color_str,
 								ConfigOptionMode mode = ConfigOptionMode::comNone);
 	template<typename EnumType>
 	void append_enum_option( std::shared_ptr<ConfigOptionsGroup> optgroup,
-								const std::string& opt_key,
+								const t_config_option_key& opt_key,
 								const std::string& label,
 								const std::string& tooltip,
 								ConfigOption* def_val,

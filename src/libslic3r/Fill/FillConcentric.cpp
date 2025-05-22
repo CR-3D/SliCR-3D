@@ -88,7 +88,7 @@ void append_loop_into_collection(ExtrusionEntityCollection& storage, ExtrusionRo
     double flow = params.flow.mm3_per_mm();
     double width = params.flow.width();
     double height = params.flow.height();
-    if (polygon.is_valid()) {
+    if (ensure_valid(polygon, params.fill_resolution / 2)) {
         //default to ccw
         polygon.make_counter_clockwise();
         ExtrusionPath path(ExtrusionAttributes{good_role, ExtrusionFlow{flow, float(width), float(height)}}, false);
@@ -297,7 +297,7 @@ FillConcentricWGapFill::fill_surface_extrusion(
                 }
             }
             //TODO: move items that are alone in a collection to the upper collection.
-
+            
             //add gapfills
             if (idx_bunch < bunch_2_gaps.size() && !bunch_2_gaps[idx_bunch].empty() && params.density >= 1) {
                 // get parameters 
@@ -305,17 +305,7 @@ FillConcentricWGapFill::fill_surface_extrusion(
                 //be sure we don't gapfill where the perimeters are already touching each other (negative spacing).
                 min = std::max(min, double(Flow::new_from_spacing((float)EPSILON, (float)params.flow.nozzle_diameter(), (float)params.flow.height(), (float)params.flow.spacing_ratio(), false).scaled_width()));
                 coordf_t real_max = 2.5 * distance;
-                const coordf_t minwidth = scale_d(params.config->get_abs_value("gap_fill_min_width", params.flow.width()));
-                const coordf_t maxwidth = scale_d(params.config->get_abs_value("gap_fill_max_width", params.flow.width()));
-                const coord_t minlength = scale_t(params.config->get_abs_value("gap_fill_min_length", params.flow.width()));
-                if (minwidth > 0) {
-                    min = std::max(min, minwidth);
-                }
                 coordf_t max = real_max;
-                if (maxwidth > 0) {
-                    max = std::min(max, maxwidth);
-                }
-                const coord_t gapfill_extension = scale_t(params.config->get_abs_value("gap_fill_extension", params.flow.width()));
 
                 // collapse 
                 ExPolygons gaps_ex = diff_ex(
@@ -328,51 +318,11 @@ FillConcentricWGapFill::fill_surface_extrusion(
                     //ie one that are smaller than an extrusion with width of min and a length of max.
                     if (ex.area() > min_gapfill_area) {
                         Geometry::MedialAxis md{ ex, coord_t(real_max), coord_t(min), scale_t(params.flow.height()) };
-                        if (minlength > 0) {
-                            md.set_min_length(minlength);
-                        }
-                        if (gapfill_extension > 0) {
-                            md.set_extension_length(gapfill_extension);
-                        }
                         md.set_biggest_width(max);
                         md.build(polylines);
                     }
                 }
-                ////search if we can add some at the end of a leaf
-                //for (size_t idx_polyline = 0; idx_polyline < polylines.size(); ++idx_polyline) {
-                //    ThickPolyline& poly = polylines[idx_polyline];
-                //    assert(!poly.empty());
-                //    for (size_t idx_leaf = 0; idx_leaf < leafs.size(); ++idx_leaf) {
-                //        assert(!leafs[idx_leaf]->entities().empty());
-                //        const ExtrusionEntitiesPtr& leaf_entities = leafs[idx_leaf]->entities();
-                //        //get last loop
-                //        size_t idx_last_loop = leaf_entities.size() - 1;
-                //        while (!leaf_entities[idx_last_loop]->is_loop()) {
-                //            if (idx_last_loop == 0) {
-                //                assert(false);
-                //                //goto goto_next_polyline;
-                //            }
-                //            --idx_last_loop;
-                //        }
-                //        //test
-                //        assert(leafs[idx_leaf]->entities()[idx_last_loop]->is_loop());
-                //        if (leafs[idx_leaf]->entities()[idx_last_loop]->is_loop() &&
-                //            static_cast<ExtrusionLoop*>(leafs[idx_leaf]->entities()[idx_last_loop])->polygon().contains(poly.points[poly.size() / 2])) {
-                //            //do gapfill locally
-                //            leafs[idx_leaf]->append(
-                //                Geometry::variable_width(
-                //                    poly, ExtrusionRole::GapFill, 
-                //                    params.flow, 
-                //                    scale_t(params.config->get_computed_value("resolution_internal")), 
-                //                    params.flow.scaled_width() / 10)
-                //            );
-                //            polylines.erase(polylines.begin() + idx_polyline);
-                //            --idx_polyline;
-                //            break;
-                //        }
-                //    }
-                //    //goto_next_polyline:
-                //}
+
                 bool fill_bridge = good_role.is_bridge() || params.flow.bridge();
                 // allow bridged gapfill, mostly for support bottom interface.
                 assert(!good_role.is_bridge());
@@ -397,6 +347,7 @@ FillConcentricWGapFill::fill_surface_extrusion(
                     }
                 }
             }
+
         }
 
 

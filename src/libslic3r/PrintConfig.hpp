@@ -146,6 +146,13 @@ enum InfillPattern : uint8_t{
     ipCount,
 };
 
+enum class WallSequence {
+    InnerOuter,
+    OuterInner,
+    InnerOuterInner,
+    Count,
+};
+
 enum class IroningType {
     TopSurfaces,
     TopmostOnly,
@@ -600,7 +607,7 @@ protected:
                 const ConfigOptionDef *def = defs->get(kvp.first);
                 assert(def != nullptr);
                 if (def->default_value)
-                    opt->set(def->default_value.get());
+                    opt->set(*def->default_value);
             }
         }
 
@@ -767,6 +774,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 fill_angle_follow_model))
     ((ConfigOptionFloatOrPercent,       first_layer_acceleration))
     ((ConfigOptionFloatOrPercent,       first_layer_acceleration_over_raft))
+    ((ConfigOptionBool,                 link_layer_heights))
     ((ConfigOptionFloatOrPercent,       first_layer_height))
     ((ConfigOptionFloatOrPercent,       first_layer_extrusion_width))
     ((ConfigOptionFloatOrPercent,       first_layer_extrusion_spacing))
@@ -790,6 +798,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                model_precision))
     ((ConfigOptionPercent,              perimeter_bonding))
     ((ConfigOptionFloat,                raft_contact_distance))
+    ((ConfigOptionEnum<SupportZDistanceType>, raft_contact_distance_type))
     ((ConfigOptionFloat,                raft_expansion))
     ((ConfigOptionPercent,              raft_first_layer_density))
     ((ConfigOptionFloat,                raft_first_layer_expansion))
@@ -1020,6 +1029,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionInt,                  print_temperature))
     ((ConfigOptionPercent,              thin_perimeters))
     ((ConfigOptionPercent,              thin_perimeters_all))
+    ((ConfigOptionEnum<WallSequence>,   wall_sequence))
     ((ConfigOptionBool,                 thin_walls))
     ((ConfigOptionFloatOrPercent,       thin_walls_acceleration))
     ((ConfigOptionFloatOrPercent,       thin_walls_min_width))

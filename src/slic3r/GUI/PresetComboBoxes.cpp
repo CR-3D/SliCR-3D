@@ -540,8 +540,8 @@ wxBitmapBundle* PresetComboBox::get_bmp(  std::string bitmap_key, bool wide_icon
                 assert(material_rgb.empty() || material_rgb.size() == 7);
                 assert(material_rgb.empty() || material_rgb.front() == '#');
                 if (material_rgb.size() == 7) {
-                    replaces.add("#ED6B21", material_rgb);
-                    replaces.add("#ed6b21", material_rgb);
+                    replaces.add("#1A7476", material_rgb);
+                    replaces.add("#1A7476", material_rgb);
                     replaces.add("#2172eb", material_rgb);
                 }
                 bmps.emplace_back(bitmap_cache().from_svg(main_icon_name, 16, 16, replaces));//dark_mode, material_rgb));
@@ -1049,7 +1049,7 @@ void PlaterPresetComboBox::switch_to_tab()
         wxGetApp().tab_panel()->SetSelection(page_id);
         // Switch to Settings NotePad
         if (m_type == Preset::Type::TYPE_FFF_PRINT || m_type == Preset::Type::TYPE_SLA_PRINT)
-            wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPlaterGCode, true);
+            wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPrintSettings, true);
 
         else if (m_type == Preset::Type::TYPE_FFF_FILAMENT || m_type == Preset::Type::TYPE_SLA_MATERIAL)
             wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPlater, true);
@@ -1059,19 +1059,6 @@ void PlaterPresetComboBox::switch_to_tab()
 
         else
             wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpLastSettings, false);
-
-        //In a case of a multi-material printing, for editing another Filament Preset
-        //it's needed to select this preset for the "Filament settings" Tab
-        if (m_type == Preset::TYPE_FFF_FILAMENT && wxGetApp().extruders_edited_cnt() > 1)
-        {
-            const std::string& selected_preset = GetString(GetSelection()).ToUTF8().data();
-            // Call select_preset() only if there is new preset and not just modified
-            if (!boost::algorithm::ends_with(selected_preset, Preset::suffix_modified()))
-            {
-                const std::string& preset_name = wxGetApp().preset_bundle->filaments.get_preset_name_by_alias(selected_preset);
-                wxGetApp().get_tab(m_type)->select_preset(preset_name);
-            }
-        }
     }
 }
 
@@ -1299,18 +1286,37 @@ void PlaterPresetComboBox::update()
             set_label_marker(Append(separator(L("System presets")), NullBitmapBndl()));
     }
     
-    if(!system_presets.empty())
-    {
+    if (!system_presets.empty()) {
+        // Sort presets: non-`+` first, then `+`, both groups alphabetically sorted
         std::sort(system_presets.begin(), system_presets.end(), [](const PresetData& a, const PresetData& b) {
-            return a.lower_name < b.lower_name;
-            });
-        
-        for (std::vector<PresetData>::iterator it = system_presets.begin(); it != system_presets.end(); ++it) {
+            bool a_has_plus = a.name.find("+") != std::string::npos;
+            bool b_has_plus = b.name.find("+") != std::string::npos;
+    
+            // Move non-plus names first
+            if (a_has_plus && !b_has_plus) return false;
+            if (!a_has_plus && b_has_plus) return true;
+    
+            // If both have or don't have "+", sort alphabetically
+            return a.lower_name < b.lower_name; 
+        });
+    
+        bool separator_added = false;
+    
+        for (auto it = system_presets.begin(); it != system_presets.end(); ++it) {
+            bool has_plus = it->name.find("+") != std::string::npos;
+    
+            // Insert separator before the first `+` preset
+            if (has_plus && !separator_added) {
+                set_label_marker(Append(separator(L("CR-3D+")), NullBitmapBndl()));
+                separator_added = true;
+            }
+    
+            // Append each preset
             Append(it->name, *it->bitmap);
             validate_selection(it->name == selected_user_preset);
         }
     }
-    
+
     if (!nonsys_presets.empty())
     {
         std::sort(nonsys_presets.begin(), nonsys_presets.end(), [](const PresetData& a, const PresetData& b) {

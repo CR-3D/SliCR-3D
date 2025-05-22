@@ -11,7 +11,7 @@
 
 
 #include <numeric>
-#include <tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for.h>
 
 #define DEBUG_EXTRACT_ALL_FEATURES_AT_ONCE 0
 

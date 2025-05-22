@@ -19,7 +19,7 @@
 #include <boost/lexical_cast.hpp>
 
 #include <algorithm>
-#include <assert.h>
+#include <cassert>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -213,8 +213,8 @@ std::string GCodeWriter::set_pressure_advance(double pa) const {
     if (FLAVOR_IS(gcfKlipper)) {
         gcode = std::string("SET_PRESSURE_ADVANCE ADVANCE=") + to_string_nozero(pa, 4);
         if (tool_id >= 0 && !this->config.single_extruder_multi_material.value) {
-            if (this->config.tool_name.size() > tool_id && !this->config.tool_name.get_at(tool_id).empty()) {
-                gcode += std::string(" EXTRUDER=") + this->config.tool_name.get_at(tool_id);
+            if (this->config.firmware_name.size() > tool_id && !this->config.firmware_name.get_at(tool_id).empty()) {
+                gcode += std::string(" EXTRUDER=") + this->config.firmware_name.get_at(tool_id);
             } else {
                 gcode += std::string(" EXTRUDER=extruder") + std::to_string(tool_id);
             }
@@ -604,6 +604,7 @@ std::string GCodeWriter::travel_to_xy(const Vec2d &point, const double speed, co
         //if point too close to the other, then do not write it, it's useless.
         return "";
     }
+    assert(travel_speed > 0.);
     w.emit_f(travel_speed * 60);
     w.emit_comment(this->config.gcode_comments, comment);
     return write_acceleration() + w.string();
@@ -632,6 +633,7 @@ std::string GCodeWriter::travel_arc_to_xy(const Vec2d& point, const Vec2d& cente
         return "";
     }
     w.emit_ij(center_offset);
+    assert(travel_speed > 0.);
     w.emit_f(travel_speed * 60);
     w.emit_comment(this->config.gcode_comments, comment);
     return write_acceleration() + w.string();
@@ -698,6 +700,7 @@ std::string GCodeWriter::travel_to_xyz(const Vec3d &point, const bool is_lift, c
         //if point too close to the other, no move are needed.
         return "";
     }
+    assert(travel_speed > 0.);
     w.emit_f(travel_speed * 60);
     w.emit_comment(this->config.gcode_comments, comment);
     return write_acceleration() + w.string();
@@ -738,6 +741,7 @@ std::string GCodeWriter::get_travel_to_z_gcode(const double z, const std::string
     if (!has_z) {
         return "";
     }
+    assert(speed > 0.);
     w.emit_f(speed * 60.0);
     w.emit_comment(this->config.gcode_comments, comment);
     return write_acceleration() + w.string();
@@ -971,7 +975,9 @@ std::string GCodeWriter::_retract(double length, std::optional<double> restart_e
         } else if (!m_extrusion_axis.empty()) {
             GCodeG1Formatter w(this->get_default_gcode_formatter());
             w.emit_e(m_extrusion_axis, emit_E);
-            w.emit_f(m_tool->retract_speed() * 60.);
+            if (int speed = m_tool->retract_speed(); speed > 0.) {
+                w.emit_f(speed * 60.);
+            }
             w.emit_comment(this->config.gcode_comments, comment);
             gcode += w.string();
         }
@@ -1005,7 +1011,9 @@ std::string GCodeWriter::unretract()
             // use G1 instead of G0 because G0 will blend the restart with the previous travel move
             GCodeG1Formatter w(this->get_default_gcode_formatter());
             w.emit_e(m_extrusion_axis, emit_E);
-            w.emit_f(m_tool->deretract_speed() * 60.);
+            if (int speed = m_tool->deretract_speed(); speed > 0.) {
+                w.emit_f(speed * 60.);
+            }
             w.emit_comment(this->config.gcode_comments, "unretract");
             gcode += w.string();
         }

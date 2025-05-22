@@ -780,8 +780,6 @@ void PressureEqualizer::push_line_to_output(const size_t line_idx, const float n
             this->output_buffer_length = this->output_buffer_prev_length; // Remove the last line because it only sets the speed for an empty block of g-code lines, so it is useless.
         //else
             //push_to_output(EXTRUDE_END_TAG.data(), EXTRUDE_END_TAG.length(), true); // you don't need to extrude_end a EXTRUDE_SET_SPEED_TAG anymore, only for _EXTRUDETYPE_
-    } else {
-        std::cout<<"\n";
     }
     //else push_to_output(EXTRUDE_END_TAG.data(), EXTRUDE_END_TAG.length(), true); // you don't need to extrude_end a EXTRUDE_SET_SPEED_TAG anymore, only for _EXTRUDETYPE_
 

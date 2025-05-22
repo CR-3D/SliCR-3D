@@ -269,8 +269,8 @@ ExPolygon::simplify_p(coord_t tolerance) const
     // contour
     {
         Polygon p = this->contour;
-        p.douglas_peucker(tolerance);
         assert(p.is_counter_clockwise());
+        p.douglas_peucker(tolerance);
         if (!p.is_counter_clockwise()) {
             p.reverse();
         }
@@ -282,10 +282,9 @@ ExPolygon::simplify_p(coord_t tolerance) const
     // holes
     for (Polygon polygon : this->holes) {
         Polygon oldp = polygon;
+        assert(oldp.is_clockwise());
         polygon.douglas_peucker(tolerance);
-        if (polygon.is_counter_clockwise()) {
-        
-        {
+        if (polygon.size() > 2 && polygon.is_counter_clockwise()) {
             static int aodfjiaqsdz = 0;
             std::stringstream stri;
             stri <<  "_hourglass_" << (aodfjiaqsdz++) << ".svg";
@@ -301,13 +300,11 @@ ExPolygon::simplify_p(coord_t tolerance) const
             polys = union_(Polygons{polygon});
             svg.draw(to_polylines(polys), "blue", scale_t(0.025));
             svg.Close();
-        }
-        
             assert(false);
         }
         // if polygon began to be counnter-clockwise, then it means that the fucked up part of the
         //   hourglass is the only part / dominant part left
-        if (polygon.is_clockwise() && polygon.size() >= 2) {
+        if (polygon.size() > 2 && polygon.is_clockwise()) {
             // size == 2 => triangle
             pp.push_back(std::move(polygon));
         }
@@ -418,28 +415,6 @@ Lines ExPolygon::lines() const
     }
     return lines;
 }
-
-#ifdef _DEBUG
-// to create a cpp multipoint to create test units.
-std::string ExPolygon::to_debug_string()
-{
-    std::string ret("ExPolygon expoly(");
-    ret += contour.to_debug_string();
-    if (!holes.empty() && !holes.front().empty()) {
-        ret += std::string(",");
-        ret += holes.front().to_debug_string();
-    } else {
-        ret += std::string(",{}");
-    }
-    ret += std::string(");\n");
-    for (size_t i = 1; i < holes.size(); ++i) {
-        ret += std::string("expoly.holes.push_back(Polygon");
-        ret += holes.front().to_debug_string();
-        ret += std::string(")\n");
-    }
-    return ret;
-}
-#endif
 
 // Do expolygons match? If they match, they must have the same topology,
 // however their contours may be rotated.

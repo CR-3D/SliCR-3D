@@ -13,7 +13,8 @@
 
 export OS_NAME="macOS"
 VERSION_NUMBER=""
-while getopts ":ixavh" opt; do
+OS_ARM_NAME="macOS-arm"
+while getopts ":ixavhz" opt; do
   case ${opt} in
     i )
         export BUILD_IMAGE="1"
@@ -27,8 +28,12 @@ while getopts ":ixavh" opt; do
     v )
         export VERSION_NUMBER="-@SLIC3R_VERSION_FULL@"
         ;;
+    z )
+        export INCLUDE_LIBZSTD="1"
+        ;;
     h ) echo "Usage: ./BuildLinuxImage.sh [-i][-a][-h]"
         echo "   -i: generate Appimage (optional)"
+        echo "   -z: embbed libzstd"
         echo "   -x: set output name for intel (optional)"
         echo "   -a: set output name for arm (optional)"
         echo "   -h: help"
@@ -37,11 +42,18 @@ while getopts ":ixavh" opt; do
   esac
 done
 
-    echo -e "\n[8/9] Generating MacOS app..."
+    echo -e "\n[7/8] Generating MacOS app..."
 #    {
         # update Info.plist
         pushd src
         sed "s/+UNKNOWN/_$(date '+%F')/" Info.plist >Info.date.plist
+        # TODO: get the version directly, or do it int he caller. that is disgutingly bad practice
+        if [[ "$OS_NAME" == "$OS_ARM_NAME" ]]
+        then
+            sed "s/13.0/14.5/" Info.date.plist > Info.final.plist
+        else
+            sed "s/13.0/14.2/" Info.date.plist > Info.final.plist
+        fi
         popd
 
         # create directory and copy into it
@@ -60,7 +72,7 @@ done
         # copy Resources
         cp -Rf ../resources pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources
         cp pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources/icons/@SLIC3R_APP_KEY@.icns pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/resources/@SLIC3R_APP_KEY@.icns
-        cp src/Info.date.plist pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Info.plist
+        cp src/Info.final.plist pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Info.plist
         echo -n -e 'APPL????\x0a' > PkgInfo
         cp PkgInfo pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/PkgInfo
         # remove unneeded po from resources
@@ -80,30 +92,83 @@ done
         echo "otool -L exefile:"
         otool -L pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
         echo "END otool"
-        
-        #copy libzstd
-        ZSDT_FILE=
-        echo "libzstd:\n"
+        otool -l pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        echo "END otool2"
+
+        echo "cat pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Info.plist"
+        cat pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Info.plist
+
+        ZSDT_PATH=
+        echo "libzstd:"
+        echo "ls -al /opt/homebrew/opt/zstd/lib/libzstd*.dylib:"
         ls -al /opt/homebrew/opt/zstd/lib/libzstd*.dylib
+        echo "ls -al /usr/local/opt/zstd/lib/libzstd*.dylib:"
         ls -al /usr/local/opt/zstd/lib/libzstd*.dylib
+        echo "ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib:"
+        ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib
+        echo "ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1:"
+        ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1
         ZSDT_PATH=$(ls -v /usr/local/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
-        if [ -z "${ZSDT_FILE}" ]
+        if [ -z "${ZSDT_PATH}" ]
         then
+            echo "ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib:"
+            ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib
+            echo "ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1:"
+            ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1
             # try with homebrew
             ZSDT_PATH=$(ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
         fi
         ZSTD_FILE=$(basename ${ZSDT_PATH})
         echo "zstd var:'"$ZSDT_PATH"' : "$ZSTD_FILE;
-        cp $ZSDT_PATH pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/$ZSTD_FILE
-        ls -al pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/
-        install_name_tool -change $ZSDT_PATH @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        install_name_tool -change /opt/homebrew/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        
-        echo "otool -L exefile now:"
-        otool -L pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
-        echo "END otool"
-        
+        echo "otool -L $ZSDT_PATH:"
+        otool -L $ZSDT_PATH
+        echo "vtool -show-build "$ZSDT_PATH
+        vtool -show-build $ZSDT_PATH
+        vtool -show-build $ZSDT_PATH | grep sdk | sed 's/.* \([0-9]\+\.[0-9]\+\) .*/\1/'
+        echo "vtool -show-build slic3r"
+        vtool -show-build pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+        #vtool -show-build pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@ | grep sdk | sed 's/.* \([0-9]\+\.[0-9]\+\) .*/\1/'
+        vtool -show-build pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@ | grep sdk | sed 's/.*\([0-9]\+\.[0-9]\+\) .*/\1/'
+        # if version different
+        TEST_SDK=$(vtool -show-build $ZSDT_PATH | grep sdk)
+        GOOD_OS=$(vtool -show-build pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@ | grep minos)
+        GOOD_SDK=$(vtool -show-build pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@ | grep sdk)
+        #copy libzstd
+        if [[ -n "$INCLUDE_LIBZSTD" ]]
+        then
+            cp $ZSDT_PATH pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/$ZSTD_FILE
+            ZSDT_PATH=pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/$ZSTD_FILE
+            echo "version: '"$TEST_SDK"' =?= '"$GOOD_SDK"' (minos:'"$GOOD_OS"')"
+            if [[ "$TEST_SDK" == "$GOOD_SDK" ]]
+            then
+                echo "good ver '"$TEST_SDK"' == "$GOOD_SDK
+            else
+                echo "bad ver '"$TEST_SDK"' <> "$GOOD_SDK
+            fi
+            # to be in the "bad ver"
+            if [[ "$OS_NAME" == "$OS_ARM_NAME" ]]
+            then
+                echo "arm, no version change for now"
+            else
+                echo "vtool -set-build-version minos:"$GOOD_OS" sdk:"$GOOD_SDK" input/output:"$ZSDT_PATH
+                echo "vtool -set-build-version macos $GOOD_OS $GOOD_SDK -replace -output $ZSDT_PATH $ZSDT_PATH"
+                echo "vtool -set-build-version macos "$GOOD_OS" "$GOOD_SDK" -replace -output "$ZSDT_PATH" "$ZSDT_PATH
+                # vtool -set-build-version macos $GOOD_OS $GOOD_SDK -replace -output $ZSDT_PATH $ZSDT_PATH
+                vtool -set-build-version macos 14.0 14.2 -replace -output $ZSDT_PATH $ZSDT_PATH
+                echo "vtool -show-build "$ZSDT_PATH
+                vtool -show-build $ZSDT_PATH
+            fi
+            ls -al pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Frameworks/
+            if [[ -n "$ZSDT_PATH" ]]
+            then
+                install_name_tool -change $ZSDT_PATH @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+                install_name_tool -change /opt/homebrew/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+                install_name_tool -change /usr/local/opt/zstd/lib/libzstd.1.dylib @executable_path/../Frameworks/$ZSTD_FILE pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+            fi
+            echo "otool -L exefile now:"
+            otool -L pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS/@SLIC3R_APP_KEY@
+            echo "END otool"
+        fi
 #     } &> $ROOT/Build.log # Capture all command output
     echo -e "\n ... done\n"
 
@@ -111,7 +176,7 @@ DMG_NAME=@SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.dmg
 
 if [[ -n "$BUILD_IMAGE" ]]
 then
-echo -e "\n[9/9] Creating .tgz and DMG Image for distribution..."
+echo -e "\n[8/8] Creating .tgz and DMG Image for distribution..."
   {
 
     tar -czvf @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.tgz pack/@SLIC3R_APP_KEY@
@@ -165,4 +230,24 @@ else
       exit 1 # terminate and indicate error
   fi
 fi
+
+
+# test homebrew zstd
+echo "install libzstd via homebrew"
+brew install zstd
+echo "ls -v /opt/homebrew/opt:"
+ls -v /opt/homebrew/opt/
+echo "ls -v /opt/homebrew/opt/zstd:"
+ls -v /opt/homebrew/opt/zstd
+echo "ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib:"
+ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib
+# echo "ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1:"
+# ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1
+try with homebrew
+# ZSDT_PATH=$(ls -v /opt/homebrew/opt/zstd/lib/libzstd.1.*.dylib | tail -n 1)
+# echo "zstd var:'"$ZSDT_PATH"'"
+# echo "otool -L $ZSDT_PATH:"
+# otool -L $ZSDT_PATH
+# echo "vtool -show-build "$ZSDT_PATH
+# vtool -show-build $ZSDT_PATH
 

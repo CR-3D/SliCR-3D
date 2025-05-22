@@ -5,6 +5,7 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
+        If you have some questions or want to have a second look an your problem, feel free to pay us a visit on discord.
   - type: textarea
     id: what-happened
     attributes:
@@ -35,7 +36,7 @@ body:
     attributes:
       label: Version
       description: What version of our software are you running? You can have the full version in `Help` -> `About superslicer`.
-      placeholder: 2.4.60.2
+      placeholder: 2.7.61.42
     validations:
       required: false
   - type: input

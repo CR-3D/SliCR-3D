@@ -11,7 +11,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v3
@@ -32,15 +32,12 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ubu_gtk2_2.7
-#        key: ubu_gtk2_relwithdeb_2.7
         path: deps/build/destdir
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
-      run: ./BuildLinux.sh -dr -g 2
-#      run: ./BuildLinux.sh -dr -b release -g 2
+      run: ./BuildLinux.sh -gd
     - name: slicer, tar & appimage
-      run: ./BuildLinux.sh -siv -g 2
-#      run: ./BuildLinux.sh -siv -b release -g 2
+      run: ./BuildLinux.sh -gsiv
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

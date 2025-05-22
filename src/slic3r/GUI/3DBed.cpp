@@ -249,6 +249,9 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
         shader->set_uniform("projection_matrix", projection_matrix);
         glsafe(::glEnable(GL_BLEND));
         glsafe(::glEnable(GL_DEPTH_TEST));
+        glsafe(::glDepthMask(GL_FALSE));
+        const bool old_cullface = ::glIsEnabled(GL_CULL_FACE);
+        glsafe(::glDisable(GL_CULL_FACE));
         glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
         glsafe(::glBindTexture(GL_TEXTURE_2D, m_digits_texture->get_id()));
 
@@ -272,6 +275,9 @@ void Bed3D::render(GLCanvas3D& canvas, const Transform3d& view_matrix, const Tra
             m_digits_models[i + 1]->render();
         }
         glsafe(::glBindTexture(GL_TEXTURE_2D, 0));
+        if (old_cullface)
+            glsafe(::glEnable(GL_CULL_FACE));
+        glsafe(::glDepthMask(GL_TRUE));
         glsafe(::glDisable(GL_DEPTH_TEST));
         shader->stop_using();
     }
@@ -719,6 +725,8 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         shader->set_uniform("projection_matrix", projection_matrix);
         shader->set_uniform("transparent_background", bottom || ! is_active);
         shader->set_uniform("svg_source", boost::algorithm::iends_with(m_texture.get_source(), ".svg"));
+        float alpha_multiplier = bottom ? 0.05f : 1.0f;
+        shader->set_uniform("alpha_multiplier", alpha_multiplier);
 
         glsafe(::glEnable(GL_DEPTH_TEST));
         if (bottom)
@@ -729,7 +737,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
 
         if (bottom)
             glsafe(::glFrontFace(GL_CW));
-        
+            
         // if m_texture_with_grid, show a grid on top of texture.
         if (this->m_texture_with_grid) {
             glsafe(::glDisable(GL_DEPTH_TEST));
