@@ -35,3 +35,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.34 Corrected Start G-Code
 0.0.35 Updated speeds and acceleration for printers
 0.0.36 Daily update; Speed settings changed
+0.0.37 fix 'No Filament' crash
