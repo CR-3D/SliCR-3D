@@ -11,6 +11,7 @@
 // CuraEngine is released under the terms of the AGPLv3 or higher.
 
 #include "TreeSupportCommon.hpp"
+#include "libslic3r/Slicing.hpp"
 
 namespace Slic3r::FFFTreeSupport {
 
@@ -25,21 +26,22 @@ TreeSupportMeshGroupSettings::TreeSupportMeshGroupSettings(const PrintObject &pr
     assert(config.support_material || config.support_material_enforce_layers > 0);
     assert(config.support_material_style.value == smsTree || config.support_material_style.value == smsOrganic);
 
+    const double layer_height_mm = check_z_step(config.layer_height.value, print_config.z_step);
     // Calculate maximum external perimeter width over all printing regions, taking into account the default layer height.
     double external_perimeter_width = 0.;
     for (size_t region_id = 0; region_id < print_object.num_printing_regions(); ++ region_id) {
         const PrintRegion &region = print_object.printing_region(region_id);
-        external_perimeter_width = std::max<double>(external_perimeter_width, region.flow(print_object, frExternalPerimeter, config.layer_height, 2 /*not first layer, even layer*/).width());
+        external_perimeter_width = std::max<double>(external_perimeter_width, region.flow(print_object, frExternalPerimeter, layer_height_mm, 2 /*not first layer, even layer*/).width());
     }
     
-    this->layer_height              = scaled<coord_t>(config.layer_height.value);
-    this->resolution                = scaled<coord_t>(print_config.resolution_internal.value);
+    this->layer_height              = scale_t(layer_height_mm);
+    this->resolution                = scale_t(print_config.resolution_internal.value);
     // Arache feature <- why? it's not even editable when the organic support are activated! And it doesn't take into account the %! I'll fix it to 25% of external_perimeter_width. 
-    this->min_feature_size          = scaled<coord_t>(external_perimeter_width * 0.25); //config.min_feature_size.value);
+    this->min_feature_size          = scale_t(external_perimeter_width * 0.25); //config.min_feature_size.value);
     // +1 makes the threshold inclusive
     this->support_angle             = 0.5 * M_PI - std::clamp<double>((config.support_material_threshold + 1) * M_PI / 180., 0., 0.5 * M_PI);
-    this->support_line_width        = support_material_flow(&print_object, config.layer_height).scaled_width();
-    this->support_roof_line_width   = support_material_interface_flow(&print_object, config.layer_height).scaled_width();
+    this->support_line_width        = support_material_flow(&print_object, layer_height_mm).scaled_width();
+    this->support_roof_line_width   = support_material_interface_flow(&print_object, layer_height_mm).scaled_width();
     //FIXME add it to SlicingParameters and reuse in both tree and normal supports?
     this->support_bottom_enable = config.support_material_interface_layers.value > 0 &&
         (!config.support_material_bottom_interface_layers.is_enabled() ||
@@ -65,7 +67,7 @@ TreeSupportMeshGroupSettings::TreeSupportMeshGroupSettings(const PrintObject &pr
         //get one region, with organic support there is only one layer height anyway
         assert(print_object.num_printing_regions() > 0);
         const LayerRegion *lr = print_object.layers().front()->regions().front();
-        assert(is_approx(lr->layer()->height, config.layer_height.value, EPSILON) || lr->layer()->id() == 0);
+        assert(is_approx(lr->layer()->height, layer_height_mm, EPSILON) || lr->layer()->id() == 0);
         coord_t diff_lh_filamenth = scale_t(lr->bridging_height_avg()) - this->layer_height;
         this->support_top_distance += diff_lh_filamenth;
         this->support_bottom_distance += diff_lh_filamenth;

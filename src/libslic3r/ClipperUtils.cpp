@@ -1518,7 +1518,7 @@ ExPolygons simplify_polygons_ex(const Polygons &subject, bool preserve_collinear
 
     ClipperLib::PolyTree polytree;
     ClipperLib::Clipper c;
-//    c.PreserveCollinear(true);
+    if (preserve_collinear) c.PreserveCollinear(preserve_collinear);
     //FIXME StrictlySimple is very expensive! Is it needed?
     c.StrictlySimple(true);
     c.AddPaths(ClipperUtils::PolygonsProvider(subject), ClipperLib::ptSubject, true);

@@ -3735,6 +3735,7 @@ void GCodeGenerator::process_layer_single_object(
             }
             m_avoid_crossing_perimeters.use_external_mp(false);
             m_avoid_crossing_perimeters.disable_once();
+            m_last_too_small.polyline.clear();
         }
         this->set_origin(offset);
     }
@@ -8060,8 +8061,8 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
             check_add_eol(gcode);
         }
 
-        if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
-            gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
+        if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+            gcode += m_writer.set_pressure_advance(m_config.enable_pressure_advance.get_at(extruder_id));
         }
 
         if (!no_toolchange) {
@@ -8150,8 +8151,8 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
-        gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
+    if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+        gcode += m_writer.set_pressure_advance(m_config.enable_pressure_advance.get_at(extruder_id));
     }
 
     // The position is now known after the tool change.

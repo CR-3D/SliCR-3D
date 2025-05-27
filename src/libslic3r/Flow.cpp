@@ -22,10 +22,10 @@
 namespace Slic3r {
 
 FlowErrorNegativeSpacing::FlowErrorNegativeSpacing() : 
-	FlowError("Flow::spacing() produced negative spacing. Did you set some extrusion width too small?") {}
+	FlowError("Flow::spacing() produced negative spacing. Did you set some extrusion width too small, or the (maximum) layer height too high?") {}
 
 FlowErrorNegativeFlow::FlowErrorNegativeFlow() :
-    FlowError("Flow::mm3_per_mm() produced negative flow. Did you set some extrusion width too small?") {}
+    FlowError("Flow::mm3_per_mm() produced negative flow. Did you set some extrusion width too small, or the (maximum) layer height too high?") {}
 
 // This static method returns a sane extrusion width default.
 float Flow::auto_extrusion_width(FlowRole role, float nozzle_diameter)
