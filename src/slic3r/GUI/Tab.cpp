@@ -1608,7 +1608,6 @@ void Tab::on_value_change(const OptionKeyIdx& opt_key_idx, const boost::any& val
         if (only_one_warning_per_session) {
             only_one_warning_per_session= false;
             assert(opt_key_idx.idx >= 0);
-            assert(opt_key_idx.key.find("max_layer_height") == std::string::npos);
             const std::vector<double> &nozzle_sizes = m_config_base->option<ConfigOptionFloats>("nozzle_diameter")->get_values();
             assert(opt_key_idx.idx < nozzle_sizes.size());
             double max_lh = m_config_base->option("max_layer_height")->is_enabled(opt_key_idx.idx) ?
@@ -3468,22 +3467,10 @@ void TabFilament::toggle_options()
     if (!m_active_page)
         return;
 
-    //if ( std::find(m_active_page->descriptions.begin(), m_active_page->descriptions.end(), "cooling") != m_active_page->descriptions.end())
+   m_config_manipulation.toggle_fff_filament_options(this->m_config, wxGetApp().preset_bundle->full_config());
     {
-        // bool fan_always_on = m_config->opt_bool("fan_always_on", 0);
-
-        //get_field("max_fan_speed")->toggle_widget_enable(m_config->opt_float("fan_below_layer_time", 0) > 0);
         toggle_option("min_print_speed", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
         toggle_option("max_speed_reduction", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
-
-        // hidden 'cooling', it's now deactivated.
-             //for (auto el : { "min_fan_speed", "disable_fan_first_layers" })
-        //for (auto el : { "max_fan_speed", "fan_below_layer_time", "slowdown_below_layer_time", "min_print_speed" })
-        //    get_field(el)->toggle_widget_enable(cooling);
-
-
-        //for (auto el : { "min_fan_speed", "disable_fan_first_layers" })
-        //    get_field(el)->toggle_widget_enable(fan_always_on);
 
         toggle_option("max_fan_speed", 
             m_config->opt_float("fan_below_layer_time", 0) > 0 
@@ -3492,14 +3479,12 @@ void TabFilament::toggle_options()
         toggle_option("overhangs_fan_speed", !m_config->is_enabled("overhangs_dynamic_fan_speed", 0), 0);
     }
 
-    //if (m_active_page->title() == "Advanced")
     {
         bool multitool_ramming = m_config->opt_bool("filament_multitool_ramming", 0);
         toggle_option("filament_multitool_ramming_volume", multitool_ramming);
         toggle_option("filament_multitool_ramming_flow", multitool_ramming);
     }
 
-    //if (m_active_page->title() == "Filament Overrides")
         update_filament_overrides_page();
 }
 

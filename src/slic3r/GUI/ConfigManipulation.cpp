@@ -806,7 +806,7 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
     }
 }
 
-void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, DynamicPrintConfig &full_config) {
+void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, const DynamicPrintConfig &full_config) {
    
    const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();
     //for each extruder
