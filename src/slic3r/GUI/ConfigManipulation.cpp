@@ -672,6 +672,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
 
 void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
+                                                   DynamicPrintConfig *other_config,
                                                    const bool          is_global_config)
 {
     const std::vector<double> &nozzle_sizes = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values();
@@ -681,6 +682,17 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
         double min_lh = config->get_computed_value("min_layer_height", extruder_idx);
         double max_lh = config->option("max_layer_height")->is_enabled() ? config->get_computed_value("max_layer_height", extruder_idx) : nozzle_sizes[extruder_idx] * 0.75f;
         
+        // High Flow
+        bool have_high_flow = config->opt_bool("nozzle_high_flow", extruder_idx);
+        if (have_high_flow) {
+            if (other_config->has("filament_max_volumetric_speed")) {
+               DynamicPrintConfig new_conf = *other_config;
+               //new_conf.set_key_value("filament_max_volumetric_speed", new ConfigOptionFloats{80.f});
+               new_conf.option<ConfigOptionFloats>("filament_max_volumetric_speed")->set_at(80.f, extruder_idx);
+               apply(other_config, &new_conf);
+            }
+        }
+
         bool have_retract_length = config->opt_float("retract_length", extruder_idx) > 0;
         bool use_firmware_retraction = config->opt_bool("use_firmware_retraction");
         bool wipe = config->get_bool("wipe", extruder_idx) && have_retract_length;

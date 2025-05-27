@@ -4167,11 +4167,11 @@ void TabPrinter::update()
     m_update_cnt++;
     m_presets->get_edited_preset().printer_technology() == ptFFF ? update_fff() : update_sla();
     m_update_cnt--;
+    
+    DynamicPrintConfig *filament_conf = wxGetApp().get_tab(Preset::Type::TYPE_FFF_FILAMENT)->get_config();
 
     if (get_printer_technology() == ptFFF) {
-        m_config_manipulation.update_printer_fff_config(m_config, true);
-    } else if (get_printer_technology() == ptSLA) {
-        // nothing to do
+        m_config_manipulation.update_printer_fff_config(m_config, filament_conf, true);
     }
 
     update_description_lines();
