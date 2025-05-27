@@ -1308,6 +1308,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat,                min_skirt_length))
     ((ConfigOptionString,               notes))
     ((ConfigOptionFloats,               nozzle_diameter))
+    ((ConfigOptionBools,                nozzle_high_flow))
     ((ConfigOptionBool,                 only_retract_when_crossing_perimeters))
     ((ConfigOptionBool,                 ooze_prevention))
     ((ConfigOptionString,               output_filename_format))

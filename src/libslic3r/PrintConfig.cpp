@@ -4371,6 +4371,13 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{0.4});
 
+    def = this->add("nozzle_high_flow", coBools);
+    def->label = L("High flow nozzle");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("High flow nozzles allow higher print speeds.");
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionBools{false});
+
     def = this->add("host_type", coEnum);
     def->label = L("Host Type");
     def->category = OptionCategory::general;

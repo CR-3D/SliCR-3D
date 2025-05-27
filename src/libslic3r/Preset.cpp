@@ -950,9 +950,10 @@ static std::vector<std::string> s_Preset_printer_options {
     "use_firmware_retraction", "use_volumetric_e", "variable_layer_height",
     "lift_min",
     "nozzle_diameter",
-            "gcode_min_length",
-            "gcode_min_resolution",
-            "max_gcode_per_second",
+    "nozzle_high_flow",
+    "gcode_min_length",
+    "gcode_min_resolution",
+    "max_gcode_per_second",
     //FIXME the print host keys are left here just for conversion from the Printer preset to Physical Printer preset.
     "host_type", "print_host", "printhost_apikey", "printhost_cafile", "printhost_port",
     "single_extruder_multi_material", 
