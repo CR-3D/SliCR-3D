@@ -8167,11 +8167,7 @@ double GCodeGenerator::get_pressure_advance(float nozzle_diameter, int tool_id) 
 
     GraphData pressure_advance = m_config.filament_pressure_advance.get_at(tool_id);
     double pa_value = pressure_advance.interpolate(double(nozzle_diameter));
-
-    std::cout << pa_value << std::endl;
-
     return pa_value;
-    
 }
 
 // convert a model-space scaled point into G-code coordinates
