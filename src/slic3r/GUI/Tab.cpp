@@ -1877,6 +1877,7 @@ void Tab::update_preset_description_line()
         else if (!preset.alias.empty())
         {
             description_line += "\n\n\t" + _(L("full profile name"))     + ": \n\t\t" + preset.name;
+            description_line += "\n\n\t" + _(L("toolhead name"))     + ": \n\t\t" + preset.vendor->models;;
             description_line += "\n\t"   + _(L("symbolic profile name")) + ": \n\t\t" + preset.alias;
         }
     }

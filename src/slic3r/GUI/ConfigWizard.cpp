@@ -292,7 +292,8 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
     std::vector<wxStaticText*> titles;
     std::vector<wxStaticBitmap*> bitmaps;
     std::vector<wxPanel*> variants_panels;
-
+    std::vector<wxPanel*> printhead_panels;
+   
     int max_row_width = 0;
     int current_row_width = 0;
 
@@ -383,8 +384,49 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
         }
 
         variants_panels.push_back(variants_panel);
-    }
+        
+        auto *printhead_panel = new wxPanel(this);
+        auto *printhead_sizer = new wxBoxSizer(wxVERTICAL);
+        printhead_panel->SetSizer(printhead_sizer);
 
+        // Example list of printhead names
+        std::vector<std::string> printhead_names = { "Toolhead 1", "Toolhead 2", "Toolhead 3"};
+
+         // Convert to wxString array
+         wxArrayString wx_printhead_names;
+         for (const auto& name : printhead_names) {
+             wx_printhead_names.Add(wxString::FromUTF8(name));
+         }
+
+         // Create the dropdown (wxChoice)
+         auto *printhead_choice = new wxChoice(
+             printhead_panel,
+             wxID_ANY,
+             wxDefaultPosition,
+             wxSize(150, -1), // Set desired width, keep height auto (-1)
+             wx_printhead_names
+         );
+         
+         // Set current selection based on model
+         printhead_choice->SetSelection(model.selected_toolhead);
+
+         // Bind to update model when user changes dropdown
+         printhead_choice->Bind(wxEVT_CHOICE, [printhead_choice, &model](wxCommandEvent& event) {
+             int selection = printhead_choice->GetSelection();
+             std::cout << selection;
+             
+
+         });
+
+         // Add to the layout
+         printhead_sizer->Add(new wxStaticText(printhead_panel, wxID_ANY, "Select Printhead:"), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
+         printhead_sizer->Add(printhead_choice, 0, wxALIGN_LEFT | wxALL, 5);
+         printhead_panel->SetSizer(printhead_sizer);
+         
+       printhead_panels.push_back(printhead_panel);
+         
+    }
+    
     width = std::max(max_row_width, current_row_width);
 
     const size_t cols = std::min(max_cols, titles.size());
@@ -392,29 +434,37 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
     auto *printer_grid = new wxFlexGridSizer(cols, 0, 20);
     printer_grid->SetFlexibleDirection(wxVERTICAL | wxHORIZONTAL);
 
-    if (titles.size() > 0) {
-        const size_t odd_items = titles.size() % cols;
+   std::vector<wxBoxSizer*> printer_blocks;
 
-        for (size_t i = 0; i < titles.size() - odd_items; i += cols) {
-            for (size_t j = i; j < i + cols; j++) { printer_grid->Add(bitmaps[j], 0, wxBOTTOM, 20); }
-            for (size_t j = i; j < i + cols; j++) { printer_grid->Add(titles[j], 0, wxBOTTOM, 3); }
-            for (size_t j = i; j < i + cols; j++) { printer_grid->Add(variants_panels[j]); }
+   for (size_t i = 0; i < titles.size(); ++i) {
+       auto* sizer = new wxBoxSizer(wxVERTICAL);
+       sizer->Add(bitmaps[i], 0, wxALIGN_CENTER | wxBOTTOM, 10);
+       sizer->Add(titles[i], 0, wxALIGN_CENTER | wxBOTTOM, 5);
+       sizer->Add(variants_panels[i], 0, wxBOTTOM, 5);
+       sizer->Add(printhead_panels[i], 0, wxBOTTOM, 5);
 
-            // Add separator space to multiliners
-            if (titles.size() > cols) {
-                for (size_t j = i; j < i + cols; j++) { printer_grid->Add(1, 30); }
-            }
-        }
-        if (odd_items > 0) {
-            const size_t rem = titles.size() - odd_items;
+       printer_blocks.push_back(sizer);
+   }
+   
+   const size_t odd_items = printer_blocks.size() % cols;
 
-            for (size_t i = rem; i < titles.size(); i++) { printer_grid->Add(bitmaps[i], 0, wxBOTTOM, 20); }
-            for (size_t i = 0; i < cols - odd_items; i++) { printer_grid->AddSpacer(1); }
-            for (size_t i = rem; i < titles.size(); i++) { printer_grid->Add(titles[i], 0, wxBOTTOM, 3); }
-            for (size_t i = 0; i < cols - odd_items; i++) { printer_grid->AddSpacer(1); }
-            for (size_t i = rem; i < titles.size(); i++) { printer_grid->Add(variants_panels[i]); }
-        }
-    }
+   for (size_t i = 0; i < printer_blocks.size() - odd_items; i += cols) {
+       for (size_t j = i; j < i + cols; ++j) {
+           printer_grid->Add(printer_blocks[j], 0, wxALIGN_TOP | wxALL, 10);
+       }
+   }
+
+   // Handle remaining odd items
+   if (odd_items > 0) {
+       const size_t rem = printer_blocks.size() - odd_items;
+       for (size_t i = rem; i < printer_blocks.size(); ++i) {
+           printer_grid->Add(printer_blocks[i], 0, wxALIGN_TOP | wxALL, 10);
+       }
+       for (size_t i = 0; i < cols - odd_items; ++i) {
+           printer_grid->AddSpacer(10); // Filler for remaining cells
+       }
+   } 
+
 
     auto *title_sizer = new wxBoxSizer(wxHORIZONTAL);
     if (! title.IsEmpty()) {
@@ -455,9 +505,10 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
             m_button_indexes = { sel_all->GetId(), sel_none->GetId() };
         }
     }
-
+    
     sizer->Add(title_sizer, 0, wxEXPAND | wxBOTTOM, BTN_SPACING);
     sizer->Add(printer_grid);
+    //sizer->Add(printhead_grid, 0, wxEXPAND | wxALL, 5); // or appropriate flags/margins
 
     SetSizer(sizer);
 }
