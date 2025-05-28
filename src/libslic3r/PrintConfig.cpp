@@ -9867,6 +9867,16 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
             value = "50%";
         }
     }
+    if ("max_layer_height" == opt_key) {
+        double dbl_val = std::atof(value.c_str());
+        double min = 10;
+        if (all_conf.has("nozzle_diameter")) {
+            min = all_conf.option("nozzle_diameter")->get_float();
+        }
+        if (dbl_val > min) {
+            value += "%";
+        }
+    }
     if ("resolution" == opt_key && value == "0") {
         value = "0.0125";
     }

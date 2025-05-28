@@ -228,13 +228,18 @@ public:
 
         //check if the spashscreen fit
         scaling = std::min( scaling, std::min(
-            (display_size.width - display_size.x) * 0.8 / width,
-            (display_size.height - display_size.y) * 0.8 / height));
+            (display_size.width /*- display_size.x*/) * 0.8 / width,
+            (display_size.height /*- display_size.y*/) * 0.8 / height));
         // if screen very small, use all the space avaialble
         if (scaling < 0.5) {
             scaling = std::min(
-                (display_size.width - display_size.x) / width,
-                (display_size.height - display_size.y) / height);
+                (display_size.width /*- display_size.x*/) / width,
+                (display_size.height /*- display_size.y*/) / height);
+        }
+        if (scaling > 10) {
+            // error
+            scaling = 1;
+            assert(false);
         }
         if (scaling > 1) {
             // don't grow with fractional scaling
@@ -245,8 +250,11 @@ public:
             } else {
                 scaling = 1.;
             }
-        } else {
+        } else if (scaling > 0.1) {
             scaling = int(scaling * 10) / 10.;
+        } else {
+            scaling = 1;
+            assert(false);
         }
         width *= scaling;
         height *= scaling;

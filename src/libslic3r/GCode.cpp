@@ -3735,6 +3735,7 @@ void GCodeGenerator::process_layer_single_object(
             }
             m_avoid_crossing_perimeters.use_external_mp(false);
             m_avoid_crossing_perimeters.disable_once();
+            m_last_too_small.polyline.clear();
         }
         this->set_origin(offset);
     }

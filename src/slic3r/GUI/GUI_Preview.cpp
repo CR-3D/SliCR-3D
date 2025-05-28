@@ -469,7 +469,7 @@ wxBoxSizer* Preview::create_layers_slider_sizer()
     std::lock_guard lock(m_layers_slider->lock_render());
 
     m_layers_slider->SetDrawMode(wxGetApp().get_current_printer_technology() == ptSLA,
-        wxGetApp().preset_bundle->fff_prints.get_edited_preset().config.opt_bool("complete_objects"));
+        wxGetApp().preset_bundle->fff_prints.get_edited_preset().config.opt_bool("complete_objects") || wxGetApp().preset_bundle->fff_prints.get_edited_preset().config.opt_float("parallel_objects_step") > 0);
     m_layers_slider->enable_action_icon(wxGetApp().is_editor());
 
     sizer->Add(m_layers_slider, 0, wxEXPAND, 0);

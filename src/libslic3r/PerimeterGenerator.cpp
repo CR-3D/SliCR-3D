@@ -2958,11 +2958,16 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
                 perimeter_polygon = union_ex(perimeter_polygon, anchoring);
                 perimeter_polygon = intersection_ex(offset_ex(perimeter_polygon, -overhang_scaled_spacing), expanded_overhang_to_cover);
 
+                //TODO: cut the extrusions to have normal flow in the supported area.
                 if (perimeter_polygon.empty()) { // fill possible gaps of single extrusion width
                     ExPolygons shrinked = intersection_ex(offset_ex(prev, -0.3 * overhang_scaled_spacing), expanded_overhang_to_cover);
                     if (!shrinked.empty())
-                        extrusion_paths_append(overhang_region, reconnect_polylines(perimeter, overhang_scaled_spacing, scaled_resolution),
-                                               ExtrusionAttributes{ ExtrusionRole::OverhangPerimeter, params.overhang_flow }, false);
+                        extrusion_paths_append(overhang_region,
+                                               reconnect_polylines(perimeter, overhang_scaled_spacing,
+                                                                   scaled_resolution),
+                                               ExtrusionAttributes{ExtrusionRole::OverhangPerimeter,
+                                                                   params.overhang_flow, OverhangAttributes{1, 2, 0}},
+                                               false);
 
                     Polylines  fills;
                     ExPolygons gap = shrinked.empty() ? offset_ex(prev, overhang_scaled_spacing * 0.5) : shrinked;
@@ -2972,13 +2977,19 @@ std::tuple<std::vector<ExtrusionPaths>, ExPolygons, ExPolygons> generate_extra_p
                     }
                     if (!fills.empty()) {
                         fills = intersection_pl(fills, shrinked_overhang_to_cover);
-                        extrusion_paths_append(overhang_region, reconnect_polylines(fills, overhang_scaled_spacing, scaled_resolution),
-                                               ExtrusionAttributes{ ExtrusionRole::OverhangPerimeter, params.overhang_flow }, false);
+                        extrusion_paths_append(overhang_region,
+                                               reconnect_polylines(fills, overhang_scaled_spacing, scaled_resolution),
+                                               ExtrusionAttributes{ExtrusionRole::OverhangPerimeter,
+                                                                   params.overhang_flow, OverhangAttributes{1, 2, 0}},
+                                               false);
                     }
                     break;
                 } else {
-                    extrusion_paths_append(overhang_region, reconnect_polylines(perimeter, overhang_scaled_spacing, scaled_resolution),
-                                           ExtrusionAttributes{ExtrusionRole::OverhangPerimeter, params.overhang_flow }, false);
+                    extrusion_paths_append(overhang_region,
+                                           reconnect_polylines(perimeter, overhang_scaled_spacing, scaled_resolution),
+                                           ExtrusionAttributes{ExtrusionRole::OverhangPerimeter, params.overhang_flow,
+                                                               OverhangAttributes{1, 2, 0}},
+                                           false);
                 }
 
                 if (intersection(perimeter_polygon, real_overhang).empty()) { continuation_loops--; }

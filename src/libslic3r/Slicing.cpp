@@ -97,6 +97,7 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
 
     //get object first layer height
     double first_layer_height = object_config.first_layer_height.value;
+    double min_nozzle_diameter = print_config.nozzle_diameter.get_at(0);
     if (object_config.first_layer_height.percent) {
         first_layer_height = 1000000000.;
         for (uint16_t extruder_id : object_extruders) {
@@ -104,6 +105,7 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
                 break;
             double nozzle_diameter = print_config.nozzle_diameter.get_at(extruder_id);
             first_layer_height = std::min(first_layer_height, object_config.first_layer_height.get_abs_value(nozzle_diameter));
+            min_nozzle_diameter = std::min(nozzle_diameter, min_nozzle_diameter);
         }
         if (first_layer_height == 1000000000.)
             first_layer_height = 0;
@@ -131,6 +133,21 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
     double min_support_material_interface_height   = min_layer_height_from_nozzle(print_config, object_config.support_material_interface_extruder - 1);
     double max_support_material_interface_height   = max_layer_height_from_nozzle(print_config, object_config.support_material_interface_extruder - 1);
     bool   soluble_interface                       = object_config.support_material_contact_distance_type.value == zdNone;
+
+    if (object_config.support_material_extruder > 0) {
+        max_support_material_height = std::min(max_support_material_height,
+                                               print_config.nozzle_diameter.get_at(
+                                                   object_config.support_material_extruder - 1));
+    } else {
+        max_support_material_height = std::min(max_support_material_height, min_nozzle_diameter);
+    }
+    if (object_config.support_material_interface_extruder > 0) {
+        max_support_material_interface_height = std::min(max_support_material_interface_height,
+                                                         print_config.nozzle_diameter.get_at(
+                                                             object_config.support_material_interface_extruder - 1));
+    } else {
+        max_support_material_interface_height = std::min(max_support_material_interface_height, min_nozzle_diameter);
+    }
 
     std::shared_ptr<SlicingParameters> slicing_params = std::make_shared<SlicingParameters>();
     SlicingParameters& params = *slicing_params.get();
@@ -167,7 +184,7 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
         if (object_config.support_material_interface_extruder > 0)
             params.max_layer_height = std::min(params.max_layer_height, max_support_material_interface_height);
         if (params.max_layer_height < std::numeric_limits<double>::max())
-            params.max_suport_layer_height = params.max_layer_height;
+            params.max_suport_layer_height = std::min(params.max_layer_height, max_support_material_height);
         if (params.min_layer_height > 0)
             params.min_suport_layer_height = params.min_layer_height;
     }
