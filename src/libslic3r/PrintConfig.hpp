@@ -1090,7 +1090,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              deretract_speed))
     ((ConfigOptionString,              end_gcode))
     ((ConfigOptionStrings,             end_filament_gcode))
-    ((ConfigOptionFloats,              filament_pressure_advance))
+    ((ConfigOptionGraphs,              filament_pressure_advance))
     
     // Orca: adaptive pressure advance and calibration model
     ((ConfigOptionBools,               enable_pressure_advance))

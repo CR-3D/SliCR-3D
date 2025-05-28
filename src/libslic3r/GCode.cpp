@@ -8060,8 +8060,9 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
             check_add_eol(gcode);
         }
 
-        if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
-            gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
+        if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+            double pa_for_nozzle = get_pressure_advance(m_config.nozzle_diameter.get_at(extruder_id), extruder_id);
+            gcode += m_writer.set_pressure_advance(pa_for_nozzle);
         }
 
         if (!no_toolchange) {
@@ -8150,14 +8151,27 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
-        gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
+    if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+       double pa_for_nozzle = get_pressure_advance(m_config.nozzle_diameter.get_at(extruder_id), extruder_id);
+        
+        gcode += m_writer.set_pressure_advance(pa_for_nozzle);
     }
 
     // The position is now known after the tool change.
     this->unset_last_pos();
     
     return gcode;
+}
+
+double GCodeGenerator::get_pressure_advance(float nozzle_diameter, int tool_id) const {
+
+    GraphData pressure_advance = m_config.filament_pressure_advance.get_at(tool_id);
+    double pa_value = pressure_advance.interpolate(double(nozzle_diameter));
+
+    std::cout << pa_value << std::endl;
+
+    return pa_value;
+    
 }
 
 // convert a model-space scaled point into G-code coordinates

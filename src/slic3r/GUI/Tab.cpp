@@ -3468,6 +3468,7 @@ void TabFilament::toggle_options()
     if (!m_active_page)
         return;
 
+    m_config_manipulation.toggle_fff_filament_options(m_config, wxGetApp().preset_bundle->full_config());
     //if ( std::find(m_active_page->descriptions.begin(), m_active_page->descriptions.end(), "cooling") != m_active_page->descriptions.end())
     {
         // bool fan_always_on = m_config->opt_bool("fan_always_on", 0);
@@ -4195,6 +4196,7 @@ void TabPrinter::update()
     if (m_update_cnt == 0) {
         assert(m_config);
         wxGetApp().mainframe->on_config_changed(*m_config);
+        wxGetApp().mainframe->on_config_changed(*filament_conf);
     }
 }
 

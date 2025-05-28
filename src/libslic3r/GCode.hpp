@@ -160,6 +160,9 @@ public:
             return to_3d(gcode_point_xy, unscaled(point.z()));
         }
     }
+
+    double get_pressure_advance(float nozzle_diameter, int tool_id) const;
+
     Vec2d point2d_to_gcode(const Point &point) const;
     Vec3d point3d_to_gcode(const Vec3crd &point) const;
     // Convert coordinates of the active object to G-code coordinates, possibly adjusted for extruder offset and quantized to G-code resolution.

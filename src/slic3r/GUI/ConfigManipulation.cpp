@@ -687,9 +687,11 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
         if (have_high_flow) {
             if (other_config->has("filament_max_volumetric_speed")) {
                DynamicPrintConfig new_conf = *other_config;
-               //new_conf.set_key_value("filament_max_volumetric_speed", new ConfigOptionFloats{80.f});
                new_conf.option<ConfigOptionFloats>("filament_max_volumetric_speed")->set_at(80.f, extruder_idx);
+               // new_conf.option<ConfigOptionFloats>("filament_pressure_advance")->set_at(0.04f, extruder_idx);
+               
                apply(other_config, &new_conf);
+               
             }
         }
 
@@ -818,7 +820,7 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
     }
 }
 
-void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, DynamicPrintConfig &full_config) {
+void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, const DynamicPrintConfig &full_config) {
    
    const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();
     //for each extruder
