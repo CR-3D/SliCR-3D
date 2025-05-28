@@ -1822,15 +1822,39 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Enable pressure advance, auto calibration result will be overwritten once enabled.");
     def->mode = comAdvanced | comExpert;
     def->set_default_value(new ConfigOptionBools {false, false});
-
-    def = this->add("pressure_advance", coFloats);
-    def->label = L("Pressure advance");
-    def->tooltip = L("Pressure advance(Klipper) AKA Linear advance factor(Marlin)");
-    def->max = 2;
-    def->mode = comAdvanced | comExpert;
-    def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloats { 0.02 }));
     
+   def = this->add("filament_pressure_advance", coGraphs);
+    def->label = L("Filament Pressure Advance");
+    def->category = OptionCategory::filament;
+    def->tooltip = L(
+        "Filament Pressure Advance is a feature that allows the printer to adjust the pressure advance "
+        "based on the nozzle of the printer. ");
+    def->sidetext = L("%");
+    def->is_vector_extruder = true;
+    def->can_be_disabled = true;
+    def->mode       = comExpert | comPrusa;
+    def->set_default_value(new ConfigOptionGraphs(
+        {GraphData(0,4, GraphData::GraphType::LINEAR, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
+    )}));
+    def->graph_settings = std::make_shared<GraphSettings>();
+    def->graph_settings->title       = L("Pressure Advance from nozzle size");
+    def->graph_settings->description = L("Choose the wanted pressure advance for each nozzle size.");
+    def->graph_settings->x_label = L("Nozzle Size");
+    def->graph_settings->y_label = L("Pressure Advance");
+    def->graph_settings->null_label = L("No Pressure Advance");
+    def->graph_settings->label_min_x = L("");
+    def->graph_settings->label_max_x = L("");
+    def->graph_settings->label_min_y = L("");
+    def->graph_settings->label_max_y = L("");
+    def->graph_settings->min_x = 0;
+    def->graph_settings->max_x = 2;
+    def->graph_settings->step_x = 0.2;
+    def->graph_settings->min_y = 0;
+    def->graph_settings->max_y = 0.10;
+    def->graph_settings->step_y = 0.0005;
+    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
+                                          GraphData::GraphType::SPLINE};
+
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
     def->label = L("Nozzle Type");
@@ -2376,19 +2400,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comPrusa;
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{0.0});
-
-    def = this->add("filament_pressure_advance", coFloats);
-    def->label = L("Pressure advance");
-    def->tooltip = L("Pressure advance value (Linear advance factor for Marlin)."
-                     " If enabled, the gcode will emit a pressure advance value for this filament."
-                     "\nWith reprap and sprinter, 'M572 Dx Sx' is used."
-                     "\nWith klipper, 'SET_PRESSURE_ADVANCE ADVANCE=x EXTRUDER=x' is used."
-                     "\nWith other firmware 'M900 Kx' is used.");
-    def->category = OptionCategory::filament;
-    def->min = 0;
-    def->mode = comAdvanced | comExpert;
-    def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionFloats({0.02}));
 
     // Orca: Adaptive pressure advance option and calibration values
     def = this->add("adaptive_pressure_advance", coBools);

@@ -687,9 +687,15 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
         if (have_high_flow) {
             if (other_config->has("filament_max_volumetric_speed")) {
                DynamicPrintConfig new_conf = *other_config;
-               //new_conf.set_key_value("filament_max_volumetric_speed", new ConfigOptionFloats{80.f});
                new_conf.option<ConfigOptionFloats>("filament_max_volumetric_speed")->set_at(80.f, extruder_idx);
+               new_conf.option<ConfigOptionBools>("enable_pressure_advance")->set_at(true, extruder_idx);
+               new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")->set_enabled(true, extruder_idx);
+               new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")
+                   ->set(ConfigOptionGraphs({GraphData(0, 4, GraphData::GraphType::LINEAR,
+                                                       {{0.3, 0.04}, {0.4, 0.02}, {0.6, 0.005}, {0.8, 0.0025}})}), extruder_idx);
+
                apply(other_config, &new_conf);
+               
             }
         }
 

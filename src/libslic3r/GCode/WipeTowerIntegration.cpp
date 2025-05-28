@@ -151,8 +151,11 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_disable_linear_advance]\n","");
     }
     if (gcodegen.config().enable_pressure_advance.get_at(new_extruder_id)) {
+       double pa_for_nozzle = gcodegen.get_pressure_advance(gcodegen.config().nozzle_diameter.get_at(new_extruder_id), new_extruder_id);
+
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]",
-                             gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(new_extruder_id)));
+                             gcodegen.writer().set_pressure_advance(pa_for_nozzle));
+                             
     } else {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]\n","");
     }
