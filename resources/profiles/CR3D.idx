@@ -33,3 +33,4 @@ min_slic3r_version = 2.7.0.1
 0.0.35 changed first_layer_height to 0.2
 0.0.36 updated printer names
 0.0.37 bad formating made empty checkbox for IDEX printers
+0.0.38 changed start_gcode for DuplicateMode
