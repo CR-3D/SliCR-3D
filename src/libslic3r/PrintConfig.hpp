@@ -146,6 +146,13 @@ enum InfillPattern : uint8_t{
     ipCount,
 };
 
+enum class WallSequence {
+    InnerOuter,
+    OuterInner,
+    InnerOuterInner,
+    Count,
+};
+
 enum class IroningType {
     TopSurfaces,
     TopmostOnly,
@@ -1022,6 +1029,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionInt,                  print_temperature))
     ((ConfigOptionPercent,              thin_perimeters))
     ((ConfigOptionPercent,              thin_perimeters_all))
+    ((ConfigOptionEnum<WallSequence>,   wall_sequence))
     ((ConfigOptionBool,                 thin_walls))
     ((ConfigOptionFloatOrPercent,       thin_walls_acceleration))
     ((ConfigOptionFloatOrPercent,       thin_walls_min_width))
