@@ -874,8 +874,15 @@ void Tab::update_changed_ui()
         }
         found = nonsys_options.find(OptionKeyIdx::scalar("compatible_print"));
         if (found != nonsys_options.end()) {
-            nonsys_options.emplace(OptionKeyIdx{"compatible_print", 0}, found->second);
+            uint16_t tool_id = found->second;
             nonsys_options.erase(found);
+            nonsys_options.emplace(OptionKeyIdx{"compatible_print", 0}, tool_id);
+        }
+        found = nonsys_options.find(OptionKeyIdx::scalar("inherits"));
+        if (found != nonsys_options.end()) {
+            uint16_t tool_id = found->second;
+            nonsys_options.erase(found);
+            nonsys_options.emplace(OptionKeyIdx{"compatible_print", 0}, tool_id);
         }
         for (auto &entry : nonsys_options) {
             assert(entry.first.idx >= 0);
@@ -935,7 +942,7 @@ void Tab::update_changed_ui()
             }
         } else {
             //note: shouldn't happen as it's alaready added by dirty_options
-            assert(false);
+            assert(opt_key_id.key != "inherits");
         }
     }
 
