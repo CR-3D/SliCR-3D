@@ -6854,21 +6854,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
-    
-    def = this->add("thin_walls_min_width", coFloatOrPercent);
-    def->label = L("Min width");
-    def->full_label = L("Thin walls min width");
-    def->category = OptionCategory::perimeter;
-    def->tooltip = L(
-        "Minimum width for the extrusion to be extruded (widths lower than the nozzle diameter will be over-extruded "
-        "at the nozzle diameter)."
-        " If expressed as percentage (for example 110%) it will be computed over nozzle diameter."
-        " The default behavior of PrusaSlicer is with a 33% value. Put 100% to avoid any sort of over-extrusion.");
-    def->ratio_over = "nozzle_diameter";
-    def->mode = comExpert | comSuSi;
-    def->min = 0;
-    def->max_literal = {20, true};
-    def->set_default_value(new ConfigOptionFloatOrPercent(33, true));
 /*
     def = this->add("thin_walls_overlap", coFloatOrPercent);
     def->label = L("Overlap");
@@ -10449,7 +10434,6 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "support_material_interface_layer_height",
 "support_material_bottom_interface_pattern",
 "support_material_layer_height",
-"thin_walls_min_width",
 "thin_perimeters_all",
 "thin_perimeters",
 "thin_walls_acceleration",

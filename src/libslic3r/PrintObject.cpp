@@ -1299,7 +1299,6 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "thin_perimeters"
             || opt_key == "thin_perimeters_all"
             || opt_key == "thin_walls_merge"
-            || opt_key == "thin_walls_min_width"
             || opt_key == "thin_walls_overlap"
             ) {
             steps.emplace_back(posPerimeters);
