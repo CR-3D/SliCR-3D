@@ -1840,7 +1840,7 @@ void GCodeProcessor::process_gcode_line(const GCodeReader::GCodeLine& line, bool
             //klipper extendt comands
             if (cmd_up == "TURN_OFF_HEATERS")
                 set_extruder_temp(0.0f, m_extruder_id);
-            else if (cmd_up == "ACTIVATE_EXTRUDER")
+            else if (cmd_up == "T")
                 process_klipper_ACTIVATE_EXTRUDER(line);
         }
         catch (...) {

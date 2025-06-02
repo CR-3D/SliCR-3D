@@ -262,6 +262,15 @@ static const t_config_enum_values s_keys_map_SupportZDistanceType{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SupportZDistanceType)
 
+//BBS
+static t_config_enum_values s_keys_map_WallSequence {
+    { "inner wall/outer wall",     int(WallSequence::InnerOuter) },
+    { "outer wall/inner wall",     int(WallSequence::OuterInner) },
+    { "inner-outer-inner wall",    int(WallSequence::InnerOuterInner)}
+
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WallSequence)
+
 static const t_config_enum_values s_keys_map_SLADisplayOrientation{{"landscape", sladoLandscape},
                                                                    {"portrait", sladoPortrait}};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLADisplayOrientation)
@@ -1813,15 +1822,39 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Enable pressure advance, auto calibration result will be overwritten once enabled.");
     def->mode = comAdvanced | comExpert;
     def->set_default_value(new ConfigOptionBools {false, false});
-
-    def = this->add("pressure_advance", coFloats);
-    def->label = L("Pressure advance");
-    def->tooltip = L("Pressure advance(Klipper) AKA Linear advance factor(Marlin)");
-    def->max = 2;
-    def->mode = comAdvanced | comExpert;
-    def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloats { 0.02 }));
     
+   def = this->add("filament_pressure_advance", coGraphs);
+    def->label = L("Filament Pressure Advance");
+    def->category = OptionCategory::filament;
+    def->tooltip = L(
+        "Filament Pressure Advance is a feature that allows the printer to adjust the pressure advance "
+        "based on the nozzle of the printer. ");
+    def->sidetext = L("%");
+    def->is_vector_extruder = true;
+    def->can_be_disabled = true;
+    def->mode       = comExpert | comPrusa;
+    def->set_default_value(new ConfigOptionGraphs(
+        {GraphData(0,4, GraphData::GraphType::LINEAR, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
+    )}));
+    def->graph_settings = std::make_shared<GraphSettings>();
+    def->graph_settings->title       = L("Pressure Advance from nozzle size");
+    def->graph_settings->description = L("Choose the wanted pressure advance for each nozzle size.");
+    def->graph_settings->x_label = L("Nozzle Size");
+    def->graph_settings->y_label = L("Pressure Advance");
+    def->graph_settings->null_label = L("No Pressure Advance");
+    def->graph_settings->label_min_x = L("");
+    def->graph_settings->label_max_x = L("");
+    def->graph_settings->label_min_y = L("");
+    def->graph_settings->label_max_y = L("");
+    def->graph_settings->min_x = 0;
+    def->graph_settings->max_x = 2;
+    def->graph_settings->step_x = 0.2;
+    def->graph_settings->min_y = 0;
+    def->graph_settings->max_y = 0.10;
+    def->graph_settings->step_y = 0.0005;
+    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
+                                          GraphData::GraphType::SPLINE};
+
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
     def->label = L("Nozzle Type");
@@ -2367,19 +2400,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comPrusa;
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{0.0});
-
-    def = this->add("filament_pressure_advance", coFloats);
-    def->label = L("Pressure advance");
-    def->tooltip = L("Pressure advance value (Linear advance factor for Marlin)."
-                     " If enabled, the gcode will emit a pressure advance value for this filament."
-                     "\nWith reprap and sprinter, 'M572 Dx Sx' is used."
-                     "\nWith klipper, 'SET_PRESSURE_ADVANCE ADVANCE=x EXTRUDER=x' is used."
-                     "\nWith other firmware 'M900 Kx' is used.");
-    def->category = OptionCategory::filament;
-    def->min = 0;
-    def->mode = comAdvanced | comExpert;
-    def->is_vector_extruder = true;
-    def->set_default_value(new ConfigOptionFloats({0.02}));
 
     // Orca: Adaptive pressure advance option and calibration values
     def = this->add("adaptive_pressure_advance", coBools);
@@ -4362,6 +4382,13 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{0.4});
 
+    def = this->add("nozzle_high_flow", coBools);
+    def->label = L("High flow nozzle");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("High flow nozzles allow higher print speeds.");
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionBools{false});
+
     def = this->add("host_type", coEnum);
     def->label = L("Host Type");
     def->category = OptionCategory::general;
@@ -5869,6 +5896,27 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(20, false));
 
+    def = this->add("wall_sequence", coEnum);
+    def->label = L("Walls printing order");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Print sequence of the internal (inner) and external (outer) walls.\n\n"
+                     "Use Inner/Outer for best overhangs. This is because the overhanging walls can adhere to a neighbouring perimeter while printing. "
+                     "However, this option results in slightly reduced surface quality as the external perimeter is deformed by being squashed to the internal perimeter.\n\n"
+                     "Use Inner/Outer/Inner for the best external surface finish and dimensional accuracy as the external wall is printed undisturbed from an internal perimeter. "
+                     "However, overhang performance will reduce as there is no internal perimeter to print the external wall against. "
+                     "This option requires a minimum of 3 walls to be effective as it prints the internal walls from the 3rd perimeter onwards first, "
+                     "then the external perimeter and, finally, the first internal perimeter. "
+                     "This option is recommended against the Outer/Inner option in most cases.\n\n"
+                     "Use Outer/Inner for the same external wall quality and dimensional accuracy benefits of Inner/Outer/Inner option. "
+                     "However, the z seams will appear less consistent as the first extrusion of a new layer starts on a visible surface.\n\n ");
+    def->set_enum<WallSequence>({
+        {"inner wall/outer wall", "Inner/Outer"},
+        {"outer wall/inner wall", "Outer/Inner"},
+        {"inner-outer-inner wall", "Inner/Outer/Inner"},
+    });
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionEnum<WallSequence>(WallSequence::InnerOuter));
+
     def = this->add("solid_infill_below_area", coFloat);
     def->label = L("Solid infill threshold area");
     def->category = OptionCategory::infill;
@@ -6806,21 +6854,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(true));
 
-    
-    def = this->add("thin_walls_min_width", coFloatOrPercent);
-    def->label = L("Min width");
-    def->full_label = L("Thin walls min width");
-    def->category = OptionCategory::perimeter;
-    def->tooltip = L(
-        "Minimum width for the extrusion to be extruded (widths lower than the nozzle diameter will be over-extruded "
-        "at the nozzle diameter)."
-        " If expressed as percentage (for example 110%) it will be computed over nozzle diameter."
-        " The default behavior of PrusaSlicer is with a 33% value. Put 100% to avoid any sort of over-extrusion.");
-    def->ratio_over = "nozzle_diameter";
-    def->mode = comExpert | comSuSi;
-    def->min = 0;
-    def->max_literal = {20, true};
-    def->set_default_value(new ConfigOptionFloatOrPercent(33, true));
 /*
     def = this->add("thin_walls_overlap", coFloatOrPercent);
     def->label = L("Overlap");
@@ -9415,6 +9448,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
             }
         }
         // nil-> disabled
+        /*
         if (value.find("nil") != std::string::npos) {
             const ConfigOptionDef *def = print_config_def.get(opt_key);
             if (def) {
@@ -9432,6 +9466,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
                 opt_key.clear();
             }
         }
+        */
     }
     //phony
     for (const auto &width_2_spacing : widths_2_spacings_for_phony_fix) {
@@ -9815,6 +9850,16 @@ std::map<std::string, std::string> PrintConfigDef::from_prusa(t_config_option_ke
             // A first_layer_height isn't a % of layer_height but from nozzle_diameter now!
             // can't really convert right now, so put it at a safe value like 50%.
             value = "50%";
+        }
+    }
+    if ("max_layer_height" == opt_key) {
+        double dbl_val = std::atof(value.c_str());
+        double min = 10;
+        if (all_conf.has("nozzle_diameter")) {
+            min = all_conf.option("nozzle_diameter")->get_float();
+        }
+        if (dbl_val > min) {
+            value += "%";
         }
     }
     if ("resolution" == opt_key && value == "0") {
@@ -10389,7 +10434,6 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "support_material_interface_layer_height",
 "support_material_bottom_interface_pattern",
 "support_material_layer_height",
-"thin_walls_min_width",
 "thin_perimeters_all",
 "thin_perimeters",
 "thin_walls_acceleration",
@@ -10578,7 +10622,7 @@ std::map<std::string, std::string> PrintConfigDef::to_prusa(t_config_option_key 
                     }
                     value = to_string_nozero(val, 5);
                 value = boost::lexical_cast<std::string>(val);
-            }
+                }
         } catch (...) {}
     } else if ("gcode_flavor" == opt_key) {
         if ("sprinter" == value)

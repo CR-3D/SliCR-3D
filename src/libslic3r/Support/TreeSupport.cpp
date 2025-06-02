@@ -807,7 +807,7 @@ static std::optional<std::pair<Point, size_t>> polyline_sample_next_point_at_dis
     filler->init_spacing(flow.spacing(), fill_params);
 
     Polylines out;
-    for (ExPolygon &expoly : ensure_valid(union_ex(polygon), support_params.resolution)) {
+    for (ExPolygon &expoly : ensure_valid(union_ex(polygon)/*, support_params.resolution*/)) {
         // The surface type does not matter.
         assert(area(expoly) > 0.);
 #ifdef TREE_SUPPORT_SHOW_ERRORS_WIN32
@@ -3668,7 +3668,7 @@ static void generate_support_areas(Print &print,
                  {top_contacts, bottom_contacts, interface_layers, base_interface_layers, intermediate_layers}) {
                 for (auto layer : layer_ptr) {
                     assert(layer);
-                    ensure_valid(layer->polygons, support_params.resolution);
+                    ensure_valid(layer->polygons/*, support_params.resolution*/);
                 }
             }
 

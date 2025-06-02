@@ -45,8 +45,8 @@ public:
     
 protected:
     void create_buttons(wxStdDialogButtonSizer* sizer) override;
-    void create_geometry_box(wxCommandEvent& event_args) { create_geometry("/samplecard/CR-3D_Filament-Sample_Box_V1.0.amf"); }
-    void create_geometry_card(wxCommandEvent& event_args) { create_geometry("/samplecard/CR-3D_Filament-Sample_Test_V1.2.amf"); }
+    void create_geometry_box(wxCommandEvent& event_args) { create_geometry("/samplecard/CR-3D_Filament-Sample_Box_V1.0.3mf"); }
+    void create_geometry_card(wxCommandEvent& event_args) { create_geometry("/samplecard/CR-3D_Filament-Sample_Test_V1.2.3mf"); }
 };
 
 class CalibrationCr3dIDEXDialog : public CalibrationCr3dAbstractDialog

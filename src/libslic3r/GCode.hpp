@@ -160,6 +160,9 @@ public:
             return to_3d(gcode_point_xy, unscaled(point.z()));
         }
     }
+
+    double get_pressure_advance(float nozzle_diameter, int tool_id) const;
+
     Vec2d point2d_to_gcode(const Point &point) const;
     Vec3d point3d_to_gcode(const Vec3crd &point) const;
     // Convert coordinates of the active object to G-code coordinates, possibly adjusted for extruder offset and quantized to G-code resolution.
@@ -490,7 +493,7 @@ private:
     // Current layer processed. In sequential printing mode, only a single copy will be printed.
     // In non-sequential mode, all its copies will be printed.
     const Layer*                        m_layer;
-    const Layer*                        m_last_object_layer;
+    const Layer*                        m_last_object_layer = nullptr;
     const PrintRegion*                  m_region = nullptr;
     // m_layer is an object layer and it is being printed over raft surface.
     bool                                m_object_layer_over_raft;    // idx of the current instance printed. (or the last one)

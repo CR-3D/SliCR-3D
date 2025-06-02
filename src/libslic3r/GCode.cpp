@@ -1382,10 +1382,8 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     }
      this->m_throw_if_canceled();
 
-    //now that we have the layer count, init the status
-    print.set_status(int(0), std::string(L("Generating G-code layer %s / %s")), std::vector<std::string>{ std::to_string(0), std::to_string(layer_count()) }, PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
-
     m_enable_cooling_markers = true;
+    m_last_object_layer = nullptr;
 
     m_volumetric_speed = DoExport::autospeed_volumetric_limit(print);
      this->m_throw_if_canceled();
@@ -1798,7 +1796,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                         break;
                     } else if (*ptr == 'A' && print.config().gcode_flavor.value == gcfKlipper) {
                         // ACTIVATE_EXTRUDER for klipper (if used)
-                        if (std::string::npos != start_gcode.find("ACTIVATE_EXTRUDER", size_t(ptr - start_gcode.data()))) {
+                        if (std::string::npos != start_gcode.find("T", size_t(ptr - start_gcode.data()))) {
                             find = true;
                             break;
                         }
@@ -3256,22 +3254,6 @@ LayerResult GCodeGenerator::process_layer(
 
     assert(layer_id < layer_count());
 
-    if (object_layer) {
-        if (single_object_instance_idx != size_t(-1)) {
-            size_t nb_layers = object_layer->object()->layer_count();
-            m_object_sequentially_printed.insert(object_layer->object());
-            print.set_status(int((layer.id() * 100) / nb_layers),
-                             std::string(L("Generating G-code layer %s / %s for object %s / %s")),
-                             std::vector<std::string>{std::to_string(layer.id()), std::to_string(nb_layers), std::to_string(m_object_sequentially_printed.size()), std::to_string(print.num_object_instances())},
-                             PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
-        } else {
-            print.set_status(int((layer.id() * 100) / layer_count()),
-                             std::string(L("Generating G-code layer %s / %s")),
-                             std::vector<std::string>{std::to_string(layer.id()), std::to_string(layer_count())},
-                             PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
-        }
-    }
-
     // Extract 1st object_layer and support_layer of this set of layers with an equal print_z.
     coordf_t             print_z       = layer.print_z;
     bool                 first_layer   = layer_id == 0;
@@ -3753,6 +3735,7 @@ void GCodeGenerator::process_layer_single_object(
             }
             m_avoid_crossing_perimeters.use_external_mp(false);
             m_avoid_crossing_perimeters.disable_once();
+            m_last_too_small.polyline.clear();
         }
         this->set_origin(offset);
     }
@@ -6753,14 +6736,14 @@ std::pair<double, double> GCodeGenerator::_compute_acceleration(const ExtrusionP
 }
 
 void GCodeGenerator::cooldown_marker_init() {
-    if (_cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)].empty()) {
+    if (!_cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)].empty()) {
         std::string allow_speed_change = ";_EXTRUDE_SET_SPEED";
         //only change speed on external perimeter (and similar) speed if really necessary.
         std::string maybe_allow_speed_change = ";_EXTRUDE_SET_SPEED_MAYBE";
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::None)]                 = "";
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::Perimeter)]            = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::ExternalPerimeter)]    = maybe_allow_speed_change;
-        _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::OverhangPerimeter)]    = "";
+        _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::OverhangPerimeter)]    = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::InternalInfill)]       = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::SolidInfill)]          = allow_speed_change;
         _cooldown_marker_speed[uint8_t(GCodeExtrusionRole::TopSolidInfill)]       = allow_speed_change;
@@ -7746,7 +7729,10 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
             m_config.avoid_crossing_perimeters) {
             assert(m_last_object_layer == m_layer || dynamic_cast<const Layer*>(m_layer) ||
                 (dynamic_cast<const SupportLayer*>(m_layer) != nullptr && m_last_object_layer->print_z <= m_layer->print_z + EPSILON));
-            assert(m_last_object_layer);
+            if (!m_last_object_layer) {
+                // we didn't see any object yet (we are on the raft)
+                return true;
+            }
             if (m_layer_slices_offseted.layer != m_last_object_layer && m_last_object_layer != nullptr) {
                 m_layer_slices_offseted.layer    = m_last_object_layer;
                 m_layer_slices_offseted.diameter = scale_t(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) / 2;
@@ -8075,8 +8061,9 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
             check_add_eol(gcode);
         }
 
-        if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
-            gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
+        if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+            double pa_for_nozzle = get_pressure_advance(m_config.nozzle_diameter.get_at(extruder_id), extruder_id);
+            gcode += m_writer.set_pressure_advance(pa_for_nozzle);
         }
 
         if (!no_toolchange) {
@@ -8165,14 +8152,26 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
-        gcode += m_writer.set_pressure_advance(m_config.filament_pressure_advance.get_at(extruder_id));
+    if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+       double pa_for_nozzle = get_pressure_advance(m_config.nozzle_diameter.get_at(extruder_id), extruder_id);
+        
+        gcode += m_writer.set_pressure_advance(pa_for_nozzle);
     }
 
     // The position is now known after the tool change.
     this->unset_last_pos();
     
     return gcode;
+}
+
+double GCodeGenerator::get_pressure_advance(float nozzle_diameter, int tool_id) const {
+
+    GraphData pressure_advance = m_config.filament_pressure_advance.get_at(tool_id);
+    double pa_value = pressure_advance.interpolate(double(nozzle_diameter));
+
+        std::cout << pa_value << std::endl;
+
+    return pa_value;    
 }
 
 // convert a model-space scaled point into G-code coordinates

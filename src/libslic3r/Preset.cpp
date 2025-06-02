@@ -535,7 +535,9 @@ static std::vector<std::string> s_Preset_print_options {
         "avoid_crossing_perimeters", 
         "avoid_crossing_not_first_layer",
         "avoid_crossing_top",
-        "thin_perimeters", "thin_perimeters_all",
+        "thin_perimeters", 
+        "thin_perimeters_all",
+        "wall_sequence",
         "overhangs_speed",
         "overhangs_speed_enforce",
         "overhangs_max_slope",
@@ -792,7 +794,6 @@ static std::vector<std::string> s_Preset_print_options {
         "first_layer_infill_speed",
         // thin wall
         "thin_walls",
-        "thin_walls_min_width",
         "thin_walls_speed",
         //precision, smoothing
 //        "arc_fitting", // in printer preset
@@ -948,9 +949,10 @@ static std::vector<std::string> s_Preset_printer_options {
     "use_firmware_retraction", "use_volumetric_e", "variable_layer_height",
     "lift_min",
     "nozzle_diameter",
-            "gcode_min_length",
-            "gcode_min_resolution",
-            "max_gcode_per_second",
+    "nozzle_high_flow",
+    "gcode_min_length",
+    "gcode_min_resolution",
+    "max_gcode_per_second",
     //FIXME the print host keys are left here just for conversion from the Printer preset to Physical Printer preset.
     "host_type", "print_host", "printhost_apikey", "printhost_cafile", "printhost_port",
     "single_extruder_multi_material", 

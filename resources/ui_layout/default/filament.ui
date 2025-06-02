@@ -37,7 +37,7 @@ line:Enable Pressure Advance
 	setting:id$0:label$_:enable_pressure_advance
 end_line
 line:Filament Pressure Advance
-	setting:id$0:label$Pressure Advance:filament_pressure_advance
+	setting:id$0:label$_:filament_pressure_advance
 end_line
 line:Adaptive Pressure Advance (beta)
 	setting:id$0:label$Adaptive Pressure Advance:adaptive_pressure_advance

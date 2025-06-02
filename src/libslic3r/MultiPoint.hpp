@@ -228,6 +228,7 @@ public:
 
     // Projection of a point onto the lines defined by the points.
     virtual std::pair<Point, size_t> point_projection(const Point &point) const;
+    static double minimumDistanceBetweenLinesDefinedByPoints(const Points &A, const Points &B);
 
     inline auto begin() { return points.begin(); }
     inline auto begin() const { return points.begin(); }
@@ -253,6 +254,9 @@ public:
 #else
     void assert_valid() const {}
 #endif
+
+    private:
+    static double squaredDistanceToLineSegment(const Point &p, const Point &v, const Point &w);
 };
 
 class MultiPoint3

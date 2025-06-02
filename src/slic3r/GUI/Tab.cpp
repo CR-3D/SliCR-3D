@@ -1255,12 +1255,25 @@ void Tab::reload_config()
 {
     if (m_active_page)
         m_active_page->reload_config();
-    //also reload scripted that aren't on the active page.
+
+    PrinterTechnology   pt                  = get_printer_technology();
+    ConfigOptionsGroup *og_freq_chng_params = wxGetApp().sidebar().og_freq_chng_params(pt);
+
+    // also reload scripted that aren't on the active page.
     for (PageShp page : m_pages) {
         if (page.get() != m_active_page) {
-            for (auto group : page->m_optgroups) {
-                // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
-                group->update_script_presets(true);
+            DynamicPrintConfig config = static_cast<TabPrinter *>(this)->m_preset_bundle->full_config();
+            if (config.has("nozzle_diameter")) {
+                size_t nozzle_diameters_count = static_cast<ConfigOptionFloats *>(config.option("nozzle_diameter"))->get_values().size();
+                Field *field = og_freq_chng_params->get_field(OptionKeyIdx::scalar("s_nozzle_diameter_2"));
+                if (field) {
+                    field->toggle_widget_enable(nozzle_diameters_count == 2);
+                }
+
+                for (auto group : page->m_optgroups) {
+                    // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
+                    group->update_script_presets(true);
+                }
             }
         }
     }
@@ -1608,7 +1621,6 @@ void Tab::on_value_change(const OptionKeyIdx& opt_key_idx, const boost::any& val
         if (only_one_warning_per_session) {
             only_one_warning_per_session= false;
             assert(opt_key_idx.idx >= 0);
-            assert(opt_key_idx.key.find("max_layer_height") == std::string::npos);
             const std::vector<double> &nozzle_sizes = m_config_base->option<ConfigOptionFloats>("nozzle_diameter")->get_values();
             assert(opt_key_idx.idx < nozzle_sizes.size());
             double max_lh = m_config_base->option("max_layer_height")->is_enabled(opt_key_idx.idx) ?
@@ -3468,22 +3480,11 @@ void TabFilament::toggle_options()
     if (!m_active_page)
         return;
 
+    m_config_manipulation.toggle_fff_filament_options(m_config, wxGetApp().preset_bundle->full_config());
     //if ( std::find(m_active_page->descriptions.begin(), m_active_page->descriptions.end(), "cooling") != m_active_page->descriptions.end())
     {
-        // bool fan_always_on = m_config->opt_bool("fan_always_on", 0);
-
-        //get_field("max_fan_speed")->toggle_widget_enable(m_config->opt_float("fan_below_layer_time", 0) > 0);
         toggle_option("min_print_speed", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
         toggle_option("max_speed_reduction", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
-
-        // hidden 'cooling', it's now deactivated.
-             //for (auto el : { "min_fan_speed", "disable_fan_first_layers" })
-        //for (auto el : { "max_fan_speed", "fan_below_layer_time", "slowdown_below_layer_time", "min_print_speed" })
-        //    get_field(el)->toggle_widget_enable(cooling);
-
-
-        //for (auto el : { "min_fan_speed", "disable_fan_first_layers" })
-        //    get_field(el)->toggle_widget_enable(fan_always_on);
 
         toggle_option("max_fan_speed", 
             m_config->opt_float("fan_below_layer_time", 0) > 0 
@@ -3492,14 +3493,12 @@ void TabFilament::toggle_options()
         toggle_option("overhangs_fan_speed", !m_config->is_enabled("overhangs_dynamic_fan_speed", 0), 0);
     }
 
-    //if (m_active_page->title() == "Advanced")
     {
         bool multitool_ramming = m_config->opt_bool("filament_multitool_ramming", 0);
         toggle_option("filament_multitool_ramming_volume", multitool_ramming);
         toggle_option("filament_multitool_ramming_flow", multitool_ramming);
     }
 
-    //if (m_active_page->title() == "Filament Overrides")
         update_filament_overrides_page();
 }
 
@@ -4182,19 +4181,21 @@ void TabPrinter::update()
     m_update_cnt++;
     m_presets->get_edited_preset().printer_technology() == ptFFF ? update_fff() : update_sla();
     m_update_cnt--;
+    
+    DynamicPrintConfig *filament_conf = wxGetApp().get_tab(Preset::Type::TYPE_FFF_FILAMENT)->get_config();
 
     if (get_printer_technology() == ptFFF) {
-        m_config_manipulation.update_printer_fff_config(m_config, true);
-    } else if (get_printer_technology() == ptSLA) {
-        // nothing to do
+        m_config_manipulation.update_printer_fff_config(m_config, filament_conf, true);
     }
 
     update_description_lines();
     Layout();
+    wxGetApp().get_tab(Preset::Type::TYPE_FFF_FILAMENT)->Layout();
 
     if (m_update_cnt == 0) {
         assert(m_config);
         wxGetApp().mainframe->on_config_changed(*m_config);
+        wxGetApp().mainframe->on_config_changed(*filament_conf);
     }
 }
 

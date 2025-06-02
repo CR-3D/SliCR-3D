@@ -1954,7 +1954,7 @@ std::vector<ExPolygons> slice_mesh_ex(
         if (params.mode_below == MeshSlicingParams::SlicingMode::PositiveLargestContour)
             slicing_params.mode_below = MeshSlicingParams::SlicingMode::Positive;
         layers_p = slice_mesh(mesh, zs, slicing_params, throw_on_cancel);
-        for(Polygons &polys : layers_p) ensure_valid(polys, std::max(SCALED_EPSILON, scale_t(params.resolution) / 4));
+        for(Polygons &polys : layers_p) ensure_valid(polys);
     }
     
 //    BOOST_LOG_TRIVIAL(debug) << "slice_mesh make_expolygons in parallel - start";
@@ -1993,16 +1993,17 @@ std::vector<ExPolygons> slice_mesh_ex(
                 }
                 assert(!has_duplicate_points(expolygons));
 #endif // NDEBUG
-                //FIXME simplify
+                // simplify
                 if (this_mode == MeshSlicingParams::SlicingMode::PositiveLargestContour)
                     keep_largest_contour_only(expolygons);
                 if (resolution != 0.) {
-                    ExPolygons simplified;
-                    simplified.reserve(expolygons.size());
-                    for (const ExPolygon &ex : expolygons)
-                        append(simplified, ex.simplify(resolution));
-                    expolygons = std::move(simplified);
+                    expolygons = union_safety_offset_ex(expolygons);
+                    //for (expolygons) ex.simplify(resolution));
+                    ensure_valid(expolygons, resolution);
+                } else {
+                    ensure_valid(expolygons);
                 }
+                assert_valid(expolygons);
 #if 0
 //#ifndef NDEBUG
                 for (const ExPolygon &ex : expolygons) {

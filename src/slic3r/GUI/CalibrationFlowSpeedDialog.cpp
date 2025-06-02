@@ -235,7 +235,7 @@ std::tuple<float, float, Flow> CalibrationFlowSpeedDialog::get_cube_size(float o
         max_height = int(max_height / layer_height) * layer_height;
     }
     assert(false);
-    return { 0, 0 , Flow::bridging_flow(0.2f, 0.2f)};
+    return { 0, 0 , Flow::bridging_flow(0.2f, 0.2f, 0.2f)};
 }
 
 void CalibrationFlowSpeedDialog::create_overlap(wxCommandEvent &event_args) 

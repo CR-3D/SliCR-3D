@@ -99,9 +99,10 @@ void ExtrusionPath::polygons_covered_by_spacing(Polygons &out, const float spaci
     // Instantiating the Flow class to get the line spacing.
     // Don't know the nozzle diameter, setting to zero. It shall not matter it shall be optimized out by the compiler.
     bool bridge = this->role().is_bridge() || (this->width() * 4 < this->height());
-    assert(!bridge || m_attributes.width == m_attributes.height);
-    // TODO: check BRIDGE_FLOW here
-    auto flow = bridge ? Flow::bridging_flow(m_attributes.width, 0.f) :
+    // Remove the now-invalid assert
+    // assert(!bridge || m_attributes.width == m_attributes.height);
+
+    auto flow = bridge ? Flow::bridging_flow(m_attributes.width, m_attributes.height, 0.f) :
                          Flow::new_from_width(m_attributes.width, 0.f, m_attributes.height, spacing_ratio);
     polygons_append(out, offset(this->polyline.to_polyline(), 0.5f * float(flow.scaled_spacing()) + scaled_epsilon, Slic3r::ClipperLib::jtMiter, 10));
 }

@@ -70,14 +70,18 @@ group:Quality
 		setting:label$_:perimeter_reverse
 	end_line
 
-group:Thin Walls
+	line:Wall Sequence
+		setting:label$_:wall_sequence
+	end_line
+
 	line:Thin Walls
 		setting:label$_:thin_walls
 	end_line
-	line:Thin Walls Min Width
-		setting:label$_:thin_walls_min_width
-	end_line
 
+	line:Gap Fill
+		setting:label$_:gap_fill_enabled
+	end_line
+	
 group:Avoid crossing perimeters
 	line:Activate
 		setting:label$_:avoid_crossing_perimeters
@@ -148,11 +152,6 @@ group:sidetext_width$5:Seam
 	end_line
 	line:Seam Notch Max Angle
 		setting:label$_:seam_notch_angle
-	end_line
-
-group:sidetext_width$5:Gap Fill
-	line:Gap Fill
-		setting:label$_:gap_fill_enabled
 	end_line
 
 group:sidetext_width$5:Advanced

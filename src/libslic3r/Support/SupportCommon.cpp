@@ -1763,11 +1763,14 @@ void generate_support_toolpaths(
                 // value that guarantees that all layers are correctly aligned.
                 spacing = support_params.raft_interface_flow.spacing();
                 assert(!raft_layer.bridging);
-                float nzd     = support_params.raft_interface_flow.nozzle_diameter();
-                flow          = !raft_layer.bridging ?
-                                    Flow::new_from_width(float(support_params.raft_interface_flow.width()), nzd, float(raft_layer.height),
-                                                support_params.raft_interface_flow.spacing_ratio()) :
-                                    Flow::bridging_flow(nzd * std::sqrt(support_params.raft_bridge_flow_ratio), nzd);
+                float nzd = support_params.raft_interface_flow.nozzle_diameter();
+                float height = float(raft_layer.height);
+                float width = nzd * std::sqrt(support_params.raft_bridge_flow_ratio);
+
+                flow = !raft_layer.bridging ?
+                    Flow::new_from_width(float(support_params.raft_interface_flow.width()), nzd, height,
+                                         support_params.raft_interface_flow.spacing_ratio()) :
+                    Flow::bridging_flow(width, height, nzd);
                 //flow          = Flow(float(support_params.raft_interface_flow.width()), float(raft_layer.height), support_params.raft_interface_flow.nozzle_diameter());
                 density       = float(support_params.raft_interface_density);
             } else
@@ -1997,11 +2000,18 @@ void generate_support_toolpaths(
                                                                                                filler_intermediate_interface.get();
                     if (raft_contact)
                         filler = filler_raft_contact.get();
-                    Flow  interface_flow = layer_ex.layer->bridging ?
-                        Flow::bridging_flow(layer_ex.layer->height, support_params.support_material_bottom_interface_flow.nozzle_diameter()) :
-                        (raft_contact ? &support_params.raft_interface_flow : 
-                         interface_as_base ? &support_params.support_material_flow : &support_params.support_material_interface_flow)
-                                                  ->with_height(float(layer_ex.layer->height));
+                    float height = layer_ex.layer->height;
+                    float nozzle_diameter = support_params.support_material_bottom_interface_flow.nozzle_diameter();
+                    float bridge_flow_ratio =
+                        support_params.raft_bridge_flow_ratio; // or another appropriate ratio depending on context
+                    float width = nozzle_diameter * std::sqrt(bridge_flow_ratio);
+
+                    Flow interface_flow = layer_ex.layer->bridging ?
+                        Flow::bridging_flow(width, height, nozzle_diameter) :
+                        (raft_contact          ? &support_params.raft_interface_flow :
+                             interface_as_base ? &support_params.support_material_flow :
+                                                 &support_params.support_material_interface_flow)
+                            ->with_height(height);
                     // filler->layer_id = support_layer_id; // don't do that, or the filler will rotate thigns from that layerid
                     filler->z             = support_layer.print_z;
                     float    supp_density = support_params.interface_density;

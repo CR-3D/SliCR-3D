@@ -358,9 +358,10 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
             const auto &variant = model.variants[i];
 
             const auto label = model.technology == ptFFF
-                ? format_wxstr("%1% %2% %3%", variant.name, _L("mm"), _L("nozzle"))
+                ? format_wxstr("%1% %2%", variant.name, _L("mm"))
                 : from_u8(model.name);
 
+        
             if (i == 1) {
                 auto *alt_label = new wxStaticText(variants_panel, wxID_ANY, _L("Alternate nozzles:"));
                 alt_label->SetFont(font_alt_nozzle);

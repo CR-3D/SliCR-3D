@@ -1136,12 +1136,16 @@ std::string CoolingBuffer::apply_layer_cooldown(
     int                 override_min_fan_speed = -1;
     const std::string   comment_speed = m_config.gcode_comments ? " ; speed changed by the cooling algorithm" : "";
     std::pair<int,int> fan_speed_limits = change_extruder_set_fan();
+    bool speed_need_set = false;
     for (const CoolingLine *line : lines) {
         const char *line_start  = gcode.c_str() + line->line_start;
         const char *line_end    = gcode.c_str() + line->line_end;
         bool fan_need_set = false;
-        if (line_start > pos)
+        if (line_start > pos) {
             new_gcode.append(pos, line_start - pos);
+            const char *fpos = strstr(new_gcode.data() + new_gcode.size() - (line_start - pos), " F");
+            speed_need_set = fpos != nullptr;
+        }
         if (line->type & CoolingLine::TYPE_SET_TOOL) {
             if (line->new_tool != m_current_extruder) {
                 m_current_extruder = line->new_tool;
@@ -1179,7 +1183,9 @@ std::string CoolingBuffer::apply_layer_cooldown(
                 extrude_tree.pop_back();
                 fan_need_set = true;
             }
-        } else if (line->type & (CoolingLine::TYPE_ADJUSTABLE | CoolingLine::TYPE_ADJUSTABLE_EMPTY | CoolingLine::TYPE_ADJUSTABLE_MAYBE | CoolingLine::TYPE_WIPE | CoolingLine::TYPE_HAS_F)) {
+        } else if (line->type &
+                   (CoolingLine::TYPE_ADJUSTABLE | CoolingLine::TYPE_ADJUSTABLE_EMPTY |
+                    CoolingLine::TYPE_ADJUSTABLE_MAYBE | CoolingLine::TYPE_WIPE | CoolingLine::TYPE_HAS_F)) {
 
             // Find the start of a comment, or roll to the end of line.
             const char *end = line_start;
@@ -1192,19 +1198,25 @@ std::string CoolingBuffer::apply_layer_cooldown(
             // Remove the F word from the current G-code line.
             bool        remove          = false;
             assert(fpos != nullptr);
-            if (line->slowdown)
+            if (line->slowdown) {
                 new_feedrate = int(floor(60. * line->feedrate + 0.5));
-            else
-                //auto res = 
-                    std::from_chars(fpos, line_end, new_feedrate);
-            if (new_feedrate == current_feedrate) {
+            } else {
+                // auto res =
+                std::from_chars(fpos, line_end, new_feedrate);
+            }
+            if (new_feedrate == current_feedrate && !speed_need_set) {
                 // No need to change the F value.
-                if ((line->type & (CoolingLine::TYPE_ADJUSTABLE | CoolingLine::TYPE_ADJUSTABLE_EMPTY | CoolingLine::TYPE_ADJUSTABLE_MAYBE | CoolingLine::TYPE_WIPE)) || !line->has_move )
-                    // Feedrate does not change and this line does not move the print head. Skip the complete G-code line including the G-code comment.
+                if ((line->type &
+                     (CoolingLine::TYPE_ADJUSTABLE | CoolingLine::TYPE_ADJUSTABLE_EMPTY |
+                      CoolingLine::TYPE_ADJUSTABLE_MAYBE | CoolingLine::TYPE_WIPE)) ||
+                    !line->has_move) {
+                    // Feedrate does not change and this line does not move the print head. Skip the complete G-code
+                    // line including the G-code comment.
                     end = line_end;
-                else
+                } else {
                     // Remove the feedrate from the G0/G1 line. The G-code line may become empty!
                     remove = true;
+                }
             } else if (line->slowdown) {
                 // The F value will be overwritten.
                 modify = true;
@@ -1213,6 +1225,7 @@ std::string CoolingBuffer::apply_layer_cooldown(
                 // Emit the line without the comment.
                 new_gcode.append(line_start, end - line_start);
                 current_feedrate = new_feedrate;
+                speed_need_set = false;
             }
             if (modify || remove) {
                 if (modify) {
@@ -1222,14 +1235,16 @@ std::string CoolingBuffer::apply_layer_cooldown(
                     char buf[64];
                     sprintf(buf, "%d", int(current_feedrate));
                     new_gcode += buf;
+                    speed_need_set = false;
                 } else /*if (remove)*/ {
+                    assert(!speed_need_set);
                     // Remove the feedrate word.
                     const char *f = fpos;
                     // Roll the pointer before the 'F' word.
                     for (f -= 2; f > line_start && (*f == ' ' || *f == '\t'); -- f);
                     // Append up to the F word, without the trailing whitespace.
                     //but only if there are something else than a simple "G1" (F is always put at the end of a G1 command)
-                    if(f - line_start > 2)
+                    if (f - line_start > 2)
                         new_gcode.append(line_start, f - line_start + 1);
                 }
                 // Skip the non-whitespaces of the F parameter up the comment or end of line.
@@ -1274,12 +1289,11 @@ std::string CoolingBuffer::apply_layer_cooldown(
                     new_gcode.append("\n");
                 }
             }
-        } else if(line->type == CoolingLine::TYPE_ADJUSTABLE_EMPTY) {
+        } else if (line->type == CoolingLine::TYPE_ADJUSTABLE_EMPTY) {
             // nothing useful, don't write it (an extrusion that don't move because it wasn't printed as it's too small).
             if (m_config.gcode_comments) {
                 std::string deleted(line_start, line_end - line_start);
                 boost::replace_all(deleted, "\n", "");
-                new_gcode.append(std::string("; deleted empty line: ") + deleted);
             }
         } else {
             new_gcode.append(line_start, line_end - line_start);
@@ -1319,7 +1333,8 @@ std::string CoolingBuffer::apply_layer_cooldown(
                     }
                 }
                 if (!fan_set && m_fan_speed >= 0) {
-                    if(std::max(override_min_fan_speed, m_fan_speed) != current_fan_speed  && (default_fan_speed[0] >= 0 || current_fan_speed > 0)) {
+                    if (std::max(override_min_fan_speed, m_fan_speed) != current_fan_speed &&
+                        (default_fan_speed[0] >= 0 || current_fan_speed > 0)) {
                         current_fan_speed = m_fan_speed;
                         std::string comment;
                         if (override_min_fan_speed > current_fan_speed) {

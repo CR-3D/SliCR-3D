@@ -373,6 +373,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "min_layer_height"
             || opt_key == "max_layer_height"
             || opt_key == "filament_max_overlap"
+            || opt_key == "wall_sequence"
             || opt_key == "gcode_min_resolution") {
             osteps.emplace_back(posPerimeters);
             osteps.emplace_back(posInfill);
@@ -732,7 +733,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
     if (extruders.empty())
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
-    if (m_config.complete_objects || m_config.parallel_objects_step > 0) {
+    if (m_config.complete_objects /*|| m_config.parallel_objects_step > 0*/) {
     	if (! sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
             return { PrintBase::PrintValidationError::pveWrongPosition, _u8L("Some objects are too close; your extruder will collide with them.") };
         if (m_config.complete_objects && ! sequential_print_vertical_clearance_valid(*this))
@@ -1342,10 +1343,7 @@ void Print::process()
             GetPathsVisitor visitor;
             this->m_skirt.visit(visitor);
             this->m_brim.visit(visitor);
-#if _DEBUG
-            this->m_skirt.visit(get_loops);
-            for (auto loop : get_loops.loops) assert(loop->is_counter_clockwise());
-#endif
+
             tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, visitor.paths.size() + visitor.paths3D.size()),
                 [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count](const tbb::blocked_range<size_t>& range) {
@@ -1555,7 +1553,7 @@ void Print::_make_skirt_brim() {
                         append(set_extruders, this->support_material_extruders());
                         Flow        flow = this->brim_flow(set_extruders.empty() ? get_print_region(0).config().perimeter_extruder - 1 : *set_extruders.begin(), obj->config());
                         //if complete objects
-                        if (config().complete_objects) {
+                        if (config().complete_objects || config().parallel_objects_step.value > 0) {
                             //don't consider other objects/instances, as they aren't colliding.
                             brim_area.clear();
                             const std::vector<PrintInstance> copies = obj->instances();
@@ -1623,9 +1621,8 @@ void Print::_make_skirt_brim() {
             }
         }
         // store brim hull (used for make_skirt... that is made before)
-        // m_first_layer_convex_hull is sued to set the 'first_layer_print_min' placeholder in gcode macros
-        for (Polygon& poly : to_polygons(brim_area))
-            append(m_first_layer_convex_hull.points, std::move(poly.points));
+        // m_first_layer_convex_hull is used to set the 'first_layer_print_min' placeholder in gcode macros
+        append(m_first_layer_convex_hull.points, to_points(brim_area));
         this->finalize_first_layer_convex_hull();
 
         // everything should be extruded ccw, so only chajnge dir if cw is requested

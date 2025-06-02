@@ -8224,7 +8224,7 @@ void GLCanvas3D::_load_skirt_brim_preview_toolpaths(const BuildVolume &build_vol
                 if (!print_object->brim().empty())
                     for (const PrintInstance& inst : print_object->instances()) {
                         if (!print_object->brim().empty()) volume = ensure_volume_is_ready(volume, init_data);
-                        _3DScene::extrusionentity_to_verts(print_object->brim(), print_zs[i], print->config().complete_objects? inst.shift : Point(0, 0), init_data);
+                        _3DScene::extrusionentity_to_verts(print_object->brim(), print_zs[i], (print->config().complete_objects || print->config().parallel_objects_step > 0)? inst.shift : Point(0, 0), init_data);
                     }
                 if (print_object->skirt_first_layer())
                     for (const PrintInstance& inst : print_object->instances()) {
@@ -8243,7 +8243,7 @@ void GLCanvas3D::_load_skirt_brim_preview_toolpaths(const BuildVolume &build_vol
             if ( !print_object->skirt().empty() && (i != 0 || !print_object->skirt_first_layer()))
                 for (const PrintInstance& inst : print_object->instances()) {
                     if (!print_object->skirt().empty()) volume = ensure_volume_is_ready(volume, init_data);
-                    _3DScene::extrusionentity_to_verts(print_object->skirt(), print_zs[i], print->config().complete_objects? inst.shift : Point(0, 0), init_data);
+                    _3DScene::extrusionentity_to_verts(print_object->skirt(), print_zs[i], (print->config().complete_objects || print->config().parallel_objects_step > 0)? inst.shift : Point(0, 0), init_data);
                 }
         }
     }

@@ -397,8 +397,6 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("thin_perimeters_all", have_perimeters && config->option("thin_perimeters")->get_float() != 0 && !have_arachne);
     bool have_thin_wall = !have_arachne && have_perimeters;
     toggle_field("thin_walls", have_thin_wall);
-    for (auto el : { "thin_walls_min_width", "thin_walls_overlap", "thin_walls_merge" })
-        toggle_field(el, have_thin_wall && config->opt_bool("thin_walls"));
 
     for (auto el : { "seam_angle_cost", "seam_travel_cost", "seam_visibility" })
         toggle_field(el, have_perimeters && config->option<ConfigOptionEnum<SeamPosition>>("seam_position")->value == SeamPosition::spCost);
@@ -672,6 +670,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
 
 void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
+                                                   DynamicPrintConfig *other_config,
                                                    const bool          is_global_config)
 {
     const std::vector<double> &nozzle_sizes = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values();
@@ -681,6 +680,23 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
         double min_lh = config->get_computed_value("min_layer_height", extruder_idx);
         double max_lh = config->option("max_layer_height")->is_enabled() ? config->get_computed_value("max_layer_height", extruder_idx) : nozzle_sizes[extruder_idx] * 0.75f;
         
+        // High Flow
+        bool have_high_flow = config->opt_bool("nozzle_high_flow", extruder_idx);
+        if (have_high_flow) {
+            if (other_config->has("filament_max_volumetric_speed")) {
+               DynamicPrintConfig new_conf = *other_config;
+               new_conf.option<ConfigOptionFloats>("filament_max_volumetric_speed")->set_at(80.f, extruder_idx);
+               new_conf.option<ConfigOptionBools>("enable_pressure_advance")->set_at(true, extruder_idx);
+               new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")->set_enabled(true, extruder_idx);
+               new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")
+                   ->set(ConfigOptionGraphs({GraphData(0, 4, GraphData::GraphType::LINEAR,
+                                                       {{0.3, 0.04}, {0.4, 0.02}, {0.6, 0.005}, {0.8, 0.0025}})}), extruder_idx);
+
+               apply(other_config, &new_conf);
+               
+            }
+        }
+
         bool have_retract_length = config->opt_float("retract_length", extruder_idx) > 0;
         bool use_firmware_retraction = config->opt_bool("use_firmware_retraction");
         bool wipe = config->get_bool("wipe", extruder_idx) && have_retract_length;
@@ -806,7 +822,7 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
     }
 }
 
-void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, DynamicPrintConfig &full_config) {
+void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, const DynamicPrintConfig &full_config) {
    
    const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();
     //for each extruder

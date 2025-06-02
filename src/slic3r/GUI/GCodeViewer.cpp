@@ -1590,7 +1590,7 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
                 m_extrusions.ranges.volumetric_flow.update_from(curr.mm3_per_mm);
                 for (size_t i = 0; i < gcode_result.print_statistics.modes.size(); ++i) {
                     // only the first & the last are usefull
-                    m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
+               //     m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
                 }
             }
             [[fallthrough]];
@@ -3080,7 +3080,7 @@ void GCodeViewer::load_wipetower_shell(const Print& print)
         const double max_z = print.objects()[0]->model_object()->get_model()->max_z();
         const PrintConfig& config = print.config();
         const size_t extruders_count = config.nozzle_diameter.size();
-        if (extruders_count > 1 && config.wipe_tower && !config.complete_objects) {
+        if (extruders_count > 1 && config.wipe_tower && !config.complete_objects && config.parallel_objects_step.value == 0) {
             const WipeTowerData& wipe_tower_data = print.wipe_tower_data();
             const float depth = wipe_tower_data.depth;
             const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
@@ -3377,15 +3377,24 @@ void GCodeViewer::refresh_render_paths(bool keep_sequential_current_first, bool 
         if (found)
             break;
     }
-    
+
     // update_print_min_max if activated
     Extrusions::Range *range = const_cast<GCodeViewer::Extrusions::Ranges&>(m_extrusions.ranges).get(m_view_type); // this break const-correctness
     if (range && !range->is_whole_print_mode()) {
         range->reset_print_min_max();
-        for (const auto &[tbuffer_id, ibuffer_id, path_id, sub_path_id] : paths) {
-            const Path &path = m_buffers[tbuffer_id].paths[path_id];
-            if (path.type == EMoveType::Extrude) {
-                range->update_print_min_max(path.get_value(m_view_type));
+        if (m_view_type == EViewType::LayerTime) {
+            for (size_t i = 0; i < m_layers_times.size(); ++i) {
+                for (size_t layer_id = m_layers_z_range[0];
+                     layer_id < m_layers_z_range[1] && layer_id < m_layers_times[i].size(); ++layer_id) {
+                    range->update_print_min_max(m_layers_times[i][layer_id]);
+                }
+            }
+        } else {
+            for (const auto &[tbuffer_id, ibuffer_id, path_id, sub_path_id] : paths) {
+                const Path &path = m_buffers[tbuffer_id].paths[path_id];
+                if (path.type == EMoveType::Extrude) {
+                    range->update_print_min_max(path.get_value(m_view_type));
+                }
             }
         }
     }

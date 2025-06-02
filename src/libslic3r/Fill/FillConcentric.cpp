@@ -8,6 +8,7 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "../ClipperUtils.hpp"
+#include "../EdgeGrid.hpp"
 #include "../ExPolygon.hpp"
 #include "../Surface.hpp"
 #include "../ExtrusionEntity.hpp"
@@ -48,14 +49,17 @@ FillConcentric::_fill_surface_single(
     Polygons   loops = to_polygons(expolygon);
     ExPolygons last { std::move(expolygon) };
     while (! last.empty()) {
-        last = offset2_ex(last, -double(distance + scale_(this->get_spacing()) /2), +double(scale_(this->get_spacing()) /2));
+        // offset3 to clean the polygon up to fill_resolution
+        last = offset_ex(offset2_ex(last, -double(distance + scale_(this->get_spacing()) / 2),
+                                    +double(scale_(this->get_spacing()) / 2) + params.fill_resolution / 2),
+                         -params.fill_resolution / 2);
         append(loops, to_polygons(last));
     }
 
     // generate paths from the outermost to the innermost, to avoid
     // adhesion problems of the first central tiny loops
     loops = union_pt_chained_outside_in(loops);
-    ensure_valid(loops, params.fill_resolution);
+    ensure_valid(loops/*, params.fill_resolution / 10*/);
 
     // split paths using a nearest neighbor search
     size_t iPathFirst = polylines_out.size();
@@ -88,7 +92,7 @@ void append_loop_into_collection(ExtrusionEntityCollection& storage, ExtrusionRo
     double flow = params.flow.mm3_per_mm();
     double width = params.flow.width();
     double height = params.flow.height();
-    if (ensure_valid(polygon, params.fill_resolution / 2)) {
+    if (ensure_valid(polygon, params.fill_resolution)) {
         //default to ccw
         polygon.make_counter_clockwise();
         ExtrusionPath path(ExtrusionAttributes{good_role, ExtrusionFlow{flow, float(width), float(height)}}, false);

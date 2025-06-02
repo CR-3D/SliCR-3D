@@ -412,7 +412,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
                     case GCodeExtrusionRole::BridgeInfill:// this will be tricky because bridges don't get any "layersquish" so the 90_bend model will have to have "empty" layers to help simulate a bridge
                         
                         //base_flow = Flow::new_from_width( bridge_flow_ratio, nozzle_diameter, base_layer_height, perimeter_overlap, true);//does this return the correct height value?
-                        base_flow = Flow::bridging_flow(float(sqrt(bridge_flow_ratio) * nozzle_diameter) , nozzle_diameter);
+                        base_flow = Flow::bridging_flow(float(sqrt(bridge_flow_ratio) * nozzle_diameter), first_layer_height, nozzle_diameter);
                                     // or new_from_config_width ?
                         //base_flow = Flow::new_from_config(flow_role, *print_config, nozzle_diameter, base_layer_height, filament_max_overlap, false);
                         break;
@@ -1146,11 +1146,6 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
 #ifndef _DEBUG
             plat->reslice(); //forces a slice of plater.
 #endif
-    }
-
-    if (autocenter) {
-        //re-enable auto-center after this calibration.
-        gui_app->app_config->set("autocenter", "1");
     }
 }
 
