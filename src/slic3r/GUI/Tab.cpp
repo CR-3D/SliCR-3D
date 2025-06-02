@@ -1255,12 +1255,25 @@ void Tab::reload_config()
 {
     if (m_active_page)
         m_active_page->reload_config();
-    //also reload scripted that aren't on the active page.
+
+    PrinterTechnology   pt                  = get_printer_technology();
+    ConfigOptionsGroup *og_freq_chng_params = wxGetApp().sidebar().og_freq_chng_params(pt);
+
+    // also reload scripted that aren't on the active page.
     for (PageShp page : m_pages) {
         if (page.get() != m_active_page) {
-            for (auto group : page->m_optgroups) {
-                // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
-                group->update_script_presets(true);
+            DynamicPrintConfig config = static_cast<TabPrinter *>(this)->m_preset_bundle->full_config();
+            if (config.has("nozzle_diameter")) {
+                size_t nozzle_diameters_count = static_cast<ConfigOptionFloats *>(config.option("nozzle_diameter"))->get_values().size();
+                Field *field = og_freq_chng_params->get_field(OptionKeyIdx::scalar("s_nozzle_diameter_2"));
+                if (field) {
+                    field->toggle_widget_enable(nozzle_diameters_count == 2);
+                }
+
+                for (auto group : page->m_optgroups) {
+                    // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
+                    group->update_script_presets(true);
+                }
             }
         }
     }
@@ -3467,7 +3480,8 @@ void TabFilament::toggle_options()
     if (!m_active_page)
         return;
 
-   m_config_manipulation.toggle_fff_filament_options(this->m_config, wxGetApp().preset_bundle->full_config());
+    m_config_manipulation.toggle_fff_filament_options(m_config, wxGetApp().preset_bundle->full_config());
+    //if ( std::find(m_active_page->descriptions.begin(), m_active_page->descriptions.end(), "cooling") != m_active_page->descriptions.end())
     {
         toggle_option("min_print_speed", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
         toggle_option("max_speed_reduction", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
@@ -4176,10 +4190,12 @@ void TabPrinter::update()
 
     update_description_lines();
     Layout();
+    wxGetApp().get_tab(Preset::Type::TYPE_FFF_FILAMENT)->Layout();
 
     if (m_update_cnt == 0) {
         assert(m_config);
         wxGetApp().mainframe->on_config_changed(*m_config);
+        wxGetApp().mainframe->on_config_changed(*filament_conf);
     }
 }
 
