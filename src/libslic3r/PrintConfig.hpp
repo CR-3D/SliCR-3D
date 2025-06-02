@@ -1090,7 +1090,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              deretract_speed))
     ((ConfigOptionString,              end_gcode))
     ((ConfigOptionStrings,             end_filament_gcode))
-    ((ConfigOptionFloats,              filament_pressure_advance))
+    ((ConfigOptionGraphs,              filament_pressure_advance))
     
     // Orca: adaptive pressure advance and calibration model
     ((ConfigOptionBools,               enable_pressure_advance))
@@ -1308,6 +1308,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat,                min_skirt_length))
     ((ConfigOptionString,               notes))
     ((ConfigOptionFloats,               nozzle_diameter))
+    ((ConfigOptionBools,                nozzle_high_flow))
     ((ConfigOptionBool,                 only_retract_when_crossing_perimeters))
     ((ConfigOptionBool,                 ooze_prevention))
     ((ConfigOptionString,               output_filename_format))
