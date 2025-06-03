@@ -3373,12 +3373,14 @@ LayerResult GCodeGenerator::process_layer(
         //gcode += "; m_wipe.reset_path(); after change_layer\n";
         assert(m_new_z_target || is_approx(print_z, m_writer.get_unlifted_position().z(), EPSILON));
     }
-    if (object_layer != nullptr) {
-        if (!is_approx(m_last_layers_z, object_layer->print_z, EPSILON)) {
-            m_last_object_layers.clear();
-            m_last_layers_z = object_layer->print_z;
-        } 
-        m_last_object_layers.push_back(object_layer);
+    for (const ObjectLayerToPrint &l : layers) {
+        if (l.object_layer) {
+            if (is_approx(m_last_layers_z, l.object_layer->print_z, EPSILON)) {
+                m_last_object_layers.clear();
+                m_last_layers_z = l.object_layer->print_z;
+            }
+            m_last_object_layers.push_back(l.object_layer);
+        }
     }
     m_layer = &layer;
     if (this->line_distancer_is_required(layer_tools.extruders) && this->m_layer != nullptr && this->m_layer->lower_layer != nullptr)
@@ -7753,7 +7755,8 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
              m_config.fill_density.value > 0) ||
             m_config.avoid_crossing_perimeters) {
             assert(m_last_object_layers.empty() ||
-                   (m_last_object_layers.back() == m_layer && m_layer != nullptr && dynamic_cast<const SupportLayer *>(m_layer) == nullptr) ||
+                   (std::find(m_last_object_layers.begin(), m_last_object_layers.end(), m_layer) !=
+                        m_last_object_layers.end() && m_layer != nullptr && dynamic_cast<const SupportLayer *>(m_layer) == nullptr) ||
                     (dynamic_cast<const SupportLayer *>(m_layer) != nullptr && m_last_layers_z <= m_layer->print_z + EPSILON));
             if (m_last_object_layers.empty()) {
                 // we didn't see any object yet (we are on the raft)
