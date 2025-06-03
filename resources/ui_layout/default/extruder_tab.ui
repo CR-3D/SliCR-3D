@@ -1,1 +1,4 @@
-page:Extruder Type
+page:Extruder 
+
+group:Extruder Model
+	setting:id$0:extruder_type

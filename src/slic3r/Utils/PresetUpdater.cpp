@@ -1017,6 +1017,7 @@ bool PresetUpdater::priv::perform_updates(Updates &&updates, const SharedArchive
 			for (const auto &name : bundle.obsolete_presets.sla_prints) { obsolete_remover("sla_print", name); } 
 			for (const auto &name : bundle.obsolete_presets.sla_materials/*filaments*/) { obsolete_remover("sla_material", name); } 
 			for (const auto &name : bundle.obsolete_presets.printers)  { obsolete_remover("printer", name); }
+			for (const auto &name : bundle.obsolete_presets.extruders) { obsolete_remover("extruder", name);}
 			
 			// check if any resorces of installed bundle are missing. If so, new ones should be already downloaded at cache/vendor_id/
 			VendorProfile vp;

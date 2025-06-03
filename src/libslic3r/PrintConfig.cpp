@@ -6817,6 +6817,15 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionInts{200});
 
+    def = this->add("extruder_type", coStrings);
+    def->label = L("Extruder model");
+    def->full_label = L("Extruder model");
+    def->category = OptionCategory::extruders;
+    def->tooltip = L("The model of the extruder you are using.");
+    def->set_default_value(new ConfigOptionStrings{""});
+
+
+
     def = this->add("thin_perimeters", coPercent);
     def->label = L("Overlapping external perimeter");
     def->full_label = L("Overlapping external perimeter");

@@ -1281,6 +1281,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat,                extruder_clearance_height))
     ((ConfigOptionFloat,                extruder_clearance_radius))
     ((ConfigOptionStrings,              extruder_colour))
+    ((ConfigOptionStrings,              extruder_type))
     //((ConfigOptionBools,                fan_always_on))
     ((ConfigOptionFloats,               fan_below_layer_time))
     ((ConfigOptionStrings,              filament_colour))

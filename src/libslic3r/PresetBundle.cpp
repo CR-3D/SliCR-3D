@@ -183,6 +183,7 @@ void PresetBundle::setup_directories()
         data_dir / "presets" / "sla_print",  
         data_dir / "presets" / "sla_material", 
         data_dir / "presets" / "printer", 
+        data_dir / "presets" / "extruder",
         data_dir / "presets" / "physical_printer" 
 #else
         // Store the print/filament/printer presets at the same location as the upstream Slic3r.
@@ -1424,6 +1425,9 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
         } else if (boost::starts_with(section.first, "printer:")) {
             presets = &this->printers;
             preset_name = section.first.substr(8);
+        } else if (boost::starts_with(section.first, "extruder:")) {
+            presets = &this->extruders;
+            preset_name = section.first.substr(9);
         } else if (boost::starts_with(section.first, "physical_printer:")) {
             ph_printers = &this->physical_printers;
             ph_printer_name = section.first.substr(17);
@@ -1445,6 +1449,8 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                     active_sla_material = kvp.second.data();
                 } else if (kvp.first == "printer") {
                     active_printer = kvp.second.data();
+                } else if (kvp.first == "extruder") {
+                    active_printer = kvp.second.data();
                 } else if (kvp.first == "physical_printer") {
                     active_physical_printer = kvp.second.data();
                 }
@@ -1464,6 +1470,8 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_configbundle(
                     dst = &this->obsolete_presets.sla_materials;
                 else if (kvp.first == "printer")
                     dst = &this->obsolete_presets.printers;
+                else if (kvp.first == "extruder")
+                    dst = &this->obsolete_presets.extruders;
                 if (dst)
                     unescape_strings_cstyle(kvp.second.data(), *dst);
             }

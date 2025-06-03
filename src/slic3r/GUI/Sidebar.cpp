@@ -404,6 +404,7 @@ Sidebar::Sidebar(Plater *parent)
     init_combo(&m_combo_sla_print,     _L("SLA print settings"), Preset::TYPE_SLA_PRINT,     false);
     init_combo(&m_combo_sla_material,  _L("SLA material"),       Preset::TYPE_SLA_MATERIAL,  false);
     init_combo(&m_combo_printer,       _L("Printer"),            Preset::TYPE_PRINTER,       false);
+    init_combo(&m_combo_extruder,      _L("Extruder"),           Preset::TYPE_FFF_EXTRUDER,  false);
 
     wxBoxSizer* params_sizer = new wxBoxSizer(wxVERTICAL);
 

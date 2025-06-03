@@ -946,6 +946,9 @@ Sidebar::Sidebar(Plater *parent)
     init_combo(&p->combo_sla_material,  _L("SLA material"),       Preset::TYPE_SLA_MATERIAL);
     init_combo(&p->combo_printer,       _L("Printer"),            Preset::TYPE_PRINTER);
     
+    // TODO: Add this when presetbundle loads everything
+   // init_combo(&p->combo_extruder,     _L("Extruder"),          Preset::TYPE_FFF_EXTRUDER);
+    
     p->sizer_params = new wxBoxSizer(wxVERTICAL);
     
     // Frequently changed parameters

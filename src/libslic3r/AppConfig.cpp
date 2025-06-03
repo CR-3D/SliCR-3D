@@ -1124,6 +1124,7 @@ void AppConfig::reset_selections()
         it->second.erase("sla_print");
         it->second.erase("sla_material");
         it->second.erase("printer");
+        it->second.erase("extruder");
         it->second.erase("physical_printer");
         m_dirty = true;
     }

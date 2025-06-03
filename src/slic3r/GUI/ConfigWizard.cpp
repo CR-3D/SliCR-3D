@@ -2827,7 +2827,7 @@ void ConfigWizard::priv::create_vendor_printers_page(const std::string& repo_id,
     PagePrinters* pageFFF = nullptr;
     PagePrinters* pageSLA = nullptr;
 
-    const bool is_prusa_vendor = vendor->name.find("Prusa") != std::string::npos;
+    const bool is_prusa_vendor = vendor->name.find("CR3D") != std::string::npos;
     const unsigned indent = from_single_vendor_repo ? 0 : 1;
 
     if (is_fff_technology) 

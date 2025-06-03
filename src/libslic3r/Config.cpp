@@ -99,6 +99,7 @@ std::string toString(OptionCategory opt) {
     case OptionCategory::notes: return L("Notes");
     case OptionCategory::dependencies: return L("Dependencies");
     case OptionCategory::filament: return L("Filament");
+    case OptionCategory::extruder: return L("Extruder");
     case OptionCategory::cooling: return L("Cooling");
     case OptionCategory::advanced: return L("Advanced");
     case OptionCategory::filoverride: return L("Filament overrides");

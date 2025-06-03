@@ -1000,9 +1000,9 @@ static std::vector<std::string> s_Preset_printer_options {
 };
 
 static std::vector<std::string> s_Preset_extruder_options {
-    "extruder_diameter",
-    "extruder_model",
-    "extruder_variant",
+   // "extruder_diameter",
+    "extruder_type",
+   // "extruder_variant",
 };
 
 static std::vector<std::string> s_Preset_sla_print_options {

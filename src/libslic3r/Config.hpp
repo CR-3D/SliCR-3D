@@ -286,6 +286,8 @@ enum class OptionCategory : int
     limits,
     mmsetup,
     firmware,
+    
+    extruder,
 
     pad,
     padSupp,
