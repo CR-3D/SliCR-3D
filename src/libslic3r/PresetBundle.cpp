@@ -51,6 +51,7 @@ PresetBundle::PresetBundle() :
     sla_materials(Preset::TYPE_SLA_MATERIAL, Preset::sla_material_options(), static_cast<const SLAMaterialConfig&>(SLAFullPrintConfig::defaults())), 
     sla_prints(Preset::TYPE_SLA_PRINT, Preset::sla_print_options(), static_cast<const SLAPrintObjectConfig&>(SLAFullPrintConfig::defaults())),
     printers(Preset::TYPE_PRINTER, Preset::printer_options(), static_cast<const PrintRegionConfig&>(FullPrintConfig::defaults()), "- default FFF -"),
+    extruders(Preset::TYPE_FFF_EXTRUDER, Preset::extruder_options(), static_cast<const PrintRegionConfig&>(FullPrintConfig::defaults())),
     physical_printers(PhysicalPrinter::printer_options(), this)
 {
     // The following keys are handled by the UI, they do not have a counterpart in any StaticPrintConfig derived classes,
@@ -111,6 +112,7 @@ PresetBundle::PresetBundle() :
     this->filaments    .select_preset(0);
     this->sla_materials.select_preset(0);
     this->printers     .select_preset(0);
+    this->extruders    .select_preset(0);
 
     this->project_config.apply_only(FullPrintConfig::defaults(), s_project_options);
 }
@@ -127,6 +129,7 @@ PresetBundle& PresetBundle::operator=(const PresetBundle &rhs)
     filaments           = rhs.filaments;
     sla_materials       = rhs.sla_materials;
     printers            = rhs.printers;
+    extruders           = rhs.extruders;
     physical_printers   = rhs.physical_printers;
 
     extruders_filaments = rhs.extruders_filaments;
@@ -140,6 +143,7 @@ PresetBundle& PresetBundle::operator=(const PresetBundle &rhs)
     filaments    .update_vendor_ptrs_after_copy(this->vendors);
     sla_materials.update_vendor_ptrs_after_copy(this->vendors);
     printers     .update_vendor_ptrs_after_copy(this->vendors);
+    extruders    .update_vendor_ptrs_after_copy(this->vendors);
 
     return *this;
 }
@@ -153,6 +157,7 @@ void PresetBundle::reset(bool delete_files)
     this->filaments    .reset(delete_files);
     this->sla_materials.reset(delete_files);
     this->printers     .reset(delete_files);
+    this->extruders    .reset(delete_files);
     this->extruders_filaments.clear();
     this->obsolete_presets.fff_prints.clear();
     this->obsolete_presets.sla_prints.clear();
@@ -186,6 +191,7 @@ void PresetBundle::setup_directories()
         data_dir / "sla_print", 
         data_dir / "sla_material", 
         data_dir / "printer", 
+        data_dir / "extruder",
         data_dir / "physical_printer" 
 #endif
     };
@@ -260,6 +266,7 @@ void PresetBundle::import_newer_configs(const std::string& from)
         from_data_dir / "sla_print",
         from_data_dir / "sla_material",
         from_data_dir / "printer",
+        from_data_dir / "extruder",
         from_data_dir / "physical_printer"
 #endif
     };
@@ -311,11 +318,20 @@ PresetsConfigSubstitutions PresetBundle::load_presets(AppConfig &config, Forward
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }
+
+    try {
+        this->extruders.load_presets(dir_user_presets, "extruder", substitutions, substitution_rule);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
+
     try {
         this->physical_printers.load_printers(dir_user_presets, "physical_printer", substitutions, substitution_rule);
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }
+
+
     this->update_multi_material_filament_presets();
     this->update_compatible(PresetSelectCompatibleType::Never);
     if (! errors_cummulative.empty())
@@ -391,11 +407,13 @@ std::vector<std::string> PresetBundle::merge_presets(PresetBundle &&other)
     std::vector<std::string> duplicate_filaments     = this->filaments    .merge_presets(std::move(other.filaments),     this->vendors);
     std::vector<std::string> duplicate_sla_materials = this->sla_materials.merge_presets(std::move(other.sla_materials), this->vendors);
     std::vector<std::string> duplicate_printers      = this->printers     .merge_presets(std::move(other.printers),      this->vendors);
-	append(this->obsolete_presets.fff_prints,    std::move(other.obsolete_presets.fff_prints));
+	std::vector<std::string> duplicate_extruders     = this->extruders    .merge_presets(std::move(other.extruders),     this->vendors);
+    append(this->obsolete_presets.fff_prints,    std::move(other.obsolete_presets.fff_prints));
 	append(this->obsolete_presets.sla_prints,    std::move(other.obsolete_presets.sla_prints));
 	append(this->obsolete_presets.filaments,     std::move(other.obsolete_presets.filaments));
     append(this->obsolete_presets.sla_materials, std::move(other.obsolete_presets.sla_materials));
 	append(this->obsolete_presets.printers,      std::move(other.obsolete_presets.printers));
+    append(this->obsolete_presets.extruders,     std::move(other.obsolete_presets.extruders));
     append(duplicate_fff_prints, std::move(duplicate_sla_prints));
     append(duplicate_fff_prints, std::move(duplicate_filaments));
     append(duplicate_fff_prints, std::move(duplicate_sla_materials));
@@ -410,6 +428,7 @@ void PresetBundle::update_system_maps()
     this->filaments    .update_map_system_profile_renamed();
     this->sla_materials.update_map_system_profile_renamed();
     this->printers     .update_map_system_profile_renamed();
+    this->extruders    .update_map_system_profile_renamed();
 
     update_alias_maps();
 }
@@ -466,6 +485,7 @@ PresetCollection& PresetBundle::get_presets(Preset::Type type)
     return  type == Preset::TYPE_FFF_PRINT      ? fff_prints    :
             type == Preset::TYPE_SLA_PRINT      ? sla_prints    :
             type == Preset::TYPE_FFF_FILAMENT   ? filaments     :
+            type == Preset::TYPE_FFF_EXTRUDER   ? extruders      :
             type == Preset::TYPE_SLA_MATERIAL   ? sla_materials : printers;
 }
 

@@ -294,6 +294,7 @@ void show_substitutions_info(const PresetsConfigSubstitutions &presets_config_su
 			case Preset::TYPE_FFF_FILAMENT:		return _L("Filament");
 			case Preset::TYPE_SLA_MATERIAL:		return _L("SLA material");
 			case Preset::TYPE_PRINTER: 			return _L("Printer");
+			case Preset::TYPE_FFF_EXTRUDER:		return _L("Extruder");
 			case Preset::TYPE_PHYSICAL_PRINTER:	return _L("Physical Printer");
 			default: assert(false);				return wxString();
 		}

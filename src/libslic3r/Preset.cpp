@@ -999,6 +999,12 @@ static std::vector<std::string> s_Preset_printer_options {
     "nozzle_type",
 };
 
+static std::vector<std::string> s_Preset_extruder_options {
+    "extruder_diameter",
+    "extruder_model",
+    "extruder_variant",
+};
+
 static std::vector<std::string> s_Preset_sla_print_options {
     "print_version",
     "layer_height",
@@ -1152,10 +1158,11 @@ const std::vector<std::string>& Preset::machine_limits_options() { return s_Pres
 // The following nozzle options of a printer profile will be adjusted to match the size
 // of the nozzle_diameter vector.
 const std::vector<std::string>& Preset::nozzle_options()         { return print_config_def.extruder_option_keys(); }
-const std::vector<std::string>& Preset::milling_options()         { return print_config_def.milling_option_keys(); }
+const std::vector<std::string>& Preset::milling_options()        { return print_config_def.milling_option_keys(); }
 const std::vector<std::string>& Preset::sla_print_options()      { return s_Preset_sla_print_options; }
 const std::vector<std::string>& Preset::sla_material_options()   { return s_Preset_sla_material_options; }
 const std::vector<std::string>& Preset::sla_printer_options()    { return s_Preset_sla_printer_options; }
+const std::vector<std::string>& Preset::extruder_options()       { return s_Preset_extruder_options; }
 
 const std::vector<std::string>& Preset::printer_options()
 {
@@ -2037,6 +2044,7 @@ std::string PresetCollection::name() const
     case Preset::TYPE_SLA_PRINT:    return L("SLA print");
     case Preset::TYPE_SLA_MATERIAL: return L("SLA material");
     case Preset::TYPE_PRINTER:      return L("printer");
+    case Preset::TYPE_FFF_EXTRUDER: return L("extruder");
     default:                        return "invalid";
     }
 }
@@ -2048,6 +2056,7 @@ std::string Preset::type_name(Type t) {
     case Preset::TYPE_SLA_PRINT:    return "sla_print";
     case Preset::TYPE_SLA_MATERIAL: return "sla_material";
     case Preset::TYPE_PRINTER:      return "printer";
+    case Preset::TYPE_FFF_EXTRUDER: return "extruder";
     default:                        return "invalid";
     }
 }
@@ -2063,6 +2072,8 @@ Preset::Type Preset::type_from_name(std::string name) {
         return Preset::TYPE_SLA_MATERIAL;
     if ("printer" == name)
         return Preset::TYPE_PRINTER;
+    if ("extruder" == name)
+        return Preset::TYPE_FFF_EXTRUDER;
     return Preset::TYPE_INVALID;
 }
 

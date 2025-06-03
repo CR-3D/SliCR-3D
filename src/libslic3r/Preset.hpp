@@ -127,6 +127,7 @@ public:
         TYPE_PRINT1 = 1 << 2,
         TYPE_MATERIAL = 1 << 3,
         TYPE_PRINTER = 1 << 4,
+        TYPE_EXTRUDER = 1 << 5,
 
         TYPE_TAB = TYPE_PRINT1 | TYPE_MATERIAL | TYPE_PRINTER,
         TYPE_FFF_PRINT = TYPE_FFF | TYPE_PRINT1,
@@ -134,13 +135,15 @@ public:
         TYPE_SLA_PRINT = TYPE_SLA | TYPE_PRINT1,
         TYPE_SLA_MATERIAL = TYPE_SLA | TYPE_MATERIAL,
         TYPE_TECHNOLOGY = TYPE_FFF | TYPE_SLA,
-        
-        TYPE_FREQUENT     = 1 << 5,
+        TYPE_FFF_EXTRUDER = TYPE_FFF | TYPE_EXTRUDER,
+
+        TYPE_FREQUENT     = 1 << 6,
         TYPE_FREQUENT_FFF = TYPE_FFF | TYPE_FREQUENT,
         TYPE_FREQUENT_SLA = TYPE_SLA | TYPE_FREQUENT,
         // This type is here to support PresetConfigSubstitutions for physical printers, however it does not belong to the Preset class,
         // PhysicalPrinter class is used instead.
-        TYPE_PHYSICAL_PRINTER = 1 << 6,
+        TYPE_PHYSICAL_PRINTER = 1 << 7,
+
         TYPE_PREFERENCES
     };
     static inline PrinterTechnology get_tech(Type type)
@@ -271,6 +274,8 @@ public:
     static const std::vector<std::string>&  sla_printer_options();
     static const std::vector<std::string>&  sla_material_options();
     static const std::vector<std::string>&  sla_print_options();
+
+    static const std::vector<std::string>&  extruder_options();
 
 	static void                             update_suffix_modified(const std::string& new_suffix_modified);
     static const std::string&               suffix_modified();
@@ -694,6 +699,26 @@ private:
 
     friend class PresetBundle;
 };
+
+class ExtruderPresetCollection : public PresetCollection
+{
+public:
+    ExtruderPresetCollection(Preset::Type type, const std::vector<std::string> &keys, const Slic3r::StaticPrintConfig &defaults, const std::string &default_name = "- default -") :
+		PresetCollection(type, keys, defaults, default_name) {}
+
+   // const Preset&   default_preset_for(const DynamicPrintConfig &config) const override;
+
+   // const Preset*   find_system_preset_by_model_and_variant(const std::string &model_id, const std::string &variant) const;
+
+   // bool            only_default_printers() const;
+private:
+    ExtruderPresetCollection() = default;
+    ExtruderPresetCollection(const ExtruderPresetCollection &other) = default;
+    ExtruderPresetCollection& operator=(const ExtruderPresetCollection &other) = default;
+
+    friend class PresetBundle;
+};
+
 
 namespace PresetUtils {
 	// PrinterModel of a system profile, from which this preset is derived, or null if it is not derived from a system profile.

@@ -1594,6 +1594,11 @@ void Tab::on_value_change(const OptionKeyIdx& opt_key_idx, const boost::any& val
         wxGetApp().get_tab(Preset::Type::TYPE_PRINTER)->reload_config();
     }
 
+   // if (changed.find(&wxGetApp().preset_bundle->extruders.get_edited_preset().config) != changed.end()) {
+     //   wxGetApp().get_tab(Preset::Type::TYPE_FFF_EXTRUDER)->update_dirty();
+     //   wxGetApp().get_tab(Preset::Type::TYPE_FFF_EXTRUDER)->reload_config();
+   // }
+
     if (m_postpone_update_ui) {
         // It means that not all values are rolled to the system/last saved values jet.
         // And call of the update() can causes a redundant check of the config values,
@@ -3152,6 +3157,70 @@ void TabPrint::clear_pages()
 
     m_del_all_substitutions_btn = nullptr;
 }
+
+
+void TabExtruder::init()
+{
+    m_presets = &m_preset_bundle->fff_prints;
+    load_initial_data();
+}
+
+void TabExtruder::build() { append(this->m_pages, create_pages("extruder_tab.ui")); }
+
+void TabExtruder::toggle_options()
+{
+    if (!m_active_page) return;
+
+   // m_config_manipulation.toggle_print_fff_options(m_config);
+    
+    // toogle scripted fields
+    // TODO: shouldn't work with arrays. fix it
+    for (auto [key, id] : this->m_options_script) {
+        for (const ConfigOptionsGroupShp &optgrp : m_active_page->m_optgroups) {
+            if (optgrp) {
+                const Option *opt = optgrp->get_option_def(OptionKeyIdx::scalar(key));
+                if (opt && opt->opt.is_script && opt->script) {
+                    Field *field = optgrp->get_field(OptionKeyIdx::scalar(key));
+                    if (field)
+                        field->toggle_widget_enable(opt->script->call_script_function_is_enable(opt->opt));
+                }
+            }
+        }
+    }
+}
+
+void TabExtruder::update()
+{
+    if (m_preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA)
+        return; // ys_FIXME
+    
+    assert(m_config);
+    ++m_update_cnt;
+    
+   // m_config_manipulation.update_print_fff_config(m_config, true);
+
+    Layout();
+
+    int update_cnt = --m_update_cnt;
+
+    if (update_cnt==0) {
+        toggle_options();
+
+        // update() could be called during undo/redo execution
+        // Update of objectList can cause a crash in this case (because m_objects doesn't match ObjectList) 
+        if (!wxGetApp().plater()->inside_snapshot_capture())
+            wxGetApp().obj_list()->update_and_show_object_settings_item();
+
+        wxGetApp().mainframe->on_config_changed(*m_config);
+    }
+}
+
+void TabExtruder::clear_pages()
+{
+    Tab::clear_pages();
+}
+
+
 
 bool Tab::validate_custom_gcode(const wxString& title, const std::string& gcode)
 {

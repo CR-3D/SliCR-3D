@@ -1320,6 +1320,7 @@ void MainFrame::create_preset_tabs()
     //add_created_tab(new TabSLAPrint(m_tabpanel));
     //add_created_tab(new TabSLAMaterial(m_tabpanel));
     add_created_tab(new TabPrinter(m_tabpanel));
+    add_created_tab(new TabExtruder(m_tabpanel));
 }
 
 void MainFrame::add_created_tab(Tab* panel)
@@ -2538,6 +2539,7 @@ void MainFrame::select_tab(Tab *tab)
     case Preset::Type::TYPE_FFF_PRINT:
     case Preset::Type::TYPE_SLA_PRINT: tab_type = TabPosition::tpPrintSettings; break;
     case Preset::Type::TYPE_PRINTER: tab_type = TabPosition::tpPrinterSettings; break;
+    case Preset::Type::TYPE_FFF_EXTRUDER: tab_type = TabPosition::tpExtruderSettings; break;
     }
     select_tab(tab_type);
 }

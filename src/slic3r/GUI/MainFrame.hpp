@@ -168,6 +168,7 @@ public:
         tpPrintSettings,
         tpFilamentSettings,
         tpPrinterSettings,
+        tpExtruderSettings,
         tpLastSettings,
         Any
     };

@@ -719,6 +719,27 @@ public:
    
 };
 
+
+class TabExtruder : public Tab {
+
+public:
+   TabExtruder(wxBookCtrlBase* parent) :
+   Tab(parent, _(L("Extruder Settings")), Slic3r::Preset::TYPE_FFF_EXTRUDER) {}
+   ~TabExtruder() {}
+
+   std::string icon_name(int icon_size, PrinterTechnology tech) const override { return "cog"; }
+   
+   void		init() override;
+   void		build() override;
+  // void		update_description_lines() override;
+   void		toggle_options() override;
+   void		update() override;
+   void		clear_pages() override;
+   PrinterTechnology get_printer_technology() const override { return ptFFF; }
+
+};
+
+
 class TabSLAMaterial : public Tab
 {
    //void		create_line_with_near_label_widget(ConfigOptionsGroupShp optgroup, const std::string& opt_key);

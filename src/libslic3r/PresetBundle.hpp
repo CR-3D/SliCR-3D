@@ -58,6 +58,7 @@ public:
 	const PresetCollection& 	materials(PrinterTechnology pt) const { return pt == ptFFF ? this->filaments : this->sla_materials; }
     PrinterPresetCollection     printers;
     PhysicalPrinterCollection   physical_printers;
+    ExtruderPresetCollection    extruders;
 
     // Filament presets per extruder for a multi-extruder or multi-material print.
     // extruders_filaments.size() should be the same as printers.get_edited_preset().config.nozzle_diameter.size()
@@ -83,6 +84,7 @@ public:
         std::vector<std::string> filaments;
         std::vector<std::string> sla_materials;
         std::vector<std::string> printers;
+        std::vector<std::string> extruders;
     };
     ObsoletePresets             obsolete_presets;
 
