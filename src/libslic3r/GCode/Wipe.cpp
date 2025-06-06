@@ -144,7 +144,6 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
             bool partial_segment = false;
             Vec2d  p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(p);
             if (p_quantized == prev_quantized) {
-                gcode += std::string("; same as previous, skip\n");
                 p = prev_quantized; // keep old prev
                 return partial_segment;
             }
@@ -212,8 +211,6 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
                     dE = retract_length;
                 }
             }
-            gcode += std::string("; wipe ") + std::to_string(wipe_length) + " , " + std::to_string(no_lift_length) +
-                " , " + std::to_string(lift_per_mm) + "\n";
             p = p_quantized;
             assert(p.x() != gcodegen.writer().get_position().x() || p.y() != gcodegen.writer().get_position().y());
             if (lift_per_mm == 0 || no_lift_length > EPSILON) {

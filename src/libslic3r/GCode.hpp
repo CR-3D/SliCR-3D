@@ -493,7 +493,9 @@ private:
     // Current layer processed. In sequential printing mode, only a single copy will be printed.
     // In non-sequential mode, all its copies will be printed.
     const Layer*                        m_layer;
-    const Layer*                        m_last_object_layer = nullptr;
+    // last layers printed at our current Z, to 
+    std::vector<const Layer*>           m_last_object_layers;
+    coordf_t                            m_last_layers_z{ 0.0 };
     const PrintRegion*                  m_region = nullptr;
     // m_layer is an object layer and it is being printed over raft surface.
     bool                                m_object_layer_over_raft;    // idx of the current instance printed. (or the last one)
@@ -514,7 +516,7 @@ private:
     struct SliceOffsetted {
         std::vector<SliceIsland> slices;
         std::vector<SliceIsland> slices_offsetted;
-        const Layer* layer;
+        const Layer* last_layer;
         coord_t diameter;
     }                                   m_layer_slices_offseted{ {},{},nullptr, 0};
     double                              m_volumetric_speed;
