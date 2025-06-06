@@ -42,3 +42,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.41 Updated Standard profiles including speeds, top layers
 0.0.42 support_material_buildplate_only set to true
 0.0.43 added remaining single printers
+0.0.44 NEW FILAMENT: PETG FlameX and PETG SlideX
