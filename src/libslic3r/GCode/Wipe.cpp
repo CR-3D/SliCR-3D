@@ -144,6 +144,7 @@ std::string Wipe::wipe(GCodeGenerator &gcodegen, bool toolchange)
             bool partial_segment = false;
             Vec2d  p_quantized = gcodegen.writer().get_default_gcode_formatter().quantize(p);
             if (p_quantized == prev_quantized) {
+                gcode += std::string("; same as previous, skip\n");
                 p = prev_quantized; // keep old prev
                 return partial_segment;
             }

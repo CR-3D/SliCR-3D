@@ -1298,7 +1298,7 @@ void SeamPlacer::calculate_overhangs_and_layer_embedding(const PrintObject *po) 
 
     std::vector<PrintObjectSeamData::LayerSeams> &layers = m_seam_per_object[po].layers;
     tbb::parallel_for(tbb::blocked_range<size_t>(0, layers.size()),
-            [&po, &layers](tbb::blocked_range<size_t> r) {
+            [po, &layers](tbb::blocked_range<size_t> r) {
                 std::unique_ptr<PerimeterDistancer> prev_layer_distancer;
                 if (r.begin() > 0) { // previous layer exists
                     prev_layer_distancer = std::make_unique<PerimeterDistancer>(to_unscaled_linesf(po->layers()[r.begin() - 1]->lslices()));
