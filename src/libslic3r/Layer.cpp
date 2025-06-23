@@ -289,6 +289,7 @@ static void connect_layer_slices(
                     if (it_below != links_below.end() && it_below->slice_idx == j) {
                         it_below->area += area;
                     } else {
+                        key = LayerSlice::Link{i};
                         auto it_above = std::lower_bound(links_above.begin(), links_above.end(), key, [](auto &l, auto &r){ return l.slice_idx < r.slice_idx; });
                         if (it_above != links_above.end() && it_above->slice_idx == i) {
                             it_above->area += area;

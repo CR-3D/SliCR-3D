@@ -874,8 +874,15 @@ void Tab::update_changed_ui()
         }
         found = nonsys_options.find(OptionKeyIdx::scalar("compatible_print"));
         if (found != nonsys_options.end()) {
-            nonsys_options.emplace(OptionKeyIdx{"compatible_print", 0}, found->second);
+            uint16_t tool_id = found->second;
             nonsys_options.erase(found);
+            nonsys_options.emplace(OptionKeyIdx{"compatible_print", 0}, tool_id);
+        }
+        found = nonsys_options.find(OptionKeyIdx::scalar("inherits"));
+        if (found != nonsys_options.end()) {
+            uint16_t tool_id = found->second;
+            nonsys_options.erase(found);
+            nonsys_options.emplace(OptionKeyIdx{"compatible_print", 0}, tool_id);
         }
         for (auto &entry : nonsys_options) {
             assert(entry.first.idx >= 0);
@@ -935,7 +942,7 @@ void Tab::update_changed_ui()
             }
         } else {
             //note: shouldn't happen as it's alaready added by dirty_options
-            assert(false);
+            assert(opt_key_id.key != "inherits");
         }
     }
 
@@ -3483,8 +3490,11 @@ void TabFilament::toggle_options()
     m_config_manipulation.toggle_fff_filament_options(m_config, wxGetApp().preset_bundle->full_config());
     //if ( std::find(m_active_page->descriptions.begin(), m_active_page->descriptions.end(), "cooling") != m_active_page->descriptions.end())
     {
-        toggle_option("min_print_speed", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
-        toggle_option("max_speed_reduction", m_config->opt_float("slowdown_below_layer_time", 0) > 0);
+        // bool fan_always_on = m_config->opt_bool("fan_always_on", 0);
+
+        //get_field("max_fan_speed")->toggle_widget_enable(m_config->opt_float("fan_below_layer_time", 0) > 0);
+        toggle_option("min_print_speed", m_config->opt_float("slowdown_below_layer_time", 0) > 0, 0);
+        toggle_option("max_speed_reduction", m_config->opt_float("slowdown_below_layer_time", 0) > 0, 0);
 
         toggle_option("max_fan_speed", 
             m_config->opt_float("fan_below_layer_time", 0) > 0 
@@ -3495,8 +3505,8 @@ void TabFilament::toggle_options()
 
     {
         bool multitool_ramming = m_config->opt_bool("filament_multitool_ramming", 0);
-        toggle_option("filament_multitool_ramming_volume", multitool_ramming);
-        toggle_option("filament_multitool_ramming_flow", multitool_ramming);
+        toggle_option("filament_multitool_ramming_volume", multitool_ramming, 0);
+        toggle_option("filament_multitool_ramming_flow", multitool_ramming, 0);
     }
 
         update_filament_overrides_page();
