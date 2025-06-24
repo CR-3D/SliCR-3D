@@ -612,7 +612,7 @@ public:
 		Tab(parent, _(L("Filament Settings")), Slic3r::Preset::TYPE_FFF_FILAMENT) {}
 	~TabFilament() {}
 
-	std::string icon_name(int icon_size, PrinterTechnology tech) const override { return (icon_size < 16) ? "spool" : "spool_cog"; }
+	std::string icon_name(int icon_size, PrinterTechnology tech) const override { return "spool"; }
 	
 	void		init() override;
 	void		build() override;
@@ -647,9 +647,7 @@ protected:
 class TabPrinter : public Tab
 {
    std::string icon_name(int icon_size, PrinterTechnology tech) const override {
-      return (tech & ptFFF) != 0 ?
-      (icon_size < 16) ? "printer" : "printer_cog" :
-      (icon_size < 16) ? "sla_printer" : "sla_printer_cog";
+      return (tech & ptFFF) != 0 ? "printer" : "sla_printer_cog";
    }
    
    ogStaticText* m_machine_limits_description_line {nullptr};
@@ -731,7 +729,7 @@ public:
    Tab(parent, _(L("Material Settings")), Slic3r::Preset::TYPE_SLA_MATERIAL) {}
    ~TabSLAMaterial() {}
    
-   std::string icon_name(int icon_size, PrinterTechnology tech) const override { return (icon_size < 16) ? "resin" : "resin_cog"; }
+   std::string icon_name(int icon_size, PrinterTechnology tech) const override { return "resin"; }
    
    void		init() override;
    void		build() override;
