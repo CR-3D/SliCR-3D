@@ -1152,7 +1152,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
     // big speed should go into a speed overhang or flow overhang.
     // small flow should go into a speed overhang or flow overhang.
     // big flow should only go into a flow overhang.
-    const bool is_loop = overhang_params.is_loop;
+   const bool is_loop = overhang_params.is_loop;
     std::function<void(ExtrusionPaths &, const std::function<bool(ExtrusionPath &, ExtrusionPath &, ExtrusionPath &)> &)> foreach =
         [is_loop](ExtrusionPaths &paths, const std::function<bool(ExtrusionPath &, ExtrusionPath &, ExtrusionPath &)> &doforeach) {
             if (paths.size() > 2) {
@@ -1199,7 +1199,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
                     }
                     assert(found);
                 }
-                // merge same height
+               // merge same height
                 for (size_t i_curr = 0; i_curr < (is_loop ? paths.size() : (paths.size() - 1)) && paths.size() > 1; i_curr++) {
                     // found our next item to check, do the thing.
                     size_t i_next = (i_curr + 1) % paths.size();
@@ -1223,7 +1223,8 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
     for (const ExtrusionPath &path : paths) {
         length_paths += path.length();
     }
-    if (length_paths < min_length * 2) {
+    
+    if (length_paths < min_length * 2)  if (length_paths < min_length * 2) {
         // merge to biggest extrusion
         coordf_t length_normal = 0;
         coordf_t length_speed = 0;
@@ -1341,8 +1342,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
     for (int i = 1; i < paths.size(); i++) {
         assert(paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point()));
     }
-
-        // now, there shouln't be any paths below min_length.
+                // now, there shouln't be any paths below min_length.
         // for length 
         foreach(paths, [ok_length, &params](ExtrusionPath& prev, ExtrusionPath& curr, ExtrusionPath& next) {
             if (curr.length() < ok_length) {
@@ -1429,7 +1429,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
         assert(paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point()));
     }
 
-        if (overhang_params.layer_height_count >= (dynamic_enabled ? 4 : 3) ) {
+      if (overhang_params.layer_height_count >= (dynamic_enabled ? 4 : 3) ) {
             size_t idx_to_merge = overhang_params.layer_height_count - 2;
             // small flow => big flow unless there is none, then merge into big speed
             foreach (paths, [idx_to_merge](ExtrusionPath &prev, ExtrusionPath &curr, ExtrusionPath &next) {
@@ -1453,7 +1453,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
                 return false;
             });
 
-            // small speed => big speed unless there is none, then merge into normal (or dynamic)
+// small speed => big speed unless there is none, then merge into normal (or dynamic)
             if (overhang_params.layer_height_count >= (dynamic_enabled ? 6 : 5)) {
                 idx_to_merge = overhang_params.layer_height_count - 4;
                 foreach (paths, [idx_to_merge](ExtrusionPath &prev, ExtrusionPath &curr, ExtrusionPath &next) {
@@ -1479,6 +1479,7 @@ void PerimeterGenerator::_sort_overhangs(const Parameters &params,
             }
         }
     }
+    
     for (int i = 1; i < paths.size(); i++) {
         assert(paths[i - 1].last_point().coincides_with_epsilon(paths[i].first_point()));
     }
@@ -1577,11 +1578,14 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
     const bool CCW_contour = params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CW ||  params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CCW;
     const bool CCW_hole = params.config.perimeter_direction.value == PerimeterDirection::pdCW_CCW ||  params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CCW;
 
-    size_t biggest_inset_idx = 0;
     ExtrusionEntityCollection extrusion_coll;
+    size_t biggest_inset_idx = 0;
+    for (PerimeterGeneratorArachneExtrusion& pg_extrusion : pg_extrusions) {
+        biggest_inset_idx = std::max(biggest_inset_idx, pg_extrusion.extrusion->inset_idx);
+    }
     for (PerimeterGeneratorArachneExtrusion& pg_extrusion : pg_extrusions) {
         Arachne::ExtrusionLine* extrusion = pg_extrusion.extrusion;
-        if (extrusion->empty()) {
+        if (extrusion->is_zero_length()) {
             continue;
         }
 
