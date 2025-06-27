@@ -2755,30 +2755,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipStars));
 
-    def = this->add("fill_top_flow_ratio", coPercent);
-    def->label = L("Top fill");
-    def->full_label = L("Top fill flow ratio");
-    def->sidetext = L("%");
-    def->category = OptionCategory::width;
-    def->tooltip = L(
-        "You can increase this to over-extrude on the top layer if there is not enough plastic to make a good fill.");
-    def->min = 0;
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
-
-    def = this->add("first_layer_flow_ratio", coPercent);
-    def->label = L("First layer");
-    def->full_label = L("First layer flow ratio");
-    def->sidetext = L("%");
-    def->category = OptionCategory::width;
-    def->tooltip = L("You can increase this to over-extrude on the first layer if there is not enough plastic "
-                     "because your bed isn't levelled."
-                     "\nNote: DON'T USE THIS if your only problem is bed leveling, LEVEL YOUR BED!"
-                     " Use this setting only as last resort after all calibrations failed.");
-    def->min = 0;
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
-
     def = this->add("first_layer_size_compensation", coFloat);
     def->label = L("First layer");
     def->full_label = L("XY First layer compensation");
@@ -9205,7 +9181,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     if (has(dict, "first_layer_min_speed") && !value().empty() && value().back() == '%')
         value() = value().substr(0, value().length() - 1); //no percent.
     
-    for_ech_entry(dict, {"bridge_flow_ratio", "bridge_flow_ratio", "over_bridge_flow_ratio", "fill_top_flow_ratio", "first_layer_flow_ratio"},
+    for_ech_entry(dict, {"bridge_flow_ratio", "bridge_flow_ratio", "over_bridge_flow_ratio"},
                   [](Key &opt_key, Val &value) {
         // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
         // and enum since PrusaSlicer 2.6.2.
@@ -10292,12 +10268,9 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "fill_angle_template",
 "fill_smooth_distribution",
 "fill_smooth_width",
-"fill_top_flow_ratio",
-"fill_top_flow_ratio",
 "first_layer_extrusion_spacing",
 "first_layer_infill_extrusion_width",
 "first_layer_infill_extrusion_spacing",
-"first_layer_flow_ratio",
 "first_layer_infill_speed",
 "first_layer_min_speed",
 "first_layer_size_compensation_layers",

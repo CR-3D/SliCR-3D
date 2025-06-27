@@ -567,7 +567,6 @@ static std::vector<std::string> s_Preset_print_options {
         // fill pattern
         "fill_density",
         "fill_pattern",
-        "fill_top_flow_ratio",
         "fill_smooth_width",
         "fill_smooth_distribution",
         "top_fill_pattern",
@@ -752,7 +751,6 @@ static std::vector<std::string> s_Preset_print_options {
         "over_bridge_flow_ratio",
         "bridge_overlap",
         "bridge_overlap_min",
-        "first_layer_flow_ratio",
         "enforce_full_fill_volume",
         "external_infill_margin", "bridged_infill_margin",
         "internal_bridge_expansion",

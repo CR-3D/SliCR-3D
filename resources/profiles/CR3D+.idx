@@ -44,5 +44,5 @@ min_slic3r_version = 2.4.0-rc
 0.0.43 added remaining single printers
 0.0.44 NEW FILAMENT: PETG FlameX and PETG SlideX
 0.0.45 Disabled only_retract_when_crossing_perimeters cause it created layer shifts
-0.0.46 Added remaining filaments
-0.0.47 solid_over_perimeters set to 1
+0.0.46 Remaining filaments have been added; Print profile tweaked; Some printer changes
+0.0.47 solid_over_perimeters set to 3
