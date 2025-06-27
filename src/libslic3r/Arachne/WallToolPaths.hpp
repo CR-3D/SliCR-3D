@@ -34,9 +34,9 @@ public:
      */
     WallToolPaths(const Polygons& outline,
         coord_t bead_spacing_0,
-        coord_t bead_width_0,
+                  coord_t bead_width_0,
         coord_t bead_spacing_x,
-        coord_t bead_width_x,
+                  coord_t bead_width_x,
         size_t inset_count, coord_t wall_0_inset, coordf_t layer_height, const PrintRegionConfig &print_region_config, const PrintConfig &print_config);
 
     /*!

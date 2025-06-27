@@ -1273,20 +1273,6 @@ void Print::process()
         }
     );
 
-    if (this->set_started(psWipeTower)) {
-        m_wipe_tower_data.clear();
-        m_tool_ordering.clear();
-        if (this->has_wipe_tower()) {
-            this->set_status(printstep_2_percent[PrintStep::psWipeTower], _u8L("Generating wipe tower"));
-            this->_make_wipe_tower();
-        } else if (! this->config().complete_objects.value) {
-            // Initialize the tool ordering, so it could be used by the G-code preview slider for planning tool changes and filament switches.
-            m_tool_ordering = ToolOrdering(*this, -1, false);
-            if (m_tool_ordering.empty() || m_tool_ordering.last_extruder() == unsigned(-1))
-                throw Slic3r::SlicingError("The print is empty. The model is not printable with current print settings.");
-        }
-        this->set_done(psWipeTower);
-    }
     
     secondary_status_counter_reset();
     _make_skirt_brim();

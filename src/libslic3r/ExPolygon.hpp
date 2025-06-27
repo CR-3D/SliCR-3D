@@ -84,9 +84,11 @@ public:
     // Namely expolygons touching at a vertical boundary are considered overlapping, while expolygons touching
     // at a horizontal boundary are NOT considered overlapping.
     bool overlaps(const ExPolygon &other) const;
+    //void medial_axis(double min_width, double max_width, ThickPolylines *polylines) const;
+    void simplify_p(double tolerance, Polygons *polygons) const;
 
     void douglas_peucker(coord_t tolerance);
-    void simplify_p(coord_t tolerance, Polygons &polygons) const;
+   // void simplify_p(coord_t tolerance, Polygons &polygons) const;
     Polygons simplify_p(coord_t tolerance) const;
     ExPolygons simplify(coord_t tolerance) const;
     void simplify(coord_t tolerance, ExPolygons &expolygons) const;

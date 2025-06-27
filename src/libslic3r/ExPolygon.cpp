@@ -236,13 +236,6 @@ void ExPolygon::douglas_peucker(coord_t tolerance) {
     assert_valid();
 }
 
-void
-ExPolygon::simplify_p(coord_t tolerance, Polygons &polygons) const
-{
-    Polygons pp = this->simplify_p(tolerance);
-    polygons.insert(polygons.end(), pp.begin(), pp.end());
-}
-
 Polygons
 ExPolygon::simplify_p(coord_t tolerance) const
 {
@@ -311,6 +304,12 @@ ExPolygon::simplify_p(coord_t tolerance) const
     }
     // union
     return simplify_polygons(pp);
+}
+
+void ExPolygon::simplify_p(double tolerance, Polygons* polygons) const
+{
+    Polygons pp = this->simplify_p(tolerance);
+    polygons->insert(polygons->end(), pp.begin(), pp.end());
 }
 
 ExPolygons

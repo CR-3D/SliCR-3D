@@ -249,6 +249,7 @@ set(SLIC3R_SOURCES
     Layer.cpp
     Layer.hpp
     LayerRegion.cpp
+    LayerRegion.hpp
     libslic3r.h
     "${CMAKE_CURRENT_BINARY_DIR}/libslic3r_version.h"
     Line.cpp
@@ -497,6 +498,12 @@ set(SLIC3R_SOURCES
     BranchingTree/BranchingTree.hpp
     BranchingTree/PointCloud.cpp
     BranchingTree/PointCloud.hpp
+
+
+    Feature/FuzzySkin/FuzzySkin.cpp
+    Feature/FuzzySkin/FuzzySkin.hpp
+    Arachne/PerimeterOrder.hpp
+    Arachne/PerimeterOrder.cpp
     Arachne/BeadingStrategy/BeadingStrategy.hpp
     Arachne/BeadingStrategy/BeadingStrategy.cpp
     Arachne/BeadingStrategy/BeadingStrategyFactory.hpp

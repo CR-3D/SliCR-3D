@@ -120,7 +120,7 @@ private:
     bool m_stop_at_min_width;
     // arbitrary extra extension at ends.
     coord_t m_extension_length = 0;
-
+    Lines                m_lines;
     //voronoi stuff
     using VD = VoronoiDiagram;
     //class VD : public voronoi_diagram<double> {

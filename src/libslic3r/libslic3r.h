@@ -80,7 +80,7 @@ static constexpr double UNSCALING_FACTOR = 1000000; // 1 / SCALING_FACTOR; <- li
 // for a threshold of a cross product of two non-normalized vectors etc.
 static constexpr double EPSILON = 1e-4;
 static constexpr coord_t SCALED_EPSILON = 100; // coord_t(EPSILON/ SCALING_FACTOR); <- linux has some problem compiling this constexpr
-
+static constexpr double EXTERNAL_INFILL_MARGIN = 3.;
 //for creating circles (for brim_ear)
 #define POLY_SIDES 24
 #define PI 3.141592653589793238
@@ -137,14 +137,7 @@ enum Axis {
 	UNKNOWN_AXIS = NUM_AXES,
 	NUM_AXES_WITH_UNKNOWN,
 };
-template <typename T, typename Alloc, typename Alloc2>
-inline void append(std::vector<T, Alloc> &dest, const std::vector<T, Alloc2> &src)
-{
-    if (dest.empty())
-        dest = src; // copy
-    else
-        dest.insert(dest.end(), src.begin(), src.end());
-}
+
 
 template <typename T, typename Alloc>
 inline void append(std::set<T, Alloc>& dest, const std::set<T, Alloc>& src)
@@ -153,6 +146,15 @@ inline void append(std::set<T, Alloc>& dest, const std::set<T, Alloc>& src)
         dest = src;
     else
         dest.insert(src.begin(), src.end());
+}
+
+template <typename T, typename Alloc, typename Alloc2>
+inline void append(std::vector<T, Alloc> &dest, const std::vector<T, Alloc2> &src)
+{
+    if (dest.empty())
+        dest = src; // copy
+    else
+        dest.insert(dest.end(), src.begin(), src.end());
 }
 
 template <typename T, typename Alloc>

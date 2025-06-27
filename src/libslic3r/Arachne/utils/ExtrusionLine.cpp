@@ -5,6 +5,12 @@
 
 #include "ExtrusionLine.hpp"
 #include "linearAlg2D.hpp"
+#include "../../PerimeterGenerator.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/ExtrusionEntity.hpp"
+#include "libslic3r/Line.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/Polyline.hpp"
 
 namespace Slic3r::Arachne
 {
@@ -262,5 +268,37 @@ double ExtrusionLine::area() const
     return 0.5 * a;
 }
 
+BoundingBox get_extents(const ExtrusionLine &extrusion_line) {
+    BoundingBox bbox;
+    for (const ExtrusionJunction &junction : extrusion_line.junctions)
+        bbox.merge(junction.p);
+    return bbox;
+}
+
 } // namespace Slic3r::Arachne
+
+namespace Slic3r {
+void extrusion_paths_append(ExtrusionPaths &dst,
+                            const ClipperLib_Z::Paths &extrusion_paths,
+                            const ExtrusionRole role,
+                            const Flow &flow) {
+    for (const ClipperLib_Z::Path &extrusion_path : extrusion_paths) {
+        ThickPolyline thick_polyline = Arachne::to_thick_polyline(extrusion_path);
+        Slic3r::append(dst, PerimeterGenerator::thick_polyline_to_multi_path(thick_polyline, role, flow,
+                                                                        scaled<float>(0.05), float(SCALED_EPSILON))
+                           .paths);
+    }
+}
+
+void extrusion_paths_append(ExtrusionPaths &dst,
+                            const Arachne::ExtrusionLine &extrusion,
+                            const ExtrusionRole role,
+                            const Flow &flow) {
+    ThickPolyline thick_polyline = Arachne::to_thick_polyline(extrusion);
+    Slic3r::append(dst,
+                   PerimeterGenerator::thick_polyline_to_multi_path(thick_polyline, role, flow, scaled<float>(0.05),
+                                                                    float(SCALED_EPSILON))
+                       .paths);
+}
+} // namespace Slic3r
 

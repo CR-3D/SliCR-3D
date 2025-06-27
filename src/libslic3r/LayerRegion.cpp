@@ -1,4 +1,3 @@
-///|/ Copyright (c) Prusa Research 2016 - 2023 Vojtěch Bubník @bubnikv, Pavel Mikuš @Godrak, Lukáš Matěna @lukasmatena, Lukáš Hejl @hejllukas
 ///|/ Copyright (c) Slic3r 2014 - 2016 Alessandro Ranellucci @alranel
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
@@ -124,6 +123,8 @@ void LayerRegion::slices_to_fill_surfaces_clipped(coord_t opening_offset)
 void LayerRegion::make_perimeters(
     // Input slices for which the perimeters, gap fills and fill expolygons are to be generated.
     const SurfaceCollection                                &slices,
+    // Configuration regions that will be applied to parts of created perimeters.
+    const PerimeterRegions                                 &perimeter_regions,
     // Ranges of perimeter extrusions and gap fill extrusions per suface, referencing
     // newly created extrusions stored at this LayerRegion.
     std::vector<std::pair<ExtrusionRange, ExtrusionRange>> &perimeter_and_gapfill_ranges,
@@ -148,9 +149,9 @@ void LayerRegion::make_perimeters(
         (this->layer()->id() >= size_t(region_config.bottom_solid_layers.value) &&
          this->layer()->print_z >= region_config.bottom_solid_min_thickness - EPSILON);
 
-    //this is a factory, the content will be copied into the PerimeterGenerator
     PerimeterGenerator::Parameters params(
-        this->layer(),
+        this->layer()->height,
+        int(this->layer()->id()),
         this->flow(frPerimeter),
         this->flow(frExternalPerimeter),
         this->bridging_flow(frPerimeter),
@@ -158,50 +159,49 @@ void LayerRegion::make_perimeters(
         region_config,
         this->layer()->object()->config(),
         print_config,
-        spiral_vase,
-        (region_config.perimeter_generator.value == PerimeterGeneratorType::Arachne) //use_arachne
+        perimeter_regions,
+        spiral_vase
     );
-    
 
-    // perimeter bonding set.
-    if (params.perimeter_flow.spacing_ratio() == 1
-        && params.ext_perimeter_flow.spacing_ratio() == 1
-        && params.config.external_perimeters_first
-        && params.object_config.perimeter_bonding.value > 0) {
-        params.infill_gap = (1 - params.object_config.perimeter_bonding.get_abs_value(1)) * params.get_ext_perimeter_spacing();
-        params.ext_perimeter_spacing2 -= params.infill_gap;
-    }
-
+    // Cummulative sum of polygons over all the regions.
     const ExPolygons *lower_slices = this->layer()->lower_layer ? &this->layer()->lower_layer->lslices() : nullptr;
     const ExPolygons *upper_slices = this->layer()->upper_layer ? &this->layer()->upper_layer->lslices() : nullptr;
-    
+    // Cache for offsetted lower_slices
+    Polygons          lower_layer_polygons_cache;
+
     for (const Surface &surface : slices) {
-        size_t perimeters_begin = m_perimeters.size();
-        size_t gap_fills_begin = m_thin_fills.size();
-        size_t fill_expolygons_begin = fill_expolygons.size();
-
-        PerimeterGenerator::PerimeterGenerator g{params};
-        g.throw_if_canceled = [this]() { this->layer()->object()->print()->throw_if_canceled(); };
-        g.process(
-            // input:
-            surface, lower_slices, slices, upper_slices,
-            // output:
-                // Loops with the external thin walls
-            &m_perimeters,
-                // Gaps without the thin walls
-            &m_thin_fills,
-                // Infills without the gap fills
-            fill_expolygons,
-                // mask for "no overlap" area
-            m_fill_no_overlap_expolygons
-        );
-
-        for(auto *peri : this->m_perimeters.entities()) assert(!peri->empty());
-
+        auto perimeters_begin      = uint32_t(m_perimeters.size());
+        auto gap_fills_begin       = uint32_t(m_thin_fills.size());
+        auto fill_expolygons_begin = uint32_t(fill_expolygons.size());
+        
+        if (region_config.perimeter_generator.value == PerimeterGeneratorType::Arachne && !spiral_vase)
+            PerimeterGenerator::process_arachne(
+                // input:
+                params,
+                surface,
+                lower_slices,
+                upper_slices,
+                lower_layer_polygons_cache,
+                // output:
+                m_perimeters,
+                m_thin_fills,
+                fill_expolygons);
+        else
+            PerimeterGenerator::process_classic(
+                // input:
+                params,
+                surface,
+                lower_slices,
+                upper_slices,
+                lower_layer_polygons_cache,
+                // output:
+                m_perimeters,
+                m_thin_fills,
+                fill_expolygons);
         perimeter_and_gapfill_ranges.emplace_back(
-            ExtrusionRange{ uint32_t(perimeters_begin), uint32_t(m_perimeters.size()) }, 
-            ExtrusionRange{ uint32_t(gap_fills_begin),  uint32_t(m_thin_fills.size()) });
-        fill_expolygons_ranges.emplace_back(ExtrusionRange{ uint32_t(fill_expolygons_begin), uint32_t(fill_expolygons.size()) });
+            ExtrusionRange{ perimeters_begin, uint32_t(m_perimeters.size()) }, 
+            ExtrusionRange{ gap_fills_begin,  uint32_t(m_thin_fills.size()) });
+        fill_expolygons_ranges.emplace_back(ExtrusionRange{ fill_expolygons_begin, uint32_t(fill_expolygons.size()) });
     }
 }
 
