@@ -279,6 +279,9 @@ void AppConfig::set_defaults()
         if (get("remember_output_path").empty())
             set("remember_output_path", "1");
 
+        if (get("backup_switch").empty())
+            set("backup_switch", "1");
+
         if (get("remember_output_path_removable").empty())
             set("remember_output_path_removable", "1");
 

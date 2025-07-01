@@ -642,6 +642,12 @@ void PreferencesDialog::build()
 			L("If this is enabled, Slic3r will prompt the last output directory "
             "instead of the one containing the input files."),
 			app_config->get_bool("remember_output_path"));
+
+        append_bool_option(m_tabid_2_optgroups.back().back(), 
+                           "backup_switch", 
+                           L("Auto-Backup"), 
+                           L("Backup your project periodically for restoring from crashes"), 
+                           app_config->get_bool("backup_switch"));
 		
 		append_bool_option(m_tabid_2_optgroups.back().back(), "date_in_config_file",
 			L("Export headers with date and time"),

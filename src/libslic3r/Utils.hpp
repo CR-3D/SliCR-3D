@@ -153,6 +153,9 @@ std::string header_gcodeviewer_generated();
 // getpid platform wrapper
 extern unsigned get_current_pid();
 
+// BBS: backup & restore
+std::string get_process_name(int pid);
+
 // Compute the next highest power of 2 of 32-bit v
 // http://graphics.stanford.edu/~seander/bithacks.html
 inline uint16_t next_highest_power_of_2(uint16_t v)
@@ -390,6 +393,10 @@ inline std::string get_time_dhm(float time_in_secs)
 
     return buffer;
 }
+
+// Orca: Since 1.7.9 Boost deprecated save_string_file and load_string_file, copy and modified from boost 1.7.8
+void save_string_file(const boost::filesystem::path& p, const std::string& str);
+void load_string_file(const boost::filesystem::path& p, std::string& str);
 
 } // namespace Slic3r
 

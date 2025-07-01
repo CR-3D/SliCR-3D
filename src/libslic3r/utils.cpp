@@ -138,6 +138,48 @@ unsigned get_logging_level()
     }
 }
 
+
+// BBS: backup & restore
+std::string get_process_name(int pid)
+{
+#ifdef WIN32
+	char name[MAX_PATH] = { 0 };
+	if (pid == 0) {
+		GetModuleFileNameA(NULL, name, MAX_PATH);
+	}
+	else {
+		HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+		if (h == INVALID_HANDLE_VALUE) return {};
+		GetModuleFileNameExA(h, NULL, name, MAX_PATH);
+		CloseHandle(h);
+	}
+	char* p = name;
+	while (auto q = strchr(p + 1, '\\'))
+		p = q;
+	return decode_path(p);
+#elif defined __APPLE__
+	char pathbuf[PROC_PIDPATHINFO_MAXSIZE] = { 0 };
+	if (pid == 0) pid = ::getpid();
+	int ret = proc_pidpath(pid, pathbuf, sizeof(pathbuf));
+	if (ret <= 0) return {};
+	char* p = pathbuf;
+	while (auto q = strchr(p + 1, '/')) p = q;
+	return p;
+#else
+    char pathbuf[512]  = {0};
+    char proc_path[32] = "/proc/self/exe";
+    if (pid != 0) { snprintf(proc_path, sizeof(proc_path), "/proc/%d/exe", pid); }
+    if (readlink(proc_path, pathbuf, sizeof(pathbuf)) < 0) {
+        perror(NULL);
+        return {};
+    }
+    char *p = pathbuf;
+    while (auto q = strchr(p + 1, '/')) p = q;
+    return p;
+#endif
+}
+
+
 // Force set_logging_level(<=error) after loading of the DLL.
 // This is used ot disable logging for unit and integration tests.
 static struct RunOnInit {
@@ -175,6 +217,18 @@ std::string var(const std::string &file_name)
 {
     auto file = (boost::filesystem::path(g_var_dir) / file_name).make_preferred();
     return file.string();
+}
+
+//BBS: add temporary dir
+static std::string g_temporary_dir;
+void set_temporary_dir(const std::string &dir)
+{
+    g_temporary_dir = dir;
+}
+
+const std::string& temporary_dir()
+{
+    return g_temporary_dir;
 }
 
 static std::string g_resources_dir;
@@ -1373,6 +1427,25 @@ std::string log_memory_info(bool ignore_loglevel)
     }
     return out;
 }
+
+void save_string_file(const boost::filesystem::path& p, const std::string& str)
+{
+    boost::nowide::ofstream file;
+    file.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+    file.open(p.generic_string(), std::ios_base::binary);
+    file.write(str.c_str(), str.size());
+}
+
+void load_string_file(const boost::filesystem::path& p, std::string& str)
+{
+    boost::nowide::ifstream file;
+    file.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+    file.open(p.generic_string(), std::ios_base::binary);
+    std::size_t sz = static_cast<std::size_t>(boost::filesystem::file_size(p));
+    str.resize(sz, '\0');
+    file.read(&str[0], sz);
+}
+
 
 // Returns the size of physical memory (RAM) in bytes.
 // http://nadeausoftware.com/articles/2012/09/c_c_tip_how_get_physical_memory_size_system

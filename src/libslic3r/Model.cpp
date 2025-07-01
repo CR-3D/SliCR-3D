@@ -274,6 +274,8 @@ Model Model::read_from_archive(const std::string& input_file, DynamicPrintConfig
     return model;
 }
 
+int ModelObject::get_backup_id() const { return m_model ? get_model()->get_object_backup_id(*this) : -1; }
+
 ModelObject* Model::add_object()
 {
     this->objects.emplace_back(new ModelObject(this));
@@ -410,6 +412,131 @@ bool Model::add_default_instances()
         if (o->instances.empty())
             o->add_instance();
     return true;
+}
+
+// BBS: backup, reuse objects
+void Model::collect_reusable_objects(std::vector<ObjectBase*>& objects)
+{
+    for (ModelObject* model_object : this->objects) {
+        objects.push_back(model_object);
+        for (ModelVolume* model_volume : model_object->volumes)
+            objects.push_back(model_volume);
+        std::transform(model_object->volumes.begin(),
+                       model_object->volumes.end(),
+                       std::back_inserter(model_object->volume_ids),
+                       std::mem_fn(&ObjectBase::id));
+        model_object->volumes.clear();
+    }
+    // we never own these objects
+    this->objects.clear();
+}
+
+void Model::set_object_backup_id(ModelObject const& object, int uuid)
+{
+    object_backup_id_map[object.id().id] = uuid;
+    if (uuid >= next_object_backup_id) next_object_backup_id = uuid + 1;
+}
+
+int Model::get_object_backup_id(ModelObject const& object)
+{
+    auto i = object_backup_id_map.find(object.id().id);
+    if (i == object_backup_id_map.end()) {
+        i = object_backup_id_map.insert(std::make_pair(object.id().id, next_object_backup_id++)).first;
+    }
+    return i->second;
+}
+
+int Model::get_object_backup_id(ModelObject const& object) const
+{
+    return object_backup_id_map.find(object.id().id)->second;
+}
+
+
+
+// BBS: backup dir
+std::string Model::get_backup_path()
+{
+    if (backup_path.empty())
+    {
+        auto pid = get_current_pid();
+        boost::filesystem::path parent_path(temporary_dir());
+        std::time_t t = std::time(0);
+        std::tm* now_time = std::localtime(&t);
+        std::stringstream buf;
+        buf << "/orcaslicer_model/";
+        buf << std::put_time(now_time, "%a_%b_%d/%H_%M_%S#");
+        buf << pid << "#";
+        buf << this->id().id;
+
+        backup_path = parent_path.string() + buf.str();
+        BOOST_LOG_TRIVIAL(info) << boost::format("model %1%, id %2%, backup_path empty, set to %3%")%this%this->id().id%backup_path;
+        boost::filesystem::path temp_path(backup_path);
+        if (boost::filesystem::exists(temp_path))
+        {
+            BOOST_LOG_TRIVIAL(info) << boost::format("model %1%, id %2%, remove previous %3%")%this%this->id().id%backup_path;
+            boost::filesystem::remove_all(temp_path);
+        }
+    }
+    boost::filesystem::path temp_path(backup_path);
+    try {
+        if (!boost::filesystem::exists(temp_path))
+        {
+            BOOST_LOG_TRIVIAL(info) << "create /3D/Objects in " << temp_path;
+            boost::filesystem::create_directories(backup_path + "/3D/Objects");
+            BOOST_LOG_TRIVIAL(info) << "create /Metadata in " << temp_path;
+            boost::filesystem::create_directories(backup_path + "/Metadata");
+            BOOST_LOG_TRIVIAL(info) << "create /lock.txt in " << temp_path;
+            save_string_file(backup_path + "/lock.txt",
+                boost::lexical_cast<std::string>(get_current_pid()));
+        }
+    } catch (std::exception &ex) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to create backup path" << temp_path << ": " << ex.what();
+    }
+
+    return backup_path;
+}
+
+void Model::remove_backup_path_if_exist()
+{
+    if (!backup_path.empty()) {
+        boost::filesystem::path temp_path(backup_path);
+        if (boost::filesystem::exists(temp_path))
+        {
+            BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format("model %1%, id %2% remove backup_path %3%")%this%this->id().id%backup_path;
+            boost::filesystem::remove_all(temp_path);
+        }
+	backup_path.clear();
+    }
+}
+
+std::string Model::get_backup_path(const std::string &sub_path)
+{
+    auto path = get_backup_path() + "/" + sub_path;
+    try {
+        if (!boost::filesystem::exists(path)) {
+            BOOST_LOG_TRIVIAL(info) << "create missing sub_path" << path;
+            boost::filesystem::create_directories(path);
+        }
+    } catch (std::exception &ex) {
+        BOOST_LOG_TRIVIAL(error) << "Failed to create missing sub_path" << path << ": " << ex.what();
+    }
+    return path;
+}
+
+void Model::set_backup_path(std::string const& path)
+{
+    if (backup_path == path)
+        return;
+    if ("detach" == path) {
+        backup_path.clear();
+        return;
+    }
+    if (!backup_path.empty()) {
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__<<boost::format(", model %1%, id %2%, remove previous backup %3%")%this%this->id().id%backup_path;
+        Slic3r::remove_backup(*this, true);
+    }
+    backup_path = path;
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__<<boost::format(", model %1%, id %2%, set backup to %3%")%this%this->id().id%backup_path;
 }
 
 // this returns the bounding box of the *transformed* instances

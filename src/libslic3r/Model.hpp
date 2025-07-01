@@ -392,6 +392,8 @@ public:
     Model*                  get_model() { return m_model; }
     const Model*            get_model() const { return m_model; }
 
+    int                     get_backup_id() const;
+
     ModelVolume*            add_volume(const TriangleMesh &mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART, bool centered = true);
     ModelVolume*            add_volume(TriangleMesh &&mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART, bool centered = true);
     ModelVolume*            add_volume(const ModelVolume &volume, ModelVolumeType type = ModelVolumeType::INVALID, bool centered = true);
@@ -1329,6 +1331,20 @@ public:
     bool         delete_object(ModelObject* object);
     void         clear_objects();
 
+    void         collect_reusable_objects(std::vector<ObjectBase *> & objects);
+    void         set_object_backup_id(ModelObject const & object, int uuid);
+    int          get_object_backup_id(ModelObject const & object); // generate new if needed
+    int          get_object_backup_id(ModelObject const & object) const; // generate new if needed
+
+    // BBS: backup
+    std::string   get_backup_path();
+    std::string   get_backup_path(const std::string &sub_path);
+    void          set_backup_path(const std::string &path);
+    void          load_from(Model & model);
+    bool          is_need_backup() { return need_backup;  }
+    void          set_need_backup();
+    void          remove_backup_path_if_exist();
+
     ModelMaterial* add_material(t_model_material_id material_id);
     ModelMaterial* add_material(t_model_material_id material_id, const ModelMaterial &other);
     ModelMaterial* get_material(t_model_material_id material_id) {
@@ -1391,6 +1407,11 @@ private:
 	template<class Archive> void serialize(Archive &ar) {
 		ar(materials, objects, wipe_tower_vector);
     }
+
+    std::string backup_path;
+    bool need_backup = false;
+    std::map<int, int> object_backup_id_map; // ObjectId -> backup id;
+    int next_object_backup_id = 1;
 };
 
 ENABLE_ENUM_BITMASK_OPERATORS(Model::LoadAttribute)

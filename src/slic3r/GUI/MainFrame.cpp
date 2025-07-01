@@ -304,6 +304,33 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
         m_plater->show_action_buttons(true);
 
         preferences_dialog = new PreferencesDialog(this);
+
+        if (wxGetApp().app_config->get_bool("backup_switch") == true) {
+            std::string backup_interval;
+            if (!wxGetApp().app_config->get("app", "backup_interval", backup_interval)) {
+                // If the backup interval is not set, use the default value.
+                backup_interval = "10";
+                Slic3r::set_backup_interval(boost::lexical_cast<long>(backup_interval));
+            } else {
+                Slic3r::set_backup_interval(0);
+            }
+
+            Slic3r::set_backup_callback([this](int action) {
+                if (action == 0) {
+                    wxPostEvent(this, wxCommandEvent(EVT_BACKUP_POST));
+                }
+                else if (action == 1) {
+                    if (!m_plater->up_to_date(false, true)) {
+                        m_plater->export_3mf(m_plater->model().get_backup_path() + "/.3mf", SaveStrategy::Backup);
+                        m_plater->up_to_date(true, true);
+                }
+            }
+        });
+
+        Bind(EVT_BACKUP_POST, [](wxCommandEvent& e) {
+            Slic3r::run_backup_ui_tasks();
+            });
+;      }
     }
 
     // bind events from DiffDlg
