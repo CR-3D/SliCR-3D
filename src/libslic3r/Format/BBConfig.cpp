@@ -91,7 +91,7 @@ void init()
     key_translation_map["is_infill_first"]                          = "infill_first";
     key_translation_map["bottom_shell_layers"]                      = "bottom_solid_layers";
     key_translation_map["bottom_shell_thickness"]                   = "bottom_solid_min_thickness";
-    key_translation_map["bottom_solid_infill_flow_ratio"]           = "first_layer_flow_ratio";
+    key_translation_map["bottom_solid_infill_flow_ratio"]           = "filament_first_layer_flow_ratio";
     //key_translation_map["bridge_acceleration"]                      = "bridge_acceleration";
     //key_translation_map["bridge_angle"]                             = "bridge_angle";
     key_translation_map["bridge_density"]                           = "bridge_overlap_min";
@@ -231,7 +231,7 @@ void init()
     key_translation_map["bottom_surface_pattern"]                   = "bottom_fill_pattern";
     //key_translation_map["internal_bridge_flow"]                   = "bridge_flow_ratio"; //TO ADD
     key_translation_map["bridge_flow"]                              = "bridge_flow_ratio";
-    key_translation_map["top_solid_infill_flow_ratio"]              = "fill_top_flow_ratio";
+    key_translation_map["top_solid_infill_flow_ratio"]              = "filament_fill_top_flow_ratio";
     //key_translation_map["infill_combination"]                       = "infill_every_layers"; // bool -> int
     key_translation_map["print_sequence"]                           = "complete_objects";
     key_translation_map["brim_type"]                                = "brim_type"; //handled by from_prusa

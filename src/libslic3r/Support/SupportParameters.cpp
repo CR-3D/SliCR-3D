@@ -90,17 +90,14 @@ SupportParameters::SupportParameters(const PrintObject &object)
     }
     this->gap_xy = object_config.support_material_xy_spacing.get_abs_value(external_perimeter_width);
     bridge_flow_ratio /= object.num_printing_regions();
-    /*
-    float nozzle_diameter = float(
-        object.print()->config().nozzle_diameter.get_at(region.extruder(role, *this->layer()->object()) - 1));
 
-    float width = std::sqrt(bridge_flow_ratio) * nozzle_diameter;
+    float width = std::sqrt(bridge_flow_ratio) * this->support_material_interface_flow.nozzle_diameter();
     float height = slicing_params.layer_height; // <- This must be passed in or computed based on support layer
 
     this->support_material_bottom_interface_flow = slicing_params.soluble_interface ?
         this->support_material_interface_flow.with_flow_ratio(bridge_flow_ratio) :
-        Flow::bridging_flow(width, height, nozzle_diameter);
-    */
+        Flow::bridging_flow(width, height, this->support_material_interface_flow.nozzle_diameter());
+
     this->can_merge_support_regions = object_config.support_material_extruder.value == object_config.support_material_interface_extruder.value;
     if (!this->can_merge_support_regions && (object_config.support_material_extruder.value == 0 || object_config.support_material_interface_extruder.value == 0)) {
         // One of the support extruders is of "don't care" type.

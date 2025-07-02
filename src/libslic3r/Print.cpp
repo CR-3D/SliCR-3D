@@ -414,6 +414,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             invalidated |= object->invalidate_step(ostep);
     if(invalidated)
         m_timestamp_last_change = std::time(0);
+        
     return invalidated;
 }
 

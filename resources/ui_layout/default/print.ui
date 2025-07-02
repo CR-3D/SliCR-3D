@@ -829,14 +829,7 @@ group:Flow
 		setting:label$_:bridge_type
 		setting:script:bool:advanced:depends$bridge_type$bridge_overlap$layer_height$nozzle_diameter:label$ Simulate Prusa 'no thick bridge':label_width$0:tooltip$Change the bridge type and the bridge overlap to compute the same extrusions as when the PrusaSlicer 'thick bridge' isn't selected.\nAs long as it's selected, it will modify them.\nUnselect it to deactivate this enforcement.:s_not_thick_bridge
 	end_line
-
-	line:Fill Top Flow Ratio
-		setting:label$_:fill_top_flow_ratio
-	end_line
-	line:First Layer Flow Ratio
-		setting:label$_:first_layer_flow_ratio
-	end_line
-
+	
 	line:Cutting Corners
 		setting:label$_:external_perimeter_cut_corners
 	end_line

@@ -3378,23 +3378,6 @@ ProcessSurfaceResult PerimeterGenerator::process_arachne(const Parameters &param
                 // reduce the not-top fill to the bound for arachne (as arachne doesn't use the centerline but the boundary)
                 // note: you can also diff_ex(offset_ex(result.top_fills, this->perimeter_spacing / 2), wallToolPaths.getInnerContour());  this should have similar results
                 last = intersection_ex(offset_ex(non_top_polygons, -params.get_perimeter_spacing() / 2), wallToolPaths.getInnerContour());
-                //{
-                //    static int i = 0;
-                //    i++;
-                //    std::stringstream stri;
-                //    stri << params.layer->id() << "_M_" << i << "_only_one_peri"
-                //         << ".svg";
-                //    SVG svg(stri.str());
-                //    //svg.draw(to_polylines(old_last), "green");
-                //    //svg.draw(to_polylines(offset_ex(old_last, -this->ext_perimeter_spacing / 2)), "lime");
-                //    //svg.draw(to_polylines(old_top), "blue");
-                //    svg.draw(to_polylines(result.top_fills), "cyan");
-                //    svg.draw(to_polylines(result.fill_clip), "pink");
-                //    svg.draw(to_polylines(wallToolPaths.getInnerContour()), "orange");
-                //    svg.draw(to_polylines(non_top_polygons), "red");
-                //    svg.draw(to_polylines(last), "brown");
-                //    svg.Close();
-                //}
                 loop_number--;
             } else {
                 // Give up the outer shell because we don't have any meaningful top surface
@@ -3504,7 +3487,12 @@ ProcessSurfaceResult PerimeterGenerator::process_arachne(const Parameters &param
     for (size_t idx = 0; idx < all_extrusions.size(); idx++)
         map_extrusion_to_idx.emplace(all_extrusions[idx], idx);
 
-     auto extrusions_constrains = Arachne::WallToolPaths::getRegionOrder(all_extrusions, is_outer_wall_first);
+    
+    //TODO: order extrusion for contour/hole separatly
+    bool reverse_order = params.config.external_perimeters_first.value
+        || (params.object_config.brim_width.value > 0 && params.layer->id() == 0)
+        || (params.object_config.brim_width_interior.value > 0 && params.layer->id() == 0);
+    Arachne::WallToolPaths::ExtrusionLineSet extrusions_constrains = Arachne::WallToolPaths::getRegionOrder(all_extrusions, reverse_order);
     for (auto [before, after] : extrusions_constrains) {
         auto after_it = map_extrusion_to_idx.find(after);
         ++blocked[after_it->second];
@@ -3569,7 +3557,7 @@ ProcessSurfaceResult PerimeterGenerator::process_arachne(const Parameters &param
         }
     }
 
-       // printf("New Layer: Layer ID %d\n",layer_id); //debug - new layer
+    // printf("New Layer: Layer ID %d\n",layer_id); //debug - new layer
     if (this->params.config.wall_sequence == WallSequence::InnerOuterInner &&
         params.layer->id() > 0) {                      // only enable inner outer inner algorithm after first layer
         if (ordered_extrusions.size() > 2) { // 3 walls minimum needed to do inner outer inner ordering
