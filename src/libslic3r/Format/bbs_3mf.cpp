@@ -1147,8 +1147,18 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
 
         //BBS: add plate data related logic
         // add backup & restore logic
-        bool load_model_from_file(const std::string& filename, Model& model, PlateDataPtrs& plate_data_list, std::vector<Preset*>& project_presets, DynamicPrintConfig& config,
-            ConfigSubstitutionContext& config_substitutions, LoadStrategy strategy, bool& is_bbl_3mf, Semver& file_version, Import3mfProgressFn proFn = nullptr, /*BBLProject *project = nullptr,*/ int plate_id = 0);
+        bool load_model_from_file(const std::string& filename,
+                                  Model& model,
+                                  PlateDataPtrs& plate_data_list,
+                                  std::vector<Preset*>& project_presets,
+                                  DynamicPrintConfig& config,
+                                  ConfigSubstitutionContext& config_substitutions,
+                                  LoadStrategyBBS strategy,
+                                  bool& is_bbl_3mf,
+                                  Semver& file_version,
+                                  Import3mfProgressFn proFn = nullptr,
+                                  /*BBLProject *project = nullptr,*/ int plate_id = 0);
+                                  
         bool get_thumbnail(const std::string &filename, std::string &data);
         bool load_gcode_3mf_from_stream(std::istream & data, Model& model, PlateDataPtrs& plate_data_list, DynamicPrintConfig& config, Semver& file_version);
         unsigned int version() const { return m_version; }
@@ -1355,18 +1365,18 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
     //BBS: add plate data related logic
         // add backup & restore logic
     bool _BBS_3MF_Importer::load_model_from_file(const std::string& filename, Model& model, PlateDataPtrs& plate_data_list, std::vector<Preset*>& project_presets, DynamicPrintConfig& config,
-        ConfigSubstitutionContext& config_substitutions, LoadStrategy strategy, bool& is_bbl_3mf, Semver& file_version, Import3mfProgressFn proFn, /*BBLProject *project,*/ int plate_id)
+                                                 ConfigSubstitutionContext& config_substitutions, LoadStrategyBBS strategy, bool& is_bbl_3mf, Semver& file_version, Import3mfProgressFn proFn, /*BBLProject *project,*/ int plate_id)
     {
         m_version = 0;
         m_fdm_supports_painting_version = 0;
         m_seam_painting_version = 0;
         m_mm_painting_version = 0;
-        m_check_version = strategy & LoadStrategy::CheckVersion;
+       m_check_version = strategy & LoadStrategyBBS::CheckVersion;
         //BBS: auxiliary data
-        m_load_model  = strategy & LoadStrategy::LoadModel;
-        m_load_aux = strategy & LoadStrategy::LoadAuxiliary;
-        m_load_restore = strategy & LoadStrategy::Restore;
-        m_load_config = strategy & LoadStrategy::LoadConfig;
+       m_load_model  = strategy & LoadStrategyBBS::LoadModel;
+       m_load_aux = strategy & LoadStrategyBBS::LoadAuxiliary;
+       m_load_restore = strategy & LoadStrategyBBS::Restore;
+       m_load_config = strategy & LoadStrategyBBS::LoadConfig;
         m_model = &model;
         m_unit_factor = 1.0f;
         m_curr_object = nullptr;
@@ -8358,7 +8368,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
 //
 ////BBS: add plate data list related logic
 bool load_bbs_3mf(const char* path, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, Model* model, PlateDataPtrs* plate_data_list, std::vector<Preset*>* project_presets,
-                    bool* is_bbl_3mf, Semver* file_version, Import3mfProgressFn proFn, LoadStrategy strategy, /*BBLProject *project,*/ int plate_id)
+                  bool* is_bbl_3mf, Semver* file_version, Import3mfProgressFn proFn, LoadStrategyBBS strategy, /*BBLProject *project,*/ int plate_id)
 {
     if (path == nullptr || config == nullptr || model == nullptr)
         return false;

@@ -123,7 +123,7 @@ struct PlateData
 };
 
 // BBS: encrypt
-enum class SaveStrategy
+enum class SaveStrategyBBS
 {
     Default = 0,
     FullPathSources     = 1,
@@ -144,19 +144,19 @@ enum class SaveStrategy
     Backup = 0x10000 | WithGcode | Silence | SkipStatic | SplitModel,
 };
 
-inline SaveStrategy operator | (SaveStrategy lhs, SaveStrategy rhs)
+inline SaveStrategyBBS operator | (SaveStrategyBBS lhs, SaveStrategyBBS rhs)
 {
-    using T = std::underlying_type_t <SaveStrategy>;
-    return static_cast<SaveStrategy>(static_cast<T>(lhs) | static_cast<T>(rhs));
+    using T = std::underlying_type_t <SaveStrategyBBS>;
+    return static_cast<SaveStrategyBBS>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
 
-inline bool operator & (SaveStrategy & lhs, SaveStrategy rhs)
+inline bool operator & (SaveStrategyBBS & lhs, SaveStrategyBBS rhs)
 {
-    using T = std::underlying_type_t <SaveStrategy>;
+    using T = std::underlying_type_t <SaveStrategyBBS>;
     return ((static_cast<T>(lhs) & static_cast<T>(rhs))) == static_cast<T>(rhs);
 }
 
-enum class LoadStrategy
+enum class LoadStrategyBBS
 {
     Default = 0,
     AddDefaultInstances = 1,
@@ -170,15 +170,15 @@ enum class LoadStrategy
     Restore = 0x10000 | LoadModel | LoadConfig | LoadAuxiliary | Silence,
 };
 
-inline LoadStrategy operator | (LoadStrategy lhs, LoadStrategy rhs)
+inline LoadStrategyBBS operator | (LoadStrategyBBS lhs, LoadStrategyBBS rhs)
 {
-    using T = std::underlying_type_t <LoadStrategy>;
-    return static_cast<LoadStrategy>(static_cast<T>(lhs) | static_cast<T>(rhs));
+    using T = std::underlying_type_t <LoadStrategyBBS>;
+    return static_cast<LoadStrategyBBS>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
 
-inline bool operator & (LoadStrategy & lhs, LoadStrategy rhs)
+inline bool operator & (LoadStrategyBBS & lhs, LoadStrategyBBS rhs)
 {
-    using T = std::underlying_type_t <LoadStrategy>;
+    using T = std::underlying_type_t <LoadStrategyBBS>;
     return (static_cast<T>(lhs) & static_cast<T>(rhs)) == static_cast<T>(rhs);
 }
 
@@ -212,6 +212,7 @@ const int UPDATE_GCODE_RESULT           = 10;
 const int IMPORT_LOAD_CONFIG            = 11;
 const int IMPORT_LOAD_MODEL_OBJECTS     = 12;
 const int IMPORT_STAGE_MAX              = 13;
+const int LOAD_STEP_STAGE_NUM           = 3;
 
 //BBS export 3mf progress
 typedef std::function<void(int export_stage, int current, int total, bool& cancel)> Export3mfProgressFn;
@@ -233,7 +234,7 @@ struct StoreParams
     std::vector<ThumbnailData*> top_thumbnail_data;
     std::vector<ThumbnailData*> pick_thumbnail_data;
     std::vector<ThumbnailData*> calibration_thumbnail_data;
-    SaveStrategy strategy = SaveStrategy::Zip64;
+   SaveStrategyBBS strategy = SaveStrategyBBS::Zip64;
     Export3mfProgressFn proFn = nullptr;
     //std::vector<PlateBBoxData*> id_bboxes;
     //BBLProject* project = nullptr;
@@ -250,7 +251,7 @@ extern bool is_project_bambu_3mf(const std::string& filename);
 // add restore logic
 // Load the content of a 3mf file into the given model and preset bundle.
 extern bool load_bbs_3mf(const char* path, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, Model* model, PlateDataPtrs* plate_data_list, std::vector<Preset*>* project_presets,
-        bool* is_bbl_3mf, Semver* file_version, Import3mfProgressFn proFn = nullptr, LoadStrategy strategy = LoadStrategy::Default, /*BBLProject *project = nullptr,*/ int plate_id = 0);
+                         bool* is_bbl_3mf, Semver* file_version, Import3mfProgressFn proFn = nullptr, LoadStrategyBBS strategy = LoadStrategyBBS::Default, /*BBLProject *project = nullptr,*/ int plate_id = 0);
 
 extern std::string bbs_3mf_get_thumbnail(const char * path);
 

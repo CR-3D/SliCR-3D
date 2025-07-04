@@ -218,7 +218,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     for (int i = 0; i < currentTestCount; i++) {
         items.emplace_back((boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_pressure" / "base_plate.3mf").string());
     }
-    std::vector<size_t> objs_idx = plat->load_files(items, true, false, false, false);
+    std::vector<size_t> objs_idx = plat->load_files(items, LoadStrategy::LoadModel);
     assert(objs_idx.size() == currentTestCount);
     const DynamicPrintConfig* print_config = this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->get_config();
     const DynamicPrintConfig* filament_config = this->gui_app->get_tab(Preset::TYPE_FFF_FILAMENT)->get_config();

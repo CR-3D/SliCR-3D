@@ -28,8 +28,11 @@
 #include <boost/bimap.hpp>
 #include <boost/filesystem.hpp>
 
+#include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/qi_int.hpp>
 #include <boost/log/trivial.hpp>
@@ -781,7 +784,7 @@ bool _3MF_Importer::_load_model_from_file(const std::string& filename, Model& mo
                                                   &is_bbl_3mf,
                                                   &file_version,
                                                    Import3mfProgressFn,
-                                                   LoadStrategy::Default | LoadStrategy::LoadModel | LoadStrategy::LoadConfig,
+                                                   LoadStrategyBBS::Default | LoadStrategyBBS::LoadModel | LoadStrategyBBS::LoadConfig,
                                                    /*BBLProject *project = nullptr,*/
                                                    0);
                         if(!result)
@@ -2817,11 +2820,13 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
         };
 
         typedef std::map<const ModelVolume*, Offsets> VolumeToOffsetsMap;
+        typedef std::map<const ModelVolume*, int> VolumeToObjectIDMap;
 
         struct ObjectData
         {
             ModelObject* object;
             VolumeToOffsetsMap volumes_offsets;
+            VolumeToObjectIDMap volumes_objectID;
 
             explicit ObjectData(ModelObject* object)
                 : object(object)
@@ -2837,6 +2842,8 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
     public:
         bool save_model_to_file(const std::string& filename, Model& model, const DynamicPrintConfig* config, const OptionStore3mf& options);
         static void add_transformation(std::stringstream &stream, const Transform3d &tr);
+        bool save_object_mesh(const std::string& temp_path, ModelObject const & object, int obj_id);
+
     private:
         void _publish(Model &model);
         bool _save_model_to_file(const std::string& filename, Model& model, const DynamicPrintConfig* config);
@@ -2856,7 +2863,6 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
         bool _add_model_config_file_to_archive(mz_zip_archive& archive, const Model& model, const DynamicPrintConfig& print_config, const IdToObjectDataMap &objects_data, const std::string &file_path);
         bool _add_custom_gcode_per_print_z_file_to_archive(mz_zip_archive& archive, Model& model, const DynamicPrintConfig& config);
         bool _add_wipe_tower_information_file_to_archive( mz_zip_archive& archive, Model& model);
-
     };
 
     bool _3MF_Exporter::save_model_to_file(const std::string& filename, Model& model, const DynamicPrintConfig* config, const OptionStore3mf& options)
@@ -3512,6 +3518,69 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
             }
         }
 
+        return true;
+    }
+    
+    bool _3MF_Exporter::save_object_mesh(const std::string& temp_path, ModelObject const & object, int obj_id)
+    {
+
+        Model const & model = *object.get_model();
+
+        mz_zip_archive archive;
+        mz_zip_zero_struct(&archive);
+
+        auto filename = boost::format("3D/Objects/%s_%d.model") % object.name % obj_id;
+        std::string filepath = temp_path + "/" + filename.str();
+        std::string filepath_tmp = filepath + ".tmp";
+        boost::system::error_code ec;
+        boost::filesystem::remove(filepath_tmp, ec);
+        if (!open_zip_writer(&archive, filepath_tmp)) {
+            add_error("Unable to open the file"+filepath_tmp);
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ":" << __LINE__ << boost::format(", Unable to open the file\n");
+            return false;
+        }
+
+        struct close_lock
+        {
+            mz_zip_archive & archive;
+            std::string const * filename;
+            void close() {
+                close_zip_writer(&archive);
+                filename = nullptr;
+            }
+            ~close_lock() {
+                if (filename) {
+                    close_zip_writer(&archive);
+                    boost::system::error_code ec;
+                    boost::filesystem::remove(*filename, ec);
+                }
+            }
+        } lock{archive, &filepath_tmp};
+       IdToObjectDataMap objects_data;
+         unsigned int object_id = 1;
+        for (ModelObject* obj : model.objects) {
+            if (obj == nullptr)
+                continue;
+
+            // Index of an object in the 3MF file corresponding to the 1st instance of a ModelObject.
+            unsigned int curr_id = object_id;
+            IdToObjectDataMap::iterator object_it = objects_data.insert({ curr_id, ObjectData(obj) }).first;
+            
+            
+           IdToObjectDataMap objects_data;
+        auto volumes_objectID = objects_data.insert({ curr_id, ObjectData(obj) }).first->second.volumes_objectID;
+        unsigned int volume_count = 0;
+        for (ModelVolume *volume : object.volumes) {
+            if (volume == nullptr) continue;
+            volumes_objectID.insert({volume, (++volume_count << 16 | obj_id)});
+         }
+        }
+
+        _add_model_file_to_archive(filename.str(), archive, model, objects_data);
+
+        mz_zip_writer_finalize_archive(&archive);
+        lock.close();
+        boost::filesystem::rename(filepath_tmp, filepath, ec);
         return true;
     }
 
@@ -4550,6 +4619,465 @@ std::optional<EmbossShape> read_emboss_shape(const char **attributes, unsigned i
 
     EmbossShape::SvgFile svg{file_path, file_path_3mf};
     return EmbossShape{std::move(shapes), std::move(final_shape), scale, std::move(projection), std::move(fix_tr_mat), std::move(svg)};
+}
+
+class _CR_Backup_Manager
+{
+public:
+    static _CR_Backup_Manager& get() {
+        static _CR_Backup_Manager m;
+        return m;
+    }
+
+    void set_post_callback(std::function<void(int)> c) {
+        boost::lock_guard lock(m_mutex);
+        m_post_callback = c;
+    }
+
+    void run_ui_tasks() {
+        std::deque<Task> tasks;
+        {
+            boost::lock_guard lock(m_mutex);
+            std::swap(tasks, m_ui_tasks);
+        }
+        for (auto& t : tasks)
+        {
+            process_ui_task(t);
+        }
+    }
+
+    void push_object_gaurd(ModelObject& object) {
+        m_guard_objects.push_back(std::make_pair(&object, 0));
+    }
+
+    void pop_object_gaurd() {
+        auto object = m_guard_objects.back();
+        m_guard_objects.pop_back();
+        if (object.second)
+            add_object_mesh(*object.first);
+    }
+
+    void add_object_mesh(ModelObject& object) {
+        for (auto& g : m_guard_objects) {
+            if (g.first == &object) {
+                ++g.second;
+                return;
+            }
+        }
+        // clone object
+        auto model = object.get_model();
+        auto o = m_temp_model.add_object(object);
+        int backup_id = model->get_object_backup_id(object);
+        push_task({ AddObject, (size_t) backup_id, object.get_model()->get_backup_path(), o, 1 });
+    }
+
+    void remove_object_mesh(ModelObject& object) {
+        push_task({ RemoveObject, object.id().id, object.get_model()->get_backup_path() });
+    }
+
+    void backup_soon() {
+        boost::lock_guard lock(m_mutex);
+        m_other_changes_backup = true;
+        m_tasks.push_back({ Backup, 0, std::string(), nullptr, ++m_task_seq });
+        m_cond.notify_all();
+    }
+
+    void remove_backup(Model& model, bool removeAll) {
+        BOOST_LOG_TRIVIAL(info)
+            << "remove_backup " << model.get_backup_path() << ", " << removeAll;
+        std::deque<Task>   canceled_tasks;
+        boost::unique_lock lock(m_mutex);
+        if (removeAll && model.is_need_backup()) {
+            // running task may not be canceled
+            for (auto & t : m_ui_tasks)
+                canceled_tasks.push_back(t);
+            for (auto & t : m_tasks)
+                canceled_tasks.push_back(t);
+            m_ui_tasks.clear();
+            m_tasks.clear();
+        }
+        m_tasks.push_back({ RemoveBackup, model.id().id, model.get_backup_path(), nullptr, removeAll });
+        ++m_task_seq;
+        if (model.is_need_backup()) {
+            m_other_changes = false;
+            m_other_changes_backup = false;
+        }
+        m_cond.notify_all();
+        lock.unlock();
+        for (auto& t : canceled_tasks) {
+            process_ui_task(t, true);
+        }
+    }
+
+    void set_interval(long n) {
+        boost::lock_guard lock(m_mutex);
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " entry, and last interval is: " << m_interval;
+        m_next_backup -= boost::posix_time::seconds(m_interval);
+        m_interval = n;
+        m_next_backup += boost::posix_time::seconds(m_interval);
+        m_cond.notify_all();
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " exit, and new interval is: " << m_interval;
+    }
+
+    void put_other_changes()
+    {
+        BOOST_LOG_TRIVIAL(info) << "put_other_changes";
+        m_other_changes        = true;
+        m_other_changes_backup = true;
+    }
+
+    void clear_other_changes(bool backup)
+    {
+        if (backup)
+            m_other_changes_backup = false;
+        else
+            m_other_changes = false;
+    }
+
+    bool has_other_changes(bool backup)
+    {
+        return backup ? m_other_changes_backup : m_other_changes;
+    }
+
+private:
+    enum TaskType {
+        None,
+        Backup, // this task is working as response in ui thread
+        AddObject,
+        RemoveObject,
+        RemoveBackup,
+        Exit
+    };
+    struct Task {
+        TaskType type;
+        size_t id = 0;
+        std::string path;
+        ModelObject* object = nullptr;
+        union {
+        size_t delay = 0; // delay sequence, only last task is delayed
+        size_t sequence;
+        bool removeAll;
+        };
+        friend bool operator==(Task const& l, Task const& r) {
+            return l.type == r.type && l.id == r.id;
+        }
+        std::string to_string() const {
+            constexpr char const *type_names[] = {"None",
+                                                  "Backup",
+                                                  "AddObject",
+                                                  "RemoveObject",
+                                                  "RemoveBackup",
+                                                  "Exit"};
+            std::ostringstream os;
+            os << "{ type:" << type_names[type] << ", id:" << id
+               << ", path:" << path
+               << ", object:" << (object ? object->id().id : 0) << ", extra:" << delay << "}";
+            return os.str();
+        }
+    };
+
+    struct timer {
+        timer(char const * msg) : msg(msg), start(boost::posix_time::microsec_clock::universal_time()) { }
+        ~timer() {
+#ifdef __WIN32__
+            auto end = boost::posix_time::microsec_clock::universal_time();
+            int duration = (int)(end - start).total_milliseconds();
+            char buf[20];
+            OutputDebugStringA(msg);
+            OutputDebugStringA(": ");
+            OutputDebugStringA(itoa(duration, buf, 10));
+            OutputDebugStringA("\n");
+#endif
+        }
+        char const* msg;
+        boost::posix_time::ptime start;
+    };
+private:
+    _CR_Backup_Manager() {
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " inital and interval = " << m_interval;
+        m_next_backup = boost::get_system_time() + boost::posix_time::seconds(m_interval);
+        boost::unique_lock lock(m_mutex);
+        m_thread = std::move(boost::thread(boost::ref(*this)));
+    }
+
+    ~_CR_Backup_Manager() {
+        push_task({Exit});
+        m_thread.join();
+    }
+
+    void push_task(Task const & t) {
+        boost::unique_lock lock(m_mutex);
+        if (t.delay && !m_tasks.empty() && m_tasks.back() == t) {
+            auto t2 = m_tasks.back();
+            m_tasks.back() = t;
+            m_tasks.back().delay = t2.delay + 1;
+            m_cond.notify_all();
+            lock.unlock();
+            process_ui_task(t2);
+        }
+        else {
+            m_tasks.push_back(t);
+            ++m_task_seq;
+            m_cond.notify_all();
+        }
+    }
+
+    void process_ui_task(Task& t, bool canceled = false) {
+        BOOST_LOG_TRIVIAL(info) << "process_ui_task" << t.to_string() << " and interval = " << m_interval;
+        switch (t.type) {
+            case Backup: {
+                if (canceled)
+                    break;
+                std::function<void(int)> callback;
+                boost::unique_lock lock(m_mutex);
+                if (m_task_seq != t.sequence) {
+                    if (find(m_tasks.begin(), m_tasks.end(), Task{ Backup }) == m_tasks.end()) {
+                        t.sequence = ++m_task_seq; // may has pending tasks, retry later
+                        m_tasks.push_back(t);
+                        m_cond.notify_all();
+                    }
+                    break;
+                }
+                callback = m_post_callback;
+                lock.unlock();
+                {
+                    timer t("backup cost");
+                    try {
+                        if (callback) callback(1);
+                    } catch (...) {}
+                }
+                m_other_changes_backup = false;
+                break;
+            }
+            case AddObject:
+                m_temp_model.delete_object(t.object);
+                break;
+            case RemoveBackup:
+                if (t.removeAll) {
+                    try {
+                        boost::filesystem::remove(t.path + "/lock.txt");
+                        boost::filesystem::remove_all(t.path);
+                        BOOST_LOG_TRIVIAL(info) << "process_ui_task: remove all of backup path " << t.path;
+                    } catch (std::exception &ex) {
+                        BOOST_LOG_TRIVIAL(error) << "process_ui_task: failed to remove backup path" << t.path << ": " << ex.what();
+                    }
+                }
+                break;
+        }
+    }
+
+    void process_task(Task& t) {
+        BOOST_LOG_TRIVIAL(info) << "process_task" << t.to_string() << " and interval = " << m_interval;
+        switch (t.type) {
+            case Backup:
+                // do it in response
+                break;
+            case AddObject: {
+                {
+                    CNumericLocalesSetter locales_setter;
+                    _3MF_Exporter     e;
+                    e.save_object_mesh(t.path, *t.object, (int) t.id);
+                    // response to delete cloned object
+                }
+                break;
+            }
+            case RemoveObject: {
+                boost::system::error_code ec;
+                boost::filesystem::remove(t.path + "/mesh_" + boost::lexical_cast<std::string>(t.id) + ".xml", ec);
+                t.type = None;
+                break;
+            }
+            case RemoveBackup: {
+                try {
+                    boost::system::error_code ec;
+                    boost::filesystem::remove(t.path + "/.3mf", ec);
+                    // We Saved with SplitModel now, so we can safe delete these sub models.
+                    boost::filesystem::remove_all(t.path + "/3D/Objects");
+                    boost::filesystem::create_directory(t.path + "/3D/Objects");
+                }
+                catch (...) {}
+            }
+        }
+    }
+
+public:
+    void operator()() {
+        boost::unique_lock lock(m_mutex);
+        while (true)
+        {
+            while (m_tasks.empty()) {
+                if (m_interval > 0)
+                    m_cond.timed_wait(lock, m_next_backup);
+                else
+                    m_cond.wait(lock);
+                if (m_interval > 0 && boost::get_system_time() > m_next_backup) {
+                    m_tasks.push_back({ Backup, 0, std::string(), nullptr, ++m_task_seq });
+                    m_next_backup += boost::posix_time::seconds(m_interval);
+                    // Maybe wakeup from power sleep
+                    if (m_next_backup < boost::get_system_time())
+                        m_next_backup = boost::get_system_time() + boost::posix_time::seconds(m_interval);
+                }
+            }
+            Task t = m_tasks.front();
+            if (t.type == Exit) break;
+            if (t.object && t.delay) {
+                if (!delay_task(t, lock))
+                    continue;
+            }
+            m_tasks.pop_front();
+            auto callback = m_post_callback;
+            lock.unlock();
+            process_task(t);
+            lock.lock();
+            if (t.type > None) {
+                m_ui_tasks.push_back(t);
+                if (m_ui_tasks.size() == 1 && callback)
+                    callback(0);
+            }
+        }
+    }
+
+    bool delay_task(Task& t, boost::unique_lock<boost::mutex> & lock) {
+        // delay last task for 3 seconds after last modify
+        auto now = boost::get_system_time();
+        auto delay_expire = now + boost::posix_time::seconds(10); // must not delay over this time
+        auto wait = now + boost::posix_time::seconds(3);
+        while (true) {
+            m_cond.timed_wait(lock, wait);
+            // Only delay when it's the only-one task
+            if (m_tasks.size() != 1 || m_tasks.front().delay == t.delay)
+                break;
+            t.delay = m_tasks.front().delay;
+            now = boost::get_system_time();
+            if (now >= delay_expire)
+                break;
+            wait = now + boost::posix_time::seconds(3);
+            if (wait > delay_expire)
+                wait = delay_expire;
+        };
+        // task maybe canceled
+        if (m_tasks.empty())
+            return false;
+        t = m_tasks.front();
+        return true;
+    }
+
+private:
+    boost::mutex m_mutex;
+    boost::condition_variable m_cond;
+    std::deque<Task> m_tasks;
+    std::deque<Task> m_ui_tasks;
+    size_t m_task_seq = 0;
+    // param 0: should call run_ui_tasks
+    // param 1: should backup current project
+    std::function<void(int)> m_post_callback;
+    long m_interval = 1 * 60;
+    boost::system_time m_next_backup;
+    Model m_temp_model; // visit only in main thread
+    bool m_other_changes = false; // visit only in main thread
+    bool m_other_changes_backup = false; // visit only in main thread
+    std::vector<std::pair<ModelObject*, size_t>> m_guard_objects;
+    boost::thread m_thread;
+};
+
+// backup interface
+
+void save_object_mesh(ModelObject& object)
+{
+    if (!object.get_model() || !object.get_model()->is_need_backup())
+        return;
+    if (object.volumes.empty() || object.instances.empty())
+        return;
+    _CR_Backup_Manager::get().add_object_mesh(object);
+}
+
+void delete_object_mesh(ModelObject& object)
+{
+    // not really remove
+    // _BBS_Backup_Manager::get().remove_object_mesh(object);
+}
+
+void backup_soon()
+{
+    _CR_Backup_Manager::get().backup_soon();
+}
+
+void remove_backup(Model& model, bool removeAll)
+{
+    _CR_Backup_Manager::get().remove_backup(model, removeAll);
+}
+
+void set_backup_interval(long interval)
+{
+    _CR_Backup_Manager::get().set_interval(interval);
+}
+
+void set_backup_callback(std::function<void(int)> callback)
+{
+    _CR_Backup_Manager::get().set_post_callback(callback);
+}
+
+void run_backup_ui_tasks()
+{
+    _CR_Backup_Manager::get().run_ui_tasks();
+}
+
+bool has_restore_data(std::string & path, std::string& origin)
+{
+    if (path.empty()) {
+        origin = "<lock>";
+        return false;
+    }
+    if (boost::filesystem::exists(path + "/lock.txt")) {
+        std::string pid;
+        load_string_file(path + "/lock.txt", pid);
+        try {
+            if (get_process_name(boost::lexical_cast<int>(pid)) ==
+                get_process_name(0)) {
+                origin = "<lock>";
+                return false;
+            }
+        }
+        catch (...) {
+            return false;
+        }
+    }
+    std::string file3mf = path + "/.3mf";
+    if (!boost::filesystem::exists(file3mf))
+        return false;
+    try {
+        if (boost::filesystem::exists(path + "/origin.txt"))
+            load_string_file(path + "/origin.txt", origin);
+    }
+    catch (...) {
+    }
+    path = file3mf;
+    return true;
+}
+
+void put_other_changes()
+{
+    _CR_Backup_Manager::get().put_other_changes();
+}
+
+void clear_other_changes(bool backup)
+{
+    _CR_Backup_Manager::get().clear_other_changes(backup);
+}
+
+bool has_other_changes(bool backup)
+{
+    return _CR_Backup_Manager::get().has_other_changes(backup);
+}
+
+SaveObjectGaurd::SaveObjectGaurd(ModelObject& object)
+{
+    _CR_Backup_Manager::get().push_object_gaurd(object);
+}
+
+SaveObjectGaurd::~SaveObjectGaurd()
+{
+    _CR_Backup_Manager::get().pop_object_gaurd();
 }
 
 

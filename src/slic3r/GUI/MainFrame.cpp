@@ -74,7 +74,7 @@
 namespace Slic3r {
 namespace GUI {
 
-
+wxDEFINE_EVENT(EVT_BACKUP_POST, wxCommandEvent);
 wxDEFINE_EVENT(EVT_LOAD_PRINTER_URL, LoadPrinterViewEvent);
 
 constexpr int32_t MAINFRAME_MENU_ITEM_COUNT = 8;
@@ -233,17 +233,6 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
 
     // declare events
     Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent& event) {
-
-        //std::cout << "closing...\n";
-        //std::cout << "is_project_dirty=" << plater()->is_project_dirty() << "\n";
-        //std::cout << "is_presets_dirty=" << plater()->is_presets_dirty() << "\n";
-        //std::cout << "is_platter_dirty=" << plater()->get_dirty().is_plater_dirty() << "\n";
-        //std::cout << "is_projectconf_dirty=" << plater()->get_dirty().is_project_config_dirty() << "\n";
-        //std::cout << "has_current_preset_changes=" << wxGetApp().has_current_preset_changes() << "\n";
-        //std::cout << "has_unsaved_preset_changes=" << wxGetApp().has_unsaved_preset_changes() << "\n";
-        //std::cout << "Not closing!\n";
-        //event.Veto();
-        //return;
 
         if (event.CanVeto() && m_plater->canvas3D()->get_gizmos_manager().is_in_editing_mode(true)) {
             // prevents to open the save dirty project dialog

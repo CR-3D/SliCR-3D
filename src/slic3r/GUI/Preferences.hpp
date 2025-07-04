@@ -76,6 +76,7 @@ class PreferencesDialog : public DPIDialog
 	bool								m_settings_layout_changed {false};
 	bool								m_seq_top_layer_only_changed{ false };
 	bool								m_recreate_GUI{false};
+ wxTextCtrl *m_backup_interval_textinput = {nullptr};
 
 	int									m_custom_toolbar_size{-1};
 	bool								m_use_custom_toolbar_size{false};
@@ -92,6 +93,7 @@ public:
 	void	accept(wxEvent&);
 	void    revert(wxEvent&);
 	void	show(const std::string& highlight_option = std::string(), const std::string& group_name = std::string());
+ wxString m_backup_interval_time;
 
 protected:
 	void msw_rescale();
@@ -109,6 +111,7 @@ protected:
     void create_settings_font_widget(wxWindow* tab, std::shared_ptr<ConfigOptionsGroup> opt_grp);
     void create_downloader_path_sizer(wxWindow* tab, std::shared_ptr<ConfigOptionsGroup> opt_grp);
 	void init_highlighter(const t_config_option_key& opt_key);
+	wxBoxSizer* create_item_backup_input(wxString title, wxWindow *parent, wxString tooltip, std::string param);
 	std::vector<ConfigOptionsGroup*> optgroups();
 
 	void append_bool_option( std::shared_ptr<ConfigOptionsGroup> optgroup,

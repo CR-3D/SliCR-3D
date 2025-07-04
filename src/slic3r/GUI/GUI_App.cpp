@@ -887,6 +887,7 @@ void GUI_App::post_init() {
         if (!m_print_config.empty())
             this->gui->mainframe->load_config(m_print_config);
 #endif
+
         if (!this->init_params->load_configs.empty())
             // Load the last config to give it a name at the UI. The name of the preset may be later
             // changed by loading an AMF or 3MF.
@@ -919,6 +920,9 @@ void GUI_App::post_init() {
         if (!this->init_params->extra_config.empty())
             this->mainframe->load_config(this->init_params->extra_config);
     }
+
+        plater_->trigger_restore_project(1);
+
 
     // show "Did you know" notification
     if (app_config->get_bool("show_hints") && !is_gcode_viewer())
@@ -2340,12 +2344,8 @@ void GUI_App::recreate_GUI(const wxString &msg_name) {
 
     obj_list()->set_min_height();
     update_mode();
-
-    // #ys_FIXME_delete_after_testing  Do we still need this  ?
-    //     CallAfter([]() {
-    //         // Run the config wizard, don't offer the "reset user profile" checkbox.
-    //         config_wizard_startup(true);
-    //     });
+    
+    plater_->trigger_restore_project(1);
 
     m_is_recreating_gui = false;
 }

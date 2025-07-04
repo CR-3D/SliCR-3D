@@ -411,6 +411,88 @@ void PreferencesDialog::append_int_option( std::shared_ptr<ConfigOptionsGroup> o
                                                 optgroup->config_category(), L("Preferences"), def);
 }
 
+wxBoxSizer* PreferencesDialog::create_item_backup_input(wxString title, wxWindow* parent, wxString tooltip, std::string param)
+{
+    auto app_config = get_app_config();
+
+    // Create outer sizer that wraps the labeled box
+    wxStaticBox* staticBox = new wxStaticBox(parent, wxID_ANY, title);
+    wxStaticBoxSizer* staticBoxSizer = new wxStaticBoxSizer(staticBox, wxHORIZONTAL);
+
+    // Horizontal layout inside the box
+    wxBoxSizer* innerSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    // Create the label
+    auto input_title = new wxStaticText(parent, wxID_ANY, title);
+    input_title->SetToolTip(tooltip);
+    input_title->Wrap(-1);
+
+    // Create the input
+    auto input = new wxTextCtrl(parent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(FromDIP(100), -1), wxTE_PROCESS_ENTER);
+    input->SetValue(app_config->get(param));
+    wxTextValidator validator(wxFILTER_DIGITS);
+    input->SetValidator(validator);
+
+    // Second label (e.g., "Second")
+    auto second_title = new wxStaticText(parent, wxID_ANY, _L("Second"), wxDefaultPosition, wxDefaultSize);
+    second_title->SetToolTip(tooltip);
+    second_title->Wrap(-1);
+
+    // Add elements to the inner sizer
+    innerSizer->Add(input_title, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3);
+    innerSizer->Add(input, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 3);
+    innerSizer->Add(second_title, 0, wxALIGN_CENTER_VERTICAL | wxALL, 3);
+
+    // Add inner sizer to static box sizer
+    staticBoxSizer->Add(innerSizer, 1, wxEXPAND | wxALL, 5);
+
+    // Add to parent's sizer
+    wxBoxSizer* parent_sizer = static_cast<wxBoxSizer*>(parent->GetSizer());
+    if (parent_sizer) {
+        parent_sizer->Add(staticBoxSizer, 0, wxEXPAND | wxALL, 5);
+    }
+
+    // Event bindings
+    input->Bind(wxEVT_COMMAND_TEXT_UPDATED, [this, param, input](wxCommandEvent& e) {
+        m_backup_interval_time = input->GetValue();
+        e.Skip();
+    });
+
+    std::function<void()> backup_interval = [this, param, input, &app_config]() {
+        m_backup_interval_time = input->GetValue();
+        app_config->set("backup_interval", std::string(m_backup_interval_time.mb_str()));
+        app_config->save();
+
+        long backup_interval = 0;
+        m_backup_interval_time.ToLong(&backup_interval);
+        Slic3r::set_backup_interval(backup_interval);
+    };
+
+    input->Bind(wxEVT_TEXT_ENTER, [backup_interval](wxCommandEvent& e) {
+        backup_interval();
+        e.Skip();
+    });
+
+    input->Bind(wxEVT_KILL_FOCUS, [backup_interval](wxFocusEvent& e) {
+        backup_interval();
+        e.Skip();
+    });
+
+    if (app_config->get("backup_switch") == "true") {
+        input->Enable(true);
+    } else {
+        input->Enable(false);
+    }
+
+    input->Refresh();
+
+    if (param == "backup_interval") {
+        m_backup_interval_textinput = input;
+    }
+
+    return innerSizer;
+}
+
 void PreferencesDialog::append_color_option( std::shared_ptr<ConfigOptionsGroup> optgroup,
 								const t_config_option_key& opt_key,
 								const std::string& label,
@@ -643,11 +725,14 @@ void PreferencesDialog::build()
             "instead of the one containing the input files."),
 			app_config->get_bool("remember_output_path"));
 
-        append_bool_option(m_tabid_2_optgroups.back().back(), 
-                           "backup_switch", 
-                           L("Auto-Backup"), 
-                           L("Backup your project periodically for restoring from crashes"), 
-                           app_config->get_bool("backup_switch"));
+   append_bool_option(m_tabid_2_optgroups.back().back(),
+                        "backup_switch", 
+                        L("Auto-Backup"), 
+                        L("Backup your project periodically for restoring from crashes"), 
+                        app_config->get_bool("backup_switch"));
+
+  auto item_backup_interval = create_item_backup_input(_L("Backup"), tabs->GetPage(tabs->GetPageCount()-1), _L("The period of backup in seconds."), "backup_interval");
+
 		
 		append_bool_option(m_tabid_2_optgroups.back().back(), "date_in_config_file",
 			L("Export headers with date and time"),

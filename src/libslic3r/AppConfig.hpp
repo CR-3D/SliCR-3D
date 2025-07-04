@@ -18,6 +18,13 @@
 #include "libslic3r/Config.hpp"
 #include "libslic3r/Semver.hpp"
 
+
+#define SETTING_PROJECT_LOAD_BEHAVIOUR "project_load_behaviour"
+#define OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_ALL "load_all"
+#define OPTION_PROJECT_LOAD_BEHAVIOUR_ASK_WHEN_RELEVANT "ask_when_relevant"
+#define OPTION_PROJECT_LOAD_BEHAVIOUR_ALWAYS_ASK "always_ask"
+#define OPTION_PROJECT_LOAD_BEHAVIOUR_LOAD_GEOMETRY "load_geometry_only"
+
 namespace Slic3r {
 
 class AppConfig
@@ -192,6 +199,9 @@ public:
 	bool 				update_config_dir(const std::string &dir);
 	bool 				update_skein_dir(const std::string &dir);
 
+	std::string 		get_last_backup_dir() const;
+	void                update_last_backup_dir(const std::string &dir);
+   
 	//std::string 		get_last_output_dir(const std::string &alt) const;
 	//void                update_last_output_dir(const std::string &dir);
 	std::string 		get_last_output_dir(const std::string& alt, const bool removable = false) const;

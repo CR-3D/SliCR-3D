@@ -78,7 +78,7 @@ void CalibrationOverBridgeDialog::create_geometry(bool over_bridge) {
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "over-bridge_tuning" / "over-bridge_flow_ratio_test.amf").string(),
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "over-bridge_tuning" / "over-bridge_flow_ratio_test.amf").string(),
             (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "over-bridge_tuning" / "over-bridge_flow_ratio_test.amf").string(),
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "over-bridge_tuning" / "over-bridge_flow_ratio_test.amf").string()}, true, false, false, false);
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "over-bridge_tuning" / "over-bridge_flow_ratio_test.amf").string()}, LoadStrategy::LoadModel);
 
     assert(objs_idx.size() == 6);
     const DynamicPrintConfig* print_config = this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->get_config();

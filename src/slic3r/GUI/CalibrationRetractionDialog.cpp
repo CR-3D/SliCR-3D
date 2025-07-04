@@ -152,7 +152,7 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     std::vector<std::string> items;
     for (size_t i = 0; i < nb_items; i++)
         items.emplace_back((boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "retraction" / "retraction_calibration.amf").string());
-    std::vector<size_t> objs_idx = plat->load_files(items, true, false, false, false);
+    std::vector<size_t> objs_idx = plat->load_files(items, LoadStrategy::LoadModel);
 
 
     assert(objs_idx.size() == nb_items);

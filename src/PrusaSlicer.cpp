@@ -55,7 +55,7 @@
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/Thread.hpp"
 #include "libslic3r/BlacklistedLibraryCheck.hpp"
-
+#include <wx/filename.h>
 #include "PrusaSlicer.hpp"
 
 #ifdef SLIC3R_GUI
@@ -107,9 +107,14 @@ int CLI::run(int argc, char **argv)
         return 1;
     }
 
-	if (! this->setup(argc, argv))
-		return 1;
+    if (! this->setup(argc, argv))
+     return 1;
 
+
+    BOOST_LOG_TRIVIAL(info) << "finished setup params, argc="<< argc << std::endl;
+    std::string temp_path = wxFileName::GetTempDir().utf8_str().data();
+    set_temporary_dir(temp_path);
+    
     m_extra_config.apply(m_config, true);
     m_extra_config.normalize_fdm();
     
@@ -662,36 +667,6 @@ int CLI::run(int argc, char **argv)
                         boost::nowide::cerr << ex.what() << std::endl;
                         return 1;
                     }
-/*
-                print.center = ! m_config.has("center")
-                    && ! m_config.has("align_xy")
-                    && ! m_config.opt_bool("dont_arrange");
-                print.set_model(model);
-
-                // start chronometer
-                typedef std::chrono::high_resolution_clock clock_;
-                typedef std::chrono::duration<double, std::ratio<1> > second_;
-                std::chrono::time_point<clock_> t0{ clock_::now() };
-
-                const std::string outfile = this->output_filepath(model, IO::Gcode);
-                try {
-                    print.export_gcode(outfile);
-                } catch (std::runtime_error &e) {
-                    boost::nowide::cerr << e.what() << std::endl;
-                    return 1;
-                }
-                boost::nowide::cout << "G-code exported to " << outfile << std::endl;
-
-                // output some statistics
-                double duration { std::chrono::duration_cast<second_>(clock_::now() - t0).count() };
-                boost::nowide::cout << std::fixed << std::setprecision(0)
-                    << "Done. Process took " << (duration/60) << " minutes and "
-                    << std::setprecision(3)
-                    << std::fmod(duration, 60.0) << " seconds." << std::endl
-                    << std::setprecision(2)
-                    << "Filament required: " << print.total_used_filament() << "mm"
-                    << " (" << print.total_extruded_volume()/1000 << "cm3)" << std::endl;
-*/
             }
         } else {
             boost::nowide::cerr << "error: option not supported yet: " << opt_key << std::endl;

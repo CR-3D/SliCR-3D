@@ -33,6 +33,8 @@
         #include <mach/mach.h>
 // for _NSGetExecutablePath
         #include <mach-o/dyld.h>
+        #include <libproc.h>
+
     #endif
     #ifdef __linux__
         #include <sys/stat.h>

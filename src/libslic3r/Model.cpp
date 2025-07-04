@@ -421,6 +421,7 @@ void Model::collect_reusable_objects(std::vector<ObjectBase*>& objects)
         objects.push_back(model_object);
         for (ModelVolume* model_volume : model_object->volumes)
             objects.push_back(model_volume);
+            
         std::transform(model_object->volumes.begin(),
                        model_object->volumes.end(),
                        std::back_inserter(model_object->volume_ids),
@@ -463,7 +464,7 @@ std::string Model::get_backup_path()
         std::time_t t = std::time(0);
         std::tm* now_time = std::localtime(&t);
         std::stringstream buf;
-        buf << "/orcaslicer_model/";
+        buf << "/slicer_model/";
         buf << std::put_time(now_time, "%a_%b_%d/%H_%M_%S#");
         buf << pid << "#";
         buf << this->id().id;
@@ -538,6 +539,12 @@ void Model::set_backup_path(std::string const& path)
     backup_path = path;
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__<<boost::format(", model %1%, id %2%, set backup to %3%")%this%this->id().id%backup_path;
 }
+
+void Model::set_need_backup()
+{
+    need_backup = true;
+}
+
 
 // this returns the bounding box of the *transformed* instances
 BoundingBoxf3 Model::bounding_box_approx() const

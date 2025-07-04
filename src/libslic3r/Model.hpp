@@ -27,6 +27,8 @@
 #include "TextConfiguration.hpp"
 #include "EmbossShape.hpp"
 
+#include "Format/3mf.hpp"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -388,6 +390,8 @@ public:
         to new volumes before adding them to this object in order to preserve alignment
         when user expects that. */
     Vec3d                   origin_translation;
+    
+    std::vector<ObjectID>   volume_ids;
 
     Model*                  get_model() { return m_model; }
     const Model*            get_model() const { return m_model; }
@@ -655,15 +659,40 @@ private:
         assert(this->layer_height_profile.id().invalid());
 	}
 	template<class Archive> void serialize(Archive &ar) {
-		ar(cereal::base_class<ObjectBase>(this));
-		Internal::StaticSerializationWrapper<ModelConfigObject> config_wrapper(config);
+         
+        ar(cereal::base_class<ObjectBase>(this));
+        Internal::StaticSerializationWrapper<ModelConfigObject> config_wrapper(config);
         Internal::StaticSerializationWrapper<LayerHeightProfile> layer_heigth_profile_wrapper(layer_height_profile);
-        ar(name, input_file, instances, volumes, config_wrapper, layer_config_ranges, layer_heigth_profile_wrapper, 
-            sla_support_points, sla_points_status, sla_drain_holes, printable, origin_translation,
-            m_bounding_box_approx, m_bounding_box_approx_valid, 
-            m_bounding_box_exact, m_bounding_box_exact_valid, m_min_max_z_valid,
-            m_raw_bounding_box, m_raw_bounding_box_valid, m_raw_mesh_bounding_box, m_raw_mesh_bounding_box_valid,
-            cut_connectors, cut_id);
+        // BBS: add backup, check modify
+        SaveObjectGaurd gaurd(*this);
+        ar(name,
+           input_file,
+           instances,
+           volumes,
+           config_wrapper,
+           layer_config_ranges,
+           layer_heigth_profile_wrapper,
+           sla_support_points,
+           sla_points_status,
+           sla_drain_holes,
+           printable,
+           origin_translation,
+           m_bounding_box_approx,
+           m_bounding_box_approx_valid,
+           m_bounding_box_exact,
+           m_bounding_box_exact_valid,
+           m_min_max_z_valid,
+           m_raw_bounding_box,
+           m_raw_bounding_box_valid,
+           m_raw_mesh_bounding_box,
+           m_raw_mesh_bounding_box_valid,
+           cut_connectors,
+           cut_id);
+        std::vector<ObjectID> volume_ids2;
+        std::transform(volumes.begin(), volumes.end(), std::back_inserter(volume_ids2), std::mem_fn(&ObjectBase::id));
+        if (volume_ids != volume_ids2)
+            Slic3r::save_object_mesh(*this);
+        volume_ids.clear();
 	}
 
     // Called by Print::validate() from the UI thread.

@@ -607,6 +607,7 @@ public:
 	// Resets the "dirty project" status.
     void 							mark_current_as_saved() { m_saved_snapshot_time = m_active_snapshot_time; }
     bool 							project_modified() const;
+    bool has_real_change_from(size_t time) const;
 
 	const Selection& 				selection_deserialized() const { return m_selection; }
 
@@ -1243,6 +1244,32 @@ bool StackImpl::project_modified() const
 	return false;
 }
 
+// BBS: check if modify, skip snapshot with '!' ended name
+bool StackImpl::has_real_change_from(size_t time) const
+{
+    if (m_active_snapshot_time == time) return false;
+    auto it_time = std::lower_bound(m_snapshots.begin(),
+                                              m_snapshots.end(),
+                                              Snapshot(time));
+    if (it_time == m_snapshots.end()) return true;
+    auto it_active = std::lower_bound(m_snapshots.begin(),
+                                              m_snapshots.end(),
+                                      Snapshot(m_active_snapshot_time));
+    if (it_active == m_snapshots.end()) return true;
+    if (it_active > it_time) {
+        for (; it_time < it_active; ++it_time) {
+            if (snapshot_modifies_project(*it_time))
+                return true;
+		}
+    } else {
+        for (; it_active < it_time; ++it_active) {
+            if (snapshot_modifies_project(*it_active))
+                return true;
+        }
+	}
+    return false;
+}
+
 // Wrappers of the private implementation.
 Stack::Stack() : pimpl(new StackImpl()) {}
 Stack::~Stack() {}
@@ -1270,6 +1297,10 @@ size_t Stack::active_snapshot_time() const { return pimpl->active_snapshot_time(
 bool Stack::temp_snapshot_active() const { return pimpl->temp_snapshot_active(); }
 void Stack::mark_current_as_saved() { pimpl->mark_current_as_saved(); }
 bool Stack::project_modified() const { return pimpl->project_modified(); }
+bool Stack::has_real_change_from(size_t time) const
+{
+    return pimpl->has_real_change_from(time);
+}
 
 } // namespace UndoRedo
 } // namespace Slic3r

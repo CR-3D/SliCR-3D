@@ -38,6 +38,8 @@
 #include "libslic3r/GCode/ThumbnailData.hpp"
 #include "slic3r/GUI/Camera.hpp"
 #include "slic3r/Utils/PrintHost.hpp"
+#include "libslic3r/Format/3mf.hpp"
+
 
 class wxButton;
 class ScalableButton;
@@ -215,7 +217,7 @@ public:
 
    // void new_project();
     void load_project();
-    void load_project(const wxString& filename);
+    void load_project(const wxString& filename, wxString const & originfile = "-");
     void add_model(bool imperial_units = false);
     void import_zip_archive();
     void import_sl1_archive();
@@ -239,8 +241,15 @@ public:
     //std::vector<size_t> load_files(const std::vector<boost::filesystem::path>& input_files, bool load_model = true, bool load_config = true, bool update_dirs = true, bool imperial_units = false);
     // To be called when providing a list of files to the GUI slic3r on command line.
     //std::vector<size_t> load_files(const std::vector<std::string>& input_files, bool load_model = true, bool load_config = true, bool update_dirs = true, bool imperial_units = false);
-    std::vector<size_t> load_files(const std::vector<boost::filesystem::path>& input_files, bool load_model, bool load_config, bool update_dirs, bool imperial_units);
-    std::vector<size_t> load_files(const std::vector<std::string>& input_files,             bool load_model, bool load_config, bool update_dirs, bool imperial_units);
+    std::vector<size_t> load_files(const std::vector<boost::filesystem::path>& input_files,
+                                   LoadStrategy strategy = LoadStrategy::LoadModel | LoadStrategy::LoadConfig,
+                                   bool ask_multi = false);
+                                   
+    // To be called when providing a list of files to the GUI slic3r on command line.
+    std::vector<size_t> load_files(const std::vector<std::string>& input_files,
+                                   LoadStrategy strategy = LoadStrategy::LoadModel | LoadStrategy::LoadConfig,
+                                   bool ask_multi = false);
+    
     // to be called on drag and drop
     bool load_files(const wxArrayString& filenames, bool delete_after_load = false);
     void notify_about_installed_presets();
@@ -338,7 +347,7 @@ public:
     void export_stl_obj(std::string path, bool extended = false, bool selection_only = false);
     void export_amf();
     void export_all_gcodes(bool prefer_removable);
-    bool export_3mf(const boost::filesystem::path& output_path = boost::filesystem::path());
+    bool export_3mf(const boost::filesystem::path& output_path = boost::filesystem::path(), SaveStrategy strategy = SaveStrategy::Default);
     void reload_from_disk();
     void replace_with_stl();
     void reload_all_from_disk();
@@ -579,6 +588,9 @@ public:
     static bool has_illegal_filename_characters(const std::string& name);
     static void show_illegal_characters_warning(wxWindow* parent);
 
+    bool up_to_date(bool saved, bool backup);
+    void trigger_restore_project(int skip_confirm = 0);
+
 private:
     std::optional<fs_path> get_default_output_file();
     std::optional<wxString> check_output_path_has_error(const boost::filesystem::path& path) const;
@@ -601,7 +613,7 @@ private:
 
     void suppress_snapshots();
     void allow_snapshots();
-
+      
     friend class SuppressBackgroundProcessingUpdate;
 };
 
