@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "FillSmooth.hpp"
-
+/*
 namespace Slic3r {
 
     Polylines FillSmooth::fill_surface(const Surface *surface, const FillParams &params) const
@@ -176,3 +176,4 @@ namespace Slic3r {
     }
 
 } // namespace Slic3r
+*/

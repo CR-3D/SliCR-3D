@@ -6,10 +6,16 @@
 #ifndef slic3r_SurfaceCollection_hpp_
 #define slic3r_SurfaceCollection_hpp_
 
-#include "libslic3r.h"
-#include "Surface.hpp"
+#include <stddef.h>
 #include <initializer_list>
 #include <vector>
+#include <utility>
+#include <cstddef>
+
+#include "libslic3r.h"
+#include "Surface.hpp"
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/Polygon.hpp"
 
 namespace Slic3r {
 
@@ -24,23 +30,25 @@ public:
 
     void simplify(double tolerance);
     void group(std::vector<SurfacesPtr> *retval) const;
-    // get all surfaces that have this exact SurfaceType
-    SurfacesConstPtr filter_by_type(const SurfaceType type) const;
-    // get all surfaces that have this SurfaceType flag in their SurfaceType
-    SurfacesConstPtr filter_by_type_flag(const SurfaceType allowed, const SurfaceType not_allowed = stNone) const;
-    SurfacesConstPtr filter_by_types(std::initializer_list<SurfaceType> types) const;
+    template <class T> bool any_internal_contains(const T &item) const {
+        for (const Surface &surface : this->surfaces) if (surface.is_internal() && surface.expolygon.contains(item)) return true;
+        return false;
+    }
+    template <class T> bool any_bottom_contains(const T &item) const {
+        for (const Surface &surface : this->surfaces) if (surface.is_bottom() && surface.expolygon.contains(item)) return true;
+        return false;
+    }
+    SurfacesPtr filter_by_type(const SurfaceType type) const;
+    SurfacesPtr filter_by_types(std::initializer_list<SurfaceType> types) const;
     void keep_type(const SurfaceType type);
-    void keep_type_flag(const SurfaceType flags_needed, const SurfaceType flags_to_remove = stNone);
     void keep_types(std::initializer_list<SurfaceType> types);
-    void keep_types_flag(const SurfaceType flags_to_keep, const SurfaceType flags_to_remove = stNone);
     void remove_type(const SurfaceType type);
-    void remove_type(const SurfaceType type, ExPolygons *polygons);
     void remove_types(std::initializer_list<SurfaceType> types);
-    void filter_by_type(const SurfaceType type, Polygons* polygons) const;
-    void filter_by_type_flag(Polygons* polygons, const SurfaceType flags_needed, const SurfaceType flags_not_allowed = stNone) const;
+    void filter_by_type(SurfaceType type, Polygons *polygons) const;
+    void remove_type(const SurfaceType type, ExPolygons *polygons);
     void set_type(SurfaceType type) {
-        for (Surface &surface : this->surfaces)
-            surface.surface_type = type;
+    	for (Surface &surface : this->surfaces)
+    		surface.surface_type = type;
     }
 
     void clear() { surfaces.clear(); }
@@ -51,9 +59,7 @@ public:
             if (surface.surface_type == type) return true;
         return false;
     }
-    Surface& operator[](size_t idx)            { return this->surfaces[idx]; }
-    Surface& at(size_t idx)                    { return this->surfaces.at(idx); }
-    const Surface& at(size_t idx)        const { return this->surfaces.at(idx); }
+
     Surfaces::const_iterator    cbegin() const { return this->surfaces.cbegin(); }
     Surfaces::const_iterator    cend()   const { return this->surfaces.cend(); }
     Surfaces::const_iterator    begin()  const { return this->surfaces.cbegin(); }

@@ -1,67 +1,40 @@
-///|/ Copyright (c) Prusa Research 2016 - 2020 Vojtěch Bubník @bubnikv
-///|/ Copyright (c) Slic3r 2016 Alessandro Ranellucci @alranel
-///|/
-///|/ ported from lib/Slic3r/Fill/Honeycomb.pm:
-///|/ Copyright (c) Prusa Research 2016 Vojtěch Bubník @bubnikv
-///|/ Copyright (c) Slic3r 2012 - 2015 Alessandro Ranellucci @alranel
+///|/ Copyright (c) Prusa Research 2021 - 2023 Lukáš Matěna @lukasmatena, Vojtěch Bubník @bubnikv, Lukáš Hejl @hejllukas
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#ifndef slic3r_FillHoneycomb_hpp_
-#define slic3r_FillHoneycomb_hpp_
+#include "../Print.hpp"
+#include "../ShortestPath.hpp"
+#include "Lightning/Generator.hpp"
+#include "libslic3r/Fill/FillLightning.hpp"
+#include "libslic3r/Fill/FillBase.hpp"
+#include "libslic3r/Fill/Lightning/Layer.hpp"
+#include "libslic3r/Point.hpp"
 
-#include <map>
+namespace Slic3r::FillLightning {
 
-#include "../libslic3r.h"
-
-#include "FillBase.hpp"
-
-namespace Slic3r {
-
-class FillHoneycomb : public Fill
+void Filler::_fill_surface_single(
+    const FillParams              &params,
+    unsigned int                   thickness_layers,
+    const std::pair<float, Point> &direction,
+    ExPolygon                      expolygon,
+    Polylines                     &polylines_out)
 {
-public:
-    FillHoneycomb() : Fill() { can_fill_surface_single = true; }
-    ~FillHoneycomb() override {}
+    const Layer &layer      = generator->getTreesForLayer(this->layer_id);
+    Polylines    fill_lines = layer.convertToLines(to_polygons(expolygon), scaled<coord_t>(0.5 * this->spacing - this->overlap));
 
-protected:
-    Fill* clone() const override { return new FillHoneycomb(*this); };
-	void _fill_surface_single(
-	    const FillParams                &params, 
-	    unsigned int                     thickness_layers,
-	    const std::pair<float, Point>   &direction, 
-	    ExPolygon                        expolygon,
-	    Polylines                       &polylines_out) const override;
+    if (params.dont_connect() || fill_lines.size() <= 1) {
+        append(polylines_out, chain_polylines(std::move(fill_lines)));
+    } else
+        connect_infill(std::move(fill_lines), expolygon, polylines_out, this->spacing, params);
+}
 
-	// Caching the 
-	struct CacheID 
-	{
-		CacheID(float adensity, coordf_t aspacing) : 
-			density(adensity), spacing(aspacing) {}
-		float		density;
-		coordf_t	spacing;
-		bool operator<(const CacheID &other) const 
-			{ return (density < other.density) || (density == other.density && spacing < other.spacing); }
-		bool operator==(const CacheID &other) const 
-			{ return density == other.density && spacing == other.spacing; }
-	};
-	struct CacheData
-	{
-		coord_t	distance;
-        coord_t hex_side;
-        coord_t hex_width;
-        coord_t	pattern_height;
-        coord_t y_short;
-        coord_t x_offset;
-        coord_t	y_offset;
-        Point	hex_center;
-    };
-    typedef std::map<CacheID, CacheData> Cache;
-	static Cache cache;
+void GeneratorDeleter::operator()(Generator *p) {
+    delete p;
+}
 
-    float _layer_angle(size_t idx) const override { return float(M_PI/3.) * (idx % 3); }
-};
+GeneratorPtr build_generator(const PrintObject &print_object, const coordf_t fill_density, const std::function<void()> &throw_on_cancel_callback)
+{
+    return GeneratorPtr(new Generator(print_object, fill_density, throw_on_cancel_callback));
+}
 
-} // namespace Slic3r
-
-#endif // slic3r_FillHoneycomb_hpp_
+} // namespace Slic3r::FillAdaptive

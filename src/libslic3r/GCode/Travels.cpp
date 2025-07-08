@@ -162,7 +162,7 @@ void TravelObstacleTracker::init_layer(const Layer &layer, const ObjectsLayerToP
     m_extruded_extrusion.clear();
 
     m_objects_to_print         = objects_to_print;
-    m_previous_layer_distancer = get_previous_layer_distancer(m_objects_to_print, layer.lower_layer->lslices());
+    m_previous_layer_distancer = get_previous_layer_distancer(m_objects_to_print, layer.lower_layer->lslices);
 
     std::tie(m_current_layer_distancer, extrusion_entity_cnt) = get_current_layer_distancer(m_objects_to_print);
     m_extruded_extrusion.reserve(extrusion_entity_cnt);
@@ -415,7 +415,7 @@ double get_first_crossed_line_distance(
             const ObjectOrExtrusionLinef &intersection_line = distancer.get_line(intersections.front().second);
             const Point shift = objects_to_print[intersection_line.object_layer_idx].layer()->object()->instances()[intersection_line.instance_idx].shift;
             const Point shifted_first_point = path_first_point - shift;
-            const bool contain_first_point = expolygons_contain(objects_to_print[intersection_line.object_layer_idx].layer()->lslices(), shifted_first_point);
+            const bool contain_first_point = expolygons_contain(objects_to_print[intersection_line.object_layer_idx].layer()->lslices, shifted_first_point);
 
             first_intersection = {intersection_line.object_layer_idx, intersection_line.instance_idx, contain_first_point};
         }

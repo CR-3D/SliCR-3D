@@ -73,7 +73,7 @@ using distsqrf_t = double;
 // with int64_t we don't have to worry anymore about the size of the int.
 static constexpr double SCALING_FACTOR   = 0.000001;
 static constexpr double UNSCALING_FACTOR = 1000000; // 1 / SCALING_FACTOR; <- linux has some problem compiling this constexpr
-
+static constexpr double LOOP_CLIPPING_LENGTH_OVER_NOZZLE_DIAMETER = 0.15;
 //FIXME This epsilon value is used for many non-related purposes:
 // For a threshold of a squared Euclidean distance,
 // for a trheshold in a difference of radians,

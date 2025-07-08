@@ -1527,8 +1527,8 @@ void Print::_make_skirt_brim() {
                         for (const PrintInstance &pt : object->m_instances) {
                             size_t first_idx = brim_area.size();
                             brim_area.insert(brim_area.end(),
-                                             object->m_layers.front()->lslices().begin(),
-                                             object->m_layers.front()->lslices().end());
+                                             object->m_layers.front()->lslices.begin(),
+                                             object->m_layers.front()->lslices.end());
                             for (size_t i = first_idx; i < brim_area.size(); i++) {
                                 brim_area[i].translate(pt.shift.x(), pt.shift.y());
                             }
@@ -1690,7 +1690,7 @@ void Print::_make_skirt(const PrintObjectPtrs &objects, ExtrusionEntityCollectio
         for (const Layer *layer : object->m_layers) {
             if (layer->print_z > skirt_height_z)
                 break;
-            for (const ExPolygon &expoly : layer->lslices())
+            for (const ExPolygon &expoly : layer->lslices)
                 // Collect the outer contour points only, ignore holes for the calculation of the convex hull.
                 append(object_points, expoly.contour.points);
         }
@@ -1717,7 +1717,7 @@ void Print::_make_skirt(const PrintObjectPtrs &objects, ExtrusionEntityCollectio
                     append(object_points, poly.points);
             }
             // get object
-            for (const ExPolygon& expoly : object->m_layers[0]->lslices())
+            for (const ExPolygon& expoly : object->m_layers[0]->lslices)
                 for (const Polygon& poly : offset(expoly.contour, scale_(object->config().brim_width)))
                     append(object_points, poly.points);
             // get brim patchs
@@ -1886,7 +1886,7 @@ Polygons Print::first_layer_islands() const
     Polygons islands;
     for (PrintObject *object : m_objects) {
         Polygons object_islands;
-        for (const ExPolygon &expoly : object->m_layers.front()->lslices())
+        for (const ExPolygon &expoly : object->m_layers.front()->lslices)
             object_islands.push_back(expoly.contour);
         if (! object->support_layers().empty())
             //was polygons_covered_by_spacing, but is it really important?

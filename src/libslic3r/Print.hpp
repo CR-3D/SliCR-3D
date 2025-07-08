@@ -169,6 +169,7 @@ public:
     float                       width(FlowRole role, bool first_layer, const PrintObject& object) const;
     // Average diameter of nozzles participating on extruding this region.
     coordf_t                    nozzle_dmr_avg(const PrintConfig &print_config) const;
+    coordf_t                    bridging_height_avg(const PrintConfig &print_config) const;
 
     // Collect 0-based extruder indices used to print this region's object.
 	void                        collect_object_printing_extruders(const Print& print, std::set<uint16_t> &object_extruders) const;

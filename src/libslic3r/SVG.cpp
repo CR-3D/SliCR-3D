@@ -9,9 +9,17 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "SVG.hpp"
-#include <iostream>
 
 #include <boost/nowide/cstdio.hpp>
+#include <iostream>
+#include <algorithm>
+#include <cmath>
+
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/Line.hpp"
+#include "libslic3r/Surface.hpp"
+#include "libslic3r/libslic3r.h"
+#include "libslic3r/Utils.hpp"
 
 namespace Slic3r {
 
@@ -29,7 +37,7 @@ bool SVG::open(const char* afilename)
         "      <polyline fill=\"darkblue\" points=\"0,0 10,5 0,10 1,5\" />\n"
         "   </marker>\n"
         );
-    //fprintf(this->f, "<rect fill='white' stroke='none' x='0' y='0' width='%f' height='%f'/>\n", 2000.f, 2000.f);
+    fprintf(this->f, "<rect fill='white' stroke='none' x='0' y='0' width='%f' height='%f'/>\n", 2000.f, 2000.f);
     return true;
 }
 
@@ -52,7 +60,7 @@ bool SVG::open(const char* afilename, const BoundingBox &bbox, const coord_t bbo
         "      <polyline fill=\"darkblue\" points=\"0,0 10,5 0,10 1,5\" />\n"
         "   </marker>\n",
         h, w);
-    //fprintf(this->f, "<rect fill='white' stroke='none' x='0' y='0' width='%f' height='%f'/>\n", w, h);
+    fprintf(this->f, "<rect fill='white' stroke='none' x='0' y='0' width='%f' height='%f'/>\n", w, h);
     return true;
 }
 
@@ -103,6 +111,19 @@ void SVG::draw(const ExPolygon &expolygon, std::string fill, const float fill_op
     this->path(d, true, 0, fill_opacity);
 }
 
+void SVG::draw_original(const ExPolygon &expolygon) {
+    std::ostringstream d;
+    auto write_d = [&d](const Points &pts) {
+        d << "M ";
+        for (const Point& p: pts)
+            d << p.x() << " " << p.y() << " ";
+        d << "z "; // closed path
+    };
+    for (const Polygon &p : to_polygons(expolygon))
+        write_d(p.points);
+    path(d.str(), false /*fill*/, 1 /*stroke_width*/, 0.f /*fill opacity*/);
+}
+
 void SVG::draw_outline(const ExPolygon &expolygon, std::string stroke_outer, std::string stroke_holes, coordf_t stroke_width)
 {
     draw_outline(expolygon.contour, stroke_outer, stroke_width);
@@ -145,34 +166,19 @@ void SVG::draw_outline(const Surfaces &surfaces, std::string stroke_outer, std::
         draw_outline(*it, stroke_outer, stroke_holes, stroke_width);
 }
 
-//void SVG::draw(const SurfacesPtr &surfaces, std::string fill, const float fill_opacity)
-//{
-//    for (SurfacesPtr::const_iterator it = surfaces.begin(); it != surfaces.end(); ++it)
-//        this->draw(*(*it), fill, fill_opacity);
-//}
-//
-//void SVG::draw_outline(const SurfacesPtr &surfaces, std::string stroke_outer, std::string stroke_holes, coordf_t stroke_width)
-//{
-//    for (SurfacesPtr::const_iterator it = surfaces.begin(); it != surfaces.end(); ++it)
-//        draw_outline(*(*it), stroke_outer, stroke_holes, stroke_width);
-//}
-
-void
-SVG::draw(const SurfacesConstPtr& surfaces, std::string fill, const float fill_opacity)
+void SVG::draw(const SurfacesPtr &surfaces, std::string fill, const float fill_opacity)
 {
-    for (SurfacesConstPtr::const_iterator it = surfaces.begin(); it != surfaces.end(); ++it)
+    for (SurfacesPtr::const_iterator it = surfaces.begin(); it != surfaces.end(); ++it)
         this->draw(*(*it), fill, fill_opacity);
 }
 
-void
-SVG::draw_outline(const SurfacesConstPtr& surfaces, std::string stroke_outer, std::string stroke_holes, coordf_t stroke_width)
+void SVG::draw_outline(const SurfacesPtr &surfaces, std::string stroke_outer, std::string stroke_holes, coordf_t stroke_width)
 {
-    for (SurfacesConstPtr::const_iterator it = surfaces.begin(); it != surfaces.end(); ++it)
+    for (SurfacesPtr::const_iterator it = surfaces.begin(); it != surfaces.end(); ++ it)
         draw_outline(*(*it), stroke_outer, stroke_holes, stroke_width);
 }
 
-void
-SVG::draw(const Polygon &polygon, std::string fill)
+void SVG::draw(const Polygon &polygon, std::string fill)
 {
     this->fill = fill;
     this->path(this->get_path_d(polygon, true), !fill.empty(), 0, 1.f);
@@ -200,25 +206,6 @@ void SVG::draw(const ThickLines &thicklines, const std::string &fill, const std:
 {
     for (ThickLines::const_iterator it = thicklines.begin(); it != thicklines.end(); ++it)
         this->draw(*it, fill, stroke, stroke_width);
-}
-
-void SVG::draw(const ThickPolylines& thickpolylines, const std::string& stroke) {
-    this->draw(thickpolylines, 0.1f, stroke);
-}
-
-void SVG::draw(const ThickPolylines& thickpolylines, const float scale, const std::string& stroke)
-{
-    for (const ThickPolyline& poly : thickpolylines) {
-        if (poly.points.size() < 2) continue;
-        Line l{ poly.points.front(), poly.points[1] };
-        this->draw(Line{ poly.points.front(), l.midpoint() }, stroke, poly.points_width.front()  * scale);
-        for (int i = 1; i < poly.points.size()-1; ++i) {
-            Point first_point = l.midpoint();
-            l=Line{ poly.points[i], poly.points[i+1] };
-            this->draw(Line{ first_point, l.midpoint() }, stroke, poly.points_width[i] * scale);
-        }
-        this->draw(Line{ l.midpoint(), poly.points.back() }, stroke, poly.points_width.back() * scale);
-    }
 }
 
 void SVG::draw(const ThickPolylines &polylines, const std::string &stroke, coordf_t stroke_width)
@@ -375,7 +362,7 @@ void SVG::export_expolygons(const char *path, const std::vector<std::pair<Slic3r
     size_t num_columns = 3;
     // Width of the column.
     coord_t step_x = scale_(20.);
-    Point legend_size(coord_t(scale_t(1.) + num_columns * step_x), scale_t(0.4 + 1.3 * (num_legend + num_columns - 1) / num_columns));
+    Point legend_size(scale_(1.) + num_columns * step_x, scale_(0.4 + 1.3 * (num_legend + num_columns - 1) / num_columns));
 
     BoundingBox bbox = get_extents(expolygons_with_attributes.front().first);
     for (size_t i = 0; i < expolygons_with_attributes.size(); ++ i)
@@ -385,11 +372,8 @@ void SVG::export_expolygons(const char *path, const std::vector<std::pair<Slic3r
     bbox.merge(Point(std::max(bbox.min.x() + legend_size.x(), bbox.max.x()), bbox.max.y() + legend_size.y()));
 
     SVG svg(path, bbox);
-    for (const auto &exp_with_attr : expolygons_with_attributes) {
-        if(exp_with_attr.second.fill_opacity > 0) {
-            svg.draw(exp_with_attr.first, exp_with_attr.second.color_fill, exp_with_attr.second.fill_opacity);
-        }
-    }
+    for (const auto &exp_with_attr : expolygons_with_attributes)
+        svg.draw(exp_with_attr.first, exp_with_attr.second.color_fill, exp_with_attr.second.fill_opacity);
     for (const auto &exp_with_attr : expolygons_with_attributes) {
         if (exp_with_attr.second.outline_width > 0) {
             std::string color_contour = exp_with_attr.second.color_contour;

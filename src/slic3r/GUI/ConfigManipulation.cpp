@@ -417,8 +417,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
         for (InfillPattern ip : {config->opt_enum<InfillPattern>("bottom_fill_pattern"),
                                  config->opt_enum<InfillPattern>("solid_fill_pattern"),
                                  config->opt_enum<InfillPattern>("top_fill_pattern")}) {
-            if (ip == InfillPattern::ipConcentricGapFill || ip == InfillPattern::ipRectilinearWGapFill ||
-                ip == InfillPattern::ipMonotonicWGapFill) {
+            if (ip == InfillPattern::ipConcentric || ip == InfillPattern::ipRectilinear ||
+                ip == InfillPattern::ipMonotonic) {
                 have_gap_fill = true;
             }
         }
@@ -478,9 +478,9 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     for (auto el : { "small_perimeter_min_length", "small_perimeter_max_length" })
         toggle_field(el, config->option("small_perimeter_speed")->get_float() > 0);
 
-    bool has_ironing_pattern = config->opt_enum<InfillPattern>("top_fill_pattern") == InfillPattern::ipSmooth
-        || config->opt_enum<InfillPattern>("bottom_fill_pattern") == InfillPattern::ipSmooth
-        || config->opt_enum<InfillPattern>("solid_fill_pattern") == InfillPattern::ipSmooth;
+    bool has_ironing_pattern = config->opt_enum<InfillPattern>("top_fill_pattern") == InfillPattern::ipRectilinear
+        || config->opt_enum<InfillPattern>("bottom_fill_pattern") == InfillPattern::ipRectilinear
+        || config->opt_enum<InfillPattern>("solid_fill_pattern") == InfillPattern::ipRectilinear;
     for (auto el : {"fill_smooth_width, fill_smooth_distribution" })
         toggle_field(el, has_ironing_pattern);
 
@@ -637,11 +637,11 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
 
     for (auto el : { "fill_smooth_width", "fill_smooth_distribution" })
-        toggle_field(el, (has_top_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("top_fill_pattern")->value == InfillPattern::ipSmooth)
-            || (has_bottom_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("bottom_fill_pattern")->value == InfillPattern::ipSmooth)
-            || (has_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("solid_fill_pattern")->value == InfillPattern::ipSmooth)
-            || (have_support_material && config->option<ConfigOptionEnum<InfillPattern>>("support_material_top_interface_pattern")->value == InfillPattern::ipSmooth)
-            || (have_support_material && config->option<ConfigOptionEnum<InfillPattern>>("support_material_bottom_interface_pattern")->value == InfillPattern::ipSmooth));
+        toggle_field(el, (has_top_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("top_fill_pattern")->value == InfillPattern::ipRectilinear)
+            || (has_bottom_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("bottom_fill_pattern")->value == InfillPattern::ipRectilinear)
+            || (has_solid_infill && config->option<ConfigOptionEnum<InfillPattern>>("solid_fill_pattern")->value == InfillPattern::ipRectilinear)
+            || (have_support_material && config->option<ConfigOptionEnum<InfillPattern>>("support_material_top_interface_pattern")->value == InfillPattern::ipRectilinear)
+            || (have_support_material && config->option<ConfigOptionEnum<InfillPattern>>("support_material_bottom_interface_pattern")->value == InfillPattern::ipRectilinear));
 
     //TODO: can the milling_diameter or the milling_cutter be check to enable/disable this?
     for (auto el : { "milling_after_z", "milling_extra_size", "milling_speed" })

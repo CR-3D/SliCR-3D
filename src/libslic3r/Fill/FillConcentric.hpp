@@ -11,43 +11,35 @@
 #ifndef slic3r_FillConcentric_hpp_
 #define slic3r_FillConcentric_hpp_
 
+#include <utility>
+
 #include "FillBase.hpp"
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/Polyline.hpp"
 
 namespace Slic3r {
+class Point;
 
 class FillConcentric : public Fill
 {
 public:
-    FillConcentric() : Fill() { can_fill_surface_single = true; }
     ~FillConcentric() override = default;
+    bool is_self_crossing() override { return false; }
 
 protected:
     Fill* clone() const override { return new FillConcentric(*this); };
-    void init_spacing(coordf_t spacing, const FillParams &params) override;
-    void _fill_surface_single(
-        const FillParams                &params,
-        unsigned int                     thickness_layers,
-        const std::pair<float, Point>   &direction,
-        ExPolygon                        expolygon,
-        Polylines                       &polylines_out) const override;
+	void _fill_surface_single(
+	    const FillParams                &params, 
+	    unsigned int                     thickness_layers,
+	    const std::pair<float, Point>   &direction, 
+	    ExPolygon     		             expolygon,
+	    Polylines                       &polylines_out) override;
 
     void _fill_surface_single(const FillParams              &params,
                               unsigned int                   thickness_layers,
                               const std::pair<float, Point> &direction,
                               ExPolygon                      expolygon,
-                              ThickPolylines                &thick_polylines_out) const override;
-
-    bool no_sort() const override { return true; }
-};
-
-
-class FillConcentricWGapFill : public Fill {
-public:
-    virtual ~FillConcentricWGapFill() {}
-
-protected:
-    Fill* clone() const override { return new FillConcentricWGapFill(*this); };
-    void fill_surface_extrusion(const Surface *surface, const FillParams &params, ExtrusionEntitiesPtr &out) const override;
+                              ThickPolylines                &thick_polylines_out) override;
 
     bool no_sort() const override { return true; }
 };

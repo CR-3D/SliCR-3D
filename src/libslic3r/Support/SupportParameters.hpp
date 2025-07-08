@@ -12,7 +12,7 @@
 namespace Slic3r {
 
 class PrintObject;
-enum InfillPattern : uint8_t;
+enum InfillPattern : int;
 
 namespace FFFSupport {
 

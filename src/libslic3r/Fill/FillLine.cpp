@@ -2,57 +2,49 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
+#include <algorithm>
+#include <cmath>
+#include <cassert>
+#include <cstdlib>
+
 #include "../ClipperUtils.hpp"
 #include "../ExPolygon.hpp"
 #include "../ShortestPath.hpp"
-#include "../Surface.hpp"
-
 #include "FillLine.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/Fill/FillBase.hpp"
+#include "libslic3r/Polygon.hpp"
 
 namespace Slic3r {
-
-void FillLine::init_spacing(coordf_t spacing, const FillParams& params) {
-
-    this->_min_spacing = scale_t(spacing);
-    assert(params.density > 0.0001f && params.density <= 1.f);
-    this->_line_spacing = coord_t(coordf_t(this->_min_spacing) / params.density);
-    this->_diagonal_distance = this->_line_spacing * 2;
-    this->_line_oscillation = this->_line_spacing - this->_min_spacing; // only for Line infill
-
-    // define flow spacing according to requested density
-    if (params.density > 0.9999f && !params.dont_adjust) {
-        this->_line_spacing = this->_adjust_solid_spacing(bounding_box.size()(0), this->_line_spacing);
-        this->spacing_priv = unscale<double>(this->_line_spacing);
-    }
-}
 
 void FillLine::_fill_surface_single(
     const FillParams                &params,
     unsigned int                     thickness_layers,
     const std::pair<float, Point>   &direction,
     ExPolygon                        expolygon,
-    Polylines                       &polylines_out) const
+    Polylines                       &polylines_out)
 {
-    //Quick hack to put it at a sane position.
-    //FIXME for real
-    ExPolygons polys = offset_ex(to_polygons(expolygon), -this->_min_spacing*(1- 0.3/*INFILL_OVERLAP_OVER_SPACING*/));
-    if (polys.size() == 1)
-        expolygon = polys[0];
-
     // rotate polygons so that we can work with vertical lines here
     expolygon.rotate(- direction.first);
 
+    this->_min_spacing = scale_(this->spacing);
+    assert(params.density > 0.0001f && params.density <= 1.f);
+    this->_line_spacing = coord_t(coordf_t(this->_min_spacing) / params.density);
+    this->_diagonal_distance = this->_line_spacing * 2;
+    this->_line_oscillation = this->_line_spacing - this->_min_spacing; // only for Line infill
     BoundingBox bounding_box = expolygon.contour.bounding_box();
-
+    
+    // define flow spacing according to requested density
     if (params.density > 0.9999f && !params.dont_adjust) {
-        //cf init_spacing
+        this->_line_spacing = this->_adjust_solid_spacing(bounding_box.size()(0), this->_line_spacing);
+        this->spacing = unscale<double>(this->_line_spacing);
     } else {
         // extend bounding box so that our pattern will be aligned with other layers
         // Transform the reference point to the rotated coordinate system.
         bounding_box.merge(align_to_grid(
-            bounding_box.min,
-            Point(this->_line_spacing, this->_line_spacing),
-            direction.second.rotated(-direction.first)));
+            bounding_box.min, 
+            Point(this->_line_spacing, this->_line_spacing), 
+            direction.second.rotated(- direction.first)));
     }
 
     // generate the basic pattern
@@ -94,11 +86,11 @@ void FillLine::_fill_surface_single(
     size_t n_polylines_out_old = polylines_out.size();
 
     // connect lines
-    if (! params.dont_connect() && ! polylines.empty()) { // prevent calling leftmost_point() on empty collections
+    if (! polylines.empty()) { // prevent calling leftmost_point() on empty collections
         // offset the expolygon by max(min_spacing/2, extra)
         ExPolygon expolygon_off;
         {
-            ExPolygons expolygons_off = offset_ex(expolygon, coordf_t(this->_min_spacing / 2));
+            ExPolygons expolygons_off = offset_ex(expolygon, this->_min_spacing/2);
             if (! expolygons_off.empty()) {
                 // When expanding a polygon, the number of islands could only shrink. Therefore the offset_ex shall generate exactly one expanded island for one input island.
                 assert(expolygons_off.size() == 1);

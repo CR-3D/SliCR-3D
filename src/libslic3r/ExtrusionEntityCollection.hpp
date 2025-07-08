@@ -219,6 +219,18 @@ public:
     void use(const ExtrusionEntityCollection &coll) override;
 };
 
+
+inline void extrusion_entities_append_paths(ExtrusionEntitiesPtr &dst, Polylines &&polylines, const ExtrusionAttributes &attributes, bool can_reverse = true)
+{
+    dst.reserve(dst.size() + polylines.size());
+    for (Polyline &polyline : polylines)
+        if (polyline.is_valid())
+            dst.emplace_back(
+                new ExtrusionPath(std::move(polyline), attributes));
+    polylines.clear();
+}
+
+
 inline void extrusion_entities_append_paths(ExtrusionEntityCollection &dst, Polylines &polylines, ExtrusionRole role, double mm3_per_mm, float width, float height, bool can_reverse = true)
 {
     //dst.reserve(dst.size() + polylines.size());

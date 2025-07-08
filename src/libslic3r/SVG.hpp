@@ -10,12 +10,24 @@
 #ifndef slic3r_SVG_hpp_
 #define slic3r_SVG_hpp_
 
+#include <stdio.h>
+#include <string>
+#include <utility>
+#include <vector>
+#include <cstdio>
+
 #include "libslic3r.h"
-#include "clipper.hpp"
+#include "libslic3r/clipper.hpp"
 #include "ExPolygon.hpp"
 #include "Line.hpp"
 #include "TriangleMesh.hpp"
 #include "Surface.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/ClipperUtils.hpp"
+#include "libslic3r/MultiPoint.hpp"
+#include "libslic3r/Point.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/Polyline.hpp"
 
 namespace Slic3r {
 
@@ -62,10 +74,8 @@ public:
     void draw_outline(const Surface &surface, std::string stroke_outer = "black", std::string stroke_holes = "blue", coordf_t stroke_width = 0);
     void draw(const Surfaces &surfaces, std::string fill = "grey", const float fill_opacity=1.f);
     void draw_outline(const Surfaces &surfaces, std::string stroke_outer = "black", std::string stroke_holes = "blue", coordf_t stroke_width = 0);
-    //void draw(const SurfacesPtr& surfaces, std::string fill = "grey", const float fill_opacity = 1.f);
-    //void draw_outline(const SurfacesPtr& surfaces, std::string stroke_outer = "black", std::string stroke_holes = "blue", coordf_t stroke_width = 0);
-    void draw(const SurfacesConstPtr& surfaces, std::string fill = "grey", const float fill_opacity = 1.f);
-    void draw_outline(const SurfacesConstPtr& surfaces, std::string stroke_outer = "black", std::string stroke_holes = "blue", coordf_t stroke_width = 0);
+    void draw(const SurfacesPtr &surfaces, std::string fill = "grey", const float fill_opacity=1.f);
+    void draw_outline(const SurfacesPtr &surfaces, std::string stroke_outer = "black", std::string stroke_holes = "blue", coordf_t stroke_width = 0);
  
     void draw(const Polygon &polygon, std::string fill = "grey");
     void draw_outline(const Polygon &polygon, std::string stroke = "black", coordf_t stroke_width = 0);
@@ -74,9 +84,7 @@ public:
     void draw(const Polyline &polyline, std::string stroke = "black", coordf_t stroke_width = 0);
     void draw(const Polylines &polylines, std::string stroke = "black", coordf_t stroke_width = 0);
     void draw(const ThickLines &thicklines, const std::string &fill = "lime", const std::string &stroke = "black", coordf_t stroke_width = 0);
-    void draw(const ThickPolylines& thickpolylines, const std::string& stroke = "black");
-    void draw(const ThickPolylines& thickpolylines, const float scale, const std::string& stroke = "black");
-    void draw(const ThickPolylines &polylines, const std::string &stroke, coordf_t stroke_width);
+    void draw(const ThickPolylines &polylines, const std::string &stroke = "black", coordf_t stroke_width = 0);
     void draw(const ThickPolylines &thickpolylines, const std::string &fill, const std::string &stroke, coordf_t stroke_width);
     void draw(const Point &point, std::string fill = "black", coord_t radius = 0);
     void draw(const Points &points, std::string fill = "black", coord_t radius = 0);
@@ -84,11 +92,12 @@ public:
     // Support for rendering the ClipperLib paths
     void draw(const ClipperLib::Path  &polygon, double scale, std::string fill = "grey", coordf_t stroke_width = 0);
     void draw(const ClipperLib::Paths &polygons, double scale, std::string fill = "grey", coordf_t stroke_width = 0);
-    
+
     void draw_text(const Point &pt, const char *text, const char *color, coordf_t font_size = 20.f);
     void draw_legend(const Point &pt, const char *text, const char *color, coordf_t font_size = 10.f);
-    void draw_text(const Point &pt, const char *text, const std::string &color, coordf_t font_size = 20.f) {draw_text(pt, text, color.c_str(), font_size);}
-    void draw_legend(const Point &pt, const char *text, const std::string &color, coordf_t font_size = 10.f) {draw_legend(pt, text, color.c_str(), font_size);}
+
+    // Draw no scaled expolygon coordinates
+    void draw_original(const ExPolygon &exPoly);
 
     void Close();
     
@@ -114,12 +123,6 @@ public:
         ExPolygonAttributes() : ExPolygonAttributes("gray", "black", "blue") {}
         ExPolygonAttributes(const std::string &color) :
             ExPolygonAttributes(color, color, color) {}
-        ExPolygonAttributes(
-            const std::string &color,
-            const coord_t width,
-            float opacity = 0.5f) :
-            ExPolygonAttributes(color, color, color, width, opacity)
-            {}
 
         ExPolygonAttributes(
             const std::string &color_fill,

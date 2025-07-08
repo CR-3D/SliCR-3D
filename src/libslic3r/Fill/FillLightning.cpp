@@ -2,37 +2,55 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#include "../Print.hpp"
-#include "../ShortestPath.hpp"
+#ifndef slic3r_FillLightning_hpp_
+#define slic3r_FillLightning_hpp_
 
-#include "FillLightning.hpp"
-#include "Lightning/Generator.hpp"
+#include <functional>
+#include <memory>
+#include <utility>
 
-namespace Slic3r::FillLightning {
+#include "FillBase.hpp"
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/Polyline.hpp"
+#include "libslic3r/libslic3r.h"
 
-void Filler::_fill_surface_single(
-    const FillParams              &params,
-    unsigned int                   thickness_layers,
-    const std::pair<float, Point> &direction,
-    ExPolygon                      expolygon,
-    Polylines                     &polylines_out) const
+namespace Slic3r {
+
+class PrintObject;
+class Point;
+
+namespace FillLightning {
+
+class Generator;
+
+// To keep the definition of Octree opaque, we have to define a custom deleter.
+struct GeneratorDeleter { void operator()(Generator *p); };
+using  GeneratorPtr = std::unique_ptr<Generator, GeneratorDeleter>;
+
+GeneratorPtr build_generator(const PrintObject &print_object, const coordf_t fill_density, const std::function<void()> &throw_on_cancel_callback);
+
+class Filler : public Slic3r::Fill
 {
-    const Layer &layer = generator->getTreesForLayer(this->layer_id);
-    Polylines    fill_lines = layer.convertToLines(to_polygons(expolygon), scaled<coord_t>(0.5 * this->get_spacing() - this->overlap));
+public:
+    ~Filler() override = default;
+    bool is_self_crossing() override { return false; }
 
-    if (params.dont_connect() || fill_lines.size() <= 1) {
-        append(polylines_out, chain_polylines(std::move(fill_lines)));
-    } else
-        connect_infill(std::move(fill_lines), expolygon, polylines_out, scale_t(this->get_spacing()), params);
-}
+    Generator   *generator { nullptr };
 
-void GeneratorDeleter::operator()(Generator *p) {
-    delete p;
-}
+protected:
+    Fill* clone() const override { return new Filler(*this); }
 
-GeneratorPtr build_generator(const PrintObject &print_object, const coordf_t fill_density, const std::function<void()> &throw_on_cancel_callback)
-{
-    return GeneratorPtr(new Generator(print_object, fill_density, throw_on_cancel_callback));
-}
+    void _fill_surface_single(const FillParams              &params,
+                              unsigned int                   thickness_layers,
+                              const std::pair<float, Point> &direction,
+                              ExPolygon                      expolygon,
+                              Polylines &polylines_out) override;
 
-} // namespace Slic3r::FillAdaptive
+    // Let the G-code export reoder the infill lines.
+	bool no_sort() const override { return false; }
+};
+
+} // namespace FillAdaptive
+} // namespace Slic3r
+
+#endif // slic3r_FillLightning_hpp_

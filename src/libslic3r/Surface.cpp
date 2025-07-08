@@ -11,62 +11,10 @@
 #include "BoundingBox.hpp"
 #include "Surface.hpp"
 #include "SVG.hpp"
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/libslic3r.h"
 
 namespace Slic3r {
-
-bool Surface::has(SurfaceType type) const {
-    return (this->surface_type & type) == type;
-}
-
-bool
-Surface::has_fill_void() const {
-    return has(stDensVoid);
-}
-
-bool
-Surface::has_fill_sparse() const {
-    return has(stDensSparse);
-}
-
-bool
-Surface::has_fill_solid() const {
-    return has(stDensSolid);
-}
-
-bool
-Surface::has_pos_external() const
-{
-    return has_pos_top() || has_pos_bottom();
-}
-
-bool
-Surface::has_pos_top() const
-{
-    return has(stPosTop);
-}
-
-bool
-Surface::has_pos_internal() const
-{
-    return has(stPosInternal);
-}
-
-bool
-Surface::has_pos_bottom() const
-{
-    return has(stPosBottom);
-}
-
-bool
-Surface::has_mod_bridge() const
-{
-    return has(stModBridge);
-}
-bool
-Surface::has_mod_overBridge() const
-{
-    return has(stModOverBridge);
-}
 
 BoundingBox get_extents(const Surface &surface)
 {
@@ -84,7 +32,7 @@ BoundingBox get_extents(const Surfaces &surfaces)
     return bbox;
 }
 
-BoundingBox get_extents(const SurfacesConstPtr &surfaces)
+BoundingBox get_extents(const SurfacesPtr &surfaces)
 {
     BoundingBox bbox;
     if (! surfaces.empty()) {
@@ -95,40 +43,20 @@ BoundingBox get_extents(const SurfacesConstPtr &surfaces)
     return bbox;
 }
 
-void ensure_valid(Surfaces &surfaces, coord_t resolution /*= SCALED_EPSILON*/)
+const char* surface_type_to_color_name(const SurfaceType surface_type)
 {
-    for (size_t i = 0; i < surfaces.size(); ++i) {
-        ExPolygons to_simplify = {surfaces[i].expolygon};
-        ensure_valid(to_simplify, resolution);
-        if (to_simplify.empty()) {
-            surfaces.erase(surfaces.begin() + i);
-            --i;
-        } else if (to_simplify.size() == 1) {
-            surfaces[i].expolygon = to_simplify.front();
-        } else {
-            surfaces[i].expolygon = to_simplify.front();
-            for (size_t idx = 1; idx < to_simplify.size(); idx++) {
-                surfaces.insert(surfaces.begin() + i + idx,
-                                Surface{surfaces[i], to_simplify[idx]});
-                i++;
-            }
-        }
-    }
-}
-
-const std::string surface_type_to_color_name(const SurfaceType surface_type, float saturation)
-{
-    if ((surface_type & stPosTop) != 0) return (std::string("rgb(")+std::to_string(int(saturation*255))+",0,0)"); // "red";
-    if (surface_type == (stPosBottom | stDensSolid | stModBridge)) return (std::string("rgb(0,0,")+std::to_string(int(saturation*255))+")"); // "blue";
-    if ((surface_type & stPosBottom) != 0) return (std::string("rgb(0,")+std::to_string(int(saturation*255))+",0)"); // "green";
-    if (surface_type == (stPosInternal | stDensSparse | stModBridge)) return (std::string("rgb(")+std::to_string(int(saturation*64))+","+std::to_string(int(saturation*128))+","+std::to_string(int(saturation*255))+")"); // light blue
-    if (surface_type == (stPosInternal | stDensSolid | stModBridge)) return (std::string("rgb(0,")+std::to_string(int(saturation*255))+","+std::to_string(int(saturation*255))+")"); // cyan
-    if (surface_type == (stPosInternal | stDensSolid | stModOverBridge)) return (std::string("rgb(0,")+std::to_string(int(saturation*255))+",128)"); // green-cyan
-    if (surface_type == (stPosInternal | stDensSolid)) return (std::string("rgb(")+std::to_string(int(saturation*255))+",0,"+std::to_string(int(saturation*255))+")"); // magenta
-    if (surface_type == (stPosInternal | stDensVoid)) return (std::string("rgb(")+std::to_string(int(saturation*128))+","+std::to_string(int(saturation*128))+","+std::to_string(int(saturation*128))+")"); // gray
-    if ((surface_type & (stPosInternal | stDensSparse)) == (stPosInternal | stDensSparse)) return (std::string("rgb(")+std::to_string(int(saturation*255))+","+std::to_string(int(saturation*255))+",128)"); // yellow 
-    if ((surface_type & stPosPerimeter) != 0) return (std::string("rgb(")+std::to_string(int(saturation*128))+",0,0)"); // maroon
-    return "rgb(64,64,64)"; //dark gray
+    switch (surface_type) {
+        case stTop:             return "rgb(255,0,0)"; // "red";
+        case stBottom:          return "rgb(0,255,0)"; // "green";
+        case stBottomBridge:    return "rgb(0,0,255)"; // "blue";
+        case stInternal:        return "rgb(255,255,128)"; // yellow 
+        case stInternalSolid:   return "rgb(255,0,255)"; // magenta
+        case stInternalBridge:  return "rgb(0,255,255)";
+        case stInternalVoid:    return "rgb(128,128,128)";
+        case stSolidOverBridge: return "rgb(255,128,0)"; // orange
+        case stPerimeter:       return "rgb(128,0,0)"; // maroon
+        default:                return "rgb(64,64,64)";
+    };
 }
 
 Point export_surface_type_legend_to_svg_box_size()
@@ -143,29 +71,27 @@ void export_surface_type_legend_to_svg(SVG &svg, const Point &pos)
     coord_t pos_x = pos_x0;
     coord_t pos_y = pos(1) + scale_(1.5);
     coord_t step_x = scale_(10.);
-    svg.draw_legend(Point(pos_x, pos_y), "perimeter"      , surface_type_to_color_name(stPosPerimeter));
+    svg.draw_legend(Point(pos_x, pos_y), "perimeter"      , surface_type_to_color_name(stPerimeter));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "top"            , surface_type_to_color_name(stPosTop));
+    svg.draw_legend(Point(pos_x, pos_y), "top"            , surface_type_to_color_name(stTop));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "bottom"         , surface_type_to_color_name(stPosBottom));
+    svg.draw_legend(Point(pos_x, pos_y), "bottom"         , surface_type_to_color_name(stBottom));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "bottom bridge"  , surface_type_to_color_name(stPosBottom | stModBridge));
+    svg.draw_legend(Point(pos_x, pos_y), "bottom bridge"  , surface_type_to_color_name(stBottomBridge));
     pos_x += step_x;
     svg.draw_legend(Point(pos_x, pos_y), "invalid"        , surface_type_to_color_name(SurfaceType(-1)));
     // 2nd row
     pos_x = pos_x0;
     pos_y = pos(1)+scale_(2.8);
-    svg.draw_legend(Point(pos_x, pos_y), "internal"       , surface_type_to_color_name(stPosInternal | stDensSparse));
+    svg.draw_legend(Point(pos_x, pos_y), "internal"       , surface_type_to_color_name(stInternal));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "dense bridge", surface_type_to_color_name(stPosInternal | stDensSparse | stModBridge));
+    svg.draw_legend(Point(pos_x, pos_y), "internal solid" , surface_type_to_color_name(stInternalSolid));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "internal solid" , surface_type_to_color_name(stPosInternal | stDensSolid));
+    svg.draw_legend(Point(pos_x, pos_y), "internal bridge", surface_type_to_color_name(stInternalBridge));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "internal bridge", surface_type_to_color_name(stPosInternal | stDensSolid | stModBridge));
+    svg.draw_legend(Point(pos_x, pos_y), "internal void"  , surface_type_to_color_name(stInternalVoid));
     pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "internal over bridge", surface_type_to_color_name(stPosInternal| stDensSolid | stModOverBridge));
-    pos_x += step_x;
-    svg.draw_legend(Point(pos_x, pos_y), "internal void"  , surface_type_to_color_name(stPosInternal | stDensVoid));
+    svg.draw_legend(Point(pos_x, pos_y), "over bridge"    , surface_type_to_color_name(stSolidOverBridge));
 }
 
 bool export_to_svg(const char *path, const Surfaces &surfaces, const float transparency)
@@ -179,55 +105,6 @@ bool export_to_svg(const char *path, const Surfaces &surfaces, const float trans
         svg.draw(surface->expolygon, surface_type_to_color_name(surface->surface_type), transparency);
     svg.Close();
     return true;
-}
-
-
-std::string surfaceType_to_string(SurfaceType st)
-{
-    std::string str;
-    if ((st & stPosTop) != 0)
-        str += "posTop";
-    if ((st & stPosBottom) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "posBottom";
-    }
-    if ((st & stPosInternal) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "posInternal";
-    }
-    if ((st & stPosPerimeter) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "posPerimeter";
-    }
-    if ((st & stDensSolid) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "densSolid";
-    }
-    if ((st & stDensSparse) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "densSparse";
-    }
-    if ((st & stDensVoid) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "densVoid";
-    }
-    if ((st & stModBridge) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "modBridge";
-    }
-    if ((st & stModOverBridge) != 0) {
-        if (!str.empty())
-            str += "||";
-        str += "modOverBridge";
-    }
-    return str.empty() ? "none" : str;
 }
 
 }

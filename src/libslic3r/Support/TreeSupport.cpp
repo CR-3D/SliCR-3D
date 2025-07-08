@@ -270,8 +270,7 @@ ExPolygons to_expolys(Polygons polys) {
                     lower_layer_offset = scaled<float>(lower_layer.height / tan_threshold);
                 }
                 overhangs = lower_layer_offset == 0 ?
-                    diff_ex(current_layer.lslices(), lower_layer.lslices()) :
-                    diff_ex(current_layer.lslices(), offset_ex(lower_layer.lslices(), lower_layer_offset));
+                    diff_ex(current_layer.lslices, lower_layer.lslices) : diff_ex(current_layer.lslices, offset_ex(lower_layer.lslices, lower_layer_offset));
                 if (lower_layer_offset == 0) {
                     raw_overhangs = overhangs;
                     raw_overhangs_calculated = true;
@@ -284,7 +283,7 @@ ExPolygons to_expolys(Polygons polys) {
                         append(block, union_ex(blockers_custom_facets[layer_id]));
                     SVG::export_expolygons(debug_out_path("%d-overhangs_areas.svg", layer_id),
                                            {
-                                               {current_layer.lslices(), {"gray", scale_t(0.015)}},
+                                               {current_layer.lslices, {"gray", scale_t(0.015)}},
                                                {(overhangs), {"yellow", scale_t(0.011)}},
                                                {(block), {"red", scale_t(0.009)}},
                                                {diff_ex(overhangs, block), {"blue", scale_t(0.006)}},
@@ -315,7 +314,7 @@ ExPolygons to_expolys(Polygons polys) {
             if (!overhangs.empty()) {
                 SVG::export_expolygons(debug_out_path("%d-overhangs_without_bridges_areas.svg", layer_id),
                                        {
-                                           {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                                           {current_layer.lslices, {"gray", scale_t(0.05)}},
                                            {union_ex(overhangs), {"yellow", scale_t(0.045)}},
                                        });
             }
@@ -329,11 +328,11 @@ ExPolygons to_expolys(Polygons polys) {
                 // Has some support enforcers at this layer, apply them to the overhangs, don't apply the support threshold angle.
                 //enforcers_layers[layer_id] = union_(enforcers_layers[layer_id]);
                 //check_self_intersections(enforcers_layers[layer_id], "generate_overhangs - enforcers");
-                //check_self_intersections(to_polygons(lower_layer.lslices()), "generate_overhangs - lowerlayers");
+                //check_self_intersections(to_polygons(lower_layer.lslices), "generate_overhangs - lowerlayers");
                 if (ExPolygons enforced_overhangs =
                         intersection_ex(raw_overhangs_calculated ?
                                             raw_overhangs :
-                                            diff_ex(current_layer.lslices(), lower_layer.lslices()),
+                                            diff_ex(current_layer.lslices, lower_layer.lslices),
                                         enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
                 ! enforced_overhangs.empty()) {
                     //FIXME this is a hack to make enforcers work on steep overhangs.
@@ -343,10 +342,10 @@ ExPolygons to_expolys(Polygons polys) {
                     //check_self_intersections(offset(union_ex(enforced_overhangs),
                     //FIXME enforcer_overhang_offset is a fudge constant!
                     //enforced_overhangs = diff_ex(offset_ex(enforced_overhangs, enforcer_overhang_offset),
-                    //    lower_layer.lslices());
+                    //    lower_layer.lslices);
                     ExPolygons to_union_enforced_overhangs = enforced_overhangs;
                     for (ExPolygon enforced_overhang : enforced_overhangs) {
-                        ExPolygons grown_enforced_overhangs = diff_ex(offset_ex(enforced_overhang, enforcer_overhang_offset), lower_layer.lslices());
+                        ExPolygons grown_enforced_overhangs = diff_ex(offset_ex(enforced_overhang, enforcer_overhang_offset), lower_layer.lslices);
                         // one fix: remove thin areas that where created from jumps into other islands.
                         append(to_union_enforced_overhangs, offset2_ex(grown_enforced_overhangs, -enforcer_overhang_offset/2, enforcer_overhang_offset/2));
                     }
@@ -356,14 +355,14 @@ ExPolygons to_expolys(Polygons polys) {
                     {
                         static int irun = 0;
                         SVG::export_expolygons(debug_out_path("treesupport-self-intersections-%d.svg", ++irun),
-                            { { { current_layer.lslices() },      { "current_layer.lslices", "yellow", 0.5f } },
-                              { { lower_layer.lslices() },        { "lower_layer.lslices", "gray", 0.5f } },
+                            { { { current_layer.lslices },      { "current_layer.lslices", "yellow", 0.5f } },
+                              { { lower_layer.lslices },        { "lower_layer.lslices", "gray", 0.5f } },
                               { { union_ex(enforced_overhangs) }, { "enforced_overhangs", "red",  "black", "", scaled<coord_t>(0.1f), 0.5f } } });
                     }
                     SVG::export_expolygons(
                         debug_out_path("%d-forced-overhangs.svg", current_layer.id()),
                         {
-                            {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                            {current_layer.lslices, {"gray", scale_t(0.05)}},
                             {(overhangs), {"yellow", scale_t(0.045)}},
                             {(enforced_overhangs), {"blue", scale_t(0.035)}},
                             {(overhangs.empty() ? std::move(enforced_overhangs) : union_ex(overhangs, enforced_overhangs)), {"green", scale_t(0.025)}},
@@ -380,7 +379,7 @@ ExPolygons to_expolys(Polygons polys) {
             if (!overhangs.empty()) {
                 SVG::export_expolygons(debug_out_path("%d-overhangs_register.svg", layer_id),
                                        {
-                                           {current_layer.lslices(), {"gray", scale_t(0.05)}},
+                                           {current_layer.lslices, {"gray", scale_t(0.05)}},
                                            {(overhangs), /*ExPolygonAttributes*/ {"red", scale_t(0.045)}},
                                        });
             }
@@ -397,11 +396,11 @@ ExPolygons to_expolys(Polygons polys) {
         Polygons       overhangs = 
             // Don't apply blockes on raft layer.
             //(! blockers_layers.empty() && ! blockers_layers[layer_id].empty() ? 
-            //    diff(first_layer.lslices(), blockers_layers[layer_id], ApplySafetyOffset::Yes) :
-                to_polygons(first_layer.lslices());
+            //    diff(first_layer.lslices, blockers_layers[layer_id], ApplySafetyOffset::Yes) :
+                to_polygons(first_layer.lslices);
 #if 0
         if (! enforcers_layers.empty() && ! enforcers_layers[layer_id].empty()) {
-            if (Polygons enforced_overhangs = intersection(first_layer.lslices(), enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
+            if (Polygons enforced_overhangs = intersection(first_layer.lslices, enforcers_layers[layer_id] /*, ApplySafetyOffset::Yes */);
                 ! enforced_overhangs.empty()) {
                 //FIXME this is a hack to make enforcers work on steep overhangs.
                 //FIXME enforcer_overhang_offset is a fudge constant!
@@ -419,7 +418,7 @@ ExPolygons to_expolys(Polygons polys) {
         ExPolygons &overhang = out[lidx];
         if(overhang.empty()) continue;
         assert( lidx < print_object.layers().size());
-        ExPolygons slice = print_object.layers()[lidx]->lslices();
+        ExPolygons slice = print_object.layers()[lidx]->lslices;
         SVG::export_expolygons(
             debug_out_path("%d-overhangs_areas_final.svg", lidx),
             {
@@ -802,9 +801,9 @@ static std::optional<std::pair<Point, size_t>> polyline_sample_next_point_at_dis
 
     fill_params.density     = float(roof ? support_params.interface_density : scaled<float>(flow.spacing()) / (scaled<float>(flow.spacing()) + float(support_infill_distance)));
     fill_params.dont_adjust = true;
-    fill_params.config = &support_params.default_region_config;
+  //  fill_params.config = &support_params.default_region_config;
     
-    filler->init_spacing(flow.spacing(), fill_params);
+    //filler->init_spacing(flow.spacing(), fill_params);
 
     Polylines out;
     for (ExPolygon &expoly : ensure_valid(union_ex(polygon)/*, support_params.resolution*/)) {
@@ -816,7 +815,7 @@ static std::optional<std::pair<Point, size_t>> polyline_sample_next_point_at_dis
 #endif // TREE_SUPPORT_SHOW_ERRORS_WIN32
         assert(intersecting_edges(to_polygons(expoly)).empty());
         check_self_intersections(expoly, "generate_support_infill_lines");
-        Surface surface(stPosInternal | stDensSparse, std::move(expoly));
+        Surface surface(stInternal, std::move(expoly));
         try {
             Polylines pl = filler->fill_surface(&surface, fill_params);
             assert(pl.empty() || get_extents(surface.expolygon).inflated(SCALED_EPSILON).contains(get_extents(pl)));
@@ -1112,7 +1111,7 @@ int generate_raft_contact(
         while (raft_contact_layer_idx > 0 && config.raft_layers[raft_contact_layer_idx] > print_object.slicing_parameters().raft_contact_top_z + EPSILON)
             -- raft_contact_layer_idx;
         // Create the raft contact layer.
-        const ExPolygons &lslices   = print_object.get_layer(0)->lslices();
+        const ExPolygons &lslices   = print_object.get_layer(0)->lslices;
         double            expansion = print_object.config().raft_expansion.value;
         interface_placer.add_roof_unguarded(expansion > 0 ? expand(lslices, scaled<float>(expansion)) : to_polygons(lslices), raft_contact_layer_idx, 0);
     }

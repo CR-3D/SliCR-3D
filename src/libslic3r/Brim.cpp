@@ -1019,7 +1019,7 @@ void make_brim(const Print& print, const Flow& flow, const PrintObjectPtrs& obje
     ExPolygons    islands;
     for (PrintObject* object : objects) {
         ExPolygons object_islands;
-        for (const ExPolygon &expoly : object->layers().front()->lslices()) {
+        for (const ExPolygon &expoly : object->layers().front()->lslices) {
             if (brim_config.brim_inside_holes && brim_config.brim_width_interior == 0) {
                 if (brim_offset == 0) {
                     object_islands.push_back(expoly);
@@ -1193,7 +1193,7 @@ void make_brim_ears(const Print& print, const Flow& flow, const PrintObjectPtrs&
     for (PrintObject* object : objects) {
         ExPolygons object_islands;
         ExPolygons support_island;
-        for (const ExPolygon& expoly : object->layers().front()->lslices()) {
+        for (const ExPolygon& expoly : object->layers().front()->lslices) {
             if (brim_config.brim_inside_holes && brim_config.brim_width_interior == 0) {
                 if (brim_offset == 0) {
                     object_islands.push_back(expoly);
@@ -1357,19 +1357,16 @@ void make_brim_ears(const Print& print, const Flow& flow, const PrintObjectPtrs&
 
         ExPolygons new_brim_area = intersection_ex(brimmable_areas, mouse_ears_ex);
 
-        std::unique_ptr<Fill> filler = std::unique_ptr<Fill>(Fill::new_from_type(ipRectiWithPerimeter));
+       std::unique_ptr<Fill> filler = std::unique_ptr<Fill>(Fill::new_from_type(ipRectilinear));
         filler->angle = 0;
 
         FillParams fill_params;
         fill_params.density = 1.f;
-        fill_params.fill_exactly = true;
-        fill_params.flow = flow;
-        fill_params.role = ExtrusionRole::Skirt;
-        filler->init_spacing(flow.spacing(), fill_params);
-        for (const ExPolygon& expoly : new_brim_area) {
-            Surface surface(stPosInternal | stDensSparse, expoly);
-            filler->fill_surface_extrusion(&surface, fill_params, out.set_entities());
-        }
+      //  fill_params.fill_exactly = true;
+  //      fill_params.density = flow;
+     //   fill_params.role = ExtrusionRole::Skirt;
+        //filler->init_spacing(flow.spacing(), fill_params);
+
 
         unbrimmable.insert(unbrimmable.end(), new_brim_area.begin(), new_brim_area.end());
     }
@@ -1424,7 +1421,7 @@ void make_brim_interior(const Print& print, const Flow& flow, const PrintObjectP
     coordf_t spacing;
     for (PrintObject* object : objects) {
         ExPolygons object_islands;
-        for (const ExPolygon& expoly : object->layers().front()->lslices()){
+        for (const ExPolygon& expoly : object->layers().front()->lslices){
             if (brim_offset == 0) {
                 object_islands.push_back(expoly);
             } else {

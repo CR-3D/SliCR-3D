@@ -1564,9 +1564,9 @@ WipeTower::ToolChangeResult WipeTower::finish_layer()
                 filler->angle = Geometry::deg2rad(45.f);
                 FillParams params;
                 params.density = 1.f;
-                Surface surface(stPosBottom | stDensSolid, bottom_expoly);
+                Surface surface(stBottom, bottom_expoly);
                 filler->bounding_box = get_extents(bottom_expoly);
-                filler->init_spacing(spacing, params);
+                //filler->init_spacing(spacing, params);
                 polylines = filler->fill_surface(&surface, params);
                 if (! polylines.empty()) {
                     if (polylines.front().points.front().x() > polylines.back().points.back().x()) {

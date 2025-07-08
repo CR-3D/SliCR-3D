@@ -16,7 +16,7 @@ public:
         anglePass[0] = 0;
         anglePass[1] = float(M_PI/2);
         anglePass[2] = 0;
-        fillPattern[0] = InfillPattern::ipMonotonicWGapFill;//ipRectilinearWGapFill;
+       // fillPattern[0] = InfillPattern::ipMonotonicWGapFill;//ipRectilinearWGapFill;
         fillPattern[1] = InfillPattern::ipRectilinear;
         fillPattern[2] = InfillPattern::ipRectilinear;
         rolePass[0] = ExtrusionRole::None;// ExtrusionRole::TopSolidInfill;

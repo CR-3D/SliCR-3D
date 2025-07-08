@@ -249,6 +249,7 @@ set(SLIC3R_SOURCES
     Layer.cpp
     Layer.hpp
     LayerRegion.cpp
+    LayerRegion.hpp
     libslic3r.h
     "${CMAKE_CURRENT_BINARY_DIR}/libslic3r_version.h"
     Line.cpp

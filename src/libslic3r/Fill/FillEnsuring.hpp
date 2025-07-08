@@ -7,26 +7,26 @@
 
 #include "FillBase.hpp"
 #include "FillRectilinear.hpp"
+#include "libslic3r/Polyline.hpp"
 
 namespace Slic3r {
+class PrintRegionConfig;
+class Surface;
+
+ThickPolylines make_fill_polylines(
+    const Fill *fill, const Surface *surface, const FillParams &params, bool stop_vibrations, bool fill_gaps, bool connect_extrusions);
 
 class FillEnsuring : public Fill
 {
-protected:
-    ThickPolylines make_fill_polylines(const Surface *surface, const FillParams &params, bool stop_vibrations, bool fill_gaps, bool connect_extrusions) const;
-
 public:
     Fill *clone() const override { return new FillEnsuring(*this); }
     ~FillEnsuring() override = default;
-    Polylines fill_surface(const Surface *surface, const FillParams &params) const override
+    Polylines      fill_surface(const Surface *surface, const FillParams &params) override { return {}; };
+    ThickPolylines fill_surface_arachne(const Surface *surface, const FillParams &params) override
     {
-        throw new Slic3r::RuntimeError("error, trying to fillsurface a FillEnsuring");
-        return {};
+        return make_fill_polylines(this, surface, params, true, true, true);
     };
-    ThickPolylines fill_surface_arachne(const Surface *surface, const FillParams &params) const override
-    {
-        return this->make_fill_polylines(surface, params, true, true, true);
-    };
+    bool is_self_crossing() override { return false; }
 
 protected:
     void fill_surface_single_arachne(const Surface &surface, const FillParams &params, ThickPolylines &thick_polylines_out);

@@ -3,42 +3,43 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
+#include <boost/log/trivial.hpp>
+#include <algorithm>
+#include <string>
+#include <map>
+#include <array>
+#include <cmath>
+#include <initializer_list>
+#include <iterator>
+#include <utility>
+#include <vector>
+#include <cstddef>
+
 #include "ExPolygon.hpp"
 #include "Flow.hpp"
 #include "Layer.hpp"
 #include "BridgeDetector.hpp"
 #include "ClipperUtils.hpp"
 #include "Geometry.hpp"
-#include "Milling/MillingPostProcess.hpp"
 #include "PerimeterGenerator.hpp"
 #include "Print.hpp"
 #include "Surface.hpp"
 #include "BoundingBox.hpp"
 #include "SVG.hpp"
 #include "Algorithm/RegionExpansion.hpp"
-
-#include <algorithm>
-#include <string>
-#include <map>
-
-#include <boost/log/trivial.hpp>
+#include "libslic3r/ExtrusionEntity.hpp"
+#include "libslic3r/Line.hpp"
+#include "libslic3r/MultiMaterialSegmentation.hpp"
+#include "libslic3r/Point.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/Polyline.hpp"
+#include "libslic3r/PrintConfig.hpp"
+#include "libslic3r/SurfaceCollection.hpp"
+#include "libslic3r/Utils.hpp"
+#include "libslic3r/libslic3r.h"
+#include "LayerRegion.hpp"
 
 namespace Slic3r {
-
-void LayerRegion::clear() {
-    this->m_perimeters.clear();
-    this->m_millings.clear();
-    this->m_unsupported_bridge_edges.clear();
-    this->m_fill_surfaces.clear();
-    this->m_fills.clear();
-    this->m_ironings.clear();
-    this->m_thin_fills.clear();
-    this->m_fill_expolygons.clear();
-    this->m_fill_expolygons_bboxes.clear();
-    this->m_fill_expolygons_composite.clear();
-    this->m_fill_expolygons_composite_bboxes.clear();
-    this->m_fill_no_overlap_expolygons.clear();
-}
 
 Flow LayerRegion::flow(FlowRole role) const
 {
@@ -47,67 +48,37 @@ Flow LayerRegion::flow(FlowRole role) const
 
 Flow LayerRegion::flow(FlowRole role, double layer_height) const
 {
-    return m_region->flow(*m_layer->object(), role, layer_height, m_layer->id());
+    return m_region->flow(*m_layer->object(), role, layer_height, m_layer->id() == 0);
 }
 
-// Average diameter of nozzles participating on extruding this region.
-coordf_t LayerRegion::bridging_height_avg() const
-{
-    const PrintRegionConfig& region_config = this->region().config();
-    if (region_config.bridge_type == BridgeType::btFromNozzle) {
-        const PrintConfig& print_config = this->layer()->object()->print()->config();
-        return region().nozzle_dmr_avg(print_config) * sqrt(region_config.bridge_flow_ratio.get_abs_value(1));
-    } else if (region_config.bridge_type == BridgeType::btFromHeight) {
-        return this->layer()->height;
-    } else if (region_config.bridge_type == BridgeType::btFromFlow) {
-        return this->bridging_flow(FlowRole::frInfill).height();
-    }
-    throw Slic3r::InvalidArgument("Unknown BridgeType");
-}
-
-Flow LayerRegion::bridging_flow(FlowRole role, BridgeType force_type) const
+Flow LayerRegion::bridging_flow(FlowRole role, bool force_thick_bridges) const
 {
     const PrintRegion       &region         = this->region();
     const PrintRegionConfig &region_config  = region.config();
     const PrintObject       &print_object   = *this->layer()->object();
+    if (print_object.config().thick_bridges || force_thick_bridges) {
         // The old Slic3r way (different from all other slicers): Use rounded extrusions.
         // Get the configured nozzle_diameter for the extruder associated to the flow role requested.
         // Here this->extruder(role) - 1 may underflow to MAX_INT, but then the get_at() will follback to zero'th element, so everything is all right.
-    float nozzle_diameter = float(print_object.print()->config().nozzle_diameter.get_at(region.extruder(role, *this->layer()->object()) - 1));
-    BridgeType bridge_type = force_type == BridgeType::btNone ? region_config.bridge_type : force_type;
-
-    float bridge_width;
-    float bridge_height;
-
-    if (bridge_type == BridgeType::btFromFlow) {
-        Flow reference_flow = flow(role);
-        float diameter = sqrt(4 * reference_flow.mm3_per_mm() / PI);
-        bridge_width = diameter;
-        bridge_height = diameter;
+        auto nozzle_diameter = float(print_object.print()->config().nozzle_diameter.get_at(region.extruder(role) - 1));
+        // Applies default bridge spacing.
+        return Flow::bridging_flow(float(sqrt(region_config.bridge_flow_ratio)) * nozzle_diameter, nozzle_diameter);
+    } else {
+        // The same way as other slicers: Use normal extrusions. Apply bridge_flow_ratio while maintaining the original spacing.
+        return this->flow(role).with_flow_ratio(region_config.bridge_flow_ratio);
     }
-    else if (bridge_type == BridgeType::btFromHeight) {
-        bridge_height = m_layer->height;
-        bridge_width = float(sqrt(region_config.bridge_flow_ratio.get_abs_value(1.)) * nozzle_diameter);
-    }
-    else {
-        bridge_height = nozzle_diameter;
-        bridge_width  = float(sqrt(region_config.bridge_flow_ratio.get_abs_value(1.)) * nozzle_diameter);
-    }
-
-    return Flow::bridging_flow( bridge_width, bridge_height, nozzle_diameter);
-    
 }
 
-// Fill in layerm->m_fill_surfaces by trimming the layerm->slices by layerm->fill_expolygons.
+// Fill in layerm->fill_surfaces by trimming the layerm->slices by layerm->fill_expolygons.
 void LayerRegion::slices_to_fill_surfaces_clipped()
 {
     // Collect polygons per surface type.
-   std::array<std::vector<const Surface*>, size_t(stCount)> by_surface;
+    std::array<std::vector<const Surface*>, size_t(stCount)> by_surface;
     for (const Surface &surface : this->slices())
         by_surface[size_t(surface.surface_type)].emplace_back(&surface);
     // Trim surfaces by the fill_boundaries.
     m_fill_surfaces.surfaces.clear();
-   for (size_t surface_type = 0; surface_type < size_t(posCount); ++ surface_type) {
+    for (size_t surface_type = 0; surface_type < size_t(stCount); ++ surface_type) {
         const std::vector<const Surface*> &this_surfaces = by_surface[surface_type];
         if (! this_surfaces.empty())
             m_fill_surfaces.append(intersection_ex(this_surfaces, this->fill_expolygons()), SurfaceType(surface_type));
@@ -118,6 +89,8 @@ void LayerRegion::slices_to_fill_surfaces_clipped()
 void LayerRegion::make_perimeters(
     // Input slices for which the perimeters, gap fills and fill expolygons are to be generated.
     const SurfaceCollection                                &slices,
+    // Configuration regions that will be applied to parts of created perimeters.
+    const PerimeterRegions                                 &perimeter_regions,
     // Ranges of perimeter extrusions and gap fill extrusions per suface, referencing
     // newly created extrusions stored at this LayerRegion.
     std::vector<std::pair<ExtrusionRange, ExtrusionRange>> &perimeter_and_gapfill_ranges,
@@ -142,9 +115,9 @@ void LayerRegion::make_perimeters(
         (this->layer()->id() >= size_t(region_config.bottom_solid_layers.value) &&
          this->layer()->print_z >= region_config.bottom_solid_min_thickness - EPSILON);
 
-    //this is a factory, the content will be copied into the PerimeterGenerator
     PerimeterGenerator::Parameters params(
-        this->layer(),
+        this->layer()->height,
+        int(this->layer()->id()),
         this->flow(frPerimeter),
         this->flow(frExternalPerimeter),
         this->bridging_flow(frPerimeter),
@@ -152,64 +125,52 @@ void LayerRegion::make_perimeters(
         region_config,
         this->layer()->object()->config(),
         print_config,
-        spiral_vase,
-        (region_config.perimeter_generator.value == PerimeterGeneratorType::Arachne) //use_arachne
+        perimeter_regions,
+        spiral_vase
     );
-    
 
-    // perimeter bonding set.
-    if (params.perimeter_flow.spacing_ratio() == 1
-        && params.ext_perimeter_flow.spacing_ratio() == 1
-        && params.config.external_perimeters_first
-        && params.object_config.perimeter_bonding.value > 0) {
-        params.infill_gap = (1 - params.object_config.perimeter_bonding.get_abs_value(1)) * params.get_ext_perimeter_spacing();
-        params.ext_perimeter_spacing2 -= params.infill_gap;
-    }
+    // Cummulative sum of polygons over all the regions.
+    const ExPolygons *lower_slices = this->layer()->lower_layer ? &this->layer()->lower_layer->lslices : nullptr;
+    const ExPolygons *upper_slices = this->layer()->upper_layer ? &this->layer()->upper_layer->lslices : nullptr;
+    // Cache for offsetted lower_slices
+    Polygons          lower_layer_polygons_cache;
 
-    const ExPolygons *lower_slices = this->layer()->lower_layer ? &this->layer()->lower_layer->lslices() : nullptr;
-    const ExPolygons *upper_slices = this->layer()->upper_layer ? &this->layer()->upper_layer->lslices() : nullptr;
-    
     for (const Surface &surface : slices) {
-        size_t perimeters_begin = m_perimeters.size();
-        size_t gap_fills_begin = m_thin_fills.size();
-        size_t fill_expolygons_begin = fill_expolygons.size();
-
-        PerimeterGenerator::PerimeterGenerator g{params};
-        g.throw_if_canceled = [this]() { this->layer()->object()->print()->throw_if_canceled(); };
-        g.process(
-            // input:
-            surface, lower_slices, slices, upper_slices,
-            // output:
-                // Loops with the external thin walls
-            &m_perimeters,
-                // Gaps without the thin walls
-            &m_thin_fills,
-                // Infills without the gap fills
-            fill_expolygons,
-                // mask for "no overlap" area
-            m_fill_no_overlap_expolygons
-        );
-
-        for(auto *peri : this->m_perimeters.entities()) assert(!peri->empty());
-
+        auto perimeters_begin      = uint32_t(m_perimeters.size());
+        auto gap_fills_begin       = uint32_t(m_thin_fills.size());
+        auto fill_expolygons_begin = uint32_t(fill_expolygons.size());
+        if (this->layer()->object()->config().perimeter_generator.value == PerimeterGeneratorType::Arachne && !spiral_vase)
+            PerimeterGenerator::process_arachne(
+                // input:
+                params,
+                surface,
+                lower_slices,
+                upper_slices,
+                lower_layer_polygons_cache,
+                // output:
+                m_perimeters,
+                m_thin_fills,
+                fill_expolygons);
+        else
+            PerimeterGenerator::process_classic(
+                // input:
+                params,
+                surface,
+                lower_slices,
+                upper_slices,
+                lower_layer_polygons_cache,
+                // output:
+                m_perimeters,
+                m_thin_fills,
+                fill_expolygons);
         perimeter_and_gapfill_ranges.emplace_back(
-            ExtrusionRange{ uint32_t(perimeters_begin), uint32_t(m_perimeters.size()) }, 
-            ExtrusionRange{ uint32_t(gap_fills_begin),  uint32_t(m_thin_fills.size()) });
-        fill_expolygons_ranges.emplace_back(ExtrusionRange{ uint32_t(fill_expolygons_begin), uint32_t(fill_expolygons.size()) });
+            ExtrusionRange{ perimeters_begin, uint32_t(m_perimeters.size()) }, 
+            ExtrusionRange{ gap_fills_begin,  uint32_t(m_thin_fills.size()) });
+        fill_expolygons_ranges.emplace_back(ExtrusionRange{ fill_expolygons_begin, uint32_t(fill_expolygons.size()) });
     }
 }
 
-void LayerRegion::make_milling_post_process(const SurfaceCollection& slices) {
-    MillingPostProcess mill(// input:
-        &slices,
-        (this->layer()->lower_layer != nullptr) ? &this->layer()->lower_layer->lslices() : nullptr,
-        this->region().config(),
-        this->layer()->object()->config(),
-        this->layer()->object()->print()->config()
-    );
-    m_millings = mill.process(this->layer());
-}
-
+#if 1
 
 // Extract surfaces of given type from surfaces, extract fill (layer) thickness of one of the surfaces.
 static ExPolygons fill_surfaces_extract_expolygons(Surfaces &surfaces, std::initializer_list<SurfaceType> surface_types, double &thickness)
@@ -357,7 +318,7 @@ Surfaces merge_bridges(
             for (ExPolygon &bridge_expolygon : merged_bridges) {
                 const Lines lines{to_lines(diff_pl(to_polylines(bridge_expolygon), expand(expansions, float(SCALED_EPSILON))))};
                 auto [bridging_dir, unsupported_dist] = detect_bridging_direction(lines, to_polygons(bridge_expolygon));
-                Surface surface{ stPosBottom | stModBridge, std::move(bridge_expolygon) };
+                Surface surface{ stBottomBridge, std::move(bridge_expolygon) };
                 surface.bridge_angle = M_PI + std::atan2(bridging_dir.y(), bridging_dir.x());
                 result.push_back(std::move(surface));
             }
@@ -411,7 +372,6 @@ ExpansionResult expand_expolygons(
 // Extract bridging surfaces from "surfaces", expand them into "shells" using expansion_params,
 // detect bridges.
 // Trim "shells" by the expanded bridges.
-// only used by the new process_external_surfaces
 Surfaces expand_bridges_detect_orientations(
     Surfaces &surfaces,
     std::vector<ExpansionZone>& expansion_zones,
@@ -421,7 +381,7 @@ Surfaces expand_bridges_detect_orientations(
     using namespace Slic3r::Algorithm;
 
     double thickness;
-    ExPolygons bridge_expolygons = fill_surfaces_extract_expolygons(surfaces, {stPosBottom | stModBridge}, thickness);
+    ExPolygons bridge_expolygons = fill_surfaces_extract_expolygons(surfaces, {stBottomBridge}, thickness);
     if (bridge_expolygons.empty())
         return {};
 
@@ -452,8 +412,6 @@ Surfaces expand_bridges_detect_orientations(
     return out;
 }
 
-// Extract bridging surfaces from "surfaces", expand them into "shells" using expansion_params.
-// Trim "shells" by the expanded bridges.
 Surfaces expand_merge_surfaces(
     Surfaces &surfaces,
     SurfaceType surface_type,
@@ -501,80 +459,8 @@ Surfaces expand_merge_surfaces(
     return out;
 }
 
-//#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 3.
-//#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 1.5
-#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtSquare, 0.
-
-size_t get_island_idx(const Polygon &contour,
-                      const std::vector<BoundingBox> &bboxes,
-                      const ExPolygons &fill_boundaries) {
-    assert(bboxes.size() == fill_boundaries.size());
-    std::vector<size_t> candidates;
-    for (size_t idx = 0; idx < bboxes.size(); ++idx) {
-        if (bboxes[idx].contains(contour.front()) && bboxes[idx].contains(contour.points[contour.size() / 2])) {
-            candidates.push_back(idx);
-        }
-    }
-    assert(!candidates.empty());
-    if (candidates.size() > 1) {
-        for (size_t i = 0; i < candidates.size(); ++i) {
-            if (!bboxes[candidates[i]].contains(contour.points)) {
-                candidates.erase(candidates.begin() + i);
-                --i;
-            }
-        }
-    }
-    assert(!candidates.empty());
-    // note: fill_boundaries don't overlap, you only need to test one point.
-    if (candidates.size() > 1) {
-        for (size_t i = 0; i < candidates.size(); ++i) {
-            if (!fill_boundaries[candidates[i]].contains(contour.front())) {
-                candidates.erase(candidates.begin() + i);
-                --i;
-            }
-        }
-    }
-    if (candidates.size() < 0) {
-        //failed becasue of some epsilon, try with another point
-        for (size_t idx = 0; idx < bboxes.size(); ++idx) {
-            if (bboxes[idx].contains(contour.points[1])) {
-                candidates.push_back(idx);
-            }
-        }
-        if (candidates.size() > 1) {
-            for (size_t i = 0; i < candidates.size(); ++i) {
-                if (!fill_boundaries[candidates[i]].contains(contour.points[1])) {
-                    candidates.erase(candidates.begin() + i);
-                    --i;
-                }
-            }
-        }
-    }
-    if (candidates.size() < 0) {
-        //failed because of some margins, try with shrunk polygon
-        const Polygons contours_shrunk = offset(contour, -scale_t(0.05));
-        if (!contours_shrunk.empty()) {
-            const Polygon &contour_shrunk = contours_shrunk.front();
-            for (size_t idx = 0; idx < bboxes.size(); ++idx) {
-                if (bboxes[idx].contains(contour_shrunk.front())) {
-                    candidates.push_back(idx);
-                }
-            }
-            if (candidates.size() > 1) {
-                for (size_t i = 0; i < candidates.size(); ++i) {
-                    if (!fill_boundaries[candidates[i]].contains(contour_shrunk.front())) {
-                        candidates.erase(candidates.begin() + i);
-                        --i;
-                    }
-                }
-            }
-        }
-    }
-    assert(candidates.size() == 1);
-    return candidates.size() == 1 ? candidates.front() : -1;
-}
-
- LayerRegion::process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered) {
+void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered)
+{
     using namespace Slic3r::Algorithm;
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
@@ -676,6 +562,304 @@ size_t get_island_idx(const Polygon &contour,
     export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-final");
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 }
+#else
+
+//#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 3.
+//#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtMiter, 1.5
+#define EXTERNAL_SURFACES_OFFSET_PARAMETERS ClipperLib::jtSquare, 0.
+
+void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered)
+{
+    const bool      has_infill = this->region().config().fill_density.value > 0.;
+//    const float		margin     = scaled<float>(0.1); // float(scale_(EXTERNAL_INFILL_MARGIN));
+    const float     margin     = float(scale_(EXTERNAL_INFILL_MARGIN));
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+    export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-initial");
+#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
+
+    // 1) Collect bottom and bridge surfaces, each of them grown by a fixed 3mm offset
+    // for better anchoring.
+    // Bottom surfaces, grown.
+    Surfaces                    bottom;
+    // Bridge surfaces, initialy not grown.
+    Surfaces                    bridges;
+    // Top surfaces, grown.
+    Surfaces                    top;
+    // Internal surfaces, not grown.
+    Surfaces                    internal;
+    // Areas, where an infill of various types (top, bottom, bottom bride, sparse, void) could be placed.
+    Polygons                    fill_boundaries = to_polygons(this->fill_expolygons());
+
+    // Collect top surfaces and internal surfaces.
+    // Collect fill_boundaries: If we're slicing with no infill, we can't extend external surfaces over non-existent infill.
+    // This loop destroys the surfaces (aliasing this->fill_surfaces.surfaces) by moving into top/internal/fill_boundaries!
+
+    {
+        // Voids are sparse infills if infill rate is zero.
+        Polygons voids;
+        for (const Surface &surface : this->fill_surfaces()) {
+            assert(! surface.empty());
+            if (! surface.empty()) {
+                if (surface.is_top()) {
+                    // Collect the top surfaces, inflate them and trim them by the bottom surfaces.
+                    // This gives the priority to bottom surfaces.
+                    surfaces_append(top, offset_ex(surface.expolygon, margin, EXTERNAL_SURFACES_OFFSET_PARAMETERS), surface);
+                } else if (surface.surface_type == stBottom || (surface.surface_type == stBottomBridge && lower_layer == nullptr)) {
+                    // Grown by 3mm.
+                    surfaces_append(bottom, offset_ex(surface.expolygon, margin, EXTERNAL_SURFACES_OFFSET_PARAMETERS), surface);
+                } else if (surface.surface_type == stBottomBridge) {
+                    bridges.emplace_back(surface);
+                } else {
+                    assert(surface.is_internal());
+                	assert(surface.surface_type == stInternal || surface.surface_type == stInternalSolid);
+                	if (! has_infill && lower_layer != nullptr)
+                		polygons_append(voids, surface.expolygon);
+                	internal.emplace_back(std::move(surface));
+                }
+            }
+        }
+        if (! voids.empty()) {
+            // There are some voids (empty infill regions) on this layer. Usually one does not want to expand
+            // any infill into these voids, with the exception the expanded infills are supported by layers below
+            // with nonzero inill.
+            assert(! has_infill && lower_layer != nullptr);
+        	// Remove voids from fill_boundaries, that are not supported by the layer below.
+            Polygons lower_layer_covered_tmp;
+            if (lower_layer_covered == nullptr) {
+            	lower_layer_covered = &lower_layer_covered_tmp;
+            	lower_layer_covered_tmp = to_polygons(lower_layer->lslices);
+            }
+            if (! lower_layer_covered->empty())
+                // Allow the top / bottom surfaces to expand into the voids of this layer if supported by the layer below.
+            	voids = diff(voids, *lower_layer_covered);
+            if (! voids.empty())
+                fill_boundaries = diff(fill_boundaries, voids);
+        }
+    }
+
+#if 0
+    {
+        static int iRun = 0;
+        bridges.export_to_svg(debug_out_path("bridges-before-grouping-%d.svg", iRun ++), true);
+    }
+#endif
+
+    if (bridges.empty())
+    {
+        fill_boundaries = union_safety_offset(fill_boundaries);
+    } else
+    {
+        // 1) Calculate the inflated bridge regions, each constrained to its island.
+        ExPolygons               fill_boundaries_ex = union_safety_offset_ex(fill_boundaries);
+        std::vector<Polygons>    bridges_grown;
+        std::vector<BoundingBox> bridge_bboxes;
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+        {
+            static int iRun = 0;
+            SVG svg(debug_out_path("4_process_external_surfaces-fill_regions-%d.svg", iRun ++).c_str(), get_extents(fill_boundaries_ex));
+            svg.draw(fill_boundaries_ex);
+            svg.draw_outline(fill_boundaries_ex, "black", "blue", scale_(0.05)); 
+            svg.Close();
+        }
+//        export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-initial");
+#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
+ 
+        {
+            // Bridge expolygons, grown, to be tested for intersection with other bridge regions.
+            std::vector<BoundingBox> fill_boundaries_ex_bboxes = get_extents_vector(fill_boundaries_ex);
+            bridges_grown.reserve(bridges.size());
+            bridge_bboxes.reserve(bridges.size());
+            for (size_t i = 0; i < bridges.size(); ++ i) {
+                // Find the island of this bridge.
+                const Point pt = bridges[i].expolygon.contour.points.front();
+                int idx_island = -1;
+                for (int j = 0; j < int(fill_boundaries_ex.size()); ++ j)
+                    if (fill_boundaries_ex_bboxes[j].contains(pt) && 
+                        fill_boundaries_ex[j].contains(pt)) {
+                        idx_island = j;
+                        break;
+                    }
+                // Grown by 3mm.
+                Polygons polys = offset(bridges[i].expolygon, margin, EXTERNAL_SURFACES_OFFSET_PARAMETERS);
+                if (idx_island == -1) {
+				    BOOST_LOG_TRIVIAL(trace) << "Bridge did not fall into the source region!";
+                } else {
+                    // Found an island, to which this bridge region belongs. Trim the expanded bridging region
+                    // with its source region, so it does not overflow into a neighbor region.
+                    polys = intersection(polys, fill_boundaries_ex[idx_island]);
+                }
+                bridge_bboxes.push_back(get_extents(polys));
+                bridges_grown.push_back(std::move(polys));
+            }
+        }
+
+        // 2) Group the bridge surfaces by overlaps.
+        std::vector<size_t> bridge_group(bridges.size(), (size_t)-1);
+        size_t n_groups = 0; 
+        for (size_t i = 0; i < bridges.size(); ++ i) {
+            // A grup id for this bridge.
+            size_t group_id = (bridge_group[i] == size_t(-1)) ? (n_groups ++) : bridge_group[i];
+            bridge_group[i] = group_id;
+            // For all possibly overlaping bridges:
+            for (size_t j = i + 1; j < bridges.size(); ++ j) {
+                if (! bridge_bboxes[i].overlap(bridge_bboxes[j]))
+                    continue;
+                if (intersection(bridges_grown[i], bridges_grown[j]).empty())
+                    continue;
+                // The two bridge regions intersect. Give them the same group id.
+                if (bridge_group[j] != size_t(-1)) {
+                    // The j'th bridge has been merged with some other bridge before.
+                    size_t group_id_new = bridge_group[j];
+                    for (size_t k = 0; k < j; ++ k)
+                        if (bridge_group[k] == group_id)
+                            bridge_group[k] = group_id_new;
+                    group_id = group_id_new;
+                }
+                bridge_group[j] = group_id;
+            }
+        }
+
+        // 3) Merge the groups with the same group id, detect bridges.
+        {
+			BOOST_LOG_TRIVIAL(trace) << "Processing external surface, detecting bridges. layer" << this->layer()->print_z << ", bridge groups: " << n_groups;
+            for (size_t group_id = 0; group_id < n_groups; ++ group_id) {
+                size_t n_bridges_merged = 0;
+                size_t idx_last = (size_t)-1;
+                for (size_t i = 0; i < bridges.size(); ++ i) {
+                    if (bridge_group[i] == group_id) {
+                        ++ n_bridges_merged;
+                        idx_last = i;
+                    }
+                }
+                if (n_bridges_merged == 0)
+                    // This group has no regions assigned as these were moved into another group.
+                    continue;
+                // Collect the initial ungrown regions and the grown polygons.
+                ExPolygons  initial;
+                Polygons    grown;
+                for (size_t i = 0; i < bridges.size(); ++ i) {
+                    if (bridge_group[i] != group_id)
+                        continue;
+                    initial.push_back(std::move(bridges[i].expolygon));
+                    polygons_append(grown, bridges_grown[i]);
+                }
+                // detect bridge direction before merging grown surfaces otherwise adjacent bridges
+                // would get merged into a single one while they need different directions
+                // also, supply the original expolygon instead of the grown one, because in case
+                // of very thin (but still working) anchors, the grown expolygon would go beyond them
+                double custom_angle = Geometry::deg2rad(this->region().config().bridge_angle.value);
+                if (custom_angle > 0.0) {
+                    bridges[idx_last].bridge_angle = custom_angle;
+                } else {
+                    auto [bridging_dir, unsupported_dist] = detect_bridging_direction(to_polygons(initial), to_polygons(lower_layer->lslices));
+                    bridges[idx_last].bridge_angle = PI + std::atan2(bridging_dir.y(), bridging_dir.x());
+
+                    // #if 1
+                    //     coordf_t    stroke_width = scale_(0.06);
+                    //     BoundingBox bbox         = get_extents(initial);
+                    //     bbox.offset(scale_(1.));
+                    //     ::Slic3r::SVG
+                    //     svg(debug_out_path(("bridge"+std::to_string(bridges[idx_last].bridge_angle)+"_"+std::to_string(this->layer()->bottom_z())).c_str()),
+                    //     bbox);
+
+                    //     svg.draw(initial, "cyan");
+                    //     svg.draw(to_lines(lower_layer->lslices), "green", stroke_width);
+                    // #endif
+                }
+
+                /*
+                BridgeDetector bd(initial, lower_layer->lslices, this->bridging_flow(frInfill).scaled_width());
+                #ifdef SLIC3R_DEBUG
+                printf("Processing bridge at layer %zu:\n", this->layer()->id());
+                #endif
+				double custom_angle = Geometry::deg2rad(this->region().config().bridge_angle.value);
+				if (bd.detect_angle(custom_angle)) {
+                    bridges[idx_last].bridge_angle = bd.angle;
+                    if (this->layer()->object()->has_support()) {
+//                        polygons_append(this->bridged, bd.coverage());
+                        append(m_unsupported_bridge_edges, bd.unsupported_edges());
+                    }
+				} else if (custom_angle > 0) {
+					// Bridge was not detected (likely it is only supported at one side). Still it is a surface filled in
+					// using a bridging flow, therefore it makes sense to respect the custom bridging direction.
+					bridges[idx_last].bridge_angle = custom_angle;
+				}
+                */
+                // without safety offset, artifacts are generated (GH #2494)
+                surfaces_append(bottom, union_safety_offset_ex(grown), bridges[idx_last]);
+            }
+
+            fill_boundaries = to_polygons(fill_boundaries_ex);
+			BOOST_LOG_TRIVIAL(trace) << "Processing external surface, detecting bridges - done";
+		}
+
+    #if 0
+        {
+            static int iRun = 0;
+            bridges.export_to_svg(debug_out_path("bridges-after-grouping-%d.svg", iRun ++), true);
+        }
+    #endif
+    }
+
+    Surfaces new_surfaces;
+    {
+        // Intersect the grown surfaces with the actual fill boundaries.
+        Polygons bottom_polygons = to_polygons(bottom);
+        // Merge top and bottom in a single collection.
+        surfaces_append(top, std::move(bottom));
+        for (size_t i = 0; i < top.size(); ++ i) {
+            Surface &s1 = top[i];
+            if (s1.empty())
+                continue;
+            Polygons polys;
+            polygons_append(polys, to_polygons(std::move(s1)));
+            for (size_t j = i + 1; j < top.size(); ++ j) {
+                Surface &s2 = top[j];
+                if (! s2.empty() && surfaces_could_merge(s1, s2)) {
+                    polygons_append(polys, to_polygons(std::move(s2)));
+                    s2.clear();
+                }
+            }
+            if (s1.is_top())
+                // Trim the top surfaces by the bottom surfaces. This gives the priority to the bottom surfaces.
+                polys = diff(polys, bottom_polygons);
+            surfaces_append(
+                new_surfaces,
+                // Don't use a safety offset as fill_boundaries were already united using the safety offset.
+                intersection_ex(polys, fill_boundaries),
+                s1);
+        }
+    }
+    
+    // Subtract the new top surfaces from the other non-top surfaces and re-add them.
+    Polygons new_polygons = to_polygons(new_surfaces);
+    for (size_t i = 0; i < internal.size(); ++ i) {
+        Surface &s1 = internal[i];
+        if (s1.empty())
+            continue;
+        Polygons polys;
+        polygons_append(polys, to_polygons(std::move(s1)));
+        for (size_t j = i + 1; j < internal.size(); ++ j) {
+            Surface &s2 = internal[j];
+            if (! s2.empty() && surfaces_could_merge(s1, s2)) {
+                polygons_append(polys, to_polygons(std::move(s2)));
+                s2.clear();
+            }
+        }
+        ExPolygons new_expolys = diff_ex(polys, new_polygons);
+        polygons_append(new_polygons, to_polygons(new_expolys));
+        surfaces_append(new_surfaces, std::move(new_expolys), s1);
+    }
+    
+    m_fill_surfaces.surfaces = std::move(new_surfaces);
+
+#ifdef SLIC3R_DEBUG_SLICE_PROCESSING
+    export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-final");
+#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
+}
+#endif
 
 void LayerRegion::prepare_fill_surfaces()
 {
@@ -719,8 +903,6 @@ void LayerRegion::prepare_fill_surfaces()
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 }
 
-
-
 double LayerRegion::infill_area_threshold() const
 {
     double ss = this->flow(frSolidInfill).scaled_spacing();
@@ -730,35 +912,27 @@ double LayerRegion::infill_area_threshold() const
 void LayerRegion::trim_surfaces(const Polygons &trimming_polygons)
 {
 #ifndef NDEBUG
-    for (const Surface &surface : this->slices()) {
-        assert(surface.surface_type == (stPosInternal | stDensSparse));
-        surface.expolygon.assert_valid();
-    }
+    for (const Surface &surface : this->slices())
+        assert(surface.surface_type == stInternal);
 #endif /* NDEBUG */
-    coordf_t scaled_resolution = std::max(SCALED_EPSILON, scale_t(this->layer()->object()->print()->config().resolution.value));
-    this->m_slices.set(ensure_valid(intersection_ex(this->slices().surfaces, trimming_polygons)/*, scaled_resolution*/), stPosInternal | stDensSparse);
-    for(auto &srf : this->m_slices) srf.expolygon.assert_valid();
+	m_slices.set(intersection_ex(this->slices().surfaces, trimming_polygons), stInternal);
 }
 
 void LayerRegion::elephant_foot_compensation_step(const float elephant_foot_compensation_perimeter_step, const Polygons &trimming_polygons)
 {
 #ifndef NDEBUG
-    for (const Surface &surface : this->slices()) {
-        assert(surface.surface_type == (stPosInternal | stDensSparse));
-        surface.expolygon.assert_valid();
-    }
+    for (const Surface &surface : this->slices())
+        assert(surface.surface_type == stInternal);
 #endif /* NDEBUG */
-    assert(elephant_foot_compensation_perimeter_step >= 0);
     Polygons tmp = intersection(this->slices().surfaces, trimming_polygons);
     append(tmp, diff(this->slices().surfaces, opening(this->slices().surfaces, elephant_foot_compensation_perimeter_step)));
-    this->m_slices.set(union_ex(tmp), stPosInternal | stDensSparse);
-    for(auto &srf : this->m_slices) srf.expolygon.assert_valid();
+    m_slices.set(union_ex(tmp), stInternal);
 }
 
 void LayerRegion::export_region_slices_to_svg(const char *path) const
 {
     BoundingBox bbox;
-    for (const Surface& surface : this->slices())
+    for (const Surface &surface : this->slices())
         bbox.merge(get_extents(surface.expolygon));
     Point legend_size = export_surface_type_legend_to_svg_box_size();
     Point legend_pos(bbox.min(0), bbox.max(1));
@@ -767,9 +941,9 @@ void LayerRegion::export_region_slices_to_svg(const char *path) const
     SVG svg(path, bbox);
     const float transparency = 0.5f;
     for (const Surface &surface : this->slices())
-        svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type, 0.9f), transparency);
+        svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type), transparency);
     for (const Surface &surface : this->fill_surfaces())
-        svg.draw(to_polylines(surface.expolygon), surface_type_to_color_name(surface.surface_type), scale_t(0.1));
+        svg.draw(surface.expolygon.lines(), surface_type_to_color_name(surface.surface_type));
     export_surface_type_legend_to_svg(svg, legend_pos);
     svg.Close();
 }
@@ -807,30 +981,6 @@ void LayerRegion::export_region_fill_surfaces_to_svg_debug(const char *name) con
     static std::map<std::string, size_t> idx_map;
     size_t &idx = idx_map[name];
     this->export_region_fill_surfaces_to_svg(debug_out_path("LayerRegion-fill_surfaces-%s-%d.svg", name, idx ++).c_str());
-}
-
-void LayerRegion::simplify_extrusion_entity()
-{
-
-    const PrintConfig& print_config = this->layer()->object()->print()->config();
-    const bool spiral_mode = print_config.spiral_vase;
-    ArcFittingType enable_arc_fitting = print_config.arc_fitting.value;
-    if (spiral_mode)
-        enable_arc_fitting = ArcFittingType::Disabled;
-    coordf_t scaled_resolution = scale_d(print_config.resolution.value);
-    if (enable_arc_fitting != ArcFittingType::Disabled) {
-        scaled_resolution = scale_d(print_config.arc_fitting_resolution.get_abs_value(std::max(EPSILON, unscaled(scaled_resolution))));
-    }
-    if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting != ArcFittingType::Disabled ? SCALED_EPSILON * 2 : SCALED_EPSILON;
-    scaled_resolution = std::max(double(SCALED_EPSILON), scaled_resolution);
-
-	//Ligne 652:     SimplifyVisitor(coordf_t scaled_resolution, ArcFittingType use_arc_fitting, const ConfigOptionFloatOrPercent *arc_fitting_tolearance)
-    //call simplify for all paths
-    Slic3r::SimplifyVisitor visitor{ scaled_resolution , enable_arc_fitting, &print_config.arc_fitting_tolerance, enable_arc_fitting != ArcFittingType::Disabled ? SCALED_EPSILON * 2 : SCALED_EPSILON };
-    this->m_perimeters.visit(visitor);
-    this->m_fills.visit(visitor);
-    this->m_ironings.visit(visitor);
-    this->m_millings.visit(visitor);
 }
 
 }

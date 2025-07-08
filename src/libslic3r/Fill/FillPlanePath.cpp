@@ -7,11 +7,13 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
+#include <cmath>
+
 #include "../ClipperUtils.hpp"
 #include "../ShortestPath.hpp"
-#include "../Surface.hpp"
-
 #include "FillPlanePath.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/Fill/FillBase.hpp"
 
 namespace Slic3r {
 
@@ -80,7 +82,7 @@ void FillPlanePath::_fill_surface_single(
     unsigned int                     thickness_layers,
     const std::pair<float, Point>   &direction, 
     ExPolygon                        expolygon,
-    Polylines                       &polylines_out) const
+    Polylines                       &polylines_out)
 {
     expolygon.rotate(-direction.first);
 
@@ -101,17 +103,17 @@ void FillPlanePath::_fill_surface_single(
     Point shift = this->centered() ? 
         bounding_box.center() :
         bounding_box.min;
-    expolygon.translate(-double(shift.x()), -double(shift.y()));
-    bounding_box.translate(-double(shift.x()), -double(shift.y()));
+    expolygon.translate(-shift.x(), -shift.y());
+    bounding_box.translate(-shift.x(), -shift.y());
 
     Polyline polyline;
     {
-        coordf_t distance_between_lines = scale_d(this->get_spacing()) / params.density;
-        coord_t  min_x = coord_t(ceil(coordf_t(bounding_box.min.x()) / distance_between_lines));
-        coord_t  min_y = coord_t(ceil(coordf_t(bounding_box.min.y()) / distance_between_lines));
-        coord_t  max_x = coord_t(ceil(coordf_t(bounding_box.max.x()) / distance_between_lines));
-        coord_t  max_y = coord_t(ceil(coordf_t(bounding_box.max.y()) / distance_between_lines));
-        coordf_t resolution = coordf_t(params.fill_resolution) / distance_between_lines;
+        auto distance_between_lines = scaled<double>(this->spacing) / params.density;
+        auto min_x = coord_t(ceil(coordf_t(bounding_box.min.x()) / distance_between_lines));
+        auto min_y = coord_t(ceil(coordf_t(bounding_box.min.y()) / distance_between_lines));
+        auto max_x = coord_t(ceil(coordf_t(bounding_box.max.x()) / distance_between_lines));
+        auto max_y = coord_t(ceil(coordf_t(bounding_box.max.y()) / distance_between_lines));
+        auto resolution = scaled<double>(params.resolution) / distance_between_lines;
         if (align) {
             // Filling in a bounding box over the whole object, clip generated polyline against the snug bounding box.
             snug_bounding_box.translate(-shift.x(), -shift.y());
@@ -126,49 +128,25 @@ void FillPlanePath::_fill_surface_single(
         }
     }
 
-    // doing intersection_pl(polylines, expolygon); on >200k points is too inneficient.
-    // new version: with a "is_inside" for each point, in parallel
-    //note: seems like there is no need to parallelize now, too quick.
-    Polylines all_poly;
-    for (size_t istart = 0; istart < polyline.size(); istart += 1000) {
-        const size_t iend = istart + 1000 < polyline.size() ? istart + 1001 : polyline.size();
-        // Convert points to a polyline, upscale.
-        Polyline mini_polyline;
-        mini_polyline.points.reserve(iend - istart);
-        mini_polyline.points.insert(mini_polyline.points.end(), polyline.points.begin()+istart, polyline.points.begin()+iend);
-        Polylines polylines = intersection_pl(mini_polyline, expolygon);
-        ensure_valid(polylines, params.fill_resolution);
-        if (!polylines.empty()) {
-            assert(!polylines.front().empty());
-            if (!all_poly.empty() && polylines.front().front().coincides_with_epsilon(all_poly.back().back())) {
-                // it continue the last polyline, so just append to it
-                all_poly.back().points.pop_back();
-                append(all_poly.back().points, std::move(polylines.front().points));
-                //append other polylines
-                if (polylines.size() > 1) {
-                    all_poly.insert(all_poly.end(), polylines.begin() + 1, polylines.end());
-                }
-            } else {
-                append(all_poly, std::move(polylines));
-            }
+    if (polyline.size() >= 2) {
+        Polylines polylines = intersection_pl(polyline, expolygon);
+        Polylines chained;
+        if (params.dont_connect() || params.density > 0.5 || polylines.size() <= 1)
+            chained = chain_polylines(std::move(polylines));
+        else
+            connect_infill(std::move(polylines), expolygon, chained, this->spacing, params);
+        // paths must be repositioned and rotated back
+        for (Polyline &pl : chained) {
+            pl.translate(shift.x(), shift.y());
+            pl.rotate(direction.first);
         }
+        append(polylines_out, std::move(chained));
     }
-    Polylines chained;
-    if (params.dont_connect() || params.density > 0.5 || all_poly.size() <= 1)
-        chained = chain_polylines(std::move(all_poly));
-    else
-        connect_infill(std::move(all_poly), expolygon, chained, scale_t(this->get_spacing()), params);
-    // paths must be repositioned and rotated back
-    for (Polyline &pl : chained) {
-        pl.translate(double(shift.x()), double(shift.y()));
-        pl.rotate(direction.first);
-    }
-    append(polylines_out, std::move(chained));
 }
 
 // Follow an Archimedean spiral, in polar coordinates: r=a+b\theta
 template<typename Output>
-static void generate_archimedean_chords(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t resolution, Output &output)
+static void generate_archimedean_chords(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double resolution, Output &output)
 {
     // Radius to achieve.
     coordf_t rmax = std::sqrt(coordf_t(max_x)*coordf_t(max_x)+coordf_t(max_y)*coordf_t(max_y)) * std::sqrt(2.) + 1.5;
@@ -189,7 +167,7 @@ static void generate_archimedean_chords(coord_t min_x, coord_t min_y, coord_t ma
     }
 }
 
-void FillArchimedeanChords::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t resolution, InfillPolylineOutput &output) const
+void FillArchimedeanChords::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double resolution, InfillPolylineOutput &output)
 {
     if (output.clips())
         generate_archimedean_chords(min_x, min_y, max_x, max_y, resolution, static_cast<InfillPolylineClipper&>(output));
@@ -229,7 +207,7 @@ static inline Point hilbert_n_to_xy(const size_t n)
             ++ ndigits;
         }
     }
-    int state    = (ndigits & 1) ? 4 : 0;
+    int state = (ndigits & 1) ? 4 : 0;
     coord_t x = 0;
     coord_t y = 0;
     for (int i = (int)ndigits - 1; i >= 0; -- i) {
@@ -264,7 +242,7 @@ static void generate_hilbert_curve(coord_t min_x, coord_t min_y, coord_t max_x, 
     }
 }
 
-void FillHilbertCurve::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t /* resolution */, InfillPolylineOutput &output) const
+void FillHilbertCurve::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double /* resolution */, InfillPolylineOutput &output)
 {
     if (output.clips())
         generate_hilbert_curve(min_x, min_y, max_x, max_y, static_cast<InfillPolylineClipper&>(output));
@@ -304,7 +282,7 @@ static void generate_octagram_spiral(coord_t min_x, coord_t min_y, coord_t max_x
     }
 }
 
-void FillOctagramSpiral::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const coordf_t /* resolution */, InfillPolylineOutput &output) const
+void FillOctagramSpiral::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double /* resolution */, InfillPolylineOutput &output)
 {
     if (output.clips())
         generate_octagram_spiral(min_x, min_y, max_x, max_y, static_cast<InfillPolylineClipper&>(output));

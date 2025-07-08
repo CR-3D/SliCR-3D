@@ -689,13 +689,13 @@ void Preview::update_layers_slider(const std::vector<double>& layers_z, bool sho
             if (height / longer_side > 0.3 || num_layers < 2)
                 continue;
 
-            const ExPolygons& bottom = object->get_layer(0)->lslices();
+            const ExPolygons& bottom = object->get_layer(0)->lslices;
             double bottom_area = area(bottom);
 
             // at least 25% of object's height have to be a solid 
             int  i, min_solid_height = int(0.25 * num_layers);
             for (i = 1; i <= min_solid_height; ++ i) {
-                double cur_area = area(object->get_layer(i)->lslices());
+                double cur_area = area(object->get_layer(i)->lslices);
                 if (!DoubleSlider::equivalent_areas(bottom_area, cur_area)) {
                     // but due to the elephant foot compensation, the first layer may be slightly smaller than the others
                     if (i == 1 && fabs(cur_area - bottom_area) / bottom_area < 0.1) {

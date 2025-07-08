@@ -3595,7 +3595,7 @@ LayerResult GCodeGenerator::process_layer(
     for (const GCode::ObjectLayerToPrint &print_layer : layers) {
         //note: a layer can be null if the objetc doesn't have aanything to print at this height.
         if (print_layer.layer())
-            for (auto poly : print_layer.layer()->lslices()) layer_area += poly.area();
+            for (auto poly : print_layer.layer()->lslices) layer_area += poly.area();
     }
     layer_area = unscaled(unscaled(layer_area));
     status_monitor.stats().layer_area_stats.emplace_back(print_z, layer_area);
@@ -7181,7 +7181,7 @@ Polyline GCodeGenerator::travel_to(std::string &gcode, const Point &point, Extru
 
             //TODO: add bbox cache & checks like for can_cross_perimeter
             bool has_intersect = false;
-            for (const ExPolygon &expoly : m_layer->lslices()) {
+            for (const ExPolygon &expoly : m_layer->lslices) {
                 // first, check if it's inside the contour (still, it can go over holes)
                 Polylines diff_result = diff_pl(travel, expoly.contour);
                 if (diff_result.size() == 1 && diff_result.front() == travel)
@@ -7755,10 +7755,10 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
                 bool found_our_layer = false;
                 // add all layers slices already printed & our current layer at this z into the slices
                 for (const Layer *layer : m_last_object_layers) {
-                    append(slices, layer->lslices());
-                    append(slices_offsetted, offset_ex(layer->lslices(), -m_layer_slices_offseted.diameter * 1.5f));
+                    append(slices, layer->lslices);
+                    append(slices_offsetted, offset_ex(layer->lslices, -m_layer_slices_offseted.diameter * 1.5f));
                     // also offset in the other side, to avoid a travel that may cross it from the exterior
-                    append(slices_offsetted, offset_ex(layer->lslices(), m_layer_slices_offseted.diameter * .5f));
+                    append(slices_offsetted, offset_ex(layer->lslices, m_layer_slices_offseted.diameter * .5f));
                 }
                 slices = union_ex(slices);
                 slices_offsetted = union_ex(slices_offsetted);
@@ -7768,10 +7768,10 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
                         m_throw_if_canceled();
                         slices_offsetted = diff_ex(slices_offsetted,
                                                    to_expolygons(reg->fill_surfaces().filter_by_type_flag(
-                                                       SurfaceType::stPosTop)));
+                                                       SurfaceType::stTop)));
                         slices = diff_ex(slices,
                                          to_expolygons(
-                                             reg->fill_surfaces().filter_by_type_flag(SurfaceType::stPosTop)));
+                                             reg->fill_surfaces().filter_by_type_flag(SurfaceType::stTop)));
                     }
                 }
                 // create bb for speeding things up.
@@ -7827,7 +7827,7 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
         //        (dynamic_cast<const SupportLayer *>(m_layer) != nullptr ? "support": "object")
         //        <<"_"<<(aodfjiaqsdz++) << ".svg";
         //    SVG svg(stri.str());
-        //    svg.draw(m_layer->lslices(), "grey");
+        //    svg.draw(m_layer->lslices, "grey");
         //    for (SliceIsland &entry : offset ? m_layer_slices_offseted.slices_offsetted : m_layer_slices_offseted.slices) {
         //        bool checked  = (travel.size() > 1 && 
         //            (entry.boundingbox.contains(travel.front()) ||

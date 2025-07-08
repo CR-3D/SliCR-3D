@@ -138,6 +138,8 @@ enum ExtrusionRoleModifier : uint16_t {
     ERM_Mixed = 1 << 11, //2048
     //Travel
     ERM_Travel = 1 << 12, //4096
+    
+    ERM_OverBridge = 1 << 13,
     // Stopper, there should be maximum 16 modifiers defined for uint16_t bit mask.
     //Count
 };
@@ -221,6 +223,8 @@ public:
         ExtrusionRoleModifier::ERM_Infill | ExtrusionRoleModifier::ERM_Solid | ExtrusionRoleModifier::ERM_Ironing |
         ExtrusionRoleModifier::ERM_External};
     // Visible bridging infill at the bottom of an object.
+   static constexpr const ExtrusionRoleModifier InfillOverBridge{ ExtrusionRoleModifier::ERM_Infill | ExtrusionRoleModifier::ERM_Solid | ExtrusionRoleModifier::ERM_OverBridge };
+
     static constexpr const ExtrusionRoleModifier BridgeInfill{
         ExtrusionRoleModifier::ERM_Infill | ExtrusionRoleModifier::ERM_Solid | ExtrusionRoleModifier::ERM_Bridge |
         ExtrusionRoleModifier::ERM_External};

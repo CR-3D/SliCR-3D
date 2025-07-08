@@ -124,25 +124,12 @@ enum class FuzzySkinType {
     All,
 };
 
-enum InfillPattern : uint8_t{
-    ipRectilinear, ipRectilinearWGapFill,
-    ipMonotonic, ipMonotonicWGapFill,
-    ipAlignedRectilinear,
-    ipGrid,
-    ipTriangles, ipStars, ipCubic,
-    ipLine, ipMonotonicLines,
-    ipConcentric, ipConcentricGapFill,
-    ipHoneycomb, ip3DHoneycomb,
-    ipGyroid,
-    ipHilbertCurve, ipArchimedeanChords, ipOctagramSpiral,
-    ipAdaptiveCubic, ipSupportCubic, ipSupportBase,
-    ipSmooth, ipSmoothHilbert, ipSmoothTriple,
-    ipRectiWithPerimeter,
-    ipScatteredRectilinear, 
-    ipSawtooth,
+enum InfillPattern : int {
+    ipRectilinear, ipMonotonic, ipMonotonicLines, ipAlignedRectilinear, ipGrid, ipTriangles, ipStars, ipCubic, ipLine, ipConcentric, ipHoneycomb, ip3DHoneycomb,
+    ipGyroid, ipHilbertCurve, ipArchimedeanChords, ipOctagramSpiral, ipAdaptiveCubic, ipSupportCubic, ipSupportBase,
     ipLightning,
     ipEnsuring,
-    ipAuto,
+    ipZigZag,
     ipCount,
 };
 
@@ -198,9 +185,9 @@ enum SupportMaterialStyle {
 };
 
 //from prusa, not used in superslicer as InfillPattern is enough.
-//enum SupportMaterialInterfacePattern {
-//    smipAuto, smipRectilinear, smipConcentric,
-//};
+enum SupportMaterialInterfacePattern {
+    smipAuto, smipRectilinear, smipConcentric,
+};
 
 enum SeamPosition {
     spRandom,

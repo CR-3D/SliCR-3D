@@ -3,14 +3,22 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
+#include <algorithm>
+#include <cmath>
+#include <vector>
+#include <cassert>
+#include <cstddef>
+
 #include "../ClipperUtils.hpp"
 #include "../ShortestPath.hpp"
-#include "../Surface.hpp"
-
 #include "Fill3DHoneycomb.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/Fill/FillBase.hpp"
+#include "libslic3r/Point.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/libslic3r.h"
 
 namespace Slic3r {
-
 
 /*
 Creates a contiguous sequence of points at a specified height that make
@@ -144,11 +152,11 @@ void Fill3DHoneycomb::_fill_surface_single(
     unsigned int                     thickness_layers,
     const std::pair<float, Point>   &direction, 
     ExPolygon                        expolygon,
-    Polylines                       &polylines_out) const
+    Polylines                       &polylines_out)
 {
     // no rotation is supported for this infill pattern
     BoundingBox bb = expolygon.contour.bounding_box();
-    coord_t     distance = _line_spacing_for_density(params);
+    coord_t     distance = coord_t(scale_(this->spacing) / params.density);
 
     // align bounding box to a multiple of our honeycomb grid module
     // (a module is 2*$distance since one $distance half-module is 
@@ -159,10 +167,9 @@ void Fill3DHoneycomb::_fill_surface_single(
     Polylines   polylines = makeGrid(
         scale_(this->z),
         distance,
-        (size_t)ceil(bb.size().x() / distance) + 1,
-        (size_t)ceil(bb.size().y() / distance) + 1,
-		size_t((this->layer_id / thickness_layers) % 2) + 1);
-	//makeGrid(coord_t z, coord_t gridSize, size_t gridWidth, size_t gridHeight, size_t curveType)
+        ceil(bb.size()(0) / distance) + 1,
+        ceil(bb.size()(1) / distance) + 1,
+        ((this->layer_id/thickness_layers) % 2) + 1);
     
     // move pattern in place
 	for (Polyline &pl : polylines)
@@ -172,10 +179,10 @@ void Fill3DHoneycomb::_fill_surface_single(
     polylines = intersection_pl(polylines, expolygon);
 
     // connect lines if needed
-    if (params.connection == icNotConnected || polylines.size() <= 1)
+    if (params.dont_connect() || polylines.size() <= 1)
         append(polylines_out, chain_polylines(std::move(polylines)));
     else
-        this->connect_infill(std::move(polylines), expolygon, polylines_out, scale_t(this->get_spacing()), params);
+        this->connect_infill(std::move(polylines), expolygon, polylines_out, this->spacing, params);
 }
 
 } // namespace Slic3r

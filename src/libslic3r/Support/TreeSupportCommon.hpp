@@ -116,7 +116,7 @@ struct TreeSupportMeshGroupSettings {
     std::vector<double>             support_roof_angles                     {};
     // Support Roof Pattern (aka top interface)
     // The pattern with which the roofs of the support are printed.
-    InfillPattern                   support_roof_pattern                    { ipAuto };
+    InfillPattern                   support_roof_pattern                    { smipAuto };
     // Support Pattern
     // The pattern of the support structures of the print. The different options available result in sturdy or easy to remove support.
     SupportMaterialPattern          support_pattern                         { smpRectilinear };

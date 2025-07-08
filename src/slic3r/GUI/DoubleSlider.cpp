@@ -2246,12 +2246,12 @@ void Control::show_cog_icon_context_menu()
 
 bool check_color_change(const PrintObject* object, size_t frst_layer_id, size_t layers_cnt, bool check_overhangs, std::function<bool(const Layer*)> break_condition)
 {
-    double prev_area = area(object->get_layer(frst_layer_id)->lslices());
+    double prev_area = area(object->get_layer(frst_layer_id)->lslices);
 
     bool detected = false;
     for (size_t i = frst_layer_id+1; i < layers_cnt; i++) {
         const Layer* layer = object->get_layer(i);
-        double cur_area = area(layer->lslices());
+        double cur_area = area(layer->lslices);
 
         // check for overhangs
         if (check_overhangs && cur_area > prev_area && !equivalent_areas(prev_area, cur_area))

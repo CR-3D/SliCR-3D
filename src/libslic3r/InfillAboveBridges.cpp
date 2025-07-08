@@ -5,14 +5,14 @@
 namespace Slic3r::PrepareInfill {
     void mark_as_infill_above_bridge(const ExPolygons &marker, const SurfaceRefsByRegion &layer) {
         for (const SurfaceCollectionRef &region : layer) {
-            const ExPolygons intersection{intersection_ex(region.get().filter_by_type(stPosInternal | stDensSolid), marker, ApplySafetyOffset::No)};
+            const ExPolygons intersection{intersection_ex(region.get().filter_by_type(stInternalSolid), marker, ApplySafetyOffset::No)};
             if (intersection.empty()) {
                 continue;
             }
-            const ExPolygons clipped{diff_ex(region.get().filter_by_type(stPosInternal | stDensSolid), marker, ApplySafetyOffset::Yes)};
-            region.get().remove_type(stPosInternal | stDensSolid);
-            region.get().append(clipped, stPosInternal | stDensSolid);
-            region.get().append(intersection, stPosInternal| stDensSolid | stModOverBridge);
+            const ExPolygons clipped{diff_ex(region.get().filter_by_type(stInternalSolid), marker, ApplySafetyOffset::Yes)};
+            region.get().remove_type(stInternalSolid);
+            region.get().append(clipped, stInternalSolid);
+            region.get().append(intersection, stSolidOverBridge);
         }
     }
 
@@ -25,7 +25,7 @@ namespace Slic3r::PrepareInfill {
         for (const SurfaceRefsByRegion &layer : tcb::span{surfaces}.subspan(1)) {
             ExPolygons bridges;
             for (const SurfaceCollectionRef &region : *previous_layer) {
-                for (const Surface *bridge : region.get().filter_by_type(stPosBottom | stModBridge)) {
+                for (const Surface *bridge : region.get().filter_by_type(stBottomBridge)) {
                     bridges.push_back(bridge->expolygon);
                 }
             }

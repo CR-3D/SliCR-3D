@@ -15,7 +15,16 @@
 #ifndef slic3r_FillAdaptive_hpp_
 #define slic3r_FillAdaptive_hpp_
 
+#include <Eigen/Geometry>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "FillBase.hpp"
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/Point.hpp"
+#include "libslic3r/Polyline.hpp"
+#include "libslic3r/libslic3r.h"
 
 struct indexed_triangle_set;
 
@@ -27,6 +36,7 @@ namespace FillAdaptive
 {
 
 struct Octree;
+
 // To keep the definition of Octree opaque, we have to define a custom deleter.
 struct OctreeDeleter { void operator()(Octree *p); };
 using  OctreePtr = std::unique_ptr<Octree, OctreeDeleter>;
@@ -60,7 +70,6 @@ FillAdaptive::OctreePtr         build_octree(
 class Filler : public Slic3r::Fill
 {
 public:
-    Filler() : Fill() { can_fill_surface_single = true; }
     ~Filler() override {}
 
 protected:
@@ -70,12 +79,13 @@ protected:
 	    unsigned int                     thickness_layers,
 	    const std::pair<float, Point>   &direction,
 	    ExPolygon                        expolygon,
-	    Polylines                       &polylines_out) const override;
+	    Polylines                       &polylines_out) override;
     // Let the G-code export reoder the infill lines.
     //FIXME letting the G-code exporter to reorder infill lines of Adaptive Cubic Infill
     // may not be optimal as the internal infill lines may get extruded before the long infill
     // lines to which the short infill lines are supposed to anchor.
 	bool no_sort() const override { return false; }
+    bool is_self_crossing() override { return true; }
 };
 
 } // namespace FillAdaptive

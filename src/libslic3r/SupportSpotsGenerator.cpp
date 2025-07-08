@@ -222,7 +222,7 @@ SliceConnection estimate_slice_connection(size_t slice_idx, const Layer *layer)
     SliceConnection connection;
 
     const LayerSlice   &slice       = layer->lslices_ex[slice_idx];
-    Polygons           slice_polys  = to_polygons(layer->lslices()[slice_idx]);
+    Polygons           slice_polys  = to_polygons(layer->lslices[slice_idx]);
     BoundingBox slice_bb = get_extents(slice_polys);
     const Layer        *lower_layer = layer->lower_layer;
 
@@ -232,7 +232,7 @@ SliceConnection estimate_slice_connection(size_t slice_idx, const Layer *layer)
         return connection;
 
     ExPolygons below{};
-    for (const auto &linked_slice_idx_below : linked_slices_below) { below.push_back(lower_layer->lslices()[linked_slice_idx_below]); }
+    for (const auto &linked_slice_idx_below : linked_slices_below) { below.push_back(lower_layer->lslices[linked_slice_idx_below]); }
     Polygons below_polys = to_polygons(below);
     if (below_polys.empty())
         return connection;
@@ -809,7 +809,7 @@ bool has_brim(const Layer* layer, const Params& params) {
 
 
 Polygons get_brim(const Layer* layer, const size_t slice_idx, const float brim_width_outer, const float brim_width_inner) {
-    const ExPolygon& slice_polygon = layer->lslices()[slice_idx];
+    const ExPolygon& slice_polygon = layer->lslices[slice_idx];
     // TODO: The algorithm here should take into account that multiple slices may
     // have coliding Brim areas and the final brim area is smaller,
     // thus has lower adhesion. For now this effect will be neglected.
@@ -1200,7 +1200,7 @@ std::tuple<SupportPoints, PartialObjects> check_stability(const PrintObject     
         slice_mappings = update_active_object_parts(layer, params, precomputed_slices_connections[layer_idx], slice_mappings, active_object_parts, partial_objects);
 
         std::optional<Linesf> prev_layer_boundary = layer->lower_layer != nullptr ?
-                                                        std::optional{to_unscaled_linesf(layer->lower_layer->lslices())} :
+                                                        std::optional{to_unscaled_linesf(layer->lower_layer->lslices)} :
                                                         std::nullopt;
 
         LocalSupports local_supports{
@@ -1378,7 +1378,7 @@ void estimate_malformations(LayerPtrs &layers, const Params &params)
 
     for (Layer *l : layers) {
         l->curled_lines.clear();
-        std::vector<Linef> boundary_lines = l->lower_layer != nullptr ? to_unscaled_linesf(l->lower_layer->lslices()) : std::vector<Linef>();
+        std::vector<Linef> boundary_lines = l->lower_layer != nullptr ? to_unscaled_linesf(l->lower_layer->lslices) : std::vector<Linef>();
         AABBTreeLines::LinesDistancer<Linef> prev_layer_boundary{std::move(boundary_lines)};
         std::vector<ExtrusionLine>           current_layer_lines;
         for (const LayerRegion *layer_region : l->regions()) {

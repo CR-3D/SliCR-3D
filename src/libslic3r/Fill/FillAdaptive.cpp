@@ -2,32 +2,41 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#include "../ClipperUtils.hpp"
-#include "../ExPolygon.hpp"
-#include "../Surface.hpp"
-#include "../Geometry.hpp"
-#include "../Layer.hpp"
-#include "../Print.hpp"
-#include "../ShortestPath.hpp"
-
-#include "FillAdaptive.hpp"
-
 // for indexed_triangle_set
 #include <admesh/stl.h>
-
+#include <boost/geometry/core/access.hpp>
+#include <boost/geometry/core/static_assert.hpp>
 #include <cstdlib>
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <array>
+#include <iterator>
+#include <limits>
+#include <optional>
+#include <cassert>
+#include <complex>
+
+#include "../ClipperUtils.hpp"
+#include "../ExPolygon.hpp"
+#include "../Geometry.hpp"
+#include "../Layer.hpp"
+#include "../Print.hpp"
+#include "../ShortestPath.hpp"
+#include "libslic3r/Fill/FillAdaptive.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/Fill/FillBase.hpp"
+#include "libslic3r/Flow.hpp"
+#include "libslic3r/Line.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/PrintConfig.hpp"
+#include "tcbspan/span.hpp"
 
 // Boost pool: Don't use mutexes to synchronize memory allocation.
 #define BOOST_POOL_NO_MT
 #include <boost/pool/object_pool.hpp>
-
 #include <boost/geometry.hpp>
-#include <boost/geometry/geometries/point.hpp>
 #include <boost/geometry/geometries/segment.hpp>
-#include <boost/geometry/index/rtree.hpp>
 
 
 namespace Slic3r {
@@ -297,15 +306,15 @@ std::pair<double, double> adaptive_fill_line_spacing(const PrintObject &print_ob
     std::vector<RegionFillData> region_fill_data;
     region_fill_data.reserve(print_object.num_printing_regions());
     bool                       build_octree                   = false;
-    const std::vector<double> &nozzle_diameters               = print_object.print()->config().nozzle_diameter.get_values();
+    const std::vector<double> &nozzle_diameters               = print_object.print()->config().nozzle_diameter.values;
     double                     max_nozzle_diameter            = *std::max_element(nozzle_diameters.begin(), nozzle_diameters.end());
     double                     default_infill_extrusion_width = Flow::auto_extrusion_width(FlowRole::frInfill, float(max_nozzle_diameter));
     for (size_t region_id = 0; region_id < print_object.num_printing_regions(); ++ region_id) {
         const PrintRegionConfig &config                 = print_object.printing_region(region_id).config();
         bool                     nonempty               = config.fill_density > 0;
-        bool                     has_adaptive_infill    = nonempty && config.fill_pattern.value == ipAdaptiveCubic;
-        bool                     has_support_infill     = nonempty && config.fill_pattern.value == ipSupportCubic;
-        double                   infill_extrusion_width = config.infill_extrusion_width.get_abs_value(max_nozzle_diameter);
+        bool                     has_adaptive_infill    = nonempty && config.fill_pattern == ipAdaptiveCubic;
+        bool                     has_support_infill     = nonempty && config.fill_pattern == ipSupportCubic;
+        double                   infill_extrusion_width = config.infill_extrusion_width.percent ? default_infill_extrusion_width * 0.01 * config.infill_extrusion_width : config.infill_extrusion_width;
         region_fill_data.push_back(RegionFillData({
             has_adaptive_infill ? Tristate::Maybe : Tristate::No,
             has_support_infill ? Tristate::Maybe : Tristate::No,
@@ -508,10 +517,6 @@ static void generate_infill_lines_recursive(
     }
 }
 
-#ifndef NDEBUG
-//    #define ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT
-#endif
-
 #ifdef ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT
 static void export_infill_lines_to_svg(const ExPolygon &expoly, const Polylines &polylines, const std::string &path, const Points &pts = Points())
 {
@@ -523,7 +528,7 @@ static void export_infill_lines_to_svg(const ExPolygon &expoly, const Polylines 
     svg.draw_outline(expoly, "green");
     svg.draw(polylines, "red");
     static constexpr double trim_length = scale_(0.4);
-    for (Polyline polyline : polylines) {
+    for (Polyline polyline : polylines)
         if (! polyline.empty()) {
             Vec2d a = polyline.points.front().cast<double>();
             Vec2d d = polyline.points.back().cast<double>();
@@ -556,7 +561,6 @@ static void export_infill_lines_to_svg(const ExPolygon &expoly, const Polylines 
             }
             svg.draw(polyline, "black");
         }
-    }
     svg.draw(pts, "magenta");
 }
 #endif /* ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT */
@@ -643,11 +647,11 @@ static inline Intersection* get_nearest_intersection(std::vector<std::pair<Inter
 
 // Create a line representing the anchor aka hook extrusion based on line_to_offset 
 // translated in the direction of the intersection line (intersection.intersect_line).
-static Line create_offset_line(Line offset_line, const Intersection &intersection, const coordf_t scaled_offset)
+static Line create_offset_line(Line offset_line, const Intersection &intersection, const double scaled_offset)
 {
     offset_line.translate((perp(intersection.closest_line->vector().cast<double>().normalized()) * (intersection.left ? scaled_offset : - scaled_offset)).cast<coord_t>());
     // Extend the line by a small value to guarantee a collision with adjacent lines
-    offset_line.extend(coordf_t(coord_t(scaled_offset * 1.16))); // / cos(PI/6)
+    offset_line.extend(coord_t(scaled_offset * 1.16)); // / cos(PI/6)
     return offset_line;
 }
 
@@ -1323,17 +1327,13 @@ bool has_no_collinear_lines(const Polylines &polylines)
 #endif
 
 void Filler::_fill_surface_single(
-    const FillParams &             params,
+    const FillParams              &params,
     unsigned int                   thickness_layers,
     const std::pair<float, Point> &direction,
     ExPolygon                      expolygon,
-    Polylines                     &polylines_out) const
+    Polylines                     &polylines_out)
 {
     assert (this->adapt_fill_octree);
-    if (!this->adapt_fill_octree) {
-        BOOST_LOG_TRIVIAL(error) << "Error in FillAdaptative: no adapt_fill_octree.";
-        return;
-    }
 
     Polylines all_polylines;
     {
@@ -1398,10 +1398,10 @@ void Filler::_fill_surface_single(
     }
 #endif /* ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT */
 
-    const coordf_t hook_length     = std::min<coordf_t>((coordf_t)std::numeric_limits<coord_t>::max(), scale_d(params.anchor_length));
-    const coordf_t hook_length_max = std::min<coordf_t>((coordf_t)std::numeric_limits<coord_t>::max(), scale_d(params.anchor_length_max));
+    const auto hook_length     = coordf_t(std::min<float>(std::numeric_limits<coord_t>::max(), scale_(params.anchor_length)));
+    const auto hook_length_max = coordf_t(std::min<float>(std::numeric_limits<coord_t>::max(), scale_(params.anchor_length_max)));
 
-    Polylines all_polylines_with_hooks = all_polylines.size() > 1 ? connect_lines_using_hooks(std::move(all_polylines), expolygon, this->get_spacing(), hook_length, hook_length_max) : std::move(all_polylines);
+    Polylines all_polylines_with_hooks = all_polylines.size() > 1 ? connect_lines_using_hooks(std::move(all_polylines), expolygon, this->spacing, hook_length, hook_length_max) : std::move(all_polylines);
 
 #ifdef ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT
     {
@@ -1410,10 +1410,10 @@ void Filler::_fill_surface_single(
     }
 #endif /* ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT */
 
-    if (params.connection == InfillConnection::icNotConnected || all_polylines_with_hooks.size() <= 1)
+    if (params.dont_connect() || all_polylines_with_hooks.size() <= 1)
         append(polylines_out, chain_polylines(std::move(all_polylines_with_hooks)));
     else
-        connect_infill(std::move(all_polylines_with_hooks), expolygon, polylines_out, scale_t(this->get_spacing()), params);
+        connect_infill(std::move(all_polylines_with_hooks), expolygon, polylines_out, this->spacing, params);
 
 #ifdef ADAPTIVE_CUBIC_INFILL_DEBUG_OUTPUT
     {

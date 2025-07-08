@@ -128,7 +128,7 @@ SupportParameters::SupportParameters(const PrintObject &object)
     this->raft_interface_fill_pattern = this->raft_interface_density > 0.95 ? ipRectilinear : ipSupportBase;
     this->contact_top_fill_pattern    = object_config.support_material_top_interface_pattern;
     this->contact_bottom_fill_pattern = object_config.support_material_bottom_interface_pattern;
-    if (this->contact_top_fill_pattern == ipAuto) {
+   if (this->contact_top_fill_pattern == smipAuto) {
         if (slicing_params.soluble_interface)
             this->contact_top_fill_pattern = ipConcentric;
         else if (this->interface_density > 0.95)
@@ -136,10 +136,8 @@ SupportParameters::SupportParameters(const PrintObject &object)
         else
             this->contact_top_fill_pattern = ipSupportBase;
     }
-    if (this->contact_bottom_fill_pattern == ipAuto) {
-        if(this->contact_top_fill_pattern != ipHilbertCurve
-            && this->contact_top_fill_pattern != ipSmooth
-            && this->contact_top_fill_pattern != ipSawtooth)
+   if (this->contact_bottom_fill_pattern == smipAuto) {
+        if(this->contact_top_fill_pattern != ipHilbertCurve)
             this->contact_bottom_fill_pattern = this->contact_top_fill_pattern;
         else if (slicing_params.soluble_interface)
             this->contact_bottom_fill_pattern = ipConcentric;
