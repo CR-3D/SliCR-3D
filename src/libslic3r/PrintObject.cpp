@@ -437,48 +437,6 @@ void PrintObject::prepare_infill()
         }
     }
 #endif
-    EnsureVerticalShellThickness ensure_vertical_shell_thickness = this->default_region_config(this->print()->default_region_config())
-            .option<ConfigOptionEnum<EnsureVerticalShellThickness>>("ensure_vertical_shell_thickness")->value;
-    if (ensure_vertical_shell_thickness != EnsureVerticalShellThickness::Partial && ensure_vertical_shell_thickness != EnsureVerticalShellThickness::Enabled) {
-        // this will detect bridges and reverse bridges
-        // and rearrange top/bottom/internal surfaces
-        // It produces enlarged overlapping bridging areas.
-        //
-        // 1) stBottomBridge / stBottom infill is grown by 3mm and clipped by the total infill area. Bridges are
-        // detected. The areas may overlap. 2) stTop is grown by 3mm and clipped by the grown bottom areas. The areas
-        // may overlap. 3) Clip the internal surfaces by the grown top/bottom surfaces. 4) Merge surfaces with the
-        // same style. This will mostly get rid of the overlaps.
-        // FIXME This does not likely merge surfaces, which are supported by a material with different colors, but
-        // same properties.
-        if (m_print->objects().size() == 1) {
-            m_print->set_status(30, L("Process external surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
-        } else {
-            int32_t advancement_count = m_print->secondary_status_counter_increment(15);
-            m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(),
-                                L("Process objects: %s / %s"),
-                                {std::to_string(advancement_count),
-                                 std::to_string(m_print->secondary_status_counter_get_max())},
-                                PrintBase::SlicingStatus::SECONDARY_STATE);
-        }
-        this->process_external_surfaces(true /* old*/);
-        m_print->throw_if_canceled();
-
-#ifdef _DEBUG
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            for (const Layer *layer : m_layers) {
-                for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
-                    assert(srf.surface_type == (stPosInternal | stDensSolid) ||
-                           srf.surface_type == (stPosInternal | stDensSparse) ||
-                           // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
-                           srf.surface_type == (stPosInternal | stDensVoid) ||
-                           srf.surface_type == (stPosTop | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
-                }
-            }
-        }
-#endif
-    }
 
     // Add solid fills to ensure the shell vertical thickness.
     if (m_print->objects().size() == 1) {
@@ -516,7 +474,6 @@ void PrintObject::prepare_infill()
     }
 #endif
 
-    if (ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Partial || ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Enabled) {
         // this will detect bridges and reverse bridges
         // and rearrange top/bottom/internal surfaces
         // It produces enlarged overlapping bridging areas.
@@ -537,32 +494,8 @@ void PrintObject::prepare_infill()
                                  std::to_string(m_print->secondary_status_counter_get_max())},
                                 PrintBase::SlicingStatus::SECONDARY_STATE);
         }
-        this->process_external_surfaces(false /*!old =  new*/);
+        this->process_external_surfaces();
         m_print->throw_if_canceled();
-
-#ifdef _DEBUG
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            for (const Layer *layer : m_layers) {
-                for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
-                    assert(srf.surface_type == (stPosInternal | stDensSolid) ||
-                           srf.surface_type == (stPosInternal | stDensSparse) ||
-                           // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
-                           srf.surface_type == (stPosInternal | stDensVoid) ||
-                           srf.surface_type == (stPosTop | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
-                }
-            }
-        }
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            for (const Layer *layer : m_layers) {
-                for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
-                    srf.expolygon.assert_valid();
-                }
-            }
-        }
-#endif
-    }
 
     // Debugging output.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
@@ -2442,7 +2375,7 @@ void PrintObject::apply_solid_infill_below_layer_area()
     }
 }
 
-void PrintObject::process_external_surfaces(bool old)
+void PrintObject::process_external_surfaces()
 {
     BOOST_LOG_TRIVIAL(info) << "Processing external surfaces..." << log_memory_info();
 
@@ -2525,23 +2458,15 @@ void PrintObject::process_external_surfaces(bool old)
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - start";
         Slic3r::parallel_for(size_t(0), m_layers.size(),
-            [this, &surfaces_covered, region_id, old](const size_t layer_idx) {
+            [this, &surfaces_covered, region_id](const size_t layer_idx) {
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                 m_print->throw_if_canceled();
                 // BOOST_LOG_TRIVIAL(trace) << "Processing external surface, layer" << m_layers[layer_idx]->print_z;
-                if (old) {
-                    m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces_old(
-                        // lower layer
-                        (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
-                        // lower layer polygons with density > 0%
-                        (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
-                } else {
                     m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces(
                         // lower layer
                         (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
                         // lower layer polygons with density > 0%
                         (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
-                }
             }
         );
         m_print->throw_if_canceled();
@@ -2599,7 +2524,6 @@ void PrintObject::discover_vertical_shells()
         for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
             const PrintRegionConfig &config = this->printing_region(region_id).config();
             if (config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Enabled ||
-                config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Enabled_old ||
                 config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Partial) {
                 has_extra_layers = true;
                 break;
@@ -2703,7 +2627,6 @@ void PrintObject::discover_vertical_shells()
         const PrintRegion &region = this->printing_region(region_id);
 
         if (region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Enabled &&
-            region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Enabled_old &&
             region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Partial) {
             // This region will be handled by discover_horizontal_shells().
             continue;

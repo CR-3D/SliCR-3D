@@ -342,7 +342,6 @@ static const t_config_enum_values s_keys_map_EnsureVerticalShellThickness {
     { "disabled", int(EnsureVerticalShellThickness::Disabled) },
     { "partial",  int(EnsureVerticalShellThickness::Partial)  },
     { "enabled",  int(EnsureVerticalShellThickness::Enabled)  },
-    { "enabled_old",  int(EnsureVerticalShellThickness::Enabled_old)  },
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(EnsureVerticalShellThickness)
 
@@ -1563,13 +1562,12 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Add solid infill near sloping surfaces to guarantee the vertical shell thickness "
                    "(top+bottom solid layers).");
     def->set_enum<EnsureVerticalShellThickness>({
-        { "disabled", L("Disabled (2.5)") },
-        { "partial",  L("partial (2.9 experimental)")  },
-        { "enabled",  L("Enabled (2.7 experimental)")  },
-        { "enabled_old",  L("Enabled (2.5)")  },
+        { "disabled", L("Disabled") },
+        { "partial",  L("Partial")  },
+        { "enabled",  L("Enabled")  },
     });
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled_old));
+    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled));
 
     def = this->add("external_infill_margin", coFloatOrPercent);
     def->label = L("Default");
@@ -9095,7 +9093,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     }
     if (has(dict, "ensure_vertical_shell_thickness"s)) {
         if (value() == "1") {
-            value() = "enabled_old";
+            value() = "enabled";
         } else if (value() == "0") {
             value() = "disabled";
         } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) {

@@ -317,7 +317,6 @@ enum class EnsureVerticalShellThickness {
     Disabled,
     Partial,
     Enabled,
-    Enabled_old,
 };
 
 #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
