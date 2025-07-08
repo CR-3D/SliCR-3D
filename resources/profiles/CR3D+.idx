@@ -49,3 +49,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.48 changed vertical_shell_thickness to old and some other improvements
 0.0.49 disabled use ramping lift
 0.0.50 updated start-gcode for single and idex printers
+0.0.51 extrusion width changes in CR-3D+ Standard
