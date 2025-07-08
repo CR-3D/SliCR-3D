@@ -273,6 +273,8 @@ set(SLIC3R_SOURCES
     MeshNormals.cpp
     Measure.hpp
     Measure.cpp
+    InfillAboveBridges.hpp
+    InfillAboveBridges.cpp
     MeasureUtils.hpp
     CustomGCode.cpp
     CustomGCode.hpp

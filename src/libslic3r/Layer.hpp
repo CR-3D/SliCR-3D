@@ -17,7 +17,7 @@
 #include "Flow.hpp"
 #include "SurfaceCollection.hpp"
 #include "ExtrusionEntityCollection.hpp"
-
+#include "libslic3r/Algorithm/RegionExpansion.hpp"
 #include <boost/container/small_vector.hpp>
 
 namespace Slic3r {
@@ -159,7 +159,7 @@ public:
     coordf_t bridging_height_avg() const;
     Flow     bridging_flow(FlowRole role, BridgeType force_type = BridgeType::btNone) const;
 
-    void    slices_to_fill_surfaces_clipped(coord_t opening_offset);
+    void    slices_to_fill_surfaces_clipped();
     void    prepare_fill_surfaces();
 
     // Produce perimeter extrusions, gap fill extrusions and fill polygons for input slices.
@@ -175,7 +175,7 @@ public:
         std::vector<ExPolygonRange>                            &fill_expolygons_ranges);
     void    make_milling_post_process(const SurfaceCollection& slices);
     void    process_external_surfaces(const Layer *lower_layer, const Polygons *lower_layer_covered);
-    void    process_external_surfaces_old(const Layer *lower_layer, const Polygons *lower_layer_covered);
+
     double  infill_area_threshold() const;
     // Trim surfaces by trimming polygons. Used by the elephant foot compensation at the 1st layer.
     void    trim_surfaces(const Polygons &trimming_polygons);
@@ -271,6 +271,12 @@ private:
     // collection of expolygons representing the bridged areas (thus not
     // needing support material)
 //  Polygons                    bridged;
+};
+
+struct ExpansionZone {
+    ExPolygons expolygons;
+    Algorithm::RegionExpansionParameters parameters;
+    bool expanded_into = false;
 };
 
 // LayerSlice contains one or more LayerIsland objects,

@@ -342,7 +342,6 @@ static const t_config_enum_values s_keys_map_EnsureVerticalShellThickness {
     { "disabled", int(EnsureVerticalShellThickness::Disabled) },
     { "partial",  int(EnsureVerticalShellThickness::Partial)  },
     { "enabled",  int(EnsureVerticalShellThickness::Enabled)  },
-    { "enabled_old",  int(EnsureVerticalShellThickness::Enabled_old)  },
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(EnsureVerticalShellThickness)
 
@@ -1563,13 +1562,32 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Add solid infill near sloping surfaces to guarantee the vertical shell thickness "
                    "(top+bottom solid layers).");
     def->set_enum<EnsureVerticalShellThickness>({
-        { "disabled", L("Disabled (2.5)") },
-        { "partial",  L("partial (2.9 experimental)")  },
-        { "enabled",  L("Enabled (2.7 experimental)")  },
-        { "enabled_old",  L("Enabled (2.5)")  },
+        { "disabled", L("Disabled") },
+        // TRN: This is a drop-down option for 'Ensure vertical shell thickness' parameter.
+        { "partial",  L("Partial")  },
+        { "enabled",  L("Enabled")  },
     });
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled_old));
+    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled));
+
+// Prusa import
+    def = this->add("automatic_infill_combination", coBool);
+    def->label = L("Automatic infill combination");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("This feature automatically combines infill of several layers and speeds up your print by extruding thicker "
+                     "infill layers while preserving thin perimeters, thus maintaining accuracy.");
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("automatic_infill_combination_max_layer_height", coFloatOrPercent);
+    def->label = L("Automatic infill combination - Max layer height");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("Maximum layer height for combining infill when automatic infill combining is enabled. "
+                     "Maximum layer height could be specified either as an absolute in millimeters value or as a percentage of nozzle diameter. "
+                     "For printing with different nozzle diameters, it is recommended to use percentage value over absolute value.");
+    def->mode = comAdvanced | comExpert;
+    def->set_default_value(new ConfigOptionFloatOrPercent(100., true));
+
 
     def = this->add("external_infill_margin", coFloatOrPercent);
     def->label = L("Default");
@@ -4523,7 +4541,7 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,100},{25,80},{50,60},{75,40},{100,20}}
     )})));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4547,8 +4565,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     def             = this->add("overhangs_dynamic_speed", coGraph);
     def->label      = L("Dynamic overhang speeds");
@@ -4561,7 +4578,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext   = L("mm/s");
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,0},{25,10},{50,40},{75,70},{100,100}}
     ))));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4585,8 +4602,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     def = this->add("overhangs_fan_speed", coInts);
     def->label = L("Overhangs Perimeter fan speed");
@@ -9110,11 +9126,10 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     }
     if (has(dict, "ensure_vertical_shell_thickness"s)) {
         if (value() == "1") {
-            value() = "enabled_old";
+            value() = "enabled";
         } else if (value() == "0") {
-            value() = "disabled";
-        } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) {
-            assert(value() == "0" || value() == "1");
+            value() = "partial";
+        } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) { assert(value() == "0" || value() == "1");
             // Values other than 0/1 are replaced with "partial" for handling values from different slicers.
             value() = "partial";
         }

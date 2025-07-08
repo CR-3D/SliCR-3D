@@ -317,7 +317,6 @@ enum class EnsureVerticalShellThickness {
     Disabled,
     Partial,
     Enabled,
-    Enabled_old,
 };
 
 #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
@@ -895,6 +894,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                curve_smoothing_cutoff_dist))
     ((ConfigOptionFloat,                curve_smoothing_angle_convex))
     ((ConfigOptionFloat,                curve_smoothing_angle_concave))
+    ((ConfigOptionBool,                 automatic_infill_combination))
+    ((ConfigOptionFloatOrPercent,       automatic_infill_combination_max_layer_height))
     ((ConfigOptionFloatOrPercent,       default_acceleration))
     ((ConfigOptionFloatOrPercent,       default_speed))
     ((ConfigOptionBool,                 enforce_full_fill_volume))

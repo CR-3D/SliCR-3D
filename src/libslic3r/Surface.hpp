@@ -40,6 +40,8 @@ enum SurfaceType  : uint16_t {
     stModBridge = 1 << 7,
     /// Bridge Modifier: 2nd layer of dense infill over sparse infill/nothing, may be printed with an over-extruding flow.
     stModOverBridge = 1 << 8,
+    
+    stCount = 1 << 9,
 };
 inline SurfaceType operator|(SurfaceType a, SurfaceType b) {
     return static_cast<SurfaceType>(static_cast<uint16_t>(a) | static_cast<uint16_t>(b));
