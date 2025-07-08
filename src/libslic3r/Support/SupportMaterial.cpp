@@ -321,6 +321,7 @@ void PrintObjectSupportMaterial::generate(PrintObject &object) {
                                                             layer_support_areas);
 
     assert_check(bottom_contacts);
+    assert_z(bottom_contacts);
 #ifdef SLIC3R_DEBUG
     for (size_t layer_id = 0; layer_id < object.layers().size(); ++layer_id)
         Slic3r::SVG::export_expolygons(debug_out_path("support-areas-%d-%lf.svg", iRun,
@@ -381,6 +382,8 @@ void PrintObjectSupportMaterial::generate(PrintObject &object) {
 
     assert_check(bottom_contacts);
     assert_check(top_contacts);
+    assert_z(bottom_contacts);
+    assert_z(top_contacts);
 
     BOOST_LOG_TRIVIAL(info) << "Support generator - Creating interfaces";
 
@@ -2053,6 +2056,8 @@ static inline SupportGeneratorLayer *detect_bottom_contacts(
         layer.upper_layer->print_z :
         layer.print_z + layer_new.height_block + slicing_params.gap_object_support;
     layer_new.bottom_z = layer.print_z;
+    //recompute layer height to be in synch with print & bottom
+    layer_new.height = layer_new.print_z - layer_new.bottom_z;
     layer_new.idx_object_layer_below = layer_id;
     layer_new.bridging = !slicing_params.soluble_interface;
     // FIXME how much to inflate the bottom surface, as it is being extruded with a bridging flow? The following line
@@ -2088,6 +2093,7 @@ static inline SupportGeneratorLayer *detect_bottom_contacts(
                     layer_new.print_z = top_contacts[top_idx]->print_z;
                     layer_new.height -= diff;
                 }
+                assert(is_approx(layer_new.print_z * 1., layer_new.height + layer_new.bottom_z * 1., EPSILON));
                 break;
             }
         }
@@ -2630,15 +2636,14 @@ SupportGeneratorLayersPtr PrintObjectSupportMaterial::raft_and_intermediate_supp
                     }
                     n_layers_total = n_layers_bot + n_layers_middle + n_layers_top;
                 } else {
-                    // enough place of at least one normal support layer
-                    n_layers_middle = size_t(
-                        ceil((dist - height_top_interface - height_bot_interface) / support_layer_height));
+                    //enough place of at least one normal support layer
+                    n_layers_middle = size_t(ceil((dist - height_top_interface - height_bot_interface - EPSILON) / support_layer_height));
                     n_layers_total = n_layers_bot + n_layers_middle + n_layers_top;
                     // compute the avg
                     step = dist / coordf_t(n_layers_total);
-                    // it's not possible to have the average above both height.
-                    assert(step < support_layer_height || step < support_interface_layer_height);
-                    if (step < support_layer_height && step < support_interface_layer_height) {
+                    //it's not possible to have the average above both height.
+                    assert(step <= support_layer_height + EPSILON || step <= support_interface_layer_height + EPSILON);
+                    if (step <= support_layer_height && step <= support_interface_layer_height) {
                         // the average step is lower than the interface and the normal hiehgt, so use that
                         step_interface = step;
                     } else {

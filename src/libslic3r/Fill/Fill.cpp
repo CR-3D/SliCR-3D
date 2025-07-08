@@ -671,7 +671,8 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
         //ensure_valid(surface_fill.expolygons, surface_fill.params.fill_resolution);
         ensure_valid(surface_fill.expolygons);
         surface_fill.expolygons = simplify_polygons_ex(to_polygons(surface_fill.expolygons));
-        assert_valid(surface_fill.expolygons); //TODO: uncomment when union_safety_offset_ex will be improve
+        ensure_valid(surface_fill.expolygons);
+        //assert_valid(surface_fill.expolygons); //TODO: uncomment when union_safety_offset_ex will be improve
     }
 
     return surface_fills;
@@ -1164,7 +1165,15 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
                 //check no over or underextrusion if fill_exactly
                 if(surface_fill.params.fill_exactly && surface_fill.params.density == 1 && !surface_fill.params.flow.bridge()) {
                     ExtrusionVolume compute_volume;
-                    ExtrusionVolume compute_volume_no_gap_fill(false);
+                    ExtrusionVolume compute_volume_no_gap_fill;
+                    compute_volume_no_gap_fill.set_use_gap_fill(false);
+                    double ratio = 1.;
+                    if (surface_fill.params.flow.spacing_ratio() != 1) {
+                        Flow bigger_flow = Flow::new_from_spacing(surface_fill.params.flow.spacing(), surface_fill.params.flow.nozzle_diameter(), surface_fill.params.flow.height(), 1.f , false);
+                        ratio = bigger_flow.mm3_per_mm() / surface_fill.params.flow.mm3_per_mm();
+                        compute_volume.set_flow_mult(ratio);
+                        compute_volume_no_gap_fill.set_flow_mult(ratio);
+                    }
                     //check that it doesn't overextrude
                     for(size_t idx = 0; idx < fills_by_priority[(size_t)surface_fill.params.priority].back()->size(); ++idx){
                         fills_by_priority[(size_t)surface_fill.params.priority].back()->entities()[idx]->visit(compute_volume);

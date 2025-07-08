@@ -1284,6 +1284,7 @@ void make_brim_ears(const Print& print, const Flow& flow, const PrintObjectPtrs&
 
     //get brim resolution (low resolution if no arc fitting)
     coordf_t scaled_resolution_brim = (print.config().arc_fitting.value != ArcFittingType::Disabled) ? scale_d(print.config().resolution) : scale_d(print.config().resolution_internal) / 10;
+    scaled_resolution_brim = std::max(scaled_resolution_brim, coordf_t(SCALED_EPSILON * 10));
     if (brim_config.brim_ears_pattern.value == InfillPattern::ipConcentric) {
 
         //create loops (same as standard brim)
@@ -1383,6 +1384,7 @@ void make_brim_patch(const Print &print,
                      ExtrusionEntityCollection &out)
 {
     coordf_t scaled_resolution_brim = (print.config().arc_fitting.value != ArcFittingType::Disabled) ? scale_d(print.config().resolution) : scale_d(print.config().resolution_internal) / 10;
+    scaled_resolution_brim = std::max(scaled_resolution_brim, coordf_t(SCALED_EPSILON * 10));
     for (const Polygon &contour : patches) {
         contour.simplify(scaled_resolution_brim);
         if (contour.empty()) {
@@ -1479,6 +1481,7 @@ void make_brim_interior(const Print& print, const Flow& flow, const PrintObjectP
     //now get all holes, use them to create loops
     //get brim resolution (low resolution if no arc fitting)
     coordf_t scaled_resolution_brim = (print.config().arc_fitting.value != ArcFittingType::Disabled) ? scale_d(print.config().resolution) : scale_d(print.config().resolution_internal) / 10;
+    scaled_resolution_brim = std::max(scaled_resolution_brim, coordf_t(SCALED_EPSILON * 10));
     std::vector<std::vector<BrimLoop>> loops;
     for (size_t i = 0; i < num_loops; ++i) {
         print.throw_if_canceled();
