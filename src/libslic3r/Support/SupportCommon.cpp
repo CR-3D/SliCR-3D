@@ -640,7 +640,7 @@ static inline void fill_expolygon_generate_paths(ExtrusionEntitiesPtr &dst,
     FillParams new_params = fill_params;
     new_params.flow = flow;
     new_params.role = role;
-    filler->init_spacing(spacing, new_params);
+   // filler->init_spacing(spacing, new_params);
     {
         assert(!fill_params.use_arachne);
         Surface surface(stPosInternal | stDensSparse, std::move(expolygon));
@@ -1915,7 +1915,7 @@ coordf_t bridge_flow_ratio = 0;
                         Flow::new_from_width(float(support_params.raft_interface_flow.width()), nzd,
                                              float(raft_layer.height),
                                              support_params.raft_interface_flow.spacing_ratio()) :
-                        Flow::bridging_flow(width, height, nzd);
+                        Flow::bridging_flow(height, nzd);
                     
                     //flow          = Flow(float(support_params.raft_interface_flow.width()), float(raft_layer.height), support_params.raft_interface_flow.nozzle_diameter());
                 density       = float(support_params.raft_interface_density);
@@ -2207,7 +2207,7 @@ coordf_t bridge_flow_ratio = 0;
                         float height = support_layer.height; // <- This must be passed in or computed based on support layer
 
                         Flow interface_flow = layer_ex.layer->bridging ?
-                            Flow::bridging_flow(width, height,
+                            Flow::bridging_flow(height,
                                                 support_params.support_material_bottom_interface_flow.nozzle_diameter()) :
                             (raft_contact          ? &support_params.raft_interface_flow :
                                  interface_as_base ? &support_params.support_material_flow :

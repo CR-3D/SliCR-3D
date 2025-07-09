@@ -96,7 +96,7 @@ SupportParameters::SupportParameters(const PrintObject &object)
 
     this->support_material_bottom_interface_flow = slicing_params.soluble_interface ?
         this->support_material_interface_flow.with_flow_ratio(bridge_flow_ratio) :
-        Flow::bridging_flow(width, height, this->support_material_interface_flow.nozzle_diameter());
+        Flow::bridging_flow( height, this->support_material_interface_flow.nozzle_diameter());
 
     this->can_merge_support_regions = object_config.support_material_extruder.value == object_config.support_material_interface_extruder.value;
     if (!this->can_merge_support_regions && (object_config.support_material_extruder.value == 0 || object_config.support_material_interface_extruder.value == 0)) {

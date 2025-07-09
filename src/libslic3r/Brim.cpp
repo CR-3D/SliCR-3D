@@ -1366,7 +1366,7 @@ void make_brim_ears(const Print& print, const Flow& flow, const PrintObjectPtrs&
         fill_params.fill_exactly = true;
         fill_params.flow = flow;
         fill_params.role = ExtrusionRole::Skirt;
-        filler->init_spacing(flow.spacing(), fill_params);
+       // filler->init_spacing(flow.spacing(), fill_params);
         for (const ExPolygon& expoly : new_brim_area) {
             Surface surface(stPosInternal | stDensSparse, expoly);
             filler->fill_surface_extrusion(&surface, fill_params, out.set_entities());

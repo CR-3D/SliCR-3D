@@ -102,7 +102,7 @@ void ExtrusionPath::polygons_covered_by_spacing(Polygons &out, const float spaci
     // Remove the now-invalid assert
     // assert(!bridge || m_attributes.width == m_attributes.height);
 
-    auto flow = bridge ? Flow::bridging_flow(m_attributes.width, m_attributes.height, 0.f) :
+    auto flow = bridge ? Flow::bridging_flow( m_attributes.height, 0.f) :
                          Flow::new_from_width(m_attributes.width, 0.f, m_attributes.height, spacing_ratio);
     polygons_append(out, offset(this->polyline.to_polyline(), 0.5f * float(flow.scaled_spacing()) + scaled_epsilon, Slic3r::ClipperLib::jtMiter, 10));
 }

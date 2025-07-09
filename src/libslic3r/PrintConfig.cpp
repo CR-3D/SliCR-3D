@@ -11333,23 +11333,17 @@ const DynamicPrintConfig *DynamicPrintConfig::value_changed(
                 }
             }
             if (opt_key == "solid_infill_extrusion_spacing") {
-                const ConfigOptionPercent *solid_infill_overlap_option =
-                    find_option<ConfigOptionPercent>("solid_infill_overlap", this, config_collection);
-                ConfigOptionFloatOrPercent *width_option = this->option<ConfigOptionFloatOrPercent>(
-                    "solid_infill_extrusion_width");
+                const ConfigOptionPercent* solid_infill_overlap_option = find_option<ConfigOptionPercent>("solid_infill_overlap", this, config_collection);
+                ConfigOptionFloatOrPercent* width_option = this->option<ConfigOptionFloatOrPercent>("solid_infill_extrusion_width");
                 if (width_option) {
                     width_option->set_phony(true);
                     spacing_option->set_phony(false);
                     if (spacing_value == 0)
                         width_option->value = 0;
                     else {
-                        float spacing_ratio = (std::min(flow.spacing_ratio(),
-                                                        float(solid_infill_overlap_option->get_abs_value(1))));
-                        flow = flow.with_width(spacing_option->get_abs_value(max_nozzle_diameter) +
-                                               layer_height_option->value * (1. - 0.25 * PI) * spacing_ratio);
-                        width_option->value = (spacing_option->percent) ?
-                            std::round(100 * flow.width() / max_nozzle_diameter) :
-                            (std::round(flow.width() * 10000) / 10000);
+                        float spacing_ratio = (std::min(flow.spacing_ratio(), float(solid_infill_overlap_option->get_abs_value(1))));
+                        flow = flow.with_width(spacing_option->get_abs_value(max_nozzle_diameter) + layer_height_option->value * (1. - 0.25 * PI) * spacing_ratio);
+                        width_option->value = (spacing_option->percent) ? std::round(100 * flow.width() / max_nozzle_diameter) : (std::round(flow.width() * 10000) / 10000);
                     }
                     width_option->percent = spacing_option->percent;
                     something_changed = true;
@@ -11558,8 +11552,7 @@ const DynamicPrintConfig *DynamicPrintConfig::value_changed(
                     }
                 }
                 if (opt_key == "solid_infill_extrusion_width") {
-                    const ConfigOptionPercent *solid_infill_overlap_option =
-                        find_option<ConfigOptionPercent>("solid_infill_overlap", this, config_collection);
+                    const ConfigOptionPercent* solid_infill_overlap_option = find_option<ConfigOptionPercent>("solid_infill_overlap", this, config_collection);
                     spacing_option = this->option<ConfigOptionFloatOrPercent>("solid_infill_extrusion_spacing");
                     if (width_option) {
                         width_option->set_phony(false);
@@ -11567,16 +11560,12 @@ const DynamicPrintConfig *DynamicPrintConfig::value_changed(
                         if (width_option->value == 0)
                             spacing_option->value = 0;
                         else {
-                            Flow flow = Flow::new_from_config_width(
-                                FlowRole::frSolidInfill,
-                                width_option->value == 0 ? *default_width_option : *width_option, *spacing_option,
-                                max_nozzle_diameter, layer_height_option->value,
+                            Flow flow = Flow::new_from_config_width(FlowRole::frSolidInfill, 
+                                width_option->value == 0 ? *default_width_option : *width_option, *spacing_option, 
+                                max_nozzle_diameter, layer_height_option->value, 
                                 std::min(overlap_ratio, float(solid_infill_overlap_option->get_abs_value(1.))), 0);
-                            if (flow.width() < flow.height())
-                                flow = flow.with_height(flow.width());
-                            spacing_option->value = (width_option->percent) ?
-                                std::round(100 * flow.spacing() / max_nozzle_diameter) :
-                                (std::round(flow.spacing() * 10000) / 10000);
+                            if (flow.width() < flow.height()) flow = flow.with_height(flow.width());
+                            spacing_option->value = (width_option->percent) ? std::round(100 * flow.spacing() / max_nozzle_diameter) : (std::round(flow.spacing() * 10000) / 10000);
                         }
                         spacing_option->percent = width_option->percent;
                         something_changed = true;

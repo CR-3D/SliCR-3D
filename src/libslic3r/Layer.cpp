@@ -727,7 +727,6 @@ void Layer::make_perimeters()
                             && config.overhangs_width           == other_config.overhangs_width
                             && config.overhangs_reverse         == other_config.overhangs_reverse
                             && config.overhangs_reverse_threshold == other_config.overhangs_reverse_threshold
-                            && config.wall_sequence               == other_config.wall_sequence
                             && config.perimeter_acceleration    == other_config.perimeter_acceleration
                             && config.perimeter_direction       == other_config.perimeter_direction
                             && config.perimeter_extrusion_width == other_config.perimeter_extrusion_width
@@ -744,6 +743,8 @@ void Layer::make_perimeters()
                             && config.small_perimeter_max_length == other_config.small_perimeter_max_length
                             && config.thin_walls                == other_config.thin_walls
                             && config.thin_walls_acceleration   == other_config.thin_walls_acceleration
+                            && config.thin_walls_min_width      == other_config.thin_walls_min_width
+                            && config.thin_walls_overlap        == other_config.thin_walls_overlap
                             && config.thin_perimeters           == other_config.thin_perimeters
                             && config.thin_perimeters_all       == other_config.thin_perimeters_all
                             && config.thin_walls_speed          == other_config.thin_walls_speed

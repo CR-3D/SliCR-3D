@@ -473,7 +473,6 @@ void PrintObject::prepare_infill()
         }
     }
 #endif
-
         // this will detect bridges and reverse bridges
         // and rearrange top/bottom/internal surfaces
         // It produces enlarged overlapping bridging areas.
@@ -797,7 +796,9 @@ void PrintObject::infill()
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                     // updating progress
                     int32_t nb_layers_done = m_print->secondary_status_counter_increment();
-
+                    m_print->set_status(100 * nb_layers_done / m_print->secondary_status_counter_get_max(), L("Infilling layer %s / %s"),
+                                    {std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max())},
+                        PrintBase::SlicingStatus::SECONDARY_STATE);
 
                     std::chrono::time_point<std::chrono::system_clock> start_make_fill = std::chrono::system_clock::now();
                     m_print->throw_if_canceled();
@@ -848,6 +849,9 @@ void PrintObject::generate_support_spots()
         m_print->set_status(objectstep_2_percent[PrintObjectStep::posSupportSpotsSearch], L("Searching support spots"));
         if (m_print->objects().size() > 1) {
             m_print->secondary_status_counter_add_max(1);
+            m_print->set_status(0. / m_print->objects().size(), L("Object %s / %s"),
+                            {std::to_string(0), std::to_string(m_print->objects().size())},
+                PrintBase::SlicingStatus::SECONDARY_STATE);
         } else {
             m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
@@ -871,6 +875,10 @@ void PrintObject::generate_support_spots()
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            m_print->set_status(100 * (nb_objects_done + 1) / m_print->secondary_status_counter_get_max(),
+                                L("Object %s / %s"),
+                                {std::to_string(nb_objects_done + 1), std::to_string(m_print->secondary_status_counter_get_max())},
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
         }
 
         BOOST_LOG_TRIVIAL(debug) << "Searching support spots - end";
@@ -884,6 +892,9 @@ void PrintObject::generate_support_material()
         m_print->set_status(objectstep_2_percent[PrintObjectStep::posSupportMaterial], L("Generating support material"));
         if (m_print->objects().size() > 1) {
             m_print->secondary_status_counter_add_max(1);
+            m_print->set_status(0. / m_print->objects().size(), L("Object %s / %s"),
+                            {std::to_string(0), std::to_string(m_print->objects().size())},
+                PrintBase::SlicingStatus::SECONDARY_STATE);
         } else {
             m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
@@ -905,6 +916,10 @@ void PrintObject::generate_support_material()
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            m_print->set_status(100 * (nb_objects_done + 1) / m_print->secondary_status_counter_get_max(),
+                                L("Object %s / %s"),
+                                {std::to_string(nb_objects_done + 1), std::to_string(m_print->secondary_status_counter_get_max())},
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
         }
     }
 }
@@ -984,6 +999,9 @@ void PrintObject::estimate_curled_extrusions()
         m_print->set_status(objectstep_2_percent[PrintObjectStep::posEstimateCurledExtrusions], L("Estimate curled extrusions"));
         if (m_print->objects().size() > 1) {
             m_print->secondary_status_counter_add_max(1);
+            m_print->set_status(0. / m_print->objects().size(), L("Object %s / %s"),
+                            {std::to_string(0), std::to_string(m_print->objects().size())},
+                PrintBase::SlicingStatus::SECONDARY_STATE);
         } else {
             m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
@@ -1010,6 +1028,10 @@ void PrintObject::estimate_curled_extrusions()
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            m_print->set_status(100 * (nb_objects_done + 1) / m_print->secondary_status_counter_get_max(),
+                            L("Object %s / %s"),
+                            {std::to_string(nb_objects_done + 1), std::to_string(m_print->secondary_status_counter_get_max())},
+                            PrintBase::SlicingStatus::SECONDARY_STATE);
         }
     }
 }
@@ -1253,6 +1275,12 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "external_perimeter_extrusion_spacing"
             || opt_key == "external_perimeter_extrusion_width"
             || opt_key == "external_perimeters_vase"
+            || opt_key == "gap_fill_extension"
+            || opt_key == "gap_fill_last"
+            || opt_key == "gap_fill_max_width"
+            || opt_key == "gap_fill_min_area"
+            || opt_key == "gap_fill_min_length"
+            || opt_key == "gap_fill_min_width"
             || opt_key == "min_width_top_surface"
             || opt_key == "only_one_perimeter_first_layer"
             || opt_key == "only_one_perimeter_top"
@@ -1275,6 +1303,7 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "thin_perimeters"
             || opt_key == "thin_perimeters_all"
             || opt_key == "thin_walls_merge"
+            || opt_key == "thin_walls_min_width"
             || opt_key == "thin_walls_overlap"
             ) {
             steps.emplace_back(posPerimeters);
@@ -1431,6 +1460,7 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "fill_angle_follow_model"
             || opt_key == "fill_angle_increment"
             || opt_key == "fill_angle_template"
+            || opt_key == "fill_top_flow_ratio"
             || opt_key == "fill_smooth_width"
             || opt_key == "fill_smooth_distribution"
             || opt_key == "first_layer_infill_extrusion_spacing"
@@ -1528,6 +1558,7 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "external_perimeter_cut_corners"
                 || opt_key == "first_layer_acceleration"
                 || opt_key == "first_layer_acceleration_over_raft"
+                || opt_key == "first_layer_flow_ratio"
                 || opt_key == "first_layer_infill_speed"
                 || opt_key == "first_layer_min_speed"
                 || opt_key == "first_layer_speed"
@@ -2461,13 +2492,13 @@ void PrintObject::process_external_surfaces()
             [this, &surfaces_covered, region_id](const size_t layer_idx) {
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                 m_print->throw_if_canceled();
-                // BOOST_LOG_TRIVIAL(trace) << "Processing external surface, layer" << m_layers[layer_idx]->print_z;
+
                     m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces(
                         // lower layer
                         (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
                         // lower layer polygons with density > 0%
                         (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
-            }
+                }
         );
         m_print->throw_if_canceled();
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - end";

@@ -229,7 +229,9 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
             // to paths
             ExtrusionEntityCollection* all_new_paths = new ExtrusionEntityCollection();
             double extruded_volume = 0;
+
             for (const ThickPolyline& thick_polyline : thick_polylines) {
+            
                 ExtrusionEntitiesPtr entities = Geometry::thin_variable_width(
                     { thick_polyline },
                     good_role,
@@ -346,6 +348,74 @@ coord_t Fill::_line_spacing_for_density(const FillParams& params) const
 //FIXME: add recent improvmeent from perimetergenerator: avoid thick gapfill
 void
 Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, ExtrusionEntitiesPtr& coll_out) const {
+
+    ThickPolylines polylines_gapfill;
+    coord_t min = coord_t(0.4 * scale_t(params.flow.nozzle_diameter()) * (1 - INSET_OVERLAP_TOLERANCE));
+    coord_t max = 2 * params.flow.scaled_width();
+    // note that the infill surface isn't split by these parameters, so if there is a modifier with them, the one shoosent will be random.
+    // most of the parameters % are about "periemter width". But infill can be printed with a bigger nozzl,e so it's
+    double unscaled_width = params.flow.width();
+    // safer to use the current flow for it.
+   // Define fixed, reasonable values
+   const coord_t minwidth = scale_t(0.2);   // Minimum gap width to attempt (e.g., 0.3mm)
+   const coord_t maxwidth = scale_t(0.6);   // Maximum gap width to consider (e.g., 0.6mm)
+
+   min = std::max(min, minwidth);
+   max = std::min(max, maxwidth);
+
+   // Use a small minimum area to filter out tiny unusable gaps (e.g., 0.04 mm²)
+   const double minarea = scale_d(scale_d(0.03));  // = 0.2 x 0.2 mm²
+
+   // Only fill gaps longer than this (0 = no filtering)
+   const coord_t minlength = scale_t(0.6); // Don't fill gaps shorter than 0.6mm
+
+   // How far to extend gap fill lines into perimeters for robustness (e.g., 0.05 mm)
+   const coord_t gapfill_extension = scale_t(0.05);
+    // collapse 
+    //be sure we don't gapfill where the perimeters are already touching each other (negative spacing).
+    min = std::max(min,
+                   Flow::new_from_spacing((float) EPSILON, (float) params.flow.nozzle_diameter(),
+                                          (float) params.flow.height(), 1, false)
+                       .scaled_width());
+    ExPolygons gapfill_areas_collapsed = offset2_ex(gapfill_areas, double(-min / 2), double(+min / 2));
+    for (const ExPolygon& ex : gapfill_areas_collapsed) {
+        //remove too small gaps that are too hard to fill.
+        //ie one that are smaller than an extrusion with width of min and a length of max.
+        if (ex.area() > minarea) {
+            Geometry::MedialAxis md{ ex, max, min, coord_t(params.flow.height()) };
+            if (minlength > 0) {
+                md.set_min_length(minlength);
+            }
+            if (gapfill_extension > 0) {
+                md.set_extension_length(gapfill_extension);
+            }
+            md.build(polylines_gapfill);
+        }
+    }
+    if (!polylines_gapfill.empty() && !params.role.is_bridge()) {
+        //test
+
+        ExtrusionEntitiesPtr gap_fill_entities =
+       Geometry::thin_variable_width(polylines_gapfill, ExtrusionRole::SolidInfill, params.flow,
+                                          scale_t((params.config == nullptr) ?
+                                                      EPSILON :
+                                                      params.config->get_computed_value("resolution_internal")),
+                                          true);
+
+        ////set role if needed
+        //if (params.role != ExtrusionRole::SolidInfill) {
+        //    ExtrusionSetRole set_good_role(params.role);
+        //    for(ExtrusionEntity *ptr : gap_fill_entities)
+        //        ptr->visit(set_good_role);
+        //}
+        //move them into the collection
+        if (!gap_fill_entities.empty()) {
+            ExtrusionEntityCollection* coll_gapfill = new ExtrusionEntityCollection();
+            coll_gapfill->set_can_sort_reverse(!this->no_sort(), !this->no_sort());
+            coll_gapfill->append(std::move(gap_fill_entities));
+            coll_out.push_back(coll_gapfill);
+        }
+    }
 }
 
 namespace NaiveConnect {

@@ -331,17 +331,15 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 has_internal_voids = true;
             } else {
                 const PrintRegionConfig &region_config = layerm.region().config();
-                FlowRole extrusion_role = surface.has_pos_top() ?
-                    frTopSolidInfill :
-                    (surface.has_fill_solid() ? frSolidInfill : frInfill);
-                bool is_bridge = layer.id() > 0 && surface.has_mod_bridge();
-                bool is_denser = false;
-                params.extruder = layerm.region().extruder(extrusion_role, *layer.object());
-                params.pattern = region_config.fill_pattern.value;
-                params.density = float(region_config.fill_density) / 100.f;
-                params.dont_adjust = false;
-                params.connection = region_config.infill_connection.value;
-                params.priority = 0;
+                FlowRole extrusion_role = surface.has_pos_top() ? frTopSolidInfill : (surface.has_fill_solid() ? frSolidInfill : frInfill);
+                bool     is_bridge      = layer.id() > 0 && surface.has_mod_bridge();
+                bool     is_denser      = false;
+                params.extruder         = layerm.region().extruder(extrusion_role, *layer.object());
+                params.pattern          = region_config.fill_pattern.value;
+                params.density          = float(region_config.fill_density) / 100.f;
+                params.dont_adjust      = false;
+                params.connection       = region_config.infill_connection.value;
+                params.priority         = 0;
 
                 if (surface.has_fill_solid()) {
                     params.density = 1.f;
@@ -353,15 +351,14 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                     if (surface.has_pos_bottom()) {
                         params.connection = region_config.infill_connection_bottom.value;
                     }
-                    // FIXME for non-thick bridges, shall we allow a bottom surface pattern?
+                    //FIXME for non-thick bridges, shall we allow a bottom surface pattern?
                     if (is_bridge) {
                         params.pattern = region_config.bridge_fill_pattern.value;
                         params.connection = region_config.infill_connection_bridge.value;
                         params.bridge_type = region_config.bridge_type.value;
                     }
                     if (surface.has_pos_external() && !is_bridge) {
-                        params.pattern = surface.has_pos_top() ? region_config.top_fill_pattern.value :
-                                                                 region_config.bottom_fill_pattern.value;
+                        params.pattern = surface.has_pos_top() ? region_config.top_fill_pattern.value : region_config.bottom_fill_pattern.value;
                     } else if (!is_bridge) {
                         params.pattern = region_config.solid_fill_pattern.value;
                     }
@@ -370,8 +367,9 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         params.pattern = region_config.bridge_fill_pattern.value;
                         params.connection = region_config.infill_connection_bridge.value;
                     }
-                    if (region_config.infill_dense.get_bool() && region_config.fill_density < 40 &&
-                        surface.maxNbSolidLayersOnTop == 1) {
+                    if (region_config.infill_dense.get_bool()
+                        && region_config.fill_density < 40
+                        && surface.maxNbSolidLayersOnTop == 1) {
                         assert(surface.has(stPosInternal | stDensSparse | stModBridge));
                         params.density = 0.42f;
                         is_denser = true;
@@ -381,21 +379,20 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         params.dont_adjust = true; // keep the 42% density
                         params.connection = InfillConnection::icConnected;
                     } else {
-                        assert(region_config.fill_density >= 40 ||
-                               !surface.has(stPosInternal | stDensSparse | stModBridge));
+                        assert(region_config.fill_density >= 40 || !surface.has(stPosInternal | stDensSparse | stModBridge));
                     }
                     if (params.density <= 0 && !is_denser)
                         continue;
                 }
-                // adjust spacing/density (to over-extrude when needed)
+                //adjust spacing/density (to over-extrude when needed)
                 if (surface.has_mod_overBridge()) {
                     params.density = float(region_config.over_bridge_flow_ratio.get_abs_value(1));
                 }
 
-                // note: same as getRoleFromSurfaceType()
+                //note: same as getRoleFromSurfaceType()
                 params.role = ExtrusionRole::InternalInfill;
                 if (is_bridge) {
-                    if (surface.has_pos_bottom())
+                    if(surface.has_pos_bottom())
                         params.role = ExtrusionRole::BridgeInfill;
                     else
                         params.role = ExtrusionRole::InternalBridgeInfill;
@@ -408,11 +405,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 }
                 params.fill_exactly = region_config.enforce_full_fill_volume.get_bool();
                 params.bridge_angle = float(surface.bridge_angle);
-                params.angle = (is_denser) ? 0 : compute_fill_angle(region_config, layerm.layer()->id());
+                params.angle         = (is_denser) ? 0 : compute_fill_angle(region_config, layerm.layer()->id());
                 params.can_angle_cross = region_config.fill_angle_cross;
                 params.anchor_length = std::min(params.anchor_length, params.anchor_length_max);
 
-                // adjust flow (to over-extrude when needed)
+                //adjust flow (to over-extrude when needed)
                 params.flow_mult = 1;
                 if (surface.has_pos_top())
                     params.flow_mult *= float(
@@ -426,12 +423,26 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 //     // Always enable thick bridges for internal bridges.
                 //     layerm.bridging_flow(extrusion_role, surface.is_bridge() && ! surface.is_external()) :
                 //     layerm.flow(extrusion_role, (surface.thickness == -1) ? layer.height : surface.thickness);
-// Calculate the actual flow we'll be using for this infill.
-		        
-				params.flow = is_bridge ?
-					// Always enable thick bridges for internal bridges.
-                    layerm.bridging_flow(extrusion_role, region_config.bridge_type) :
-					layerm.flow(extrusion_role, (surface.thickness == -1) ? layer.height : surface.thickness);
+                if (is_bridge) {
+                    float nozzle_diameter = layer.object()->print()->config().nozzle_diameter.get_at(layerm.region().extruder(extrusion_role, *layer.object()) - 1);
+                    double diameter = 0;
+                    if (region_config.bridge_type == BridgeType::btFromFlow) {
+                        Flow reference_flow = layerm.flow(FlowRole::frSolidInfill);
+                        diameter = sqrt(4 * reference_flow.mm3_per_mm() / PI);
+                    } else if (region_config.bridge_type == BridgeType::btFromHeight) {
+                        diameter = layerm.layer()->height;
+                    } else /*if (region_config.bridge_type == BridgeType::btFromNozzle)*/ {
+                        diameter = nozzle_diameter;
+                    }
+                    params.flow = Flow::bridging_flow((float)(diameter * std::sqrt(region_config.bridge_flow_ratio.get_abs_value(1))), nozzle_diameter);
+                } else {
+                    params.flow = layerm.region().flow(
+                        *layer.object(),
+                        extrusion_role,
+                        (surface.thickness == -1) ? layer.height : surface.thickness,   // extrusion height
+                        layer.id()
+                    );
+                }
                 
                 // Calculate flow spacing for infill pattern generation.
                 if (surface.has_fill_solid() || is_bridge) {
@@ -1188,7 +1199,7 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
                         || f->debug_verify_flow_mult <= 0.80001);
                     double area = unscaled(unscaled(real_surface));
                     if(surface_fill.surface.has_pos_top())
-                        area *= surface_fill.params.config->filament_fill_top_flow_ratio.get_abs_value(1);
+                        area *= surface_fill.params.config->fill_top_flow_ratio.get_abs_value(1);
                     //TODO: over-bridge mod
                     if(surface_fill.params.config->over_bridge_flow_ratio.get_abs_value(1) == 1){
                         assert(compute_volume.volume <= area * surface_fill.params.layer_height * 1.001 || f->debug_verify_flow_mult <= 0.8);

@@ -70,32 +70,26 @@ Flow LayerRegion::bridging_flow(FlowRole role, BridgeType force_type) const
     const PrintRegion       &region         = this->region();
     const PrintRegionConfig &region_config  = region.config();
     const PrintObject       &print_object   = *this->layer()->object();
-        // The old Slic3r way (different from all other slicers): Use rounded extrusions.
-        // Get the configured nozzle_diameter for the extruder associated to the flow role requested.
-        // Here this->extruder(role) - 1 may underflow to MAX_INT, but then the get_at() will follback to zero'th element, so everything is all right.
+    // Here this->extruder(role) - 1 may underflow to MAX_INT, but then the get_at() will follback to zero'th element, so everything is all right.
     float nozzle_diameter = float(print_object.print()->config().nozzle_diameter.get_at(region.extruder(role, *this->layer()->object()) - 1));
+    double diameter = 0;
     BridgeType bridge_type = force_type == BridgeType::btNone ? region_config.bridge_type : force_type;
-
-    float bridge_width;
-    float bridge_height;
-
-    if (bridge_type == BridgeType::btFromFlow) {
+    if (bridge_type == BridgeType::btFromFlow ) {
         Flow reference_flow = flow(role);
-        float diameter = sqrt(4 * reference_flow.mm3_per_mm() / PI);
-        bridge_width = diameter;
-        bridge_height = diameter;
+        diameter = sqrt(4 * reference_flow.mm3_per_mm() / PI);
+    } else if (bridge_type == BridgeType::btFromHeight) {
+        diameter = m_layer->height;
+    } else /*if (bridge_type == BridgeType::btFromNozzle)*/ {
+        // The good Slic3r way: Use rounded extrusions.
+        // Get the configured nozzle_diameter for the extruder associated to the flow role requested.
+        // Applies default bridge spacing.
+        diameter =  nozzle_diameter;
     }
-    else if (bridge_type == BridgeType::btFromHeight) {
-        bridge_height = m_layer->height;
-        bridge_width = float(sqrt(region_config.bridge_flow_ratio.get_abs_value(1.)) * nozzle_diameter);
-    }
-    else {
-        bridge_height = nozzle_diameter;
-        bridge_width  = float(sqrt(region_config.bridge_flow_ratio.get_abs_value(1.)) * nozzle_diameter);
-    }
-
-    return Flow::bridging_flow( bridge_width, bridge_height, nozzle_diameter);
-    
+    return Flow::bridging_flow(float(sqrt(force_type == BridgeType::btNone ? region_config.bridge_flow_ratio.get_abs_value(1.) : 0.95f) * diameter) , nozzle_diameter);
+    /* else {
+        // The same way as other slicers: Use normal extrusions. Apply bridge_flow_ratio while maintaining the original spacing.
+        return this->flow(role).with_flow_ratio(region_config.bridge_flow_ratio, overlap_percent);
+    }*/
 }
 
 // Fill in layerm->m_fill_surfaces by trimming the layerm->slices by layerm->fill_expolygons.
