@@ -1178,10 +1178,10 @@ void convert_config(boost::filesystem::path &path_in, boost::filesystem::path &p
 
     //copy directory
     boost::filesystem::path path_dir = path_in.parent_path();
-    boost::filesystem::path path_dir_out = path_in.parent_path();
-    path_dir_out /= "converted";
+    boost::filesystem::path path_dir_out = path_out.parent_path();
+    //path_dir_out /= "converted";
     path_dir /= path_in.stem();
-    path_dir_out /= path_in.stem();
+    path_dir_out /= path_out.stem();
     try {
         std::filesystem::copy(path_dir.string(), path_dir_out.string(), std::filesystem::copy_options::recursive);
     } catch (std::exception) {}
@@ -1286,6 +1286,10 @@ int main(int argc, char const *argv[]) {
         if (path_str.front() == '\"' && path_str.back() == '\"')
             path_str = path_str.substr(1, path_str.size() - 2);
         boost::filesystem::path path_in(path_str);
+        if (boost::filesystem::is_directory(path_in)) {
+            std::cout<<"error, path \"" << path_in.string() <<"\" is a directory\n";
+            return 1;
+        }
 
         // get path out
         boost::filesystem::path path_out = path_in.parent_path();
@@ -1303,6 +1307,7 @@ int main(int argc, char const *argv[]) {
         boost::filesystem::path dir_in(path_str);
         if (!boost::filesystem::is_directory(dir_in)) {
             std::cout<<"error, path \"" << dir_in.string() <<"\" isn't a directory\n";
+            return 1;
         }
 
         path_str = argv[2];
@@ -1314,6 +1319,7 @@ int main(int argc, char const *argv[]) {
         }
         if (!boost::filesystem::is_directory(dir_out)) {
             std::cout<<"error, path \"" << dir_in.string() <<"\" isn't a directory\n";
+            return 1;
         }
 
         for (boost::filesystem::directory_entry &entry : boost::make_iterator_range(boost::filesystem::directory_iterator(dir_in), {})) {

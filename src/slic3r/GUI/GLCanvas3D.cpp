@@ -3360,6 +3360,10 @@ void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result
     if (last_showned_gcode != gcode_result.computed_timestamp) {
         last_showned_gcode = gcode_result.computed_timestamp;
         m_gcode_viewer.load(gcode_result, *this->fff_print());
+        m_gcode_viewer.set_force_shells_visible(false);
+        m_gcode_viewer.set_view_type(m_gcode_viewer.get_view_type());
+
+        
     }
 
     if (wxGetApp().is_editor()) {

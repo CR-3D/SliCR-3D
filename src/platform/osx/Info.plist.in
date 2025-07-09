@@ -5,7 +5,7 @@
   <key>CFBundleExecutable</key>
   <string>SliCR-3D</string>
   <key>CFBundleGetInfoString</key>
-  <string>@SLIC3R_APP_NAME@ Copyright (C) 2011-2019 Alessandro Ranellucci, (C) 2016-2023 Prusa Reseach, (C) 2018-2023 Remi Durand</string>
+  <string>@SLIC3R_APP_NAME@ Copyright (C) 2011-2019 Alessandro Ranellucci, (C) 2016-2025 Prusa Reseach, (C) 2018-2025 Remi Durand</string>
   <key>CFBundleIconFile</key>
   <string>SliCR-3D.icns</string>
   <key>CFBundleName</key>

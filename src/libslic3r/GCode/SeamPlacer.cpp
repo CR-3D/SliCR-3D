@@ -5,34 +5,30 @@
 ///|/
 #include "SeamPlacer.hpp"
 
-#include "Color.hpp"
-#include "Polygon.hpp"
-#include "PrintConfig.hpp"
 #include "tbb/parallel_for.h"
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_reduce.h"
 #include <boost/log/trivial.hpp>
 #include <algorithm>
+#include <atomic>
 #include <queue>
 #include <random>
 #include <tuple>
 
 #include "libslic3r/AABBTreeLines.hpp"
-#include "libslic3r/KDTreeIndirect.hpp"
-#include "libslic3r/ExtrusionEntity.hpp"
-#include "libslic3r/Print.hpp"
 #include "libslic3r/BoundingBox.hpp"
 #include "libslic3r/ClipperUtils.hpp"
-#include "libslic3r/Layer.hpp"
-
+#include "libslic3r/Color.hpp"
+#include "libslic3r/ExtrusionEntity.hpp"
 #include "libslic3r/Geometry/Curves.hpp"
+#include "libslic3r/KDTreeIndirect.hpp"
+#include "libslic3r/Layer.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/Print.hpp"
+#include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/ShortEdgeCollapse.hpp"
 #include "libslic3r/TriangleSetSampling.hpp"
-
 #include "libslic3r/Utils.hpp"
-
-
-#include <atomic>
 
 //#define DEBUG_FILES
 
@@ -45,8 +41,7 @@ namespace Slic3r {
 
 namespace SeamPlacerImpl {
 
-// cache for seam modifier
-std::map<ModelVolume*, BoundingBoxf3> cache_volume_to_bb;
+std::map<std::pair<const ModelVolume*, const ModelInstance*>, TriangleMeshForSeam> cache_volume_to_bb;
 
 template<typename T> int sgn(T val) {
     return int(T(0) < val) - int(val < T(0));
@@ -1857,39 +1852,42 @@ std::tuple<bool,std::optional<Vec3f>> get_seam_from_modifier(const Layer& layer,
         double max_lambda_radius = 0;
         //get model_instance (like from po->model_object()->instances, but we don't have the index for that array)
         const ModelInstance* model_instance = po->instances()[print_object_instance_idx].model_instance;
-        for (ModelVolume* v : po->model_object()->volumes) {
-            if (v->is_seam_position()) {
-                BoundingBoxf3 bb_volume;
-                if (auto it = SeamPlacerImpl::cache_volume_to_bb.find(v); it != SeamPlacerImpl::cache_volume_to_bb.end()) {
-                    bb_volume = it->second;
+        for (ModelVolume* model_volume : po->model_object()->volumes) {
+            if (model_volume->is_seam_position()) {
+                std::pair<const ModelVolume*, const ModelInstance*> cache_key(model_volume, model_instance);
+                SeamPlacerImpl::TriangleMeshForSeam *seam_mesh;
+                if (auto it = SeamPlacerImpl::cache_volume_to_bb.find(cache_key); it != SeamPlacerImpl::cache_volume_to_bb.end()) {
+                    seam_mesh = &it->second;
                 } else {
+                    seam_mesh = &SeamPlacerImpl::cache_volume_to_bb[cache_key];
                     // created/moved shpere have offset in their transformation
-                    // the source transformation should only be used for updating the transformation from reload, don't use it.
-                    TriangleMesh mesh = v->mesh();
-                    mesh.transform(v->get_transformation().get_matrix());
-                    mesh.transform(model_instance->get_matrix());
-                    bb_volume = mesh.bounding_box();
-                    SeamPlacerImpl::cache_volume_to_bb[v] = bb_volume;
+                    // the source transformation should only be used for updating the transformation from reload,
+                    // don't use it.
+                    seam_mesh->mesh = model_volume->mesh();
+                    seam_mesh->mesh.transform(model_volume->get_transformation().get_matrix());
+                    seam_mesh->mesh.transform(model_instance->get_matrix());
+                    seam_mesh->bb_volume = seam_mesh->mesh.bounding_box();
                 }
 
                 double test_lambda_z = 0;
-                Vec3d center_pos = (bb_volume.min + bb_volume.max) / 2;
-                // remove shift, as we used the transform. that way, we have a correct z vs the layer height, and same for the x and y vs polygon.
-                center_pos.x() -= unscaled(po->instances()[print_object_instance_idx].shift.x());
-                center_pos.y() -= unscaled(po->instances()[print_object_instance_idx].shift.y());
-                double sphere_radius = std::min(bb_volume.size().x() / 2, bb_volume.size().y() / 2);
-                if (v->type() == ModelVolumeType::SEAM_POSITION_CENTER) {
+                Vec3d center_pos = (seam_mesh->bb_volume.min + seam_mesh->bb_volume.max) / 2;
+                double sphere_radius = std::min(seam_mesh->bb_volume.size().x() / 2, seam_mesh->bb_volume.size().y() / 2);
+                if (model_volume->type() == ModelVolumeType::SEAM_POSITION_CENTER) {
                     test_lambda_z = std::abs(layer.print_z - center_pos.z());
-                } else if (v->type() == ModelVolumeType::SEAM_POSITION_CENTER_Z) {
-                    double min_z = bb_volume.min.z();
-                    double max_z = bb_volume.max.z();
+                } else if (model_volume->type() == ModelVolumeType::SEAM_POSITION_CENTER_Z) {
+                    double min_z = seam_mesh->bb_volume.min.z();
+                    double max_z = seam_mesh->bb_volume.max.z();
                     assert(min_z < max_z);
-                    if (layer.print_z < min_z || layer.print_z > max_z) {
+                    if (layer.print_z + EPSILON < min_z || layer.print_z > max_z + EPSILON) {
                         // out of z, don't take it into account
                         continue;
                     }
                 }
-                Point xy_lambda(scale_(center_pos.x()), scale_(center_pos.y()));
+                // remove shift, as we used the transform. that way, we have a correct z vs the layer height, and same for the x and y vs polygon.
+                center_pos.x() -= unscaled(po->instances()[print_object_instance_idx].shift.x());
+                center_pos.y() -= unscaled(po->instances()[print_object_instance_idx].shift.y());
+
+                Point xy_lambda = Point::new_scale(center_pos.x(), center_pos.y());
                 Point nearest = polygon.point_projection(xy_lambda).first;
                 Vec3d polygon_3dpoint{ unscaled(nearest.x()), unscaled(nearest.y()), (double)layer.print_z };
                 double test_lambda_dist = (polygon_3dpoint - center_pos).norm();
@@ -1899,7 +1897,7 @@ std::tuple<bool,std::optional<Vec3f>> get_seam_from_modifier(const Layer& layer,
                 if (v_lambda_seam == nullptr
                     || (lambda_z > test_lambda_z)
                     || (lambda_z == test_lambda_z && lambda_dist > test_lambda_dist)) {
-                    v_lambda_seam = v;
+                    v_lambda_seam = model_volume;
                     lambda_pos = center_pos;
                     lambda_radius = sphere_radius;
                     lambda_dist = test_lambda_dist;

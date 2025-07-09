@@ -668,7 +668,7 @@ void TreeModelVolumes::calculateAvoidance(const std::vector<RadiusLayerPair> &ke
             assert(move_steps > 0);
             float last_move_step = max_move - (move_steps - 1) * move_step;
             if (last_move_step < scaled<float>(0.05)) {
-                assert(move_steps > 1);
+                assert(move_steps >= 1);
                 if (move_steps > 1) {
                     // Avoid taking a very short last step, stretch the other steps a bit instead.
                     move_step = max_move / (-- move_steps);
