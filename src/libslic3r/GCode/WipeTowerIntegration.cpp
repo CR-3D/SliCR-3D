@@ -12,35 +12,6 @@ static inline Point wipe_tower_point_to_object_point(GCodeGenerator &gcodegen, c
     return Point(scale_(wipe_tower_pt.x() - gcodegen.origin()(0)), scale_(wipe_tower_pt.y() - gcodegen.origin()(1)));
 }
 
-std::string WipeTowerIntegration::deretraction_from_wipe_tower_generator(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id) const {
-    std::string deretraction_str;
-    const bool is_ramming = (gcodegen.config().single_extruder_multi_material)
-                         || (! gcodegen.config().single_extruder_multi_material && gcodegen.config().filament_multitool_ramming.get_at(tcr.initial_tool));
-    if (tcr.priming || (new_extruder_id >= 0)) {
-        if (is_ramming)
-            gcodegen.m_wipe.reset_path(); // We don't want wiping on the ramming lines.
-        if (gcodegen.config().wipe_tower) {
-            //const double retract_to_z = tcr.priming ? tcr.print_z : z;
-            deretraction_str += gcodegen.writer().unlift();
-            deretraction_str += gcodegen.unretract();
-        }
-    }
-    assert(deretraction_str.empty() || deretraction_str.back() == '\n');
-    return deretraction_str;
-}
-std::string WipeTowerIntegration::toolchange_gcode_from_wipe_tower_generator(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id) const {
-    const bool is_ramming = (gcodegen.config().single_extruder_multi_material)
-                         || (! gcodegen.config().single_extruder_multi_material && gcodegen.config().filament_multitool_ramming.get_at(tcr.initial_tool));
-    std::string toolchange_gcode_str;
-    if (tcr.priming || (new_extruder_id >= 0)) {
-        if (is_ramming)
-            gcodegen.m_wipe.reset_path(); // We don't want wiping on the ramming lines.
-        toolchange_gcode_str = gcodegen.set_extruder(new_extruder_id, tcr.print_z); // TODO: toolchange_z vs print_z
-    }
-    assert(toolchange_gcode_str.empty() || toolchange_gcode_str.back() == '\n');
-    return toolchange_gcode_str;
-}
-
 std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id, double z) const
 {
     // has previous pos, or it's first layer.
@@ -144,18 +115,15 @@ std::string WipeTowerIntegration::append_tcr(GCodeGenerator &gcodegen, const Wip
     boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_from_wipe_tower_generator]", toolchange_gcode_str);
     boost::replace_first(tcr_rotated_gcode, "[deretraction_from_wipe_tower_generator]", deretraction_str);
     boost::replace_first(tcr_rotated_gcode, "{layer_z}", to_string_nozero(gcodegen.writer().get_position().z() + gcodegen.writer().config.z_offset.value, 4));
-   if (gcodegen.config().enable_pressure_advance.get_at(tcr.initial_tool)) {
+    if (gcodegen.config().filament_pressure_advance.is_enabled(tcr.initial_tool)) {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_disable_linear_advance]",
                              gcodegen.writer().set_pressure_advance(0));
     } else {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_disable_linear_advance]\n","");
     }
-    if (gcodegen.config().enable_pressure_advance.get_at(new_extruder_id)) {
-       double pa_for_nozzle = gcodegen.get_pressure_advance(gcodegen.config().nozzle_diameter.get_at(new_extruder_id), new_extruder_id);
-
+    if (gcodegen.config().filament_pressure_advance.is_enabled(new_extruder_id)) {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]",
-                             gcodegen.writer().set_pressure_advance(pa_for_nozzle));
-                             
+                             gcodegen.writer().set_pressure_advance(gcodegen.config().filament_pressure_advance.get_at(new_extruder_id).interpolate(gcodegen.config().nozzle_diameter.get_at(new_extruder_id))));
     } else {
         boost::replace_first(tcr_rotated_gcode, "[toolchange_gcode_enable_linear_advance]\n","");
     }

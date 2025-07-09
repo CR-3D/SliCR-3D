@@ -768,7 +768,7 @@ static std::vector<std::string> s_Preset_print_options {
         "hole_to_polyhole_twisted",
 //        "threads",
         // wipe tower
-        "wipe_tower", "wipe_tower_x", "wipe_tower_y", "wipe_tower_width", "wipe_tower_rotation_angle",
+        "wipe_tower", "wipe_tower_width", "wipe_tower_rotation_angle",
         "wipe_tower_bridging",
         "wipe_tower_brim_width",
         "priming_position",

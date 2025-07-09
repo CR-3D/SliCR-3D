@@ -283,8 +283,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "skirt_distance_from_brim"
             || opt_key == "skirt_extrusion_width"
             || opt_key == "skirt_height"
-            || opt_key == "wipe_tower_x"
-            || opt_key == "wipe_tower_y"
             || opt_key == "wipe_tower_rotation_angle"
             ) {
             steps.emplace_back(psSkirtBrim);
@@ -1294,7 +1292,7 @@ void Print::process()
     if (this->has_wipe_tower()) {
         // These values have to be updated here, not during wipe tower generation.
         // When the wipe tower is moved/rotated, it is not regenerated.
-        m_wipe_tower_data.position = { m_config.wipe_tower_x, m_config.wipe_tower_y };
+        m_wipe_tower_data.position = model().wipe_tower().position;
         m_wipe_tower_data.rotation_angle = m_config.wipe_tower_rotation_angle;
     }
     auto conflictRes = ConflictChecker::find_inter_of_lines_in_diff_objs(objects(), m_wipe_tower_data);
@@ -1926,7 +1924,7 @@ Points Print::first_layer_wipe_tower_corners() const
 
         for (Vec2d& pt : pts) {
             pt = Eigen::Rotation2Dd(Geometry::deg2rad(m_config.wipe_tower_rotation_angle.value)) * pt;
-            pt += Vec2d(m_config.wipe_tower_x.value, m_config.wipe_tower_y.value);
+            pt += model().wipe_tower().position;
             pts_scaled.emplace_back(Point(scale_(pt.x()), scale_(pt.y())));
         }
     }
@@ -2139,7 +2137,7 @@ const WipeTowerData& Print::wipe_tower_data(const ConfigBase* config, double noz
             layer_height = first_layer_height;
         }
         
-        const_cast<Print*>(this)->m_wipe_tower_data.position = Vec2d{config->option("wipe_tower_x")->get_float(), config->option("wipe_tower_y")->get_float()};
+        const_cast<Print *>(this)->m_wipe_tower_data.position = model().wipe_tower().position;
         const_cast<Print*>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
         const_cast<Print*>(this)->m_wipe_tower_data.rotation_angle = float(config->option("wipe_tower_rotation_angle")->get_float());
         const_cast<Print*>(this)->m_wipe_tower_data.depth = (maximum/layer_height)/this->m_wipe_tower_data.width;
@@ -2205,7 +2203,12 @@ void Print::_make_wipe_tower()
     this->throw_if_canceled();
 
     // Initialize the wipe tower.
-    WipeTower wipe_tower(m_config, m_default_object_config, m_default_region_config, wipe_volumes, m_wipe_tower_data.tool_ordering.first_extruder());
+    WipeTower wipe_tower(model().wipe_tower().position.cast<float>(), 
+                         m_config, 
+                         m_default_object_config,
+                         m_default_region_config, 
+                         wipe_volumes, 
+                         m_wipe_tower_data.tool_ordering.first_extruder());
 
     // Set the extruder & material properties at the wipe tower object.
     for (size_t i = 0; i < m_config.nozzle_diameter.size(); ++ i)

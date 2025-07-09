@@ -1316,7 +1316,7 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
             while (iss) {
                 std::getline(iss, line);
                 boost::algorithm::trim_left_if(line, [](char ch) { return std::isspace(ch) || ch == ';'; });
-                if (boost::starts_with(line, "wipe_tower_x") || boost::starts_with(line, "wipe_tower_y") || boost::starts_with(line, "wipe_tower_rotation_angle")) {
+                if (boost::starts_with(line, "wipe_tower_rotation_angle")) {
                     std::string value_str;
                     try {
                         value_str = line.substr(line.find("=") + 1, std::string::npos);
@@ -1327,11 +1327,6 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
                     std::istringstream value_ss(value_str);
                     value_ss >> val;
                     if (! value_ss.fail()) {
-                        if (boost::starts_with(line, "wipe_tower_x"))
-                            model.get_wipe_tower_vector().front().position.x() = val;
-                        else if (boost::starts_with(line, "wipe_tower_y"))
-                            model.get_wipe_tower_vector().front().position.y() = val;
-                        else
                             model.get_wipe_tower_vector().front().rotation = val;
                     }
                 }

@@ -2906,7 +2906,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     m_reload_delayed = !m_canvas->IsShown() && !refresh_immediately && !force_full_scene_refresh;
 
     PrinterTechnology printer_technology = current_printer_technology();
-    std::map<size_t, size_t>               volume_idxs_wipe_towers_old; // map from geometry_id.second to volume_id
+    int               volume_idx_wipe_tower_old = -1;
 
     // Release invalidated volumes to conserve GPU memory in case of delayed refresh (see m_reload_delayed).
     // First initialize model_volumes_new_sorted & model_instances_new_sorted.
@@ -2979,10 +2979,12 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         if (mvs == nullptr || force_full_scene_refresh) {
             // This GLVolume will be released.
             if (volume->is_wipe_tower()) {
-#if SLIC3R_OPENGL_ES
-                m_wipe_tower_meshes.clear();
-#endif // SLIC3R_OPENGL_ES
-                volume_idxs_wipe_towers_old.emplace(std::make_pair(volume->geometry_id.second, volume_id));
+                // There is only one wipe tower.
+                assert(volume_idx_wipe_tower_old == -1);
+#if ENABLE_OPENGL_ES
+                m_wipe_tower_mesh.clear();
+#endif // ENABLE_OPENGL_ES
+                volume_idx_wipe_tower_old = (int)volume_id;
             }
             if (!m_reload_delayed) {
                 deleted_volumes.emplace_back(volume.get(), volume_id);
@@ -3005,8 +3007,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 volume->is_modifier = !mvs->model_volume->is_model_part();
                 volume->shader_outside_printer_detection_enabled = mvs->model_volume->is_model_part();
                 volume->set_color(color_from_model_volume(*mvs->model_volume));
-                
-                // force update of render_color alpha channel
+                // force update of render_color alpha channel 
                 volume->set_render_color(volume->color.is_transparent());
 
                 // updates volumes transformations
@@ -3173,23 +3174,18 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         // Should the wipe tower be visualized ?
         unsigned int extruders_count = (unsigned int)m_config->option<ConfigOptionFloats>("nozzle_diameter")->size();
 
-        const bool wt = dynamic_cast<const ConfigOptionBool*>(m_config->option("wipe_tower"))->value;
-        const bool co = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"))->value;
-            
-        const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-        const float bw = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_brim_width"))->value;
-        const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
+        const bool wt = m_config->option("wipe_tower")->get_bool();
+        const bool co = m_config->option("complete_objects")->get_bool() || m_config->option("parallel_objects_step")->get_float() > 0;
 
         if (extruders_count > 1 && wt && !co) {
             // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
-            const float x = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_x"))->value;
-            const float y = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_y"))->value;
+            const float x = m_model->get_wipe_tower_vector()[0].position.x();
+            const float y = m_model->get_wipe_tower_vector()[0].position.y();
             const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
             const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
             const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
-            
-            for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
-                const Print *print = wxGetApp().plater()->get_fff_prints()[bed_idx].get();
+
+            const Print *print = m_process->fff_print();
             //FIXME use real nozzle diameter, or the biggest
             const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
             const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
@@ -3199,41 +3195,39 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
             const float height_real = wipe_tower_data.height; // -1.f = unknown
             
 
-                const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
-                const bool is_wipe_tower_step_done = print->is_step_done(psWipeTower);
+            // Height of a print (Show at least a slab).
+            const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
 
             if (depth != 0.) {
-#if SLIC3R_OPENGL_ES
-                    if (bed_idx >= m_wipe_tower_meshes.size())
-                        m_wipe_tower_meshes.resize(bed_idx + 1);
-                    GLVolume* volume = m_volumes.load_wipe_tower_preview(
-                        x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !is_wipe_tower_step_done,
-                        bw, bed_idx, &m_wipe_tower_meshes[bed_idx]);
-#else
-                    GLVolume* volume = m_volumes.load_wipe_tower_preview(
-                        x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !is_wipe_tower_step_done,
-                        bw, bed_idx);
-#endif // SLIC3R_OPENGL_ES
-                    const BoundingBoxf3& bb = volume->bounding_box();
-                    m_wipe_tower_bounding_boxes[bed_idx] = BoundingBoxf{to_2d(bb.min), to_2d(bb.max)};
-                    if(static_cast<int>(bed_idx) < s_multiple_beds.get_number_of_beds()) {
-                        m_volumes.volumes.emplace_back(volume);
-                        const auto volume_idx_wipe_tower_new{static_cast<int>(m_volumes.volumes.size() - 1)};
-                        auto it = volume_idxs_wipe_towers_old.find(m_volumes.volumes.back()->geometry_id.second);
-                        if (it != volume_idxs_wipe_towers_old.end())
-                            map_glvolume_old_to_new[it->second] = volume_idx_wipe_tower_new;
-                        m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() + s_multiple_beds.get_bed_translation(bed_idx));
-                    } else {
-                        delete volume;
-                    }
+    #if ENABLE_OPENGL_ES
+                int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
+                    x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !print->is_step_done(psWipeTower),
+                    bw, &m_wipe_tower_mesh);
+    #else
+
+                GLVolume *volume =
+                    m_volumes.load_wipe_tower_preview(x, y, w, depth, z_and_depth_pairs,
+                                                                     (float) height, ca, a,
+                                                                     !print->is_step_done(psWipeTower),
+                                                                     bw, 0);
+    #endif // ENABLE_OPENGL_ES
+                const BoundingBoxf3 &bb = volume->bounding_box();
+                m_wipe_tower_bounding_boxes[0] = BoundingBoxf{to_2d(bb.min), to_2d(bb.max)};
+                if (static_cast<int>(0) < s_multiple_beds.get_number_of_beds()) {
+                    m_volumes.volumes.emplace_back(volume);
+                    const auto volume_idx_wipe_tower_new{static_cast<int>(m_volumes.volumes.size() - 1)};
+
+                        map_glvolume_old_to_new[volume_idx_wipe_tower_old] = volume_idx_wipe_tower_new;
+                    m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() +
+                                                                s_multiple_beds.get_bed_translation(0));
+                } else {
+                    delete volume;
                 }
+
+            //    if (volume_idx_wipe_tower_old != -1)
+              //      map_glvolume_old_to_new[volume_idx_wipe_tower_old] = volume_idx_wipe_tower_new;
             }
-            s_multiple_beds.ensure_wipe_towers_on_beds(wxGetApp().plater()->model(), wxGetApp().plater()->get_fff_prints());
-        } else {
-            m_wipe_tower_bounding_boxes.fill(std::nullopt);
         }
-    } else {
-        m_wipe_tower_bounding_boxes.fill(std::nullopt);
     }
 
     update_volumes_colors_by_extruder();
@@ -3273,7 +3267,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     // checks for geometry outside the print volume to render it accordingly
     if (!m_volumes.empty()) {
         ModelInstanceEPrintVolumeState state;
-        check_volumes_outside_state(m_volumes, &state, !force_full_scene_refresh);
+        const bool contained_min_one = check_volumes_outside_state(m_volumes, &state, !force_full_scene_refresh);
         const bool partlyOut = (state == ModelInstanceEPrintVolumeState::ModelInstancePVS_Partly_Outside);
         const bool fullyOut = (state == ModelInstanceEPrintVolumeState::ModelInstancePVS_Fully_Outside);
 
@@ -3296,11 +3290,15 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 _set_warning_notification(EWarning::SlaSupportsOutside, false);
             }
         }
+
+        post_event(Event<bool>(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, 
+                               contained_min_one && !m_model->objects.empty() && !partlyOut));
     }
     else {
         _set_warning_notification(EWarning::ObjectOutside, false);
         _set_warning_notification(EWarning::ObjectClashed, false);
         _set_warning_notification(EWarning::SlaSupportsOutside, false);
+        post_event(Event<bool>(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, false));
     }
 
     refresh_camera_scene_box();
@@ -8682,7 +8680,9 @@ void GLCanvas3D::_load_wipe_tower_toolpaths(const BuildVolume& build_volume, con
         ctxt.final.emplace_back(*print->wipe_tower_data().final_purge.get());
 
     ctxt.wipe_tower_angle = ctxt.print->config().wipe_tower_rotation_angle.value/180.f * PI;
-    ctxt.wipe_tower_pos = Vec2f(ctxt.print->config().wipe_tower_x.value, ctxt.print->config().wipe_tower_y.value);
+    //  m_model->get_wipe_tower_vector()[0].position.x();
+    ctxt.wipe_tower_pos = Vec2f(m_model->get_wipe_tower_vector()[0].position.x(),
+                                m_model->get_wipe_tower_vector()[0].position.y());
 
     ctxt.color_support = m_gcode_viewer.get_extrusion_colors()[uint8_t(GCodeExtrusionRole::WipeTower)];
 

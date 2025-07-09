@@ -130,18 +130,20 @@ public:
     // Construct ToolChangeResult from current state of WipeTower and WipeTowerWriter.
     // WipeTowerWriter is moved from !
     ToolChangeResult construct_tcr(WipeTowerWriter& writer,
-                                   bool priming,
-                                   size_t old_tool) const;
+                                   bool priming, size_t old_tool) const;
+
+    WipeTower(const Vec2f &pos,
+              const PrintConfig &config,
+              const PrintObjectConfig &default_object_config,
+              const PrintRegionConfig &default_region_config,
+              const std::vector<std::vector<float>> &wiping_matrix,
+              size_t initial_tool);
 
 	// x			-- x coordinates of wipe tower in mm ( left bottom corner )
 	// y			-- y coordinates of wipe tower in mm ( left bottom corner )
 	// width		-- width of wipe tower in mm ( default 60 mm - leave as it is )
 	// wipe_area	-- space available for one toolchange in mm
-    WipeTower(const PrintConfig& config,
-              const PrintObjectConfig& default_object_config,
-              const PrintRegionConfig& default_region_config,
-              const std::vector<std::vector<float>>& wiping_matrix,
-              size_t initial_tool);
+    
 
 	// Set the extruder properties.
     void set_extruder(size_t idx);
@@ -157,10 +159,6 @@ public:
 	std::vector<std::pair<float, float>> get_z_and_depth_pairs() const;
     float get_brim_width() const { return m_wipe_tower_brim_width_real; }
 	float get_wipe_tower_height() const { return m_wipe_tower_height; }
-
-
-
-
 
 	// Switch to a next layer.
 	void set_layer(
@@ -274,6 +272,7 @@ private:
 		SHAPE_NORMAL = 1,
 		SHAPE_REVERSED = -1
 	};
+
 
     const float WT_EPSILON            = 1e-3f;
     float filament_area() const {
