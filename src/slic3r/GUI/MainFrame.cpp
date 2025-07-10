@@ -2802,8 +2802,9 @@ void MainFrame::on_value_changed(wxCommandEvent& event)
 
 void MainFrame::on_config_changed(const DynamicConfig &config) const
 {
-    if (m_plater)
+    if (m_plater) {
         m_plater->on_config_change(config); // propagate config change events to the plater
+   }
 }
 
 void MainFrame::add_to_recent_projects(const wxString& filename)

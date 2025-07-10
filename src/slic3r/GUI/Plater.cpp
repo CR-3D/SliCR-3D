@@ -9260,6 +9260,8 @@ void Plater::on_config_change(const DynamicConfig &config)
     if (p->main_frame->is_loaded())
         this->p->schedule_background_process();
     
+   if (p->main_frame->selected_tab() == MainFrame::TabPosition::tpPlaterGCode)
+       p->main_frame->select_tab(MainFrame::TabPosition::tpPlater);
 }
 
 void Plater::set_bed_shape() const
