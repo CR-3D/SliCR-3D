@@ -2906,7 +2906,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     m_reload_delayed = !m_canvas->IsShown() && !refresh_immediately && !force_full_scene_refresh;
 
     PrinterTechnology printer_technology = current_printer_technology();
-    int               volume_idx_wipe_tower_old = -1;
+    std::map<size_t, size_t>               volume_idxs_wipe_towers_old; // map from geometry_id.second to volume_id
 
     // Release invalidated volumes to conserve GPU memory in case of delayed refresh (see m_reload_delayed).
     // First initialize model_volumes_new_sorted & model_instances_new_sorted.
@@ -2975,21 +2975,20 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         // Emplace instance ID of the volume. Both the aux volumes and model volumes share the same instance ID.
         // The wipe tower has its own wipe_tower_instance_id().
         if (m_selection.contains_volume(volume_id))
-            instance_ids_selected.push_back(volume->geometry_id.second);
+            instance_ids_selected.emplace_back(volume->geometry_id.second);
         if (mvs == nullptr || force_full_scene_refresh) {
             // This GLVolume will be released.
             if (volume->is_wipe_tower()) {
-                // There is only one wipe tower.
-                assert(volume_idx_wipe_tower_old == -1);
-#if ENABLE_OPENGL_ES
-                m_wipe_tower_mesh.clear();
-#endif // ENABLE_OPENGL_ES
-                volume_idx_wipe_tower_old = (int)volume_id;
+#if SLIC3R_OPENGL_ES
+                m_wipe_tower_meshes.clear();
+#endif // SLIC3R_OPENGL_ES
+                volume_idxs_wipe_towers_old.emplace(std::make_pair(volume->geometry_id.second, volume_id));
             }
             if (!m_reload_delayed) {
                 deleted_volumes.emplace_back(volume.get(), volume_id);
-                //do not remove the idx, as you're iterating on it, and it can mess up map_glvolume_old_to_new
                 m_volumes.volumes[volume_id].reset(); // delete volume;
+
+               // delete volume;
             }
         }
         else {
@@ -3178,54 +3177,62 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         const bool co = m_config->option("complete_objects")->get_bool() || m_config->option("parallel_objects_step")->get_float() > 0;
 
         if (extruders_count > 1 && wt && !co) {
-            // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
-            const float x = m_model->get_wipe_tower_vector()[0].position.x();
-            const float y = m_model->get_wipe_tower_vector()[0].position.y();
-            const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-            const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
-            const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
+            for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
+                // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
+                const float x = m_model->get_wipe_tower_vector()[0].position.x();
+                const float y = m_model->get_wipe_tower_vector()[0].position.y();
+                const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
+                const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
+                const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
-            const Print *print = m_process->fff_print();
-            //FIXME use real nozzle diameter, or the biggest
-            const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
-            const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
-            const float depth = wipe_tower_data.depth;
-            const float bw = wipe_tower_data.brim_width;
-            const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
-            const float height_real = wipe_tower_data.height; // -1.f = unknown
-            
+                const Print *print = m_process->fff_print();
+                //FIXME use real nozzle diameter, or the biggest
+                const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
+                const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
+                const float depth = wipe_tower_data.depth;
+                const float bw = wipe_tower_data.brim_width;
+                const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
+                const float height_real = wipe_tower_data.height; // -1.f = unknown
+                
 
-            // Height of a print (Show at least a slab).
-            const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
+                // Height of a print (Show at least a slab).
+                const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
 
-            if (depth != 0.) {
-    #if ENABLE_OPENGL_ES
-                int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
-                    x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !print->is_step_done(psWipeTower),
-                    bw, &m_wipe_tower_mesh);
-    #else
+                if (depth != 0.) {
+        #if ENABLE_OPENGL_ES
+                    int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
+                        x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !print->is_step_done(psWipeTower),
+                        bw, &m_wipe_tower_mesh);
+        #else
 
-                GLVolume *volume =
-                    m_volumes.load_wipe_tower_preview(x, y, w, depth, z_and_depth_pairs,
-                                                                     (float) height, ca, a,
-                                                                     !print->is_step_done(psWipeTower),
-                                                                     bw, 0);
-    #endif // ENABLE_OPENGL_ES
-                const BoundingBoxf3 &bb = volume->bounding_box();
-                m_wipe_tower_bounding_boxes[0] = BoundingBoxf{to_2d(bb.min), to_2d(bb.max)};
-                if (static_cast<int>(0) < s_multiple_beds.get_number_of_beds()) {
-                    m_volumes.volumes.emplace_back(volume);
-                    const auto volume_idx_wipe_tower_new{static_cast<int>(m_volumes.volumes.size() - 1)};
-
-                        map_glvolume_old_to_new[volume_idx_wipe_tower_old] = volume_idx_wipe_tower_new;
-                    m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() +
-                                                                s_multiple_beds.get_bed_translation(0));
-                } else {
-                    delete volume;
+                    GLVolume *volume =
+                        m_volumes.load_wipe_tower_preview(x, 
+                                                          y, 
+                                                          w, 
+                                                          depth, 
+                                                          z_and_depth_pairs,
+                                                          (float) height, 
+                                                          ca, 
+                                                          a,
+                                                          !print->is_step_done(psWipeTower),
+                                                          bw, 
+                                                          bed_idx);
+        #endif // ENABLE_OPENGL_ES
+                    const BoundingBoxf3 &bb = volume->bounding_box();
+                    m_wipe_tower_bounding_boxes[bed_idx] = BoundingBoxf{to_2d(bb.min), to_2d(bb.max)};
+                    if (static_cast<int>(bed_idx) < s_multiple_beds.get_number_of_beds()) {
+                        m_volumes.volumes.emplace_back(volume);
+                        const auto volume_idx_wipe_tower_new{static_cast<int>(m_volumes.volumes.size() - 1)};
+                        auto it = volume_idxs_wipe_towers_old.find(m_volumes.volumes.back()->geometry_id.second);
+                        if (it != volume_idxs_wipe_towers_old.end())
+                            map_glvolume_old_to_new[it->second] = volume_idx_wipe_tower_new;
+                        m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() +
+                                                                    s_multiple_beds.get_bed_translation(bed_idx));
+                    } else {
+                        delete volume;
+                    }
                 }
-
-            //    if (volume_idx_wipe_tower_old != -1)
-              //      map_glvolume_old_to_new[volume_idx_wipe_tower_old] = volume_idx_wipe_tower_new;
+               s_multiple_beds.ensure_wipe_towers_on_beds(wxGetApp().plater()->model(), wxGetApp().plater()->get_fff_prints());
             }
         }
     }
