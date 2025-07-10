@@ -447,27 +447,24 @@ public:
         // Some data was changed, which in turn invalidated already calculated steps.
         APPLY_STATUS_INVALIDATED,
     };
-    virtual ApplyStatus apply(const Model &model, DynamicPrintConfig config) = 0;
-    const Model &       model() const { return m_model; }
+    virtual ApplyStatus     apply(const Model &model, DynamicPrintConfig config) = 0;
+    const Model&            model() const { return m_model; }
 
-    struct TaskParams
-    {
-        TaskParams()
-            : single_model_object(0), single_model_instance_only(false), to_object_step(-1), to_print_step(-1)
-        {}
+    struct TaskParams {
+		TaskParams() : single_model_object(0), single_model_instance_only(false), to_object_step(-1), to_print_step(-1) {}
         // If non-empty, limit the processing to this ModelObject.
-        ObjectID single_model_object;
-        // If set, only process single_model_object. Otherwise process everything, but single_model_object first.
-        bool single_model_instance_only;
+        ObjectID                single_model_object;
+		// If set, only process single_model_object. Otherwise process everything, but single_model_object first.
+		bool					single_model_instance_only;
         // If non-negative, stop processing at the successive object step.
-        int to_object_step;
+        int                     to_object_step;
         // If non-negative, stop processing at the successive print step.
-        int to_print_step;
+        int                     to_print_step;
     };
     // After calling the apply() function, call set_task() to limit the task to be processed by process().
     virtual void            set_task(const TaskParams &params) = 0;
     // Perform the calculation. This is the only method that is to be called at a worker thread.
-    virtual void process() = 0;
+    virtual void            process() = 0;
     // Clean up after process() finished, either with success, error or if canceled.
     // The adjustments on the Print / PrintObject data due to set_task() are to be reverted here.
     virtual void            finalize() = 0;
@@ -476,88 +473,73 @@ public:
     // 2) background thread finished being canceled.
     virtual void            cleanup() = 0;
 
-    struct SlicingStatus
-    {
-        SlicingStatus(int percent, const std::string &text, unsigned int flags = 0)
-            : percent(percent), main_text(text), flags(flags)
-        {}
-        SlicingStatus(int                             percent,
-                      const std::string &             text,
-                      const std::vector<std::string> &args,
-                      unsigned int                    flags = 0)
-            : percent(percent), main_text(text), args(args), flags(flags)
-        {}
-        SlicingStatus(const PrintBase &print, int warning_step)
-            : flags(UPDATE_PRINT_STEP_WARNINGS), warning_object_id(print.id()), warning_step(warning_step)
-        {}
-        SlicingStatus(const PrintObjectBase &print_object, int warning_step)
-            : flags(UPDATE_PRINT_OBJECT_STEP_WARNINGS)
-            , warning_object_id(print_object.id())
-            , warning_step(warning_step)
-        {}
-        int                      percent{-1};
-        std::string              main_text;
-        std::vector<std::string> args;
+    struct SlicingStatus {
+        SlicingStatus(int percent, const std::string& text, unsigned int flags = 0) : percent(percent), main_text(text), flags(flags) {}
+        SlicingStatus(int percent, const std::string& text, const std::vector<std::string>& args, unsigned int flags = 0) 
+            : percent(percent), main_text(text), args(args), flags(flags) {}
+        SlicingStatus(const PrintBase &print, int warning_step) : 
+            flags(UPDATE_PRINT_STEP_WARNINGS), warning_object_id(print.id()), warning_step(warning_step) {}
+        SlicingStatus(const PrintObjectBase &print_object, int warning_step) : 
+            flags(UPDATE_PRINT_OBJECT_STEP_WARNINGS), warning_object_id(print_object.id()), warning_step(warning_step) {}
+        int                         percent { -1 };
+        std::string                 main_text;
+        std::vector<std::string>    args;
         // Bitmap of flags.
         enum FlagBits : uint16_t {
-            DEFAULT                   = 0,
-            RELOAD_SCENE              = 1 << 1,
-            RELOAD_SLA_SUPPORT_POINTS = 1 << 2,
-            RELOAD_SLA_PREVIEW        = 1 << 3,
+            DEFAULT                             = 0,
+            RELOAD_SCENE                        = 1 << 1,
+            RELOAD_SLA_SUPPORT_POINTS           = 1 << 2,
+            RELOAD_SLA_PREVIEW                  = 1 << 3,
             // UPDATE_PRINT_STEP_WARNINGS is mutually exclusive with UPDATE_PRINT_OBJECT_STEP_WARNINGS.
-            UPDATE_PRINT_STEP_WARNINGS        = 1 << 4,
-            UPDATE_PRINT_OBJECT_STEP_WARNINGS = 1 << 5,
-            SLICING_ENDED                     = 1 << 6,
-            GCODE_ENDED                       = 1 << 7,
-            MAIN_STATE                        = 1 << 8,
-            SECONDARY_STATE                   = 1 << 9,
+            UPDATE_PRINT_STEP_WARNINGS          = 1 << 4,
+            UPDATE_PRINT_OBJECT_STEP_WARNINGS   = 1 << 5,
+            SLICING_ENDED                       = 1 << 6,
+            GCODE_ENDED                         = 1 << 7,
+            MAIN_STATE                          = 1 << 8,
+            SECONDARY_STATE                     = 1 << 9,
             FORCE_SHOW                          = 1 << 10
         };
         // Bitmap of FlagBits
-        unsigned int flags;
+        unsigned int    flags;
         // set to an ObjectID of a Print or a PrintObject based on flags
         // (whether UPDATE_PRINT_STEP_WARNINGS or UPDATE_PRINT_OBJECT_STEP_WARNINGS is set).
-        ObjectID warning_object_id;
+        ObjectID        warning_object_id;
         // For which Print or PrintObject step a new warning is being issued?
-        int warning_step{-1};
+        int             warning_step { -1 };
     };
     typedef std::function<void(const SlicingStatus &)> status_callback_type;
     // Default status console print out in the form of percent => message.
-    void set_status_default() { m_status_callback = nullptr; }
+    void                    set_status_default() { m_status_callback = nullptr; }
     // No status output or callback whatsoever, useful mostly for automatic tests.
-    void set_status_silent()
-    {
-        m_status_callback = [](const SlicingStatus &) {};
-    }
+    void                    set_status_silent() { m_status_callback = [](const SlicingStatus&){}; }
     // Register a custom status callback.
-    void set_status_callback(status_callback_type cb) { m_status_callback = cb; }
+    void                    set_status_callback(status_callback_type cb) { m_status_callback = cb; }
     // Calls a registered callback to update the status, or print out the default message.
-    void set_status(int percent, const std::string &message, unsigned int flags = SlicingStatus::DEFAULT) const
-    {
+    void                    set_status(int percent, const std::string& message, unsigned int flags = SlicingStatus::DEFAULT) const {
         set_status(percent, message, {}, flags);
     }
-    void set_status(int                             percent,
-                    const std::string &             message,
-                    const std::vector<std::string> &args,
-                    unsigned int                    flags = SlicingStatus::DEFAULT) const
-    {
-        // check if it need an update. Avoid doing a gui update each ms.
-        if ((flags & SlicingStatus::SECONDARY_STATE) != 0 && message != m_last_status_message) {
-            std::chrono::time_point<std::chrono::system_clock> current_time = std::chrono::system_clock::now();
-            if ((static_cast<std::chrono::duration<double>>(current_time - PrintBase::m_last_status_update)).count() >
-                    0.002 &&
-                PrintBase::m_last_status_percent != percent) {
-                PrintBase::m_last_status_update  = current_time;
-                PrintBase::m_last_status_percent = percent;
+void                    set_status(int percent, const std::string& message, const std::vector<std::string>& args, unsigned int flags = SlicingStatus::DEFAULT) const {
+        //check if it need an update. Avoid doing a gui update each ms.
+        {
+            std::lock_guard<std::mutex> lock(m_last_status_mutex);
+            if ((flags & SlicingStatus::FORCE_SHOW) == 0 && (flags & SlicingStatus::SECONDARY_STATE) != 0 &&
+                message != m_last_status_message) {
+                std::chrono::time_point<std::chrono::system_clock> current_time = std::chrono::system_clock::now();
+                if ((static_cast<std::chrono::duration<double>>(current_time - PrintBase::m_last_status_update))
+                            .count() > 0.002 &&
+                    PrintBase::m_last_status_percent != percent) {
+                    PrintBase::m_last_status_update  = current_time;
+                    PrintBase::m_last_status_percent = percent;
+                } else {
+                    // don't update if it's for the secondary and already done in less than 200ms
+                    return;
+                }
             } else {
-                // don't update if it's for the secondary and already done in less than 200ms
-                return;
+                PrintBase::m_last_status_percent = -1;
             }
             m_last_status_message = message;
         }
-        m_last_status_message = message;
-        if ((flags & SlicingStatus::FlagBits::MAIN_STATE) == 0 &&
-            (flags & SlicingStatus::FlagBits::SECONDARY_STATE) == 0)
+        if ((flags & SlicingStatus::FlagBits::MAIN_STATE) == 0 && (flags & SlicingStatus::FlagBits::SECONDARY_STATE) == 0)
             flags = flags | SlicingStatus::FlagBits::MAIN_STATE;
         if (m_status_callback) {
             if (args.empty())
@@ -566,11 +548,11 @@ public:
                 m_status_callback(SlicingStatus(percent, message, args, flags));
         } else {
             printf("%d => ", percent);
-            if (args.empty())
-                printf(message.c_str());
-            else if (args.size() == 1)
+            if(args.empty())
+                printf("%s", message.c_str());
+            else if (args.size()==1)
                 printf(message.c_str(), args.front().c_str());
-            else if (args.size() == 2)
+            else if (args.size()==2)
                 printf(message.c_str(), args.front().c_str(), args.back().c_str());
             printf("\n");
         }
@@ -584,33 +566,30 @@ public:
     int32_t secondary_status_counter_get_max() { return m_secondary_state_max; }
     int32_t secondary_status_counter_increment(int32_t incr = 1) { return m_secondary_state_counter.fetch_add(incr); }
 
-
     typedef std::function<void()>  cancel_callback_type;
     // Various methods will call this callback to stop the background processing (the Print::process() call)
     // in case a successive change of the Print / PrintObject / PrintRegion instances changed
     // the state of the finished or running calculations.
-    void set_cancel_callback(cancel_callback_type cancel_callback) { m_cancel_callback = cancel_callback; }
+    void                       set_cancel_callback(cancel_callback_type cancel_callback) { m_cancel_callback = cancel_callback; }
     // Has the calculation been canceled?
-    enum CancelStatus {
-        // No cancelation, background processing should run.
-        NOT_CANCELED = 0,
-        // Canceled by user from the user interface (user pressed the "Cancel" button or user closed the application).
-        CANCELED_BY_USER = 1,
-        // Canceled internally from Print::apply() through the Print/PrintObject::invalidate_step() or
-        // ::invalidate_all_steps().
-        CANCELED_INTERNAL = 2
-    };
-    CancelStatus cancel_status() const { return m_cancel_status.load(std::memory_order_acquire); }
+	enum CancelStatus {
+		// No cancelation, background processing should run.
+		NOT_CANCELED = 0,
+		// Canceled by user from the user interface (user pressed the "Cancel" button or user closed the application).
+		CANCELED_BY_USER = 1,
+		// Canceled internally from Print::apply() through the Print/PrintObject::invalidate_step() or ::invalidate_all_steps().
+		CANCELED_INTERNAL = 2
+	};
+    CancelStatus               cancel_status() const { return m_cancel_status.load(std::memory_order_acquire); }
     // Has the calculation been canceled?
-    bool canceled() const { return m_cancel_status.load(std::memory_order_acquire) != NOT_CANCELED; }
+	bool                       canceled() const { return m_cancel_status.load(std::memory_order_acquire) != NOT_CANCELED; }
     // Cancel the running computation. Stop execution of all the background threads.
-    void cancel() { m_cancel_status = CANCELED_BY_USER; }
-
-    void cancel_internal() { m_cancel_status = CANCELED_INTERNAL; }
+	void                       cancel() { m_cancel_status = CANCELED_BY_USER; }
+	void                       cancel_internal() { m_cancel_status = CANCELED_INTERNAL; }
     // Cancel the running computation. Stop execution of all the background threads.
-    void restart() { m_cancel_status = NOT_CANCELED; }
+	void                       restart() { m_cancel_status = NOT_CANCELED; }
     // Returns true if the last step was finished with success.
-    virtual bool finished() const = 0;
+    virtual bool               finished() const = 0;
 
     const PlaceholderParser & placeholder_parser() const { return m_placeholder_parser; }
     const DynamicPrintConfig &full_print_config() const { return m_full_print_config; }
@@ -669,9 +648,11 @@ protected:
     status_callback_type m_status_callback;
 
     // for gui status update
-    inline static std::chrono::time_point<std::chrono::system_clock> m_last_status_update  = {};
-    inline static int                                                m_last_status_percent = -1;
-    inline static std::string                                        m_last_status_message = "";
+    inline static std::chrono::time_point<std::chrono::system_clock>
+                                            m_last_status_update = {};
+    inline static int                       m_last_status_percent = -1;
+    inline static std::string               m_last_status_message = "";
+    inline static std::mutex                m_last_status_mutex;
 
 private:
     std::atomic<CancelStatus> m_cancel_status;

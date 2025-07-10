@@ -902,7 +902,7 @@ namespace DoExport {
         double min = std::numeric_limits<double>::max();
         std::unordered_set<ExtrusionRole> excluded;
     public:
-        ExtrusionMinMM(const ConfigBase* config) {
+       ExtrusionMinMM(const ConfigBase* config) {
             excluded.insert(ExtrusionRole::Ironing);
             excluded.insert(ExtrusionRole::Milling);
             excluded.insert(ExtrusionRole::Mixed);
@@ -1383,6 +1383,18 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     }
      this->m_throw_if_canceled();
 
+    //now that we have the layer count, init the status
+    boost::format fmt(L("Generating G-code layer %1% / %2%"));
+    std::string msg = (fmt
+        % 1                      // Starting at layer 1 (user-facing)
+        % layer_count()
+    ).str();
+
+    print.set_status(
+        0,
+        msg,
+        PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+    );
     m_enable_cooling_markers = true;
     m_last_object_layers.clear();
 
@@ -1776,9 +1788,15 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
      this->m_throw_if_canceled();
 
     // Collect custom seam data from all objects.
-     print.set_status(0, L("Computing seam visibility areas: object %s / %s"),
-                      {"1", std::to_string(print.objects().size())},
-                      PrintBase::SlicingStatus::FORCE_SHOW | PrintBase::SlicingStatus::SECONDARY_STATE);
+
+    std::string msg2 = (boost::format(L("Computing seam visibility areas: object %1% / %2%")) % 1 % print.objects().size()).str();
+
+    print.set_status(
+        0,
+        msg2,
+        PrintBase::SlicingStatus::FORCE_SHOW | PrintBase::SlicingStatus::SECONDARY_STATE
+    );
+
     m_seam_placer.init(print, this->m_throw_if_canceled);
 
     //activate first extruder is multi-extruder and not in start-gcode
@@ -3254,6 +3272,41 @@ LayerResult GCodeGenerator::process_layer(
         return result;
 
     assert(layer_id < layer_count());
+
+    if (object_layer) {
+        if (single_object_instance_idx != size_t(-1)) {
+            size_t nb_layers = object_layer->object()->layer_count();
+            m_object_sequentially_printed.insert(object_layer->object());
+
+            // Format status message
+            boost::format fmt(L("Generating G-code layer %1% / %2% for object %3% / %4%"));
+            std::string msg = (fmt
+                % layer.id()
+                % nb_layers
+                % m_object_sequentially_printed.size()
+                % print.num_object_instances()
+            ).str();
+
+            print.set_status(
+                int((layer.id() * 100) / nb_layers),
+                msg,
+                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+            );
+        } else {
+            // Format status for non-sequential print
+            boost::format fmt(L("Generating G-code layer %1% / %2%"));
+            std::string msg = (fmt
+                % layer.id()
+                % layer_count()
+            ).str();
+
+            print.set_status(
+                int((layer.id() * 100) / layer_count()),
+                msg,
+                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+            );
+        }
+    }
 
     // Extract 1st object_layer and support_layer of this set of layers with an equal print_z.
     coordf_t             print_z       = layer.print_z;

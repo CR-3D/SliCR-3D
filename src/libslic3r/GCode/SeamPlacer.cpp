@@ -1753,10 +1753,10 @@ void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_can
 
     for (size_t obj_idx = 0; obj_idx < print.objects().size(); ++ obj_idx) {
         const PrintObject *po = print.objects()[obj_idx];
-        print.set_status(int((obj_idx * 100) / print.objects().size()),
-                         ("Computing seam visibility areas: object %s / %s"),
-                         {std::to_string(obj_idx + 1), std::to_string(print.objects().size())},
-                         PrintBase::SlicingStatus::SECONDARY_STATE);
+
+        boost::format fmt("Computing seam visibility areas: object %1% / %2%");
+
+        print.set_status(int((obj_idx * 100) / print.objects().size()), (fmt % (obj_idx + 1) % print.objects().size()).str(), PrintBase::SlicingStatus::SECONDARY_STATE);
         throw_if_canceled_func();
         SeamPosition configured_seam_preference = po->config().seam_position.value;
         SeamComparator comparator { configured_seam_preference, *po };
