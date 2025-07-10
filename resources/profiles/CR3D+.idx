@@ -51,3 +51,4 @@ min_slic3r_version = 2.4.0-rc
 0.0.50 updated start-gcode for single and idex printers
 0.0.51 extrusion width changes in CR-3D+ Standard
 0.0.52 changed overhangs speeds
+0.0.53 Updated wipe tower settings and support_material_interface_layer_height = 1
