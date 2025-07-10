@@ -1832,7 +1832,7 @@ void PrintConfigDef::init_fff_params() {
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionGraphs(
-        {GraphData(0,4, GraphData::GraphType::LINEAR, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
+        {GraphData(0,4, GraphData::GraphType::SQUARE, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
     )}));
     def->graph_settings = std::make_shared<GraphSettings>();
     def->graph_settings->title       = L("Pressure Advance from nozzle size");
@@ -1850,8 +1850,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 0.10;
     def->graph_settings->step_y = 0.0005;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
@@ -3137,20 +3136,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
-    /*
-    def = this->add("gap_fill_extension", coFloatOrPercent);
-    def->label = L("Extension");
-    def->full_label = L("Gap fill: extra extension");
-    def->category = OptionCategory::perimeter;
-    def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
-                     "of the perimeter width");
-    def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm/%");
-    def->min = 0;
-    def->max_literal = {50, true};
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
-
     def = this->add("gap_fill_fan_speed", coInts);
     def->label = L("Gap fill fan speed");
     def->category = OptionCategory::cooling;
@@ -3166,6 +3151,20 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+
+    /*
+    def = this->add("gap_fill_extension", coFloatOrPercent);
+    def->label = L("Extension");
+    def->full_label = L("Gap fill: extra extension");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
+                     "of the perimeter width");
+    def->ratio_over = "perimeter_width";
+    def->sidetext = L("mm/%");
+    def->min = 0;
+    def->max_literal = {50, true};
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
 
     def = this->add("gap_fill_flow_match_perimeter", coPercent);
     def->label = L("Cap with perimeter flow");
@@ -4523,7 +4522,7 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,100},{25,80},{50,60},{75,40},{100,20}}
     )})));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4547,8 +4546,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = { GraphData::GraphType::SQUARE};
 
     def             = this->add("overhangs_dynamic_speed", coGraph);
     def->label      = L("Dynamic overhang speeds");
@@ -4561,7 +4559,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext   = L("mm/s");
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,0},{25,10},{50,40},{75,70},{100,100}}
     ))));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4585,8 +4583,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     def = this->add("overhangs_fan_speed", coInts);
     def->label = L("Overhangs Perimeter fan speed");
@@ -9295,7 +9292,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     assert(!has(dict, "bridge_internal_fan_speed"s));
     for_ech_entry(dict, {
         "bridge_fan_speed"s, "default_fan_speed"s, "min_fan_speed"s/* this is default_fan_speed's alias*/, "external_perimeter_fan_speed"s, "infill_fan_speed"s, "internal_bridge_fan_speed"s, "overhangs_fan_speed"s,
-        "perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
+        "gap_fill_fan_speed"s,"perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
                   [](Key &opt_key, Val &value) {
             assert(print_config_def.get(opt_key) && print_config_def.get(opt_key)->type == coInts);
             // if vector, split it.
@@ -10264,6 +10261,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "gcode_command_buffer",
 "gcode_min_length",
 "gcode_min_resolution",
+"gap_fill_fan_speed",
 "gap_fill_acceleration",
 "gcode_filename_illegal_char",
 "gcode_precision_e",

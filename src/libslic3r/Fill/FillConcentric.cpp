@@ -360,6 +360,24 @@ FillConcentricWGapFill::fill_surface_extrusion(
         else delete root_collection_nosort;
     }
 
+    // external gapfill
+    ExPolygons gapfill_areas = diff_ex(ExPolygons{ surface->expolygon }, offset_ex(expp, double(scale_(0.5 * this->get_spacing()))));
+    gapfill_areas = union_safety_offset_ex(gapfill_areas);
+    if (gapfill_areas.size() > 0 && no_overlap_expolygons.size() > 0) {
+        double minarea = double(params.flow.scaled_width()) * double(params.flow.scaled_width());
+        //if (params.config != nullptr) minarea = scale_d(params.config->gap_fill_min_area.get_abs_value(params.flow.width())) * double(params.flow.scaled_width());
+        for (int i = 0; i < gapfill_areas.size(); i++) {
+            if (gapfill_areas[i].area() < minarea) {
+                gapfill_areas.erase(gapfill_areas.begin() + i);
+                i--;
+            }
+        }
+        FillParams params2{ params };
+        params2.role = ExtrusionRole::GapFill;
+
+        do_gap_fill(intersection_ex(gapfill_areas, no_overlap_expolygons), params2, out_to_check);
+    }
+
     // check volume coverage
     if (!out_to_check.empty()) {
         double mult_flow = 1;

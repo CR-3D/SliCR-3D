@@ -1289,6 +1289,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInts,                 first_layer_temperature))
     ((ConfigOptionInts,                 idle_temperature))
     ((ConfigOptionInts,                 full_fan_speed_layer))
+    ((ConfigOptionInts,                 gap_fill_fan_speed))
     ((ConfigOptionInts,                 infill_fan_speed))
     ((ConfigOptionInts,                 internal_bridge_fan_speed))
     ((ConfigOptionFloat,                lift_min))

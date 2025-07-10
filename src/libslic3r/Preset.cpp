@@ -870,6 +870,7 @@ static std::vector<std::string> s_Preset_filament_options {
         "overhangs_fan_speed",
         "overhangs_dynamic_fan_speed",
         "perimeter_fan_speed",
+        "gap_fill_fan_speed",
         "solid_infill_fan_speed",
         "support_material_fan_speed",
         "support_material_interface_fan_speed",

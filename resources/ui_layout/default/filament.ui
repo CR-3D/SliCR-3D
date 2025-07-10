@@ -101,10 +101,10 @@ group:Overhangs Fan Speed
 		setting:id$0:label$_:overhangs_fan_speed
 	end_line
 
-#group:Gap Fill Fan Speed
-	#line:Gap Fill Fan Speed
-		#setting:id$0:label$_:gap_fill_fan_speed
-	#end_line
+group:Gap Fill Fan Speed
+	line:Gap Fill Fan Speed
+		setting:id$0:label$_:gap_fill_fan_speed
+	end_line
 
 #group:Dynamic Overhangs fan speeds
 #	line:Enable Fan speed for a % overlap
