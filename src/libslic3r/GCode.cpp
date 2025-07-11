@@ -8152,13 +8152,20 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
         this->placeholder_parser().set("current_extruder", extruder_id);
 
         // Append the filament start G-code.
-        const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+        std::string start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+
+        // Conditionally append based on flexible material
+        if (m_config.flexible_material.get_at(extruder_id)) {
+            start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) + " ENABLE=0";
+        }
+
         if (! start_filament_gcode.empty()) {
             DynamicConfig config;
             assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
             config.set_key_value("filament_extruder_id", new ConfigOptionInt(int(extruder_id)));
             config.set_key_value("previous_extruder", new ConfigOptionInt((int)extruder_id));
             config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));
+            
             // Process the start_filament_gcode for the new filament.
             gcode += this->placeholder_parser_process("start_filament_gcode", start_filament_gcode, extruder_id, &config);
             check_add_eol(gcode);
@@ -8224,7 +8231,16 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     this->placeholder_parser().set("current_extruder", extruder_id);
 
     // Append the filament start G-code.
-    const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+    // Append the filament start G-code.
+    std::string start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+
+    // Conditionally append based on flexible material
+    if (m_config.flexible_material.get_at(extruder_id)) {
+        start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) +
+            " ENABLE=0";
+    }
+
+
     if (!start_filament_gcode.empty()) {
         DynamicConfig config;
         assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));

@@ -723,7 +723,7 @@ static std::vector<std::string> s_Preset_print_options {
         "first_layer_extrusion_spacing", 
         "first_layer_extrusion_width", 
         "first_layer_infill_extrusion_spacing", 
-        "first_layer_infill_extrusion_width", 
+        "first_layer_infill_extrusion_width",
         "perimeter_round_corners",
         "perimeter_extrusion_spacing",
         "perimeter_extrusion_width",
@@ -852,6 +852,7 @@ static std::vector<std::string> s_Preset_filament_options {
         "filament_toolchange_part_fan_speed",
         "filament_dip_insertion_speed",
         "filament_dip_extraction_speed",  //skinnydip params end
+        "flexible_material",
         // Temperature
         "bed_temperature",
         "first_layer_bed_temperature",

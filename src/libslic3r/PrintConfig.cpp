@@ -739,6 +739,15 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionInts{0});
 
+    def = this->add("flexible_material", coBools);
+    def->label = L("Flexible Material");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Enable this if the filament is flexible, such as TPU");
+    def->full_label = L("Bed temperature");
+    def->is_vector_extruder = true;
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBools{false});
+
     def = this->add("before_layer_gcode", coString);
     def->label = L("Before layer change G-code");
     def->category = OptionCategory::customgcode;
@@ -10334,6 +10343,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "perimeters_hole",
 "priming_position",
 "print_bed_temperature",
+"flexible_material",
 "print_extrusion_multiplier",
 "print_first_layer_bed_temperature",
 "print_first_layer_temperature",

@@ -29,6 +29,7 @@ group:Temperature °C
 group:Filament properties
 	setting:id$0:width$7:filament_type
 	setting:id$0:filament_soluble
+	setting:id$0:flexible_material
 	setting:id$0:filament_shrink
 	setting:id$0:filament_max_overlap
 

@@ -1147,6 +1147,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              filament_unloading_speed_start))
     ((ConfigOptionFloats,              filament_unload_time))
     ((ConfigOptionFloats,              filament_wipe_advanced_pigment))
+
     ((ConfigOptionBool,                gcode_ascii))
     ((ConfigOptionInt,                 gcode_command_buffer))
     ((ConfigOptionBool,                gcode_comments))
@@ -1284,7 +1285,8 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionStrings,              filament_custom_variables))
     ((ConfigOptionStrings,              filament_notes))
     ((ConfigOptionPercents,             filament_max_overlap))
-    ((ConfigOptionPercents,             filament_shrink))
+    ((ConfigOptionPercents,             filament_shrink))(
+    (ConfigOptionBools, flexible_material))
     ((ConfigOptionInts,                 first_layer_bed_temperature))
     ((ConfigOptionInts,                 first_layer_temperature))
     ((ConfigOptionInts,                 idle_temperature))
