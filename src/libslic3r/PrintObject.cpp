@@ -4419,34 +4419,41 @@ static constexpr const std::initializer_list<const std::string_view> keys_extrud
 
 static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPrintConfig &in)
 {
-    // 1) Copy the "extruder key to infill_extruder and perimeter_extruder.
-    /*
     auto *opt_extruder = in.opt<ConfigOptionInt>(key_extruder);
-    if (opt_extruder)
-        if (int extruder = opt_extruder->value; extruder != 0) {
-            // Not a default extruder.
-            out.infill_extruder.value       = extruder;
-            out.solid_infill_extruder.value = extruder;
-            out.perimeter_extruder   .value = extruder;
-        }
-*/
 
-    // 2) Copy the rest of the values.
-    for (auto it = in.cbegin(); it != in.cend(); ++ it)
-        if (it->first != key_extruder)
-            if (ConfigOption* my_opt = out.option(it->first, false); my_opt != nullptr) {
-                if (one_of(it->first, keys_extruders)) {
-                    assert(dynamic_cast<ConfigOptionInt*>(my_opt));
-                    // Ignore "default" extruders.
-                    int extruder = static_cast<const ConfigOptionInt*>(it->second.get())->value;
-                    if (extruder > 0)
-                        static_cast<ConfigOptionInt *>(my_opt)->value = (extruder);
-                } else
-                    my_opt->set(*it->second);
+    for (const auto &key : keys_extruders) {
+        std::optional<int> role_value;
+
+        // Check if the role is explicitly set
+        if (auto opt_role = in.opt<ConfigOptionInt>(std::string(key)); opt_role) {
+            role_value = opt_role->value; // Use explicitly set value, even if 1
+        }
+        // If not explicitly set, fall back to extruder if it's non-zero
+        else if (opt_extruder && (opt_extruder->value != 0 && opt_extruder->value != 1)) {
+            role_value = opt_extruder->value;
+        }
+
+        // If we have a value to assign, apply it
+        if (role_value) {
+            int key_id = -1;
+            if (key == "infill_extruder")         key_id = 0;
+            else if (key == "solid_infill_extruder") key_id = 1;
+            else if (key == "perimeter_extruder")    key_id = 2;
+
+            switch (key_id) {
+                case 0: out.infill_extruder.value       = *role_value; break;
+                case 1: out.solid_infill_extruder.value = *role_value; break;
+                case 2: out.perimeter_extruder.value    = *role_value; break;
+                default: assert(false); break;
             }
+        }
+    }
 }
 
-PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &default_or_parent_region_config, const DynamicPrintConfig *layer_range_config, const ModelVolume &volume, size_t num_extruders)
+PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &default_or_parent_region_config,
+                                                  const DynamicPrintConfig *layer_range_config,
+                                                  const ModelVolume &volume,
+                                                  size_t num_extruders)
 {
     PrintRegionConfig config = default_or_parent_region_config;
     if (volume.is_model_part()) {
