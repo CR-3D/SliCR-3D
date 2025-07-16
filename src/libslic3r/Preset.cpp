@@ -911,7 +911,6 @@ static std::vector<std::string> s_Preset_filament_options {
         "filament_wipe_advanced_pigment",
         "chamber_temperature",
         // SoftFever
-        "enable_pressure_advance",
         "filament_pressure_advance", "adaptive_pressure_advance", "adaptive_pressure_advance_model", "adaptive_pressure_advance_overhangs", "adaptive_pressure_advance_bridges",
 };
 

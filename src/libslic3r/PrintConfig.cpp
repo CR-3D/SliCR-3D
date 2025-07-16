@@ -1823,12 +1823,6 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;                        // 0 = inherit defaults
     def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open,
                          {L("default"), "1", "2", "3", "4", "5", "6", "7", "8", "9"}); // override label for item 0
-
-    def = this->add("enable_pressure_advance", coBools);
-    def->label = L("Enable pressure advance");
-    def->tooltip = L("Enable pressure advance, auto calibration result will be overwritten once enabled.");
-    def->mode = comAdvanced | comExpert;
-    def->set_default_value(new ConfigOptionBools {false, false});
     
    def = this->add("filament_pressure_advance", coGraphs);
     def->label = L("Filament Pressure Advance");
