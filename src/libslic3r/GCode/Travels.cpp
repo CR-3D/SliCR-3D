@@ -30,7 +30,7 @@ class ExtPeriExtrusionToLines : public ExtrusionVisitorConst {
 public:
 #ifdef _DEBUG
     std::unordered_set<ExtrudedExtrusionEntity, ExtrudedExtrusionEntityHash> *registered_extrusion;
-    std::set<uint64_t> all_ee_id;
+    std::map<size_t, std::set<uint64_t>> all_ee_id_per_instance;
 #endif
     std::vector<ObjectOrExtrusionLinef> lines;
     size_t object_layer_idx;
@@ -43,10 +43,12 @@ public:
                 lines.emplace_back(unscaled(Point{line.a + instance->shift}), unscaled(Point{line.b + instance->shift}),
                                    object_layer_idx, instance_idx, root_extrusion ? root_extrusion : &path);
 #ifdef _DEBUG
-                if (all_ee_id.find(root_extrusion ? root_extrusion->get_id() : path.get_id()) == all_ee_id.end()) {
+                if (all_ee_id_per_instance[instance_idx].find(root_extrusion ? root_extrusion->get_id() : path.get_id()) ==
+                    all_ee_id_per_instance[instance_idx].end()) {
                     ExtrudedExtrusionEntity eee = {int(object_layer_idx), int(instance_idx), root_extrusion ? root_extrusion->get_id() : path.get_id()};
                     this->registered_extrusion->insert(eee);
-                    all_ee_id.insert(root_extrusion ? root_extrusion->get_id() : path.get_id());
+                    all_ee_id_per_instance[instance_idx].insert(root_extrusion ? root_extrusion->get_id() :
+                                                                                 path.get_id());
                 }
 #endif
             }
@@ -60,7 +62,8 @@ public:
 #ifdef _DEBUG
                 ExtrudedExtrusionEntity eee = {int(object_layer_idx), int(instance_idx), root_extrusion ? root_extrusion->get_id() : path3D.get_id()};
                 this->registered_extrusion->insert(eee);
-                all_ee_id.insert(root_extrusion ? root_extrusion->get_id() : path3D.get_id());
+                all_ee_id_per_instance[instance_idx].insert(root_extrusion ? root_extrusion->get_id() :
+                                                                             path3D.get_id());
 #endif
             }
         }

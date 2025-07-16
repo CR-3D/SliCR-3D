@@ -259,7 +259,9 @@ static ExPolygons PolyTreeToExPolygons(ClipperLib::PolyTree &&polytree)
             (*expolygons)[cnt].contour.points = std::move(polynode.Contour);
             double area = std::abs((*expolygons)[cnt].contour.area());
             // I saw a clockwise artifact with 4 points
-            if ((*expolygons)[cnt].contour.size() < 5 && !(*expolygons)[cnt].contour.is_counter_clockwise()) {
+            if (!(*expolygons)[cnt].contour.is_counter_clockwise() &&
+                ((*expolygons)[cnt].contour.size() < 5 ||
+                 std::abs((*expolygons)[cnt].contour.area()) < (SCALED_EPSILON * SCALED_EPSILON * 10))) {
                 assert( std::abs((*expolygons)[cnt].contour.area()) < SCALED_EPSILON * SCALED_EPSILON * SCALED_EPSILON);
                 // error, delete.
                 (*expolygons).pop_back();

@@ -4584,23 +4584,30 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         if (building_paths.size() == 1)
             assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
 
+        for ( ExtrusionPath &path :building_paths) {
+            assert(!path.empty());
+        }
+
         // extract paths from the start
         coordf_t dist = notch_length;
         while (dist > SCALED_EPSILON) {
             coordf_t length = building_paths.front().as_polyline().length();
-            if (length > dist) {
+            if (length > dist + SCALED_EPSILON) {
                 // found the place to split
                 notch_extrusion_start.emplace_back(building_paths.front().attributes(),
                                                    building_paths.front().can_reverse());
                 ArcPolyline ap2;
                 building_paths.front().as_polyline().split_at(dist, notch_extrusion_start.back().polyline, ap2);
+                assert(!ap2.empty());
                 building_paths.front().polyline = ap2;
+                assert(!notch_extrusion_start.back().empty());
                 dist = 0;
                 assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
             } else {
                 notch_extrusion_start.push_back(std::move(building_paths.front()));
                 building_paths.erase(building_paths.begin());
                 dist -= length;
+                assert(!notch_extrusion_start.back().empty());
                 assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
             }
             assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
@@ -4609,19 +4616,22 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         dist = notch_length;
         while (dist > SCALED_EPSILON) {
             coordf_t length = building_paths.back().as_polyline().length();
-            if (length > dist) {
+            if (length > dist + SCALED_EPSILON) {
                 // found the place to split
                 notch_extrusion_end.emplace_back(building_paths.back().attributes(),
                                                  building_paths.back().can_reverse());
                 ArcPolyline ap2;
                 building_paths.back().polyline.split_at(length - dist, ap2, notch_extrusion_end.back().polyline);
+                assert(!ap2.empty());
                 building_paths.back().polyline = ap2;
+                assert(!notch_extrusion_start.back().empty());
                 dist = 0;
                 assert(building_paths.back().polyline.back() == notch_extrusion_end.back().polyline.front());
             } else {
                 notch_extrusion_end.push_back(std::move(building_paths.back()));
                 building_paths.pop_back();
                 dist -= length;
+                assert(!notch_extrusion_start.back().empty());
                 assert(building_paths.back().polyline.back() == notch_extrusion_end.back().polyline.front());
             }
             assert(building_paths.back().polyline.back() == notch_extrusion_end.back().polyline.front());

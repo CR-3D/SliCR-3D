@@ -973,21 +973,23 @@ void Layer::make_fills(FillAdaptive::Octree* adaptive_fill_octree, FillAdaptive:
     };
     //surface_fills is sorted by region_id
     size_t current_region_id = -1;
-	size_t first_object_layer_id = this->object()->get_layer(0)->id();
+    uint16_t current_extruder = -1;
+    size_t first_object_layer_id = this->object()->get_layer(0)->id();
     for (SurfaceFill &surface_fill : surface_fills) {
         // store the region fill when changing region. 
-        if (current_region_id != size_t(-1) && current_region_id != surface_fill.region_id) {
+        if (current_region_id != size_t(-1) && (current_region_id != surface_fill.region_id || current_extruder != surface_fill.params.extruder)) {
             store_fill(current_region_id);
         }
         current_region_id = surface_fill.region_id;
+        current_extruder = surface_fill.params.extruder;
         const LayerRegion* layerm = this->m_regions[surface_fill.region_id];
-        
+
         // Create the filler object.
         std::unique_ptr<Fill> f = std::unique_ptr<Fill>(Fill::new_from_type(surface_fill.params.pattern));
         f->set_bounding_box(bbox);
-		// Layer ID is used for orienting the infill in alternating directions.
-		// Layer::id() returns layer ID including raft layers, subtract them to make the infill direction independent
-		// from raft.
+        // Layer ID is used for orienting the infill in alternating directions.
+        // Layer::id() returns layer ID including raft layers, subtract them to make the infill direction independent
+        // from raft.
         f->layer_id = this->id() - first_object_layer_id;
         f->z        = this->print_z;
         f->angle    = surface_fill.params.angle;
