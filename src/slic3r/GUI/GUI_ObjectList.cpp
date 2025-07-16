@@ -2882,7 +2882,9 @@ void ObjectList::part_selection_changed()
     wxGetApp().obj_settings()->UpdateAndShow(update_and_show_settings);
     wxGetApp().obj_layers()  ->UpdateAndShow(update_and_show_layers);
     wxGetApp().sidebar().show_info_sizer();
-
+    if (wxGetApp().mainframe->selected_tab() == MainFrame::TabPosition::tpPlaterGCode)
+        wxGetApp().mainframe->select_tab(MainFrame::TabPosition::tpPlater);
+       
     panel.Layout();
     panel.Thaw();
 }
