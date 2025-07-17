@@ -4415,37 +4415,28 @@ PrintObjectConfig PrintObject::object_config_from_model_object(const PrintObject
 }
 
 const std::string                                                    key_extruder { "extruder" };
-static constexpr const std::initializer_list<const std::string_view> keys_extruders { "infill_extruder"sv, "solid_infill_extruder"sv, "perimeter_extruder"sv };
+static const std::vector<std::string> keys_extruders { "infill_extruder", "solid_infill_extruder", "perimeter_extruder" };
 
 static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPrintConfig &in)
 {
-    auto *opt_extruder = in.opt<ConfigOptionInt>(key_extruder);
+    const ConfigOptionInt *opt_main_extruder = in.opt<ConfigOptionInt>(key_extruder);
 
-    for (const auto &key : keys_extruders) {
-        std::optional<int> role_value;
+    for (const std::string &key : keys_extruders) {
+        ConfigOptionInt *out_role_extruder = out.opt<ConfigOptionInt>(key);
 
-        // Check if the role is explicitly set
-        if (auto opt_role = in.opt<ConfigOptionInt>(std::string(key)); opt_role) {
-            role_value = opt_role->value; // Use explicitly set value, even if 1
-        }
-        // If not explicitly set, fall back to extruder if it's non-zero
-        else if (opt_extruder && (opt_extruder->value != 0 && opt_extruder->value != 1)) {
-            role_value = opt_extruder->value;
+        // use main extruder if still default
+        if (opt_main_extruder && opt_main_extruder->value != 0 && !out_role_extruder->is_enabled()) {
+            out_role_extruder->value = opt_main_extruder->value;
+            // let out_role_extruder be disbaled -> new main extruder cna still override
         }
 
-        // If we have a value to assign, apply it
-        if (role_value) {
-            int key_id = -1;
-            if (key == "infill_extruder")         key_id = 0;
-            else if (key == "solid_infill_extruder") key_id = 1;
-            else if (key == "perimeter_extruder")    key_id = 2;
-
-            switch (key_id) {
-                case 0: out.infill_extruder.value       = *role_value; break;
-                case 1: out.solid_infill_extruder.value = *role_value; break;
-                case 2: out.perimeter_extruder.value    = *role_value; break;
-                default: assert(false); break;
-            }
+        const ConfigOptionInt *in_role_extruder = in.opt<ConfigOptionInt>(key);
+        // if in_role_extruder is enabled, then it override
+        if (in_role_extruder && in_role_extruder->is_enabled()) {
+            // copy back the 'in' config's value
+            out_role_extruder->value = in_role_extruder->value;
+            // set out_role_extruder to enabled -> other main extruder can't override
+            out_role_extruder->set_enabled(true);
         }
     }
 }
@@ -4456,6 +4447,14 @@ PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &defau
                                                   size_t num_extruders)
 {
     PrintRegionConfig config = default_or_parent_region_config;
+    //set default if disabled
+    for (const std::string &key : keys_extruders) {
+        ConfigOptionInt *out_role_extruder = config.opt<ConfigOptionInt>(key);
+        if (!out_role_extruder->is_enabled()) {
+            out_role_extruder->value = 1;
+        }
+    }
+    // apply by increasing priority
     if (volume.is_model_part()) {
         // default_or_parent_region_config contains the Print's PrintRegionConfig.
         // Override with ModelObject's PrintRegionConfig values.
@@ -4483,6 +4482,11 @@ PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &defau
         config.fill_density.value = std::min(config.fill_density.value, 100.);
     if (config.fuzzy_skin.value != FuzzySkinType::None && (config.fuzzy_skin_point_dist.value < 0.01 || config.fuzzy_skin_thickness.value < 0.001))
         config.fuzzy_skin.value = FuzzySkinType::None;
+
+    // not really useful, but good practice.
+    for (const std::string &key : keys_extruders) {
+        config.opt<ConfigOptionInt>(key)->set_enabled(true);
+    }
     return config;
 }
 

@@ -3731,11 +3731,11 @@ void GCodeGenerator::process_layer_single_object(
             // Extruder ID of the support base. -1 if "don't care".
             unsigned int    support_extruder   = print_object.config().support_material_extruder.value - 1;
             // Shall the support be printed with the active extruder, preferably with non-soluble, to avoid tool changes?
-            bool            support_dontcare   = support_extruder == std::numeric_limits<unsigned int>::max();
+            bool            support_dontcare   = !print_object.config().support_material_extruder.is_enabled();
             // Extruder ID of the support interface. -1 if "don't care".
             unsigned int    interface_extruder = print_object.config().support_material_interface_extruder.value - 1;
             // Shall the support interface be printed with the active extruder, preferably with non-soluble, to avoid tool changes?
-            bool            interface_dontcare = interface_extruder == std::numeric_limits<unsigned int>::max();
+            bool            interface_dontcare = !print_object.config().support_material_interface_extruder.is_enabled();
             if (support_dontcare || interface_dontcare) {
                 // Some support will be printed with "don't care" material, preferably non-soluble.
                 // Is the current extruder assigned a soluble filament?

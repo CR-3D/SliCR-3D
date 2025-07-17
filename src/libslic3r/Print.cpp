@@ -494,8 +494,8 @@ std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
                 }
             }
             if (has_support) {
-                assert(object->config().support_material_extruder >= 0);
-                if (object->config().support_material_extruder == 0)
+                assert(object->config().support_material_extruder > 0);
+                if (!object->config().support_material_extruder.is_enabled())
                     support_uses_current_extruder = true;
                 else {
                     uint16_t i = (uint16_t) object->config().support_material_extruder - 1;
@@ -503,8 +503,8 @@ std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
                 }
             }
             if (has_support && has_support_interface) {
-                assert(object->config().support_material_interface_extruder >= 0);
-                if (object->config().support_material_interface_extruder == 0)
+                assert(object->config().support_material_interface_extruder > 0);
+                if (!object->config().support_material_interface_extruder.is_enabled())
                     support_uses_current_extruder = true;
                 else {
                     uint16_t i = (uint16_t)object->config().support_material_interface_extruder - 1;
@@ -530,9 +530,9 @@ std::set<uint16_t> Print::extruders(float z /*= -1*/) const
     if (z < 0) {
         // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
         // append its extruder into the list too.
-        if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
-            assert(config().wipe_tower_extruder > 0 &&
-                   config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
+        if (has_wipe_tower() && config().wipe_tower_extruder.is_enabled() && extruders.size() > 1) {
+            assert(config().wipe_tower_extruder.is_enabled() &&
+                   config().wipe_tower_extruder <= int(config().nozzle_diameter.size()));
             extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
         }
     }
@@ -913,12 +913,12 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         const double print_first_layer_height = get_min_first_layer_height();
         for (PrintObject *object : m_objects) {
             if (object->has_support_material()) {
-                if ((object->config().support_material_extruder == 0 || object->config().support_material_interface_extruder == 0) && max_nozzle_diameter - min_nozzle_diameter > EPSILON) {
+                if ((!object->config().support_material_extruder.is_enabled() || !object->config().support_material_interface_extruder.is_enabled()) && max_nozzle_diameter - min_nozzle_diameter > EPSILON) {
                     // The object has some form of support and either support_material_extruder or support_material_interface_extruder
                     // will be printed with the current tool without a forced tool change. Play safe, assert that all object nozzles
                     // are of the same diameter.
                     return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Printing with multiple extruders of differing nozzle diameters. "
-                           "If support is to be printed with the current extruder (support_material_extruder == 0 or support_material_interface_extruder == 0), "
+                           "If support is to be printed with the current extruder (support_material_extruder is disabled or support_material_interface_extruder is disabled), "
                            "all nozzles have to be of the same diameter.") };
                 }
                 if (this->has_wipe_tower() && object->config().support_material_style != smsOrganic) {
@@ -928,9 +928,9 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("For the Wipe Tower to work with the soluble supports, the support layers need to be synchronized with the object layers.") };
                     } else {
                         // Non-soluble interface
-                        if (object->config().support_material_extruder != 0 || object->config().support_material_interface_extruder != 0)
+                        if (object->config().support_material_extruder.is_enabled() || object->config().support_material_interface_extruder.is_enabled())
                             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower currently supports the non-soluble supports only if they are printed with the current extruder without triggering a tool change. "
-                                     "(both support_material_extruder and support_material_interface_extruder need to be set to 0).") };
+                                     "(both support_material_extruder and support_material_interface_extruder need to be disabled).") };
                     }
                 }
                 if (object->config().support_material_style.value == smsOrganic) {

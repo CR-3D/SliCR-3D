@@ -303,9 +303,9 @@ void ToolOrdering::collect_extruders(
         bool         has_interface      = role == ExtrusionRole::Mixed || role == ExtrusionRole::SupportMaterialInterface;
         uint16_t extruder_support   = object.config().support_material_extruder.value;
         uint16_t extruder_interface = object.config().support_material_interface_extruder.value;
-        if (has_support && layer_tools)
+        if (has_support && layer_tools && object.config().support_material_extruder.is_enabled())
             layer_tools->extruders.push_back(extruder_support);
-        if (has_interface && layer_tools)
+        if (has_interface && layer_tools && object.config().support_material_interface_extruder.is_enabled())
             layer_tools->extruders.push_back(extruder_interface);
         if ((has_support || has_interface) && layer_tools)
             layer_tools->has_support = true;
@@ -587,9 +587,9 @@ bool ToolOrdering::insert_wipe_tower_extruder()
     if (!m_print_config_ptr->wipe_tower)
         return false;
 
-    // In case that wipe_tower_extruder is set to non-zero, we must make sure that the extruder will be in the list.
+    // In case that wipe_tower_extruder is enabled, we must make sure that the extruder will be in the list.
     bool changed = false;
-    if (m_print_config_ptr->wipe_tower_extruder != 0) {
+    if (m_print_config_ptr->wipe_tower_extruder.is_enabled()) {
         for (LayerTools& lt : m_layer_tools) {
             if (lt.wipe_tower_partitions > 0) {
                 lt.extruders.emplace_back(m_print_config_ptr->wipe_tower_extruder - 1);

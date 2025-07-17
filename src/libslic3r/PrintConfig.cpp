@@ -390,7 +390,7 @@ void PrintConfigDef::init_common_params() {
     // defautl to none : only set if loaded. only write our version
     def->set_default_value(new ConfigOptionStringVersion());
     def->cli = ConfigOptionDef::nocli;
-    def->can_phony = true;
+    def->can_phony = false; //it needs to be printed.
 
     def = this->add("printer_technology", coEnum);
     def->label = L("Printer technology");
@@ -3570,10 +3570,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("infill_extruder", coInt);
     def->label = L("Infill extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing infill.");
+    def->tooltip = L("The extruder to use when printing sparse infill. First extruder is 1."
+        "\nIf disabled, the main extruder is used. If enabled, this extruder override the main extruder.");
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("infill_extrusion_width", coFloatOrPercent);
     def->label = L("Infill");
@@ -4781,11 +4783,13 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("perimeter_extruder", coInt);
     def->label = L("Perimeter extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing perimeters and brim. First extruder is 1.");
-    def->aliases = {"perimeters_extruder"};
+    def->tooltip = L("The extruder to use when printing perimeters and brim. First extruder is 1."
+                      "\nIf disabled, the main extruder is used. If enabled, this extruder override the main extruder.");
+    def->aliases = { "perimeters_extruder" };
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("perimeter_extrusion_width", coFloatOrPercent);
     def->label = L("Perimeters");
@@ -5940,10 +5944,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("solid_infill_extruder", coInt);
     def->label = L("Solid infill extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing solid infill.");
+    def->tooltip = L("The extruder to use when printing solid infill (bottom, bridge, internal, top). First extruder is 1."
+        "\nIf disabled, the main extruder is used. If enabled, this extruder override the main extruder.");
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("solid_infill_every_layers", coInt);
     def->label = L("Solid infill every");
@@ -6375,11 +6381,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("support_material_extruder", coInt);
     def->label = L("Support material extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing support material "
-                     "(1+, 0 to use the current extruder to minimize tool changes).");
-    def->min = 0;
+    def->tooltip = L("The extruder to use when printing support material. First extruder is 1."
+        "\nDisable to use the current extruder to minimize tool changes.");
+    def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(0));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("support_material_extrusion_width", coFloatOrPercent);
     def->label = L("Support material");
@@ -6462,11 +6469,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("support_material_interface_extruder", coInt);
     def->label = L("Support material/raft interface extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing support material interface "
-                     "(1+, 0 to use the current extruder to minimize tool changes). This affects raft too.");
-    def->min = 0;
+    def->tooltip = L("The extruder to use when printing support material interface. First extruder is 1."
+        "\nDisable to use the current extruder to minimize tool changes. This affects raft too.");
+    def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(0));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("support_material_interface_layers", coInt);
     def->label = L("Top interface layers");
@@ -7455,11 +7463,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("wipe_tower_extruder", coInt);
     def->label = L("Wipe tower extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing perimeter of the wipe tower. "
-                     "Set to 0 to use the one that is available (non-soluble would be preferred).");
-    def->min = 0;
+    def->tooltip = L("The extruder to use when printing perimeter of the wipe tower. First extruder is 1."
+                     "\nDisable to use the one that is available (non-soluble would be preferred).");
+    def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(0));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("solid_infill_every_layers", coInt);
     def->label = L("Solid infill every");
@@ -9357,6 +9366,15 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
             if ("print_first_layer_temperature" == opt_key) {
                 value = "!0";
             }
+            if ("support_material_interface_extruder" == opt_key) {
+                value = "!1";
+            }
+            if ("support_material_extruder" == opt_key) {
+                value = "!1";
+            }
+            if ("wipe_tower_extruder" == opt_key) {
+                value = "!1";
+            }
         }
         //-1-> disabled
         if (value == "-1") {
@@ -9486,32 +9504,48 @@ void PrintConfigDef::handle_legacy_pair(t_config_option_key &opt_key, std::strin
 // Don't convert single options here, implement such conversion in PrintConfigDef::handle_legacy() instead.
 void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::map<t_config_option_key, std::string> &opt_deleted)
 {
-    bool old = true;
+    bool old26 = true;
+    std::optional<Semver> version;
     if (config.has("print_version")) {
         std::string str_version = config.option<ConfigOptionString>("print_version")->value;
-        old = str_version.size() < 4+1+7;
-        old = old || str_version.substr(0,4) != "SUSI";
-        assert(old || str_version[4] == '_');
-        if (!old) {
-            std::optional<Semver> version = Semver::parse(str_version.substr(5));
+        old26 = str_version.size() < 4 + 1 + 7;
+        old26 = old26 || str_version.substr(0,4) != "SUSI";
+        assert(old26 || str_version[4] == '_');
+        if (!old26) {
+            version = Semver::parse(str_version.substr(5));
             if (version) {
                 if (version->maj() <= 2 && version->min() <= 6) {
-                    old = true;
+                    old26 = true;
                 }
             } else {
-                old = true;
+                old26 = true;
             }
         }
     }
-    if (old && config.has("bridge_angle") && config.get_float("bridge_angle") == 0 && config.is_enabled("bridge_angle")) {
+    if (old26 && config.has("bridge_angle") && config.get_float("bridge_angle") == 0 && config.is_enabled("bridge_angle")) {
         config.option("bridge_angle")->set_enabled(false);
     }
     bool enabled = !config.has("overhangs_width_speed") || config.is_enabled("overhangs_width_speed");
-    if (old && config.has("overhangs_width_speed") && config.get_float("overhangs_width_speed") == 0 && config.is_enabled("overhangs_width_speed")) {
+    if (old26 && config.has("overhangs_width_speed") && config.get_float("overhangs_width_speed") == 0 && config.is_enabled("overhangs_width_speed")) {
         config.option("overhangs_width_speed")->set_enabled(false);
     }
-    if (old && config.has("overhangs_width") && config.get_float("overhangs_width") == 0 && config.is_enabled("overhangs_width")) {
+    if (old26 && config.has("overhangs_width") && config.get_float("overhangs_width") == 0 && config.is_enabled("overhangs_width")) {
         config.option("overhangs_width")->set_enabled(false);
+    }
+    // disabled extruder that wreen't disabled in previous version.
+    // if they are all at 1 and enabled, then it means that it's a recent version that didn't had the change.
+    bool all_extruder_1_and_enabled = true;
+    for (const std::string &extruder_key : {"perimeter_extruder", "infill_extruder", "solid_infill_extruder"}) {
+        auto opt = config.option(extruder_key);
+        if (!opt || !opt->is_enabled() || opt->get_int() != 1) {
+            all_extruder_1_and_enabled = false;
+            break;
+        }
+    }
+    for (const std::string &extruder_key : {"perimeter_extruder", "infill_extruder", "solid_infill_extruder"}) {
+        if (config.has(extruder_key) && (old26 || all_extruder_1_and_enabled)) {
+            config.option(extruder_key)->set_enabled(false);
+        }
     }
     
     // enable_dynamic_overhang/fan_speeds
@@ -10990,11 +11024,13 @@ void DynamicPrintConfig::normalize_fdm() {
         this->erase("first_layer_extruder");
 
     if (this->has("wipe_tower_extruder")) {
-        // If invalid, replace with 0.
+        // If invalid, disable.
         int extruder = this->opt<ConfigOptionInt>("wipe_tower_extruder")->value;
         int num_extruders = this->opt<ConfigOptionFloats>("nozzle_diameter")->size();
-        if (extruder < 0 || extruder > num_extruders)
-            this->opt<ConfigOptionInt>("wipe_tower_extruder")->value = 0;
+        if (extruder < 0 || extruder > num_extruders) {
+            this->opt<ConfigOptionInt>("wipe_tower_extruder")->value = 1;
+            this->opt<ConfigOptionInt>("wipe_tower_extruder")->set_enabled(false);
+        }
     }
 
     if (!this->has("solid_infill_extruder") && this->has("infill_extruder"))

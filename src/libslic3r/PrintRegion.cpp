@@ -10,22 +10,24 @@
 namespace Slic3r {
 
 // 1-based extruder identifier for this region and role.
+// return 0 if disabled
 uint16_t PrintRegion::extruder(FlowRole role, const PrintObject& object) const
 {
-    size_t extruder = 0;
+    const ConfigOptionInt *extruder = nullptr;
     if (role == frPerimeter || role == frExternalPerimeter)
-        extruder = m_config.perimeter_extruder;
+        extruder = &m_config.perimeter_extruder;
     else if (role == frInfill)
-        extruder = m_config.infill_extruder;
+        extruder = &m_config.infill_extruder;
     else if (role == frSolidInfill || role == frTopSolidInfill)
-        extruder = m_config.solid_infill_extruder;
+        extruder = &m_config.solid_infill_extruder;
     else if (role == frSupportMaterial)
-        extruder = object.config().support_material_extruder;
+        extruder = &object.config().support_material_extruder;
     else if (role == frSupportMaterialInterface)
-        extruder = object.config().support_material_interface_extruder;
+        extruder = &object.config().support_material_interface_extruder;
     else
         throw Slic3r::InvalidArgument("Unknown role");
-    return (uint16_t)extruder;
+    assert(extruder);
+    return extruder->is_enabled() ? extruder->value : 0;
 }
 
 Flow PrintRegion::flow(const PrintObject &object, FlowRole role, double layer_height, size_t layer_id) const

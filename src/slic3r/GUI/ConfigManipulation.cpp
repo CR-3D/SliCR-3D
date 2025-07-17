@@ -209,10 +209,10 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             }
         } else {
             // not-soluble support branch
-            if ((config->opt_int("support_material_extruder") != 0 || config->opt_int("support_material_interface_extruder") != 0)) {
+            if ((config->is_enabled("support_material_extruder") || config->is_enabled("support_material_interface_extruder"))) {
                 wxString msg_text = _(L("The Wipe Tower currently supports the non-soluble supports only (support-> distance -> not 'none/soluble') "
                                         "if they are printed with the current extruder without triggering a tool change. "
-                                        "(both support_material_extruder and support_material_interface_extruder need to be set to 0)."));
+                                        "(both support_material_extruder and support_material_interface_extruder need to be disabled)."));
                 if (is_global_config)
                     msg_text += "\n\n" + _(L("Shall I adjust those settings in order to enable the Wipe Tower?"));
                 MessageDialog dialog (m_msg_dlg_parent, msg_text, _(L("Wipe Tower")),
@@ -223,17 +223,17 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
                     if (this->local_config->get().optptr("wipe_tower"))
                         new_conf.set_key_value("wipe_tower", new ConfigOptionBool(false));
                     else if (this->local_config->get().optptr("support_material_extruder"))
-                        new_conf.set_key_value("support_material_extruder", new ConfigOptionInt(0));
+                        new_conf.opt<ConfigOptionInt>("support_material_extruder")->set_enabled(false);
                     else if (this->local_config->get().optptr("support_material_interface_extruder"))
-                        new_conf.set_key_value("support_material_interface_extruder", new ConfigOptionInt(0));
+                        new_conf.opt<ConfigOptionInt>("support_material_interface_extruder")->set_enabled(false);
                     else if (this->local_config->get().optptr("support_material_contact_distance_type"))
                         new_conf.set_key_value("support_material_contact_distance_type", new ConfigOptionEnum<SupportZDistanceType>(zdNone));
                     else if (this->local_config->get().optptr("support_material"))
                         new_conf.set_key_value("support_material", new ConfigOptionBool(false));
                     this->local_config->apply_only(new_conf, this->local_config->keys(), true);
                 } else if (answer == wxID_YES) {
-                    new_conf.set_key_value("support_material_extruder", new ConfigOptionInt(0));
-                    new_conf.set_key_value("support_material_interface_extruder", new ConfigOptionInt(0));
+                    new_conf.opt<ConfigOptionInt>("support_material_extruder")->set_enabled(false);
+                    new_conf.opt<ConfigOptionInt>("support_material_interface_extruder")->set_enabled(false);
                 }
                 else
                     new_conf.set_key_value("wipe_tower", new ConfigOptionBool(false));

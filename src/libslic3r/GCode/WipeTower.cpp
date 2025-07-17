@@ -724,7 +724,7 @@ void WipeTower::set_extruder(size_t idx)
     m_filpar.push_back(FilamentParameters());
 
     m_filpar[idx].material = m_config->filament_type.get_at(idx);
-    if (m_config->wipe_tower_extruder == 0) {
+    if (!m_config->wipe_tower_extruder.is_enabled()) {
         m_filpar[idx].is_soluble = m_config->filament_soluble.get_at(idx);
     } else {
         m_filpar[idx].is_soluble = (idx != size_t(m_config->wipe_tower_extruder - 1));

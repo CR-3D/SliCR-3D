@@ -336,14 +336,15 @@ std::string PresetHints::maximum_volumetric_flow_description(const PresetBundle 
 
     // Index of an extruder assigned to a feature. If set to 0, an active extruder will be used for a multi-material print.
     // If different from idx_extruder, it will not be taken into account for this hint.
-    auto feature_extruder_active = [idx_extruder, num_extruders](int i) {
-        return i <= 0 || i > num_extruders || idx_extruder == -1 || idx_extruder == i - 1;
+    auto feature_extruder_active = [idx_extruder, num_extruders](const ConfigOption *opt) {
+        return !opt->is_enabled() || opt->get_int() > num_extruders || opt->get_int() <= 0 ||
+            idx_extruder == opt->get_int() - 1;
     };
-    bool perimeter_extruder_active                  = feature_extruder_active(print_config.option("perimeter_extruder")->get_int());
-    bool infill_extruder_active                     = feature_extruder_active(print_config.option("infill_extruder")->get_int());
-    bool solid_infill_extruder_active               = feature_extruder_active(print_config.option("solid_infill_extruder")->get_int());
-    bool support_material_extruder_active           = feature_extruder_active(print_config.option("support_material_extruder")->get_int());
-    bool support_material_interface_extruder_active = feature_extruder_active(print_config.option("support_material_interface_extruder")->get_int());
+    bool perimeter_extruder_active                  = feature_extruder_active(print_config.option("perimeter_extruder"));
+    bool infill_extruder_active                     = feature_extruder_active(print_config.option("infill_extruder"));
+    bool solid_infill_extruder_active               = feature_extruder_active(print_config.option("solid_infill_extruder"));
+    bool support_material_extruder_active           = feature_extruder_active(print_config.option("support_material_extruder"));
+    bool support_material_interface_extruder_active = feature_extruder_active(print_config.option("support_material_interface_extruder"));
 
     // Current filament values
     double filament_diameter                = filament_config.opt_float("filament_diameter", 0);
