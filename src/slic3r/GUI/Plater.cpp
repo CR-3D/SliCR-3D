@@ -136,6 +136,10 @@
 #include "Jobs/NotificationProgressIndicator.hpp"
 #include "Jobs/PlaterWorker.hpp"
 #include "Jobs/BoostThreadWorker.hpp"
+#include "Jobs/OrientJob.hpp"
+#include "BackgroundSlicingProcess.hpp"
+#include "PrintHostDialogs.hpp"
+#include "ConfigWizard.hpp"
 #include "../Utils/ASCIIFolding.hpp"
 #include "../Utils/PrintHost.hpp"
 #include "../Utils/FixModelByWin10.hpp"
@@ -5565,6 +5569,15 @@ void Plater::priv::set_project_filename(const wxString &filename)
     
     if (!filename.empty() && !in_temp)
         wxGetApp().mainframe->add_to_recent_projects(filename);
+}
+
+void Plater::orient()
+{
+    auto &w = get_ui_job_worker();
+    if (w.is_idle()) {
+        p->take_snapshot(_u8L("Orient"));
+        replace_job(w, std::make_unique<OrientJob>());
+    }
 }
 
 void Plater::priv::init_notification_manager()
