@@ -3171,7 +3171,8 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
     if (printer_technology == ptFFF && m_config->has("nozzle_diameter")) {
         // Should the wipe tower be visualized ?
-        unsigned int extruders_count = (unsigned int)m_config->option<ConfigOptionFloats>("nozzle_diameter")->size();
+       const Print* print = this->fff_print();
+       unsigned int extruders_count = (unsigned int)print->object_extruders().size();
 
         const bool wt = m_config->option("wipe_tower")->get_bool();
         const bool co = m_config->option("complete_objects")->get_bool() || m_config->option("parallel_objects_step")->get_float() > 0;
@@ -3185,7 +3186,6 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
                 const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
-                const Print *print = m_process->fff_print();
                 //FIXME use real nozzle diameter, or the biggest
                 const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
                 const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
