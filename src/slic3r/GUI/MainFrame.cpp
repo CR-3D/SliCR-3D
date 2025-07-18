@@ -1317,9 +1317,12 @@ void MainFrame::create_preset_tabs()
 {
     add_created_tab(new TabPrint(m_tabpanel));
     add_created_tab(new TabFilament(m_tabpanel));
+    add_created_tab(new TabPrinter(m_tabpanel));
+
     //add_created_tab(new TabSLAPrint(m_tabpanel));
     //add_created_tab(new TabSLAMaterial(m_tabpanel));
-    add_created_tab(new TabPrinter(m_tabpanel));
+    TabFrequent* freq = (new TabFrequent(m_tabpanel, "freq_fff", Preset::Type::TYPE_FREQUENT_FFF));
+    freq->create_preset_tab();
 }
 
 void MainFrame::add_created_tab(Tab* panel)

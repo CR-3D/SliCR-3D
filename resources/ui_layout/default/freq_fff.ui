@@ -26,8 +26,12 @@ group:freq_settings_event:no_title:no_search:
         setting:simple:script:float:depends$nozzle_diameter[1]:label_width$13:label$Tool [1]_:tooltip$Value for nozzle[1]:full_width:s_nozzle_diameter_2
     end_line
     line:
-    preheat_printer
+        preheat_printer
     end_line
+    line:
+        freq_purging_volumes
+    end_line
+
     
 
     
