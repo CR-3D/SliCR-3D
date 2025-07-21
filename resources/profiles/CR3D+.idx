@@ -56,3 +56,5 @@ min_slic3r_version = 2.4.0-rc
 0.0.55 added chamber_temperature to start_gcode and renamed "ABS CRbon" to "ABS CF"
 0.0.56 single_extruder_multi_material_priming set to 0
 0.0.57 fixed spacings in start_gcode
+min_slic3r_version = 2.7.0.4
+0.0.58 Activated wipe tower to default

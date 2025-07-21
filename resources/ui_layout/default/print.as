@@ -38,49 +38,6 @@ void s_overhangs_set(bool is_set)
 }
 
 
-// quick settings extruders_count
-int s_nozzle_diameter_idx_get() { 
-
-	return get_int_idx("nozzle_diameter"); 
-}
-
-void s_nozzle_diameter_idx_set(int new_val)
-{
-	int nozzle_idx = get_int_idx("nozzle_diameter");
-
-	set_nozzle("nozzle_diameter", new_val, nozzle_idx);
-}
-
-
-// GET NOZZLE FOR INDEX 0 
-float s_nozzle_diameter_1_get() { 
-
-	return get_nozzle("nozzle_diameter", 0); 
-}
-
-void s_nozzle_diameter_1_set(float new_val)
-{
-	int nozzle_idx = get_int_idx("nozzle_diameter");
-
-	set_nozzle("nozzle_diameter", new_val, 0);
-}
-
-
-// GET NOZZLE FOR INDEX 1
-float s_nozzle_diameter_2_get() { 
-
-	return get_nozzle("nozzle_diameter", 1); 
-}
-
-void s_nozzle_diameter_2_set(float new_val)
-{
-	int nozzle_idx = get_int_idx("nozzle_diameter");
-
-	set_nozzle("nozzle_diameter", new_val, 1);
-}
-
-
-
 // quick settings orientation
 int s_orientation_fff_get(string &out get_val)
 {

@@ -663,6 +663,7 @@ void OptionsGroup::update_script_presets(bool init) {
         }
     }
 }
+
 bool ConfigOptionsGroup::has_option_def(const OptionKeyIdx &opt_key_idx)
 {
     return this->m_options.find(opt_key_idx) != this->m_options.end();
