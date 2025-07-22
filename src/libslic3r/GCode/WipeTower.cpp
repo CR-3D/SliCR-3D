@@ -637,16 +637,18 @@ WipeTower::ToolChangeResult WipeTower::construct_tcr(WipeTowerWriter& writer,
 
 
 
-WipeTower::WipeTower(const PrintConfig& config,
-                     const PrintObjectConfig& default_object_config,
-                     const PrintRegionConfig& default_region_config,
-                     const std::vector<std::vector<float>>& wiping_matrix,
-                     size_t initial_tool) :
+WipeTower::WipeTower(const Vec2f& pos,
+                    const PrintConfig& config,
+                    const PrintObjectConfig& default_object_config,
+                    const PrintRegionConfig& default_region_config, 
+                    const std::vector<std::vector<float>>& wiping_matrix,
+                    size_t initial_tool) 
+    : 
+    m_wipe_tower_pos(pos),
     m_config(&config),
     m_object_config(&default_object_config),
     m_region_config(&default_region_config),
-    m_semm(config.single_extruder_multi_material.value),
-    m_wipe_tower_pos(config.wipe_tower_x, config.wipe_tower_y),
+    m_semm(config.single_extruder_multi_material.value), 
     m_wipe_tower_width(float(config.wipe_tower_width)),
     m_wipe_tower_rotation_angle(float(config.wipe_tower_rotation_angle)),
     m_speed(float(config.wipe_tower_speed)),
@@ -722,7 +724,7 @@ void WipeTower::set_extruder(size_t idx)
     m_filpar.push_back(FilamentParameters());
 
     m_filpar[idx].material = m_config->filament_type.get_at(idx);
-    if (m_config->wipe_tower_extruder == 0) {
+    if (!m_config->wipe_tower_extruder.is_enabled()) {
         m_filpar[idx].is_soluble = m_config->filament_soluble.get_at(idx);
     } else {
         m_filpar[idx].is_soluble = (idx != size_t(m_config->wipe_tower_extruder - 1));

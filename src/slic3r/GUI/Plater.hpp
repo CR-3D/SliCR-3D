@@ -422,6 +422,7 @@ public:
     void render_sliders(GLCanvas3D& canvas);
 
     void arrange();
+    void orient();
     void arrange_current_bed();
     void arrange(Worker &w, const ArrangeSelectionMode &selected);
 

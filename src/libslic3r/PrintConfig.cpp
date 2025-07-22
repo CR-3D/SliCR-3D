@@ -342,7 +342,6 @@ static const t_config_enum_values s_keys_map_EnsureVerticalShellThickness {
     { "disabled", int(EnsureVerticalShellThickness::Disabled) },
     { "partial",  int(EnsureVerticalShellThickness::Partial)  },
     { "enabled",  int(EnsureVerticalShellThickness::Enabled)  },
-    { "enabled_old",  int(EnsureVerticalShellThickness::Enabled_old)  },
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(EnsureVerticalShellThickness)
 
@@ -391,7 +390,7 @@ void PrintConfigDef::init_common_params() {
     // defautl to none : only set if loaded. only write our version
     def->set_default_value(new ConfigOptionStringVersion());
     def->cli = ConfigOptionDef::nocli;
-    def->can_phony = true;
+    def->can_phony = false; //it needs to be printed.
 
     def = this->add("printer_technology", coEnum);
     def->label = L("Printer technology");
@@ -739,6 +738,15 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionInts{0});
+
+    def = this->add("flexible_material", coBools);
+    def->label = L("Flexible Material");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Enable this if the filament is flexible, such as TPU");
+    def->full_label = L("Bed temperature");
+    def->is_vector_extruder = true;
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBools{false});
 
     def = this->add("before_layer_gcode", coString);
     def->label = L("Before layer change G-code");
@@ -1563,13 +1571,12 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Add solid infill near sloping surfaces to guarantee the vertical shell thickness "
                    "(top+bottom solid layers).");
     def->set_enum<EnsureVerticalShellThickness>({
-        { "disabled", L("Disabled (2.5)") },
-        { "partial",  L("partial (2.9 experimental)")  },
-        { "enabled",  L("Enabled (2.7 experimental)")  },
-        { "enabled_old",  L("Enabled (2.5)")  },
+        { "disabled", L("Disabled") },
+        { "partial",  L("Partial")  },
+        { "enabled",  L("Enabled")  },
     });
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled_old));
+    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled));
 
     def = this->add("external_infill_margin", coFloatOrPercent);
     def->label = L("Default");
@@ -1816,12 +1823,6 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;                        // 0 = inherit defaults
     def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open,
                          {L("default"), "1", "2", "3", "4", "5", "6", "7", "8", "9"}); // override label for item 0
-
-    def = this->add("enable_pressure_advance", coBools);
-    def->label = L("Enable pressure advance");
-    def->tooltip = L("Enable pressure advance, auto calibration result will be overwritten once enabled.");
-    def->mode = comAdvanced | comExpert;
-    def->set_default_value(new ConfigOptionBools {false, false});
     
    def = this->add("filament_pressure_advance", coGraphs);
     def->label = L("Filament Pressure Advance");
@@ -1834,7 +1835,7 @@ void PrintConfigDef::init_fff_params() {
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionGraphs(
-        {GraphData(0,4, GraphData::GraphType::LINEAR, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
+        {GraphData(0,4, GraphData::GraphType::SQUARE, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
     )}));
     def->graph_settings = std::make_shared<GraphSettings>();
     def->graph_settings->title       = L("Pressure Advance from nozzle size");
@@ -1852,8 +1853,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 0.10;
     def->graph_settings->step_y = 0.0005;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
@@ -2710,6 +2710,8 @@ void PrintConfigDef::init_fff_params() {
                              {"20", "20%"},
                              {"25", "25%"},
                              {"30", "30%"},
+                             {"35", "35%"},
+                             {"40", "40%"},
                              {"45", "45%"},
                              {"50", "50%"},
                              {"55", "55%"},
@@ -2754,30 +2756,6 @@ void PrintConfigDef::init_fff_params() {
                                   {"lightning", L("Lightning")}});
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipStars));
-
-    def = this->add("fill_top_flow_ratio", coPercent);
-    def->label = L("Top fill");
-    def->full_label = L("Top fill flow ratio");
-    def->sidetext = L("%");
-    def->category = OptionCategory::width;
-    def->tooltip = L(
-        "You can increase this to over-extrude on the top layer if there is not enough plastic to make a good fill.");
-    def->min = 0;
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
-
-    def = this->add("first_layer_flow_ratio", coPercent);
-    def->label = L("First layer");
-    def->full_label = L("First layer flow ratio");
-    def->sidetext = L("%");
-    def->category = OptionCategory::width;
-    def->tooltip = L("You can increase this to over-extrude on the first layer if there is not enough plastic "
-                     "because your bed isn't levelled."
-                     "\nNote: DON'T USE THIS if your only problem is bed leveling, LEVEL YOUR BED!"
-                     " Use this setting only as last resort after all calibrations failed.");
-    def->min = 0;
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionPercent(100));
 
     def = this->add("first_layer_size_compensation", coFloat);
     def->label = L("First layer");
@@ -3161,20 +3139,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
-    /*
-    def = this->add("gap_fill_extension", coFloatOrPercent);
-    def->label = L("Extension");
-    def->full_label = L("Gap fill: extra extension");
-    def->category = OptionCategory::perimeter;
-    def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
-                     "of the perimeter width");
-    def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm/%");
-    def->min = 0;
-    def->max_literal = {50, true};
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
-
     def = this->add("gap_fill_fan_speed", coInts);
     def->label = L("Gap fill fan speed");
     def->category = OptionCategory::cooling;
@@ -3190,6 +3154,20 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+
+    /*
+    def = this->add("gap_fill_extension", coFloatOrPercent);
+    def->label = L("Extension");
+    def->full_label = L("Gap fill: extra extension");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
+                     "of the perimeter width");
+    def->ratio_over = "perimeter_width";
+    def->sidetext = L("mm/%");
+    def->min = 0;
+    def->max_literal = {50, true};
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
 
     def = this->add("gap_fill_flow_match_perimeter", coPercent);
     def->label = L("Cap with perimeter flow");
@@ -3592,10 +3570,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("infill_extruder", coInt);
     def->label = L("Infill extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing infill.");
+    def->tooltip = L("The extruder to use when printing sparse infill. First extruder is 1."
+        "\nIf disabled, the main extruder is used. If enabled, this extruder override the main extruder.");
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("infill_extrusion_width", coFloatOrPercent);
     def->label = L("Infill");
@@ -4547,7 +4527,7 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,100},{25,80},{50,60},{75,40},{100,20}}
     )})));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4571,8 +4551,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = { GraphData::GraphType::SQUARE};
 
     def             = this->add("overhangs_dynamic_speed", coGraph);
     def->label      = L("Dynamic overhang speeds");
@@ -4585,7 +4564,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext   = L("mm/s");
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,0},{25,10},{50,40},{75,70},{100,100}}
     ))));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4609,8 +4588,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     def = this->add("overhangs_fan_speed", coInts);
     def->label = L("Overhangs Perimeter fan speed");
@@ -4805,11 +4783,13 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("perimeter_extruder", coInt);
     def->label = L("Perimeter extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing perimeters and brim. First extruder is 1.");
-    def->aliases = {"perimeters_extruder"};
+    def->tooltip = L("The extruder to use when printing perimeters and brim. First extruder is 1."
+                      "\nIf disabled, the main extruder is used. If enabled, this extruder override the main extruder.");
+    def->aliases = { "perimeters_extruder" };
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("perimeter_extrusion_width", coFloatOrPercent);
     def->label = L("Perimeters");
@@ -5964,10 +5944,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("solid_infill_extruder", coInt);
     def->label = L("Solid infill extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing solid infill.");
+    def->tooltip = L("The extruder to use when printing solid infill (bottom, bridge, internal, top). First extruder is 1."
+        "\nIf disabled, the main extruder is used. If enabled, this extruder override the main extruder.");
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("solid_infill_every_layers", coInt);
     def->label = L("Solid infill every");
@@ -6399,11 +6381,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("support_material_extruder", coInt);
     def->label = L("Support material extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing support material "
-                     "(1+, 0 to use the current extruder to minimize tool changes).");
-    def->min = 0;
+    def->tooltip = L("The extruder to use when printing support material. First extruder is 1."
+        "\nDisable to use the current extruder to minimize tool changes.");
+    def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(0));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("support_material_extrusion_width", coFloatOrPercent);
     def->label = L("Support material");
@@ -6486,11 +6469,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("support_material_interface_extruder", coInt);
     def->label = L("Support material/raft interface extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing support material interface "
-                     "(1+, 0 to use the current extruder to minimize tool changes). This affects raft too.");
-    def->min = 0;
+    def->tooltip = L("The extruder to use when printing support material interface. First extruder is 1."
+        "\nDisable to use the current extruder to minimize tool changes. This affects raft too.");
+    def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(0));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("support_material_interface_layers", coInt);
     def->label = L("Top interface layers");
@@ -7425,21 +7409,6 @@ void PrintConfigDef::init_fff_params() {
                      "User is responsible for ensuring there is no collision with the print.");
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
-    def = this->add("wipe_tower_x", coFloat);
-    def->label = L("X");
-    def->full_label = L("Wipe tower X");
-    def->tooltip = L("X coordinate of the left front corner of a wipe tower");
-    def->sidetext = L("mm");
-    def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloat(180.));
-
-    def = this->add("wipe_tower_y", coFloat);
-    def->label = L("Y");
-    def->full_label = L("Wipe tower Y");
-    def->tooltip = L("Y coordinate of the left front corner of a wipe tower");
-    def->sidetext = L("mm");
-    def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloat(140.));
 
     def = this->add("wipe_tower_width", coFloat);
     def->label = L("Width");
@@ -7503,11 +7472,12 @@ void PrintConfigDef::init_fff_params() {
     def = this->add("wipe_tower_extruder", coInt);
     def->label = L("Wipe tower extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L("The extruder to use when printing perimeter of the wipe tower. "
-                     "Set to 0 to use the one that is available (non-soluble would be preferred).");
-    def->min = 0;
+    def->tooltip = L("The extruder to use when printing perimeter of the wipe tower. First extruder is 1."
+                     "\nDisable to use the one that is available (non-soluble would be preferred).");
+    def->min = 1;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionInt(0));
+    def->can_be_disabled = true;
+    def->set_default_value(disable_defaultoption(new ConfigOptionInt(1)));
 
     def = this->add("solid_infill_every_layers", coInt);
     def->label = L("Solid infill every");
@@ -9143,7 +9113,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     }
     if (has(dict, "ensure_vertical_shell_thickness"s)) {
         if (value() == "1") {
-            value() = "enabled_old";
+            value() = "enabled";
         } else if (value() == "0") {
             value() = "disabled";
         } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) {
@@ -9214,7 +9184,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     if (has(dict, "first_layer_min_speed") && !value().empty() && value().back() == '%')
         value() = value().substr(0, value().length() - 1); //no percent.
     
-    for_ech_entry(dict, {"bridge_flow_ratio", "bridge_flow_ratio", "over_bridge_flow_ratio", "fill_top_flow_ratio", "first_layer_flow_ratio"},
+    for_ech_entry(dict, {"bridge_flow_ratio", "bridge_flow_ratio", "over_bridge_flow_ratio"},
                   [](Key &opt_key, Val &value) {
         // gcode_label_objects used to be a bool (the behavior was nothing or "octoprint"), it is
         // and enum since PrusaSlicer 2.6.2.
@@ -9343,7 +9313,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     assert(!has(dict, "bridge_internal_fan_speed"s));
     for_ech_entry(dict, {
         "bridge_fan_speed"s, "default_fan_speed"s, "min_fan_speed"s/* this is default_fan_speed's alias*/, "external_perimeter_fan_speed"s, "infill_fan_speed"s, "internal_bridge_fan_speed"s, "overhangs_fan_speed"s,
-        "perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
+        "gap_fill_fan_speed"s,"perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
                   [](Key &opt_key, Val &value) {
             assert(print_config_def.get(opt_key) && print_config_def.get(opt_key)->type == coInts);
             // if vector, split it.
@@ -9404,6 +9374,15 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
             }
             if ("print_first_layer_temperature" == opt_key) {
                 value = "!0";
+            }
+            if ("support_material_interface_extruder" == opt_key) {
+                value = "!1";
+            }
+            if ("support_material_extruder" == opt_key) {
+                value = "!1";
+            }
+            if ("wipe_tower_extruder" == opt_key) {
+                value = "!1";
             }
         }
         //-1-> disabled
@@ -9534,32 +9513,48 @@ void PrintConfigDef::handle_legacy_pair(t_config_option_key &opt_key, std::strin
 // Don't convert single options here, implement such conversion in PrintConfigDef::handle_legacy() instead.
 void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::map<t_config_option_key, std::string> &opt_deleted)
 {
-    bool old = true;
+    bool old26 = true;
+    std::optional<Semver> version;
     if (config.has("print_version")) {
         std::string str_version = config.option<ConfigOptionString>("print_version")->value;
-        old = str_version.size() < 4+1+7;
-        old = old || str_version.substr(0,4) != "SUSI";
-        assert(old || str_version[4] == '_');
-        if (!old) {
-            std::optional<Semver> version = Semver::parse(str_version.substr(5));
+        old26 = str_version.size() < 4 + 1 + 7;
+        old26 = old26 || str_version.substr(0,4) != "SUSI";
+        assert(old26 || str_version[4] == '_');
+        if (!old26) {
+            version = Semver::parse(str_version.substr(5));
             if (version) {
                 if (version->maj() <= 2 && version->min() <= 6) {
-                    old = true;
+                    old26 = true;
                 }
             } else {
-                old = true;
+                old26 = true;
             }
         }
     }
-    if (old && config.has("bridge_angle") && config.get_float("bridge_angle") == 0 && config.is_enabled("bridge_angle")) {
+    if (old26 && config.has("bridge_angle") && config.get_float("bridge_angle") == 0 && config.is_enabled("bridge_angle")) {
         config.option("bridge_angle")->set_enabled(false);
     }
     bool enabled = !config.has("overhangs_width_speed") || config.is_enabled("overhangs_width_speed");
-    if (old && config.has("overhangs_width_speed") && config.get_float("overhangs_width_speed") == 0 && config.is_enabled("overhangs_width_speed")) {
+    if (old26 && config.has("overhangs_width_speed") && config.get_float("overhangs_width_speed") == 0 && config.is_enabled("overhangs_width_speed")) {
         config.option("overhangs_width_speed")->set_enabled(false);
     }
-    if (old && config.has("overhangs_width") && config.get_float("overhangs_width") == 0 && config.is_enabled("overhangs_width")) {
+    if (old26 && config.has("overhangs_width") && config.get_float("overhangs_width") == 0 && config.is_enabled("overhangs_width")) {
         config.option("overhangs_width")->set_enabled(false);
+    }
+    // disabled extruder that wreen't disabled in previous version.
+    // if they are all at 1 and enabled, then it means that it's a recent version that didn't had the change.
+    bool all_extruder_1_and_enabled = true;
+    for (const std::string &extruder_key : {"perimeter_extruder", "infill_extruder", "solid_infill_extruder"}) {
+        auto opt = config.option(extruder_key);
+        if (!opt || !opt->is_enabled() || opt->get_int() != 1) {
+            all_extruder_1_and_enabled = false;
+            break;
+        }
+    }
+    for (const std::string &extruder_key : {"perimeter_extruder", "infill_extruder", "solid_infill_extruder"}) {
+        if (config.has(extruder_key) && (old26 || all_extruder_1_and_enabled)) {
+            config.option(extruder_key)->set_enabled(false);
+        }
     }
     
     // enable_dynamic_overhang/fan_speeds
@@ -10301,12 +10296,9 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "fill_angle_template",
 "fill_smooth_distribution",
 "fill_smooth_width",
-"fill_top_flow_ratio",
-"fill_top_flow_ratio",
 "first_layer_extrusion_spacing",
 "first_layer_infill_extrusion_width",
 "first_layer_infill_extrusion_spacing",
-"first_layer_flow_ratio",
 "first_layer_infill_speed",
 "first_layer_min_speed",
 "first_layer_size_compensation_layers",
@@ -10315,6 +10307,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "gcode_command_buffer",
 "gcode_min_length",
 "gcode_min_resolution",
+"gap_fill_fan_speed",
 "gap_fill_acceleration",
 "gcode_filename_illegal_char",
 "gcode_precision_e",
@@ -10387,6 +10380,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "perimeters_hole",
 "priming_position",
 "print_bed_temperature",
+"flexible_material",
 "print_extrusion_multiplier",
 "print_first_layer_bed_temperature",
 "print_first_layer_temperature",
@@ -11039,11 +11033,13 @@ void DynamicPrintConfig::normalize_fdm() {
         this->erase("first_layer_extruder");
 
     if (this->has("wipe_tower_extruder")) {
-        // If invalid, replace with 0.
+        // If invalid, disable.
         int extruder = this->opt<ConfigOptionInt>("wipe_tower_extruder")->value;
         int num_extruders = this->opt<ConfigOptionFloats>("nozzle_diameter")->size();
-        if (extruder < 0 || extruder > num_extruders)
-            this->opt<ConfigOptionInt>("wipe_tower_extruder")->value = 0;
+        if (extruder < 0 || extruder > num_extruders) {
+            this->opt<ConfigOptionInt>("wipe_tower_extruder")->value = 1;
+            this->opt<ConfigOptionInt>("wipe_tower_extruder")->set_enabled(false);
+        }
     }
 
     if (!this->has("solid_infill_extruder") && this->has("infill_extruder"))

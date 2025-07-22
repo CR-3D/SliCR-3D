@@ -13,13 +13,14 @@ namespace GCode {
 class WipeTowerIntegration {
 public:
     WipeTowerIntegration(
+        Vec2f pos,
         const PrintConfig                                           &print_config,
         const std::vector<WipeTower::ToolChangeResult>              &priming,
         const std::vector<std::vector<WipeTower::ToolChangeResult>> &tool_changes,
-        const WipeTower::ToolChangeResult                           &final_purge) :
+        const WipeTower::ToolChangeResult                           &final_purge) : 
         m_left(/*float(print_config.wipe_tower_x.value)*/ 0.f),
-        m_right(float(/*print_config.wipe_tower_x.value +*/ print_config.wipe_tower_width.value)),
-        m_wipe_tower_pos(float(print_config.wipe_tower_x.value), float(print_config.wipe_tower_y.value)),
+        m_right(float(/*print_config.wipe_tower_x.value +*/ print_config.wipe_tower_width.value)), 
+        m_wipe_tower_pos(pos),
         m_wipe_tower_rotation(float(print_config.wipe_tower_rotation_angle)),
         m_extruder_offsets(print_config.extruder_offset.get_values()),
         m_priming(priming),
@@ -40,10 +41,8 @@ private:
     WipeTowerIntegration& operator=(const WipeTowerIntegration&);
     std::string append_tcr(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult &tcr, int new_extruder_id, double z = -1.) const;
 
+    // Postprocesses gcode: rotates and moves G1 extrusions and returns result
     std::string post_process_wipe_tower_moves(const WipeTower::ToolChangeResult& tcr, const Vec2f& translation, float angle) const;
-
-    std::string deretraction_from_wipe_tower_generator(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id) const;
-    std::string toolchange_gcode_from_wipe_tower_generator(GCodeGenerator &gcodegen, const WipeTower::ToolChangeResult& tcr, int new_extruder_id) const;
 
     // Left / right edges of the wipe tower, for the planning of wipe moves.
     const float                                                  m_left;

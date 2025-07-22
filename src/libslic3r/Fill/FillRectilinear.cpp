@@ -3580,6 +3580,25 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
     else
         unextruded_areas = rectilinear_areas;
 
+
+    gapfill_areas.insert(gapfill_areas.end(), unextruded_areas.begin(), unextruded_areas.end());
+    gapfill_areas = union_safety_offset_ex(gapfill_areas);
+    ensure_valid(gapfill_areas, params.fill_resolution);
+    assert_valid(gapfill_areas);
+    if (gapfill_areas.size() > 0) {
+        const double minarea = scale_d(scale_d(0.02));
+        for (int i = 0; i < gapfill_areas.size(); i++) {
+            if (gapfill_areas[i].area() < minarea) {
+                gapfill_areas.erase(gapfill_areas.begin() + i);
+                i--;
+            }
+        }
+        FillParams params2{ params };
+        params2.role = good_role;
+
+        do_gap_fill(intersection_ex(gapfill_areas, no_overlap_expolygons), params2, coll_nosort->set_entities());
+    }
+
     // check volume coverage
     if (!coll_nosort->empty()) {
         double mult_flow = 1;

@@ -443,6 +443,8 @@ set(SLIC3R_SOURCES
     MTUtils.hpp
     Zipper.hpp
     Zipper.cpp
+    Orient.cpp
+    Orient.hpp
     MinAreaBoundingBox.hpp
     MinAreaBoundingBox.cpp
     miniz_extension.hpp

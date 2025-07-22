@@ -80,7 +80,7 @@ static constexpr double UNSCALING_FACTOR = 1000000; // 1 / SCALING_FACTOR; <- li
 // for a threshold of a cross product of two non-normalized vectors etc.
 static constexpr double EPSILON = 1e-4;
 static constexpr coord_t SCALED_EPSILON = 100; // coord_t(EPSILON/ SCALING_FACTOR); <- linux has some problem compiling this constexpr
-
+static constexpr double EXTERNAL_INFILL_MARGIN = 3.;
 //for creating circles (for brim_ear)
 #define POLY_SIDES 24
 #define PI 3.141592653589793238

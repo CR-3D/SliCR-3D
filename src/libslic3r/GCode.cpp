@@ -902,7 +902,7 @@ namespace DoExport {
         double min = std::numeric_limits<double>::max();
         std::unordered_set<ExtrusionRole> excluded;
     public:
-        ExtrusionMinMM(const ConfigBase* config) {
+       ExtrusionMinMM(const ConfigBase* config) {
             excluded.insert(ExtrusionRole::Ironing);
             excluded.insert(ExtrusionRole::Milling);
             excluded.insert(ExtrusionRole::Mixed);
@@ -1383,6 +1383,18 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     }
      this->m_throw_if_canceled();
 
+    //now that we have the layer count, init the status
+    boost::format fmt(L("Generating G-code layer %1% / %2%"));
+    std::string msg = (fmt
+        % 1                      // Starting at layer 1 (user-facing)
+        % layer_count()
+    ).str();
+
+    print.set_status(
+        0,
+        msg,
+        PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+    );
     m_enable_cooling_markers = true;
     m_last_object_layers.clear();
 
@@ -1776,9 +1788,15 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
      this->m_throw_if_canceled();
 
     // Collect custom seam data from all objects.
-     print.set_status(0, L("Computing seam visibility areas: object %s / %s"),
-                      {"1", std::to_string(print.objects().size())},
-                      PrintBase::SlicingStatus::FORCE_SHOW | PrintBase::SlicingStatus::SECONDARY_STATE);
+
+    std::string msg2 = (boost::format(L("Computing seam visibility areas: object %1% / %2%")) % 1 % print.objects().size()).str();
+
+    print.set_status(
+        0,
+        msg2,
+        PrintBase::SlicingStatus::FORCE_SHOW | PrintBase::SlicingStatus::SECONDARY_STATE
+    );
+
     m_seam_placer.init(print, this->m_throw_if_canceled);
 
     //activate first extruder is multi-extruder and not in start-gcode
@@ -1954,7 +1972,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                 std::vector<std::pair<coordf_t, ObjectsLayerToPrint>> layers_to_print = collect_layers_to_print(print, status_monitor);
                 // Prusa Multi-Material wipe tower.
                 if (has_wipe_tower && !layers_to_print.empty()) {
-                    m_wipe_tower = std::make_unique<GCode::WipeTowerIntegration>(print.config(), *print.wipe_tower_data().priming.get(), print.wipe_tower_data().tool_changes, *print.wipe_tower_data().final_purge.get());
+                    m_wipe_tower = std::make_unique<GCode::WipeTowerIntegration>(print.model().wipe_tower().position.cast<float>(), print.config(), *print.wipe_tower_data().priming.get(), print.wipe_tower_data().tool_changes, *print.wipe_tower_data().final_purge.get());
 
                     // Set position for wipe tower generation.
                     preamble_to_put_start_layer.append(this->writer().travel_to_z(first_layer_height, "Move to first z, for wipe tower"));
@@ -2087,7 +2105,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
     
     if (export_to_binary_gcode) {
         bgcode::binarize::BinaryData& binary_data = m_processor.get_binary_data();
-        if (status_monitor.stats().total_toolchanges > 0)
+        //if (status_monitor.stats().total_toolchanges > 0)
             binary_data.print_metadata.raw_data.emplace_back("total toolchanges", std::to_string(status_monitor.stats().total_toolchanges));
         char buf[1024];
         sprintf(buf, "%.2lf", m_max_layer_z);
@@ -2099,7 +2117,7 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
         file.write_format(PrintStatistics::TotalFilamentUsedGValueMask.c_str(), status_monitor.stats().total_weight);
         file.write_format(PrintStatistics::TotalFilamentCostValueMask.c_str(), status_monitor.stats().total_cost);
         file.write_format(PrintStatistics::TotalFilamentUsedWipeTowerValueMask.c_str(), status_monitor.stats().total_wipe_tower_filament_weight);
-        if (status_monitor.stats().total_toolchanges > 0)
+        //if (status_monitor.stats().total_toolchanges > 0) // always write the line, so the parser has something reliable to read.
             file.write_format("; total toolchanges = %i\n", status_monitor.stats().total_toolchanges);
         file.write_format("; objects layers count = %i\n", object_layer_count());
         file.write_format("; total layers count = %i\n", layer_count());
@@ -3255,6 +3273,41 @@ LayerResult GCodeGenerator::process_layer(
 
     assert(layer_id < layer_count());
 
+    if (object_layer) {
+        if (single_object_instance_idx != size_t(-1)) {
+            size_t nb_layers = object_layer->object()->layer_count();
+            m_object_sequentially_printed.insert(object_layer->object());
+
+            // Format status message
+            boost::format fmt(L("Generating G-code layer %1% / %2% for object %3% / %4%"));
+            std::string msg = (fmt
+                % layer.id()
+                % nb_layers
+                % m_object_sequentially_printed.size()
+                % print.num_object_instances()
+            ).str();
+
+            print.set_status(
+                int((layer.id() * 100) / nb_layers),
+                msg,
+                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+            );
+        } else {
+            // Format status for non-sequential print
+            boost::format fmt(L("Generating G-code layer %1% / %2%"));
+            std::string msg = (fmt
+                % layer.id()
+                % layer_count()
+            ).str();
+
+            print.set_status(
+                int((layer.id() * 100) / layer_count()),
+                msg,
+                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+            );
+        }
+    }
+
     // Extract 1st object_layer and support_layer of this set of layers with an equal print_z.
     coordf_t             print_z       = layer.print_z;
     bool                 first_layer   = layer_id == 0;
@@ -3356,13 +3409,14 @@ LayerResult GCodeGenerator::process_layer(
     }
     for (const ObjectLayerToPrint &l : layers) {
         if (l.object_layer) {
-            if (is_approx(m_last_layers_z, l.object_layer->print_z, EPSILON)) {
+            if (!is_approx(m_last_layers_z, l.object_layer->print_z, EPSILON)) {
                 m_last_object_layers.clear();
                 m_last_layers_z = l.object_layer->print_z;
             }
             m_last_object_layers.push_back(l.object_layer);
         }
     }
+
     m_layer = &layer;
     if (this->line_distancer_is_required(layer_tools.extruders) && this->m_layer != nullptr && this->m_layer->lower_layer != nullptr)
         m_travel_obstacle_tracker.init_layer(layer, layers);
@@ -3677,11 +3731,11 @@ void GCodeGenerator::process_layer_single_object(
             // Extruder ID of the support base. -1 if "don't care".
             unsigned int    support_extruder   = print_object.config().support_material_extruder.value - 1;
             // Shall the support be printed with the active extruder, preferably with non-soluble, to avoid tool changes?
-            bool            support_dontcare   = support_extruder == std::numeric_limits<unsigned int>::max();
+            bool            support_dontcare   = !print_object.config().support_material_extruder.is_enabled();
             // Extruder ID of the support interface. -1 if "don't care".
             unsigned int    interface_extruder = print_object.config().support_material_interface_extruder.value - 1;
             // Shall the support interface be printed with the active extruder, preferably with non-soluble, to avoid tool changes?
-            bool            interface_dontcare = interface_extruder == std::numeric_limits<unsigned int>::max();
+            bool            interface_dontcare = !print_object.config().support_material_interface_extruder.is_enabled();
             if (support_dontcare || interface_dontcare) {
                 // Some support will be printed with "don't care" material, preferably non-soluble.
                 // Is the current extruder assigned a soluble filament?
@@ -4530,22 +4584,31 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         if (building_paths.size() == 1)
             assert(is_full_loop_ccw == Polygon(building_paths.front().polyline.to_polyline().points).is_counter_clockwise());
 
+        for ( ExtrusionPath &path :building_paths) {
+            assert(!path.empty());
+        }
+
         // extract paths from the start
         coordf_t dist = notch_length;
         while (dist > SCALED_EPSILON) {
             coordf_t length = building_paths.front().as_polyline().length();
-            if (length > dist) {
+            if (length > dist + SCALED_EPSILON) {
                 // found the place to split
                 notch_extrusion_start.emplace_back(building_paths.front().attributes(),
                                                    building_paths.front().can_reverse());
                 ArcPolyline ap2;
                 building_paths.front().as_polyline().split_at(dist, notch_extrusion_start.back().polyline, ap2);
+                assert(!ap2.empty());
                 building_paths.front().polyline = ap2;
+                assert(!notch_extrusion_start.back().empty());
                 dist = 0;
+                assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
             } else {
                 notch_extrusion_start.push_back(std::move(building_paths.front()));
                 building_paths.erase(building_paths.begin());
                 dist -= length;
+                assert(!notch_extrusion_start.back().empty());
+                assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
             }
             assert(notch_extrusion_start.back().polyline.back() == building_paths.front().polyline.front());
         }
@@ -4553,25 +4616,32 @@ void GCodeGenerator::seam_notch(const ExtrusionLoop& original_loop,
         dist = notch_length;
         while (dist > SCALED_EPSILON) {
             coordf_t length = building_paths.back().as_polyline().length();
-            if (length > dist) {
+            if (length > dist + SCALED_EPSILON) {
                 // found the place to split
                 notch_extrusion_end.emplace_back(building_paths.back().attributes(),
                                                  building_paths.back().can_reverse());
                 ArcPolyline ap2;
                 building_paths.back().polyline.split_at(length - dist, ap2, notch_extrusion_end.back().polyline);
+                assert(!ap2.empty());
                 building_paths.back().polyline = ap2;
+                assert(!notch_extrusion_start.back().empty());
                 dist = 0;
+                assert(building_paths.back().polyline.back() == notch_extrusion_end.back().polyline.front());
             } else {
                 notch_extrusion_end.push_back(std::move(building_paths.back()));
-                notch_extrusion_end.back().polyline.reverse();
                 building_paths.pop_back();
                 dist -= length;
+                assert(!notch_extrusion_start.back().empty());
+                assert(building_paths.back().polyline.back() == notch_extrusion_end.back().polyline.front());
             }
-            assert(building_paths.back().polyline.back() == notch_extrusion_end.front().polyline.front());
+            assert(building_paths.back().polyline.back() == notch_extrusion_end.back().polyline.front());
         }
         // notch_extrusion_end has benn created "in-reverse", I have to put it the right way
         std::reverse(notch_extrusion_end.begin(), notch_extrusion_end.end());
         assert(building_paths.back().polyline.back() == notch_extrusion_end.front().polyline.front());
+        for (size_t i = 1; i < notch_extrusion_end.size(); i++) {
+            assert(notch_extrusion_end[i - 1].polyline.back() == notch_extrusion_end[i].polyline.front());
+        }
 
         //kind of the same as the wipe
         Point prev_point = notch_extrusion_end.back().first_point();       // second to last point
@@ -6178,7 +6248,7 @@ double GCodeGenerator::_compute_e_per_mm(const ExtrusionPath &path) {
     }
     // first layer mult
     if (this->m_layer->bottom_z() < EPSILON) {
-        e_per_mm *= this->config().first_layer_flow_ratio.get_abs_value(1);
+        e_per_mm *= m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
         e_per_mm *= EXTRUDER_CONFIG_WITH_DEFAULT(filament_first_layer_flow_ratio, 100) * 0.01;
     }
     return e_per_mm;
@@ -6560,7 +6630,7 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
     // the first_layer_flow_ratio is added at the last time to take into account everything. So do the compute like it's here.
     double path_mm3_per_mm = path.mm3_per_mm();
     if (m_layer->bottom_z() < EPSILON) {
-        path_mm3_per_mm *= this->config().first_layer_flow_ratio.get_abs_value(1);
+        path_mm3_per_mm *= this->m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
     }
     // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
     if (m_config.max_volumetric_speed.value > 0 && path_mm3_per_mm > 0 && m_config.max_volumetric_speed.value / path_mm3_per_mm < speed) {
@@ -7734,39 +7804,47 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
               !(m_config.enforce_retract_first_layer && m_layer_index == 0)) &&
              m_config.fill_density.value > 0) ||
             m_config.avoid_crossing_perimeters) {
+            const bool is_support_layer = dynamic_cast<const SupportLayer *>(m_layer) != nullptr;
             assert(m_last_object_layers.empty() ||
                    (std::find(m_last_object_layers.begin(), m_last_object_layers.end(), m_layer) !=
-                        m_last_object_layers.end() && m_layer != nullptr && dynamic_cast<const SupportLayer *>(m_layer) == nullptr) ||
-                    (dynamic_cast<const SupportLayer *>(m_layer) != nullptr && m_last_layers_z <= m_layer->print_z + EPSILON));
+                        m_last_object_layers.end() && m_layer != nullptr && !is_support_layer) ||
+                    (is_support_layer && m_last_layers_z <= m_layer->print_z + EPSILON));
             if (m_last_object_layers.empty()) {
                 // we didn't see any object yet (we are on the raft)
                 return true;
             }
-
-            assert(m_last_object_layers.back() == m_layer || dynamic_cast<const SupportLayer *>(m_layer));
-            if (!m_last_object_layers.empty() && m_layer_slices_offseted.last_layer != m_last_object_layers.back()) {
+            if (!m_last_object_layers.empty() && m_layer_slices_offseted.last_layer != m_layer) {
                 //note: if printing support, we need all the already printed objects layers.
                 // but if we're printing an object, we only need our island (that is in our layer) and don't need any other layer.
                 // is it worth it to recompute the slices each time ?
                 // TODO: I think it's possible to have the SliceIsland for each layer, and then loop over all of them
                 // only if for SupportLayer
-                m_layer_slices_offseted.last_layer = m_last_object_layers.back();
+                m_layer_slices_offseted.last_layer = m_layer;
                 m_layer_slices_offseted.diameter = scale_t(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0.4)) / 2;
                 ExPolygons slices;
                 ExPolygons slices_offsetted;
                 bool found_our_layer = false;
-                // add all layers slices already printed & our current layer at this z into the slices
-                for (const Layer *layer : m_last_object_layers) {
-                    append(slices, layer->lslices());
-                    append(slices_offsetted, offset_ex(layer->lslices(), -m_layer_slices_offseted.diameter * 1.5f));
-                    // also offset in the other side, to avoid a travel that may cross it from the exterior
-                    append(slices_offsetted, offset_ex(layer->lslices(), m_layer_slices_offseted.diameter * .5f));
+                // support or object layer?
+                if (is_support_layer) {
+                    // add all layers slices already printed & our current layer at this z into the slices
+                    for (const Layer *layer : m_last_object_layers) {
+                        append(slices, layer->lslices());
+                        // we are interserted to not going near it, so offset it to the exterior
+                        append(slices_offsetted, offset_ex(layer->lslices(), m_layer_slices_offseted.diameter * 1.5f));
+                    }
+                } else {
+                    // our layer
+                    append(slices, m_layer->lslices());
+                    //w e are interested to not cross outside of it.
+                    append(slices_offsetted,
+                            offset_ex(m_layer->lslices(), -m_layer_slices_offseted.diameter * 1.5f));
                 }
                 slices = union_ex(slices);
                 slices_offsetted = union_ex(slices_offsetted);
                 // remove top surfaces
-                for (const Layer *layer : m_last_object_layers) {
-                    for (const LayerRegion *reg : layer->regions()) {
+                // if support i don't care becasue i need to cross external perimter before anyway.
+                if (!is_support_layer) {
+                    for (const LayerRegion *reg : m_layer->regions()) {
                         m_throw_if_canceled();
                         slices_offsetted = diff_ex(slices_offsetted,
                                                    to_expolygons(reg->fill_surfaces().filter_by_type_flag(
@@ -7860,11 +7938,12 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
                     // first, check if it's inside the contour (still, it can go over holes)
                     bool has_front = contains(expoly_2_bb.expolygon.contour, travel.front(), true);
                     bool has_back = contains(expoly_2_bb.expolygon.contour, travel.back(), true);
-                    if (!has_front || !has_back) {
-                        // has_intersect = true;
+                    if (!has_front && has_back || has_front && !has_back) {
+                        // has to cross something, stop here.
                         return true;
                     }
                     assert(travel.size() >= 2);
+                    //second, check if it's crossing this contour
 #ifdef CAN_CROSS_PERIMETER_USE_GRID
                     // Can't find any performance improvement, need more testing
                     if (travel.size() == 2 && expoly_2_bb.grid) {
@@ -7874,8 +7953,11 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
                         expoly_2_bb.grid->visit_cells_intersecting_line(tester.test_line.a, tester.test_line.b, tester);
                         if (!tester.intersect) {
                             // inside or outside?
-                            // whatever, check all
-                            continue;
+                            if (!has_front && !has_back) {
+                                //is not inside, search again another island.
+                                continue;
+                            }
+                            // is inside, continue to check holes.
                         } else {
                             // cross something, stop here.
                             return true;
@@ -7899,7 +7981,7 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
                         }
                         // no intersect detected
                         // if inside the contour, then we need to check for holes.
-                        if (!expoly_2_bb.expolygon.contour.contains(travel.front())) {
+                        if (!has_front/*expoly_2_bb.expolygon.contour.contains(travel.front())*/) {
                             // if not, go to next island
                             continue;
                         }
@@ -7910,41 +7992,39 @@ bool GCodeGenerator::can_cross_perimeter(const Polyline& travel, bool offset)
                             continue;
                         }
                         if (!diff_result.empty()) {
-                            //has_intersect = true;
+                            // cross something, stop here.
                             return true;
                         }
 #endif
                     }
-                    //second, check if it's crossing this contour
-                    // third, check if it's going over a hole
-                    // TODO: kdtree to get the ones interesting
-                    //bool  has_intersect = false;
-                    Line  travel_line;
-                    Point whatever;
-                    expoly_2_bb.create_hole_bb();
-                    for (size_t i = 0; i < expoly_2_bb.expolygon.holes.size(); ++i) {
-                        const Polygon &hole = expoly_2_bb.expolygon.holes[i];
-                        const BoundingBox &hole_bb = expoly_2_bb.hole_boundingboxes[i];
-                        m_throw_if_canceled();
-                        for (size_t idx_travel = travel.size() - 1; idx_travel > 0; --idx_travel) {
-                            travel_line.a = travel.points[idx_travel];
-                            travel_line.b = travel.points[idx_travel - 1];
-                            if (hole.size() > 10) {
-                                // bb.cross call 4 intersections (one for each side), do it only if the hole has enough lines.
-                                if (!hole_bb.cross(travel_line) && !hole_bb.contains(travel_line.a)) {
-                                    // don't cross bb and not inside, so it's not for this hole.
-                                    continue;
+                    // third, if inside a contour, check if it's going over a hole
+                    if (has_front && has_back) {
+                        // TODO: kdtree to get the ones interesting
+                        Line travel_line;
+                        Point whatever;
+                        expoly_2_bb.create_hole_bb();
+                        for (size_t i = 0; i < expoly_2_bb.expolygon.holes.size(); ++i) {
+                            const Polygon &hole = expoly_2_bb.expolygon.holes[i];
+                            const BoundingBox &hole_bb = expoly_2_bb.hole_boundingboxes[i];
+                            m_throw_if_canceled();
+                            for (size_t idx_travel = travel.size() - 1; idx_travel > 0; --idx_travel) {
+                                travel_line.a = travel.points[idx_travel];
+                                travel_line.b = travel.points[idx_travel - 1];
+                                if (hole.size() > 10) {
+                                    // bb.cross call 4 intersections (one for each side), do it only if the hole has
+                                    // enough lines.
+                                    if (!hole_bb.cross(travel_line) && !hole_bb.contains(travel_line.a)) {
+                                        // don't cross bb and not inside, so it's not for this hole.
+                                        continue;
+                                    }
                                 }
-                            }
-                            if (hole.first_intersection(travel_line, &whatever) ||
-                                Line(hole.first_point(), hole.last_point()).intersection(travel_line, &whatever)) {
-                                //has_intersect = true;
-                                //break;
-                                return true;
+                                if (hole.first_intersection(travel_line, &whatever) ||
+                                    Line(hole.first_point(), hole.last_point()).intersection(travel_line, &whatever)) {
+                                    return true;
+                                }
                             }
                         }
                     }
-                    //note: can be inside multiple contours, so we need to checl all of them
                 }
             }
             // never crossed a perimeter or a hole
@@ -8082,19 +8162,26 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
         this->placeholder_parser().set("current_extruder", extruder_id);
 
         // Append the filament start G-code.
-        const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+        std::string start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+
+        // Conditionally append based on flexible material
+        if (m_config.flexible_material.get_at(extruder_id)) {
+            start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) + " ENABLE=0";
+        }
+
         if (! start_filament_gcode.empty()) {
             DynamicConfig config;
             assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
             config.set_key_value("filament_extruder_id", new ConfigOptionInt(int(extruder_id)));
             config.set_key_value("previous_extruder", new ConfigOptionInt((int)extruder_id));
             config.set_key_value("next_extruder", new ConfigOptionInt((int)extruder_id));
+            
             // Process the start_filament_gcode for the new filament.
             gcode += this->placeholder_parser_process("start_filament_gcode", start_filament_gcode, extruder_id, &config);
             check_add_eol(gcode);
         }
 
-        if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+       if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
             double pa_for_nozzle = get_pressure_advance(m_config.nozzle_diameter.get_at(extruder_id), extruder_id);
             gcode += m_writer.set_pressure_advance(pa_for_nozzle);
         }
@@ -8154,7 +8241,16 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     this->placeholder_parser().set("current_extruder", extruder_id);
 
     // Append the filament start G-code.
-    const std::string &start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+    // Append the filament start G-code.
+    std::string start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
+
+    // Conditionally append based on flexible material
+    if (m_config.flexible_material.get_at(extruder_id)) {
+        start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) +
+            " ENABLE=0";
+    }
+
+
     if (!start_filament_gcode.empty()) {
         DynamicConfig config;
         assert(is_approx((m_layer == nullptr ? m_last_layer_z : m_layer->print_z), print_z, EPSILON));
@@ -8185,7 +8281,7 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     if (m_ooze_prevention.enable)
         gcode += m_ooze_prevention.post_toolchange(*this);
 
-    if (m_config.enable_pressure_advance.is_enabled(extruder_id)) {
+    if (m_config.filament_pressure_advance.is_enabled(extruder_id)) {
        double pa_for_nozzle = get_pressure_advance(m_config.nozzle_diameter.get_at(extruder_id), extruder_id);
         
         gcode += m_writer.set_pressure_advance(pa_for_nozzle);

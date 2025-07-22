@@ -259,11 +259,23 @@ static ExPolygons PolyTreeToExPolygons(ClipperLib::PolyTree &&polytree)
             (*expolygons)[cnt].contour.points = std::move(polynode.Contour);
             double area = std::abs((*expolygons)[cnt].contour.area());
             // I saw a clockwise artifact with 4 points
-            if ((*expolygons)[cnt].contour.size() < 5 && !(*expolygons)[cnt].contour.is_counter_clockwise()) {
+            if (!(*expolygons)[cnt].contour.is_counter_clockwise() &&
+                ((*expolygons)[cnt].contour.size() < 5 ||
+                 std::abs((*expolygons)[cnt].contour.area()) < (SCALED_EPSILON * SCALED_EPSILON * 10))) {
                 assert( std::abs((*expolygons)[cnt].contour.area()) < SCALED_EPSILON * SCALED_EPSILON * SCALED_EPSILON);
                 // error, delete.
                 (*expolygons).pop_back();
                 return;
+            }
+            // 3 points and two are too close
+            if ((*expolygons)[cnt].contour.size() < 4) {
+                if ((*expolygons)[cnt].contour[0].coincides_with_epsilon((*expolygons)[cnt].contour[2]) ||
+                    (*expolygons)[cnt].contour[0].coincides_with_epsilon((*expolygons)[cnt].contour[1]) ||
+                    (*expolygons)[cnt].contour[1].coincides_with_epsilon((*expolygons)[cnt].contour[2])) {
+                    // error, delete.
+                    (*expolygons).pop_back();
+                    return;
+                }
             }
             assert((*expolygons)[cnt].contour.is_counter_clockwise());
             (*expolygons)[cnt].holes.resize(polynode.ChildCount());

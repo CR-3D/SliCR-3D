@@ -1317,10 +1317,14 @@ void MainFrame::create_preset_tabs()
 {
     add_created_tab(new TabPrint(m_tabpanel));
     add_created_tab(new TabFilament(m_tabpanel));
+    add_created_tab(new TabPrinter(m_tabpanel));
+
     //add_created_tab(new TabSLAPrint(m_tabpanel));
     //add_created_tab(new TabSLAMaterial(m_tabpanel));
     add_created_tab(new TabPrinter(m_tabpanel));
     add_created_tab(new TabExtruder(m_tabpanel));
+    TabFrequent* freq = (new TabFrequent(m_tabpanel, "freq_fff", Preset::Type::TYPE_FREQUENT_FFF));
+    freq->create_preset_tab();
 }
 
 void MainFrame::add_created_tab(Tab* panel)
@@ -2804,8 +2808,9 @@ void MainFrame::on_value_changed(wxCommandEvent& event)
 
 void MainFrame::on_config_changed(const DynamicConfig &config) const
 {
-    if (m_plater)
+    if (m_plater) {
         m_plater->on_config_change(config); // propagate config change events to the plater
+   }
 }
 
 void MainFrame::add_to_recent_projects(const wxString& filename)

@@ -209,10 +209,10 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
             }
         } else {
             // not-soluble support branch
-            if ((config->opt_int("support_material_extruder") != 0 || config->opt_int("support_material_interface_extruder") != 0)) {
+            if ((config->is_enabled("support_material_extruder") || config->is_enabled("support_material_interface_extruder"))) {
                 wxString msg_text = _(L("The Wipe Tower currently supports the non-soluble supports only (support-> distance -> not 'none/soluble') "
                                         "if they are printed with the current extruder without triggering a tool change. "
-                                        "(both support_material_extruder and support_material_interface_extruder need to be set to 0)."));
+                                        "(both support_material_extruder and support_material_interface_extruder need to be disabled)."));
                 if (is_global_config)
                     msg_text += "\n\n" + _(L("Shall I adjust those settings in order to enable the Wipe Tower?"));
                 MessageDialog dialog (m_msg_dlg_parent, msg_text, _(L("Wipe Tower")),
@@ -223,17 +223,17 @@ void ConfigManipulation::update_print_fff_config(DynamicPrintConfig* config, con
                     if (this->local_config->get().optptr("wipe_tower"))
                         new_conf.set_key_value("wipe_tower", new ConfigOptionBool(false));
                     else if (this->local_config->get().optptr("support_material_extruder"))
-                        new_conf.set_key_value("support_material_extruder", new ConfigOptionInt(0));
+                        new_conf.opt<ConfigOptionInt>("support_material_extruder")->set_enabled(false);
                     else if (this->local_config->get().optptr("support_material_interface_extruder"))
-                        new_conf.set_key_value("support_material_interface_extruder", new ConfigOptionInt(0));
+                        new_conf.opt<ConfigOptionInt>("support_material_interface_extruder")->set_enabled(false);
                     else if (this->local_config->get().optptr("support_material_contact_distance_type"))
                         new_conf.set_key_value("support_material_contact_distance_type", new ConfigOptionEnum<SupportZDistanceType>(zdNone));
                     else if (this->local_config->get().optptr("support_material"))
                         new_conf.set_key_value("support_material", new ConfigOptionBool(false));
                     this->local_config->apply_only(new_conf, this->local_config->keys(), true);
                 } else if (answer == wxID_YES) {
-                    new_conf.set_key_value("support_material_extruder", new ConfigOptionInt(0));
-                    new_conf.set_key_value("support_material_interface_extruder", new ConfigOptionInt(0));
+                    new_conf.opt<ConfigOptionInt>("support_material_extruder")->set_enabled(false);
+                    new_conf.opt<ConfigOptionInt>("support_material_interface_extruder")->set_enabled(false);
                 }
                 else
                     new_conf.set_key_value("wipe_tower", new ConfigOptionBool(false));
@@ -615,7 +615,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("standby_temperature_delta", have_ooze_prevention);
 
     bool have_wipe_tower = config->opt_bool("wipe_tower");
-    for (auto el : { "wipe_tower_x", "wipe_tower_y", "wipe_tower_width", "wipe_tower_rotation_angle", "wipe_tower_brim_width",
+    for (auto el : { "wipe_tower_width", "wipe_tower_rotation_angle", "wipe_tower_brim_width",
                      "wipe_tower_cone_angle", "wipe_tower_extra_spacing",
                      "wipe_tower_bridging", "wipe_tower_brim", "wipe_tower_no_sparse_layers", "single_extruder_multi_material_priming",
                      "wipe_tower_speed", "wipe_tower_wipe_starting_speed",
@@ -686,7 +686,6 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
             if (other_config->has("filament_max_volumetric_speed")) {
                DynamicPrintConfig new_conf = *other_config;
                new_conf.option<ConfigOptionFloats>("filament_max_volumetric_speed")->set_at(80.f, extruder_idx);
-               new_conf.option<ConfigOptionBools>("enable_pressure_advance")->set_at(true, extruder_idx);
                new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")->set_enabled(true, extruder_idx);
                new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")
                    ->set(ConfigOptionGraphs({GraphData(0, 4, GraphData::GraphType::LINEAR,
@@ -827,12 +826,6 @@ void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config,
    const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();
     //for each extruder
     for (size_t extruder_idx = 0; extruder_idx < nozzle_sizes.size(); ++extruder_idx) {
-       bool use_pressure_advance = config->opt_bool("enable_pressure_advance", extruder_idx);
-         for (auto el : {
-            "adaptive_pressure_advance",
-            "filament_pressure_advance"
-         })
-         toggle_field(el, use_pressure_advance, extruder_idx);
    
          // Adaptive PA
          bool use_adaptive_pa = config->opt_bool("adaptive_pressure_advance", extruder_idx);

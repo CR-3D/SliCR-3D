@@ -317,7 +317,6 @@ enum class EnsureVerticalShellThickness {
     Disabled,
     Partial,
     Enabled,
-    Enabled_old,
 };
 
 #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
@@ -924,11 +923,9 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,               fill_angle_template))
     ((ConfigOptionPercent,              fill_density))
     ((ConfigOptionEnum<InfillPattern>,  fill_pattern))
-    ((ConfigOptionPercent,              first_layer_flow_ratio))
     ((ConfigOptionEnum<FuzzySkinType>,  fuzzy_skin))
     ((ConfigOptionFloatOrPercent,       fuzzy_skin_thickness))
     ((ConfigOptionFloatOrPercent,       fuzzy_skin_point_dist))
-    ((ConfigOptionPercent,              fill_top_flow_ratio))
     ((ConfigOptionPercent,              fill_smooth_distribution))
     ((ConfigOptionFloatOrPercent,       fill_smooth_width))
     ((ConfigOptionFloatOrPercent,       gap_fill_acceleration))
@@ -1093,7 +1090,6 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionGraphs,              filament_pressure_advance))
     
     // Orca: adaptive pressure advance and calibration model
-    ((ConfigOptionBools,               enable_pressure_advance))
     ((ConfigOptionBools,               adaptive_pressure_advance))
     ((ConfigOptionBools,               adaptive_pressure_advance_overhangs))
     ((ConfigOptionStrings,             adaptive_pressure_advance_model))
@@ -1150,6 +1146,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              filament_unloading_speed_start))
     ((ConfigOptionFloats,              filament_unload_time))
     ((ConfigOptionFloats,              filament_wipe_advanced_pigment))
+
     ((ConfigOptionBool,                gcode_ascii))
     ((ConfigOptionInt,                 gcode_command_buffer))
     ((ConfigOptionBool,                gcode_comments))
@@ -1288,11 +1285,13 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionStrings,              filament_custom_variables))
     ((ConfigOptionStrings,              filament_notes))
     ((ConfigOptionPercents,             filament_max_overlap))
-    ((ConfigOptionPercents,             filament_shrink))
+    ((ConfigOptionPercents,             filament_shrink))(
+    (ConfigOptionBools, flexible_material))
     ((ConfigOptionInts,                 first_layer_bed_temperature))
     ((ConfigOptionInts,                 first_layer_temperature))
     ((ConfigOptionInts,                 idle_temperature))
     ((ConfigOptionInts,                 full_fan_speed_layer))
+    ((ConfigOptionInts,                 gap_fill_fan_speed))
     ((ConfigOptionInts,                 infill_fan_speed))
     ((ConfigOptionInts,                 internal_bridge_fan_speed))
     ((ConfigOptionFloat,                lift_min))
@@ -1359,8 +1358,6 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionBools,                wipe))
     ((ConfigOptionBool,                 wipe_tower))
     ((ConfigOptionFloatOrPercent,       wipe_tower_brim_width))
-    ((ConfigOptionFloat,                wipe_tower_x))
-    ((ConfigOptionFloat,                wipe_tower_y))
     ((ConfigOptionFloat,                wipe_tower_width))
     ((ConfigOptionFloat,                wipe_tower_per_color_wipe))
     ((ConfigOptionFloat,                wipe_tower_rotation_angle))

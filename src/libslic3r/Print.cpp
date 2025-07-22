@@ -142,6 +142,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "filament_spool_weight",
         "filament_unload_time",
         "filament_wipe_advanced_pigment",
+        "flexible_material",
         "first_layer_bed_temperature",
         "full_fan_speed_layer",
         "gap_fill_fan_speed",
@@ -283,8 +284,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "skirt_distance_from_brim"
             || opt_key == "skirt_extrusion_width"
             || opt_key == "skirt_height"
-            || opt_key == "wipe_tower_x"
-            || opt_key == "wipe_tower_y"
             || opt_key == "wipe_tower_rotation_angle"
             ) {
             steps.emplace_back(psSkirtBrim);
@@ -414,6 +413,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             invalidated |= object->invalidate_step(ostep);
     if(invalidated)
         m_timestamp_last_change = std::time(0);
+        
     return invalidated;
 }
 
@@ -494,8 +494,8 @@ std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
                 }
             }
             if (has_support) {
-                assert(object->config().support_material_extruder >= 0);
-                if (object->config().support_material_extruder == 0)
+                assert(object->config().support_material_extruder > 0);
+                if (!object->config().support_material_extruder.is_enabled())
                     support_uses_current_extruder = true;
                 else {
                     uint16_t i = (uint16_t) object->config().support_material_extruder - 1;
@@ -503,8 +503,8 @@ std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
                 }
             }
             if (has_support && has_support_interface) {
-                assert(object->config().support_material_interface_extruder >= 0);
-                if (object->config().support_material_interface_extruder == 0)
+                assert(object->config().support_material_interface_extruder > 0);
+                if (!object->config().support_material_interface_extruder.is_enabled())
                     support_uses_current_extruder = true;
                 else {
                     uint16_t i = (uint16_t)object->config().support_material_interface_extruder - 1;
@@ -530,9 +530,9 @@ std::set<uint16_t> Print::extruders(float z /*= -1*/) const
     if (z < 0) {
         // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
         // append its extruder into the list too.
-        if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
-            assert(config().wipe_tower_extruder > 0 &&
-                   config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
+        if (has_wipe_tower() && config().wipe_tower_extruder.is_enabled() && extruders.size() > 1) {
+            assert(config().wipe_tower_extruder.is_enabled() &&
+                   config().wipe_tower_extruder <= int(config().nozzle_diameter.size()));
             extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
         }
     }
@@ -813,6 +813,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         // EPSILON comparison is used for nozzles and 10 % tolerance is used for filaments
         double first_nozzle_diam = m_config.nozzle_diameter.get_at(*extruders.begin());
         double first_filament_diam = m_config.filament_diameter.get_at(*extruders.begin());
+        /*
         for (const uint16_t& extruder_idx : extruders) {
             double nozzle_diam = m_config.nozzle_diameter.get_at(extruder_idx);
             double filament_diam = m_config.filament_diameter.get_at(extruder_idx);
@@ -821,6 +822,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                 return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The wipe tower is only supported if all extruders have the same nozzle diameter "
                          "and use filaments of the same diameter.") };
         }
+*/
 
         if (m_config.gcode_flavor != gcfRepRap 
             && m_config.gcode_flavor != gcfSprinter
@@ -911,12 +913,12 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         const double print_first_layer_height = get_min_first_layer_height();
         for (PrintObject *object : m_objects) {
             if (object->has_support_material()) {
-                if ((object->config().support_material_extruder == 0 || object->config().support_material_interface_extruder == 0) && max_nozzle_diameter - min_nozzle_diameter > EPSILON) {
+                if ((!object->config().support_material_extruder.is_enabled() || !object->config().support_material_interface_extruder.is_enabled()) && max_nozzle_diameter - min_nozzle_diameter > EPSILON) {
                     // The object has some form of support and either support_material_extruder or support_material_interface_extruder
                     // will be printed with the current tool without a forced tool change. Play safe, assert that all object nozzles
                     // are of the same diameter.
                     return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Printing with multiple extruders of differing nozzle diameters. "
-                           "If support is to be printed with the current extruder (support_material_extruder == 0 or support_material_interface_extruder == 0), "
+                           "If support is to be printed with the current extruder (support_material_extruder is disabled or support_material_interface_extruder is disabled), "
                            "all nozzles have to be of the same diameter.") };
                 }
                 if (this->has_wipe_tower() && object->config().support_material_style != smsOrganic) {
@@ -926,9 +928,9 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("For the Wipe Tower to work with the soluble supports, the support layers need to be synchronized with the object layers.") };
                     } else {
                         // Non-soluble interface
-                        if (object->config().support_material_extruder != 0 || object->config().support_material_interface_extruder != 0)
+                        if (object->config().support_material_extruder.is_enabled() || object->config().support_material_interface_extruder.is_enabled())
                             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower currently supports the non-soluble supports only if they are printed with the current extruder without triggering a tool change. "
-                                     "(both support_material_extruder and support_material_interface_extruder need to be set to 0).") };
+                                     "(both support_material_extruder and support_material_interface_extruder need to be disabled).") };
                     }
                 }
                 if (object->config().support_material_style.value == smsOrganic) {
@@ -1293,7 +1295,7 @@ void Print::process()
     if (this->has_wipe_tower()) {
         // These values have to be updated here, not during wipe tower generation.
         // When the wipe tower is moved/rotated, it is not regenerated.
-        m_wipe_tower_data.position = { m_config.wipe_tower_x, m_config.wipe_tower_y };
+        m_wipe_tower_data.position = model().wipe_tower().position;
         m_wipe_tower_data.rotation_angle = m_config.wipe_tower_rotation_angle;
     }
     auto conflictRes = ConflictChecker::find_inter_of_lines_in_diff_objs(objects(), m_wipe_tower_data);
@@ -1925,7 +1927,7 @@ Points Print::first_layer_wipe_tower_corners() const
 
         for (Vec2d& pt : pts) {
             pt = Eigen::Rotation2Dd(Geometry::deg2rad(m_config.wipe_tower_rotation_angle.value)) * pt;
-            pt += Vec2d(m_config.wipe_tower_x.value, m_config.wipe_tower_y.value);
+            pt += model().wipe_tower().position;
             pts_scaled.emplace_back(Point(scale_(pt.x()), scale_(pt.y())));
         }
     }
@@ -2138,7 +2140,7 @@ const WipeTowerData& Print::wipe_tower_data(const ConfigBase* config, double noz
             layer_height = first_layer_height;
         }
         
-        const_cast<Print*>(this)->m_wipe_tower_data.position = Vec2d{config->option("wipe_tower_x")->get_float(), config->option("wipe_tower_y")->get_float()};
+        const_cast<Print *>(this)->m_wipe_tower_data.position = model().wipe_tower().position;
         const_cast<Print*>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
         const_cast<Print*>(this)->m_wipe_tower_data.rotation_angle = float(config->option("wipe_tower_rotation_angle")->get_float());
         const_cast<Print*>(this)->m_wipe_tower_data.depth = (maximum/layer_height)/this->m_wipe_tower_data.width;
@@ -2204,7 +2206,12 @@ void Print::_make_wipe_tower()
     this->throw_if_canceled();
 
     // Initialize the wipe tower.
-    WipeTower wipe_tower(m_config, m_default_object_config, m_default_region_config, wipe_volumes, m_wipe_tower_data.tool_ordering.first_extruder());
+    WipeTower wipe_tower(model().wipe_tower().position.cast<float>(), 
+                         m_config, 
+                         m_default_object_config,
+                         m_default_region_config, 
+                         wipe_volumes, 
+                         m_wipe_tower_data.tool_ordering.first_extruder());
 
     // Set the extruder & material properties at the wipe tower object.
     for (size_t i = 0; i < m_config.nozzle_diameter.size(); ++ i)

@@ -45,6 +45,14 @@ typedef Eigen::Matrix<int32_t,   3, 1, Eigen::DontAlign> stl_triangle_vertex_ind
 static_assert(sizeof(stl_vertex) == 12, "size of stl_vertex incorrect");
 static_assert(sizeof(stl_normal) == 12, "size of stl_normal incorrect");
 
+typedef enum {
+  eNormal,  // normal face
+  eSmallOverhang,  // small overhang
+  eSmallHole,      // face with small hole
+  eExteriorAppearance,  // exterior appearance
+  eMaxNumFaceTypes
+}EnumFaceTypes;
+
 struct stl_facet {
 	stl_normal normal;
 	stl_vertex vertex[3];
@@ -147,22 +155,95 @@ struct stl_file {
 		return sizeof(*this) + sizeof(stl_facet) * facet_start.size() + sizeof(stl_neighbors) * neighbors_start.size();
 	}
 
+    char mw_data[256];
 	std::vector<stl_facet>     		facet_start;
 	std::vector<stl_neighbors> 		neighbors_start;
 	// Statistics
 	stl_stats     					stats;
 };
+ 
+ struct FaceProperty
+{   // triangle face property
+    EnumFaceTypes type;
+    double area;
+    // stl_normal normal;
+
+    std::string to_string() const
+    {
+        std::string str;
+        // skip normal type facet to improve performance 
+        if (type > eNormal && type < eMaxNumFaceTypes) {
+            str += std::to_string(type);
+            if (area != 0.f)
+                str += " " + std::to_string(area);
+        }
+        return str;
+    }
+
+    void from_string(const std::string& str)
+    {
+        std::string val_str, area_str;
+        do {
+            if (str.empty())
+                break;
+
+            this->type = (EnumFaceTypes)std::atoi(str.c_str());
+            if (this->type <= eNormal || this->type >= eMaxNumFaceTypes)
+                break;
+
+            size_t type_end_pos = str.find(" ");
+            if (type_end_pos == std::string::npos) {
+                this->area = 0.f;
+                return;
+            }
+
+            area_str = str.substr(type_end_pos + 1);
+            if (!area_str.empty())
+                this->area = std::atof(area_str.c_str());
+            else
+                this->area = 0.f;
+            return;
+        } while (0);
+
+        this->type = eNormal;
+        this->area = 0.f;
+    }
+};
 
 struct indexed_triangle_set
 {
+
+ indexed_triangle_set(std::vector<stl_triangle_vertex_indices>    indices_,
+        std::vector<stl_vertex>                     vertices_) :indices(indices_), vertices(vertices_) {
+        properties.resize(indices_.size());
+ }
+ indexed_triangle_set() {}
+ 
 	void clear() { indices.clear(); vertices.clear(); }
 
 	size_t memsize() const {
-		return sizeof(*this) + sizeof(stl_triangle_vertex_indices) * indices.size() + sizeof(stl_vertex) * vertices.size();
+   return sizeof(*this) + (sizeof(stl_triangle_vertex_indices) + sizeof(FaceProperty)) * indices.size() + sizeof(stl_vertex) * vertices.size();
 	}
 
 	std::vector<stl_triangle_vertex_indices> 	indices;
     std::vector<stl_vertex>       				vertices;
+    std::vector<FaceProperty>                   properties;
+    
+  stl_vertex get_vertex(int facet_idx, int vertex_idx) const{
+      return vertices[indices[facet_idx][vertex_idx]];
+  }
+  float facet_area(int facet_idx) const {
+      return std::abs((get_vertex(facet_idx, 0) - get_vertex(facet_idx, 1))
+          .cross(get_vertex(facet_idx, 0) - get_vertex(facet_idx, 2)).norm()) / 2;
+  }
+
+  FaceProperty& get_property(int face_idx) {
+    if (properties.size() != indices.size()) {
+        properties.clear();
+        properties.resize(indices.size());
+    }
+    return properties[face_idx];
+  } 
 
     bool empty() const { return indices.empty() || vertices.empty(); }
     bool operator==(const indexed_triangle_set& other) const { return this->indices == other.indices && this->vertices == other.vertices; }
