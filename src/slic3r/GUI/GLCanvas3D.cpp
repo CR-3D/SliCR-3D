@@ -3171,9 +3171,9 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
     if (printer_technology == ptFFF && m_config->has("nozzle_diameter")) {
         // Should the wipe tower be visualized ?
-       const Print* print = this->fff_print();
-       unsigned int extruders_count = (unsigned int)print->object_extruders().size();
-
+        const Print* print = this->fff_print();
+        unsigned int extruders_count = (unsigned int)m_config->option<ConfigOptionFloats>("nozzle_diameter")->size();
+      //  size_t 
         const bool wt = m_config->option("wipe_tower")->get_bool();
         const bool co = m_config->option("complete_objects")->get_bool() || m_config->option("parallel_objects_step")->get_float() > 0;
 
@@ -9331,6 +9331,11 @@ void GLCanvas3D::WipeTowerInfo::apply_wipe_tower(Vec2d pos, double rot, int bed_
 {
     wxGetApp().plater()->model().wipe_tower(bed_index).position = pos;
     wxGetApp().plater()->model().wipe_tower(bed_index).rotation = (180. / M_PI) * rot;
+}
+
+void GLCanvas3D::WipeTowerInfo::apply_wipe_tower() const
+{
+    apply_wipe_tower(m_pos, m_rotation, m_bed_index);
 }
 
 void GLCanvas3D::RenderTimer::Notify()
