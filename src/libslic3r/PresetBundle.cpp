@@ -640,6 +640,7 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     std::string initial_filament_profile_name     = remove_ini_suffix(config.get("presets", "filament"));
     std::string initial_sla_material_profile_name = remove_ini_suffix(config.get("presets", "sla_material"));
 	std::string initial_printer_profile_name      = remove_ini_suffix(config.get("presets", "printer"));
+	std::string initial_extruder_profile_name      = remove_ini_suffix(config.get("presets", "extruder"));
 
     // Activate print / filament / printer profiles from either the config,
     // or from the preferred_model_id suggestion passed in by ConfigWizard.
@@ -657,7 +658,7 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     filaments.select_preset_by_name_strict(initial_filament_profile_name);
 	sla_prints.select_preset_by_name_strict(initial_sla_print_profile_name);
     sla_materials.select_preset_by_name_strict(initial_sla_material_profile_name);
-
+    extruders.select_preset_by_name_strict(initial_extruder_profile_name);
     // Load the names of the other filament profiles selected for a multi-material printer.
     // Load it even if the current printer technology is SLA.
     // The possibly excessive filament names will be later removed with this->update_multi_material_filament_presets()
@@ -1338,6 +1339,7 @@ static void flatten_configbundle_hierarchy(boost::property_tree::ptree &tree, co
     flatten_configbundle_hierarchy(tree, "sla_print",       preset_bundle ? preset_bundle->sla_prints.system_preset_names()    : std::vector<std::string>());
     flatten_configbundle_hierarchy(tree, "sla_material",    preset_bundle ? preset_bundle->sla_materials.system_preset_names() : std::vector<std::string>());
     flatten_configbundle_hierarchy(tree, "printer",         preset_bundle ? preset_bundle->printers.system_preset_names()      : std::vector<std::string>());
+    flatten_configbundle_hierarchy(tree, "extruder",         preset_bundle ? preset_bundle->extruders.system_preset_names()      : std::vector<std::string>());
 }
 
 // Load a config bundle file, into presets and store the loaded presets into separate files
@@ -2015,6 +2017,7 @@ void PresetBundle::export_configbundle(const std::string &path, bool export_syst
     c << "sla_print = " << this->sla_prints.get_selected_preset_name() << std::endl;
     c << "sla_material = " << this->sla_materials.get_selected_preset_name() << std::endl;
     c << "printer = " << this->printers.get_selected_preset_name() << std::endl;
+    c << "extruder = " << this->extruders.get_selected_preset_name() << std::endl;
     for (size_t i = 0; i < this->extruders_filaments.size(); ++ i) {
         char suffix[64];
         if (i > 0)

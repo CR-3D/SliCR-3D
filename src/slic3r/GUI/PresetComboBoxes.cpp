@@ -111,6 +111,10 @@ PresetComboBox::PresetComboBox(wxWindow* parent, Preset::Type preset_type, const
         m_main_bitmap_name = "printer";
         break;
     }
+    case Preset::TYPE_FFF_EXTRUDER: {
+       m_collection = &m_preset_bundle->extruders;
+       m_main_bitmap_name = "printer";
+    }
     default: break;
     }
     

@@ -6801,6 +6801,7 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionInts{200});
 
+    // Extruder Tab
     def = this->add("extruder_type", coStrings);
     def->label = L("Extruder model");
     def->full_label = L("Extruder model");

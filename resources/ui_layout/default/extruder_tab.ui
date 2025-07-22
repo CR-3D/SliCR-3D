@@ -1,4 +1,4 @@
-page:Extruder 
+page:Extruder Information
 
 group:Extruder Model
-	setting:id$0:extruder_type
+	setting:idx:label$Type:extruder_type
