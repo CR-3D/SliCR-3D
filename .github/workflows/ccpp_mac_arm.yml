@@ -1,4 +1,4 @@
-name: C/C++ Nightly arm macos
+name: C/C++ Nightly arm macos Internal
 
 on:
   push:

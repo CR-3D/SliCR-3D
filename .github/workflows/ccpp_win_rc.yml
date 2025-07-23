@@ -1,4 +1,4 @@
-name: C/C++ Release Candidate windows x64
+name: C/C++ Release Candidate windows x64 Internal
 
 on:
   push:
@@ -127,5 +127,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: nightly_win64
+        name: slicr-3d_internal_win64
         path: build/package/
