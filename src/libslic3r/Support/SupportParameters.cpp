@@ -23,11 +23,9 @@ SupportParameters::SupportParameters(const PrintObject &object)
         // Zero z-gap between the overhangs and the support interface.
         slicing_params.soluble_interface &&
         // Interface extruder soluble.
-        object_config.support_material_interface_extruder.is_enabled() &&
-        print_config.filament_soluble.get_at(object_config.support_material_interface_extruder.value - 1) &&
+        object_config.support_material_interface_extruder.value > 0 && print_config.filament_soluble.get_at(object_config.support_material_interface_extruder.value - 1) &&
         // Base extruder: Either "print with active extruder" not soluble.
-        (!object_config.support_material_extruder.is_enabled() ||
-         !print_config.filament_soluble.get_at(object_config.support_material_extruder.value - 1));
+        (object_config.support_material_extruder.value == 0 || ! print_config.filament_soluble.get_at(object_config.support_material_extruder.value - 1));
 
     {
         int num_top_interface_layers    = std::max(0, object_config.support_material_interface_layers.value);

@@ -8575,14 +8575,14 @@ void GLCanvas3D::_load_print_object_toolpaths(const PrintObject &               
         /*const*/ std::vector<GeoStorage> geo_vols; // should be const after init.
         std::map<GCodeExtrusionRole, GLModel::Geometry *>     feature_to_geometry_map; // pointer to geo_vols data.
 
-        auto select_geometry = [&ctxt, &feature_to_geometry_map, &geo_vols](size_t layer_idx, uint16_t extruder,
+        auto select_geometry = [&ctxt, &feature_to_geometry_map, &geo_vols](size_t layer_idx, int extruder,
                                                                            GCodeExtrusionRole feature) -> GLModel::Geometry & {
             if (ctxt.color_by_color_print()) {
                 size_t color_id = ctxt.color_print_color_idx_by_layer_idx_and_extruder(layer_idx, extruder);
                 assert(color_id < geo_vols.size());
                 return *geo_vols[color_id].geometry_storage;
             } else if (ctxt.color_by_tool()) {
-                size_t color_id = std::min<int>(ctxt.number_tools() - 1, std::max<int>(int(extruder - 1), 0));
+                size_t color_id = std::min<int>(ctxt.number_tools() - 1, std::max<int>(extruder - 1, 0));
                 assert(color_id < geo_vols.size());
                 return *geo_vols[color_id].geometry_storage;
             } else {
@@ -8690,23 +8690,17 @@ void GLCanvas3D::_load_print_object_toolpaths(const PrintObject &               
                 if (ctxt.has_support) {
                     const SupportLayer *support_layer = dynamic_cast<const SupportLayer*>(layer);
                     if (support_layer) {
-                        for (const ExtrusionEntity *extrusion_entity : support_layer->support_fills.entities()) {
-                            uint16_t extruder = 0;
-                            if (extrusion_entity->role() == ExtrusionRole::SupportMaterial) {
-                                if (support_layer->object()->config().support_material_extruder.is_enabled()) {
-                                    extruder = support_layer->object()->config().support_material_extruder;
-                                }
-                            } else if (support_layer->object()->config().support_material_interface_extruder.is_enabled()) {
-                                extruder = support_layer->object()->config().support_material_interface_extruder;
-                            }
+                        for (const ExtrusionEntity *extrusion_entity : support_layer->support_fills.entities())
                             _3DScene::extrusionentity_to_verts(
                                 *extrusion_entity, float(layer->print_z), copy,
-                                select_geometry(idx_layer, extruder,
+                                select_geometry(idx_layer,
+                                                (extrusion_entity->role() == ExtrusionRole::SupportMaterial) ?
+                                                    support_layer->object()->config().support_material_extruder :
+                                                    support_layer->object()->config().support_material_interface_extruder,
                                                 ((extrusion_entity->role() == ExtrusionRole::SupportMaterial) ?
                                                      GCodeExtrusionRole::SupportMaterial :
                                                      GCodeExtrusionRole::SupportMaterialInterface)),
                                 feature_to_geometry_map);
-                        }
                     }
                 }
             }

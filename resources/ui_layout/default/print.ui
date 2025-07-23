@@ -848,10 +848,6 @@ group:Ooze prevention
 
 group:Wipe tower
 	setting:wipe_tower
-	line:Wipe Tower Position
-		setting:label_width$3:width$5:sidetext$mm:wipe_tower_x
-		setting:label_width$3:width$5:sidetext$mm:wipe_tower_y
-	end_line
 
 	line:Wipe Tower Width
 		setting:label$_:wipe_tower_width
