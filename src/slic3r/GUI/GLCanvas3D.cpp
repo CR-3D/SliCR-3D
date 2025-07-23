@@ -3176,8 +3176,29 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
       //  size_t 
         const bool wt = m_config->option("wipe_tower")->get_bool();
         const bool co = m_config->option("complete_objects")->get_bool() || m_config->option("parallel_objects_step")->get_float() > 0;
+        
+       bool should_load_wipe_tower = false;
 
-        if (extruders_count > 1 && wt && !co) {
+
+       /// Better control to set the wipe tower or not
+       for (size_t region_id = 0; region_id < print->num_print_regions(); ++region_id){
+           const PrintRegion &region = print->get_print_region(region_id);
+           int infill_extruder = region.config().infill_extruder.value;
+           int solid_infill_extruder = region.config().solid_infill_extruder.value;
+           int perimeter_extruder = region.config().perimeter_extruder.value;
+           
+           for (const PrintObject *object : print->objects()) {
+              int support_material_extruder = object->config().support_material_extruder.value;
+              int support_material_interface_extruder = object->config().support_material_interface_extruder.value;
+              
+              should_load_wipe_tower = perimeter_extruder > 1
+                                    || solid_infill_extruder > 1
+                                    || infill_extruder > 1
+                                    || support_material_extruder > 1;
+           }
+       }
+
+       if (extruders_count > 1 && wt && !co && should_load_wipe_tower) {
             for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
                 // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
                 const float x = m_model->get_wipe_tower_vector()[0].position.x();
