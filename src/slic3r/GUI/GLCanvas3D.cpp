@@ -3194,7 +3194,8 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
               should_load_wipe_tower = perimeter_extruder > 1
                                     || solid_infill_extruder > 1
                                     || infill_extruder > 1
-                                    || support_material_extruder > 1;
+                                    || support_material_extruder > 1
+                                    || support_material_interface_extruder > 1;
            }
        }
 
