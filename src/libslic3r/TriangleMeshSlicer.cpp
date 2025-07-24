@@ -2251,7 +2251,25 @@ Polygons project_mesh(
     std::vector<Polygons> top, bottom;
     std::vector<float>    zs { -1e10, 1e10 };
     slice_mesh_slabs(mesh, zs, trafo, &top, &bottom, throw_on_cancel);
-    return union_(top.front(), bottom.back());
+    //note: on some edge case, this union is too difficult (the complexity is too high)
+    //so we need to do it by little chunks
+    Polygons p_union;
+    const int step = 10;
+    for (Polygons *storage : {&top.front(), &bottom.back()}) {
+        if (storage->size() > 1000) {
+            int i;
+            for (i = step; i < storage->size(); i += step) {
+                p_union.insert(p_union.begin(), storage->begin() + i - step, storage->begin() + i);
+                p_union = union_(p_union);
+            }
+            assert(i > p_union.size() && i - step >= 0);
+            p_union.insert(p_union.begin(), storage->begin() + i - step, storage->end());
+            p_union = union_(p_union);
+        } else {
+            p_union = union_(p_union, *storage);
+        }
+    }
+    return p_union;
 }
 
 void cut_mesh(const indexed_triangle_set &mesh, float z, indexed_triangle_set *upper, indexed_triangle_set *lower, bool triangulate_caps)

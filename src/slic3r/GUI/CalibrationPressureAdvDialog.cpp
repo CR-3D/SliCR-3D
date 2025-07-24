@@ -238,7 +238,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     double first_layer_height = full_print_config.get_abs_value("first_layer_height", nozzle_diameter);
     double first_layer_width = full_print_config.get_abs_value("first_layer_extrusion_width", nozzle_diameter);
     double first_layer_spacing = full_print_config.get_abs_value("first_layer_extrusion_spacing", nozzle_diameter);
-    double first_layer_flow_ratio = full_print_config.get_computed_value("first_layer_flow_ratio");
+    double first_layer_flow_ratio = full_print_config.get_computed_value("filament_first_layer_flow_ratio");
     double first_layer_size_compensation = full_print_config.get_computed_value("first_layer_size_compensation");
     double infill_every_layers = full_print_config.get_computed_value("infill_every_layers");
     double support_material_layer_height = full_print_config.get_computed_value("support_material_layer_height");
@@ -790,7 +790,7 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
     //check if setting any config values to 45° breaks it. or it might be the default value for rotation adding part?
     new_print_config.set_key_value("avoid_crossing_perimeters", new ConfigOptionBool(false));
     new_print_config.set_key_value("complete_objects", new ConfigOptionBool(false)); //true is required for multi tests on single plate?
-    new_print_config.set_key_value("first_layer_flow_ratio", new ConfigOptionPercent(100));
+    new_filament_config.set_key_value("filament_first_layer_flow_ratio", new ConfigOptionPercents{100});
     new_print_config.set_key_value("first_layer_size_compensation", new ConfigOptionFloat(0));
     new_print_config.set_key_value("xy_inner_size_compensation", new ConfigOptionFloat(0));
     new_print_config.set_key_value("xy_outer_size_compensation", new ConfigOptionFloat(0));
@@ -1142,11 +1142,18 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
         ui_job_worker.wait_for_current_job(20000);
     }
 
+    bool autocenter2 = gui_app->app_config->get("autocenter") == "1";
+    if (autocenter2) {
+        gui_app->app_config->set("autocenter", "0");
+    }
+
     if (selected_extrusion_role != "CheckAll") {//don't auto slice so user can manual add PA values
 #ifndef _DEBUG
             plat->reslice(); //forces a slice of plater.
 #endif
     }
+
+
 }
 
 /*

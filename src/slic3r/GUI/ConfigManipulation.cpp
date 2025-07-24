@@ -615,7 +615,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("standby_temperature_delta", have_ooze_prevention);
 
     bool have_wipe_tower = config->opt_bool("wipe_tower");
-    for (auto el : { "wipe_tower_x", "wipe_tower_y", "wipe_tower_width", "wipe_tower_rotation_angle", "wipe_tower_brim_width",
+    for (auto el : { "wipe_tower_width", "wipe_tower_rotation_angle", "wipe_tower_brim_width",
                      "wipe_tower_cone_angle", "wipe_tower_extra_spacing",
                      "wipe_tower_bridging", "wipe_tower_brim", "wipe_tower_no_sparse_layers", "single_extruder_multi_material_priming",
                      "wipe_tower_speed", "wipe_tower_wipe_starting_speed",
@@ -686,7 +686,6 @@ void ConfigManipulation::update_printer_fff_config(DynamicPrintConfig *config,
             if (other_config->has("filament_max_volumetric_speed")) {
                DynamicPrintConfig new_conf = *other_config;
                new_conf.option<ConfigOptionFloats>("filament_max_volumetric_speed")->set_at(80.f, extruder_idx);
-               new_conf.option<ConfigOptionBools>("enable_pressure_advance")->set_at(true, extruder_idx);
                new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")->set_enabled(true, extruder_idx);
                new_conf.option<ConfigOptionGraphs>("filament_pressure_advance")
                    ->set(ConfigOptionGraphs({GraphData(0, 4, GraphData::GraphType::LINEAR,
@@ -827,12 +826,6 @@ void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config,
    const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();
     //for each extruder
     for (size_t extruder_idx = 0; extruder_idx < nozzle_sizes.size(); ++extruder_idx) {
-       bool use_pressure_advance = config->opt_bool("enable_pressure_advance", extruder_idx);
-         for (auto el : {
-            "adaptive_pressure_advance",
-            "filament_pressure_advance"
-         })
-         toggle_field(el, use_pressure_advance, extruder_idx);
    
          // Adaptive PA
          bool use_adaptive_pa = config->opt_bool("adaptive_pressure_advance", extruder_idx);

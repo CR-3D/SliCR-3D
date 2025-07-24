@@ -1766,422 +1766,427 @@ void NotificationManager::UpdatedItemsInfoNotification::render_left_sign(ImGuiWr
 }
 */
 //------SlicingProgressNotification
-void NotificationManager::SlicingProgressNotification::init() {
-    if (m_sp_state == SlicingProgressState::SP_PROGRESS) {
-        ProgressBarNotification::init();
-        // if (m_state == EState::NotFading && m_percentage >= 1.0f)
-        //	m_state = EState::Shown;
-    } else {
-        PopNotification::init();
-    }
-}
-void NotificationManager::SlicingProgressNotification::count_lines() {
-    PopNotification::count_lines();
-    if (m_text2 != "") {
-        m_lines_count = 4;
-    }
-}
-bool NotificationManager::SlicingProgressNotification::set_progress_state(float percent) {
-    if (percent < 0.f)
-        return true; // set_progress_state(SlicingProgressState::SP_CANCELLED);
-    else if (percent >= 1.f)
-        return set_progress_state(SlicingProgressState::SP_COMPLETED);
-    else
-        return set_progress_state(SlicingProgressState::SP_PROGRESS, percent);
-}
-bool NotificationManager::SlicingProgressNotification::set_progress_state(
-    NotificationManager::SlicingProgressNotification::SlicingProgressState state, float percent /* = 0.f*/) {
-    switch (state) {
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING:
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_BEGAN:
-        m_state = EState::Hidden;
-        set_percentage(-1);
-        m_has_print_info = false;
-        set_export_possible(false);
-        m_sp_state = state;
-        return true;
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS:
-        if ((m_sp_state != SlicingProgressState::SP_BEGAN && m_sp_state != SlicingProgressState::SP_PROGRESS) ||
-            percent < m_percentage)
-            return false;
-        set_percentage(percent);
-        m_has_cancel_button = true;
-        m_sp_state = state;
-        return true;
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED:
-        set_percentage(-1);
-        m_has_cancel_button = false;
-        m_has_print_info = false;
-        set_export_possible(false);
-        m_sp_state = state;
-        return true;
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED:
-        if (m_sp_state != SlicingProgressState::SP_BEGAN && m_sp_state != SlicingProgressState::SP_PROGRESS)
-            return false;
-        set_percentage(1);
-        m_has_cancel_button = false;
-        m_has_print_info = false;
-        // m_export_possible is important only for SP_PROGRESS state, thus we can reset it here
-        set_export_possible(false);
-        m_sp_state = state;
-        return true;
-    default: break;
-    }
-    return false;
-}
-bool NotificationManager::SlicingProgressNotification::set_secondary_progress(const std::string &text, float percent) {
-    if (m_sp_state ==
-        Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS) {
-        m_text2 = text;
-        m_percentage2 = percent;
-        init();
-        return true;
-    }
+void NotificationManager::SlicingProgressNotification::init()
+{
+	if (m_sp_state == SlicingProgressState::SP_PROGRESS) {
+		ProgressBarNotification::init();
+		//if (m_state == EState::NotFading && m_percentage >= 1.0f)
+		//	m_state = EState::Shown;
+	}
+	else {
+		PopNotification::init();
+	}
 
-    return false;
 }
-void NotificationManager::SlicingProgressNotification::set_status_text(const std::string &text) {
-    switch (m_sp_state) {
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING:
-        m_state = EState::Hidden;
-        break;
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS: {
-        NotificationData data{NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0,
-                              text};
-        update(data);
-        m_state = EState::NotFading;
-    } break;
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED: {
-        NotificationData data{NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0,
-                              text};
-        update(data);
-        m_state = EState::Shown;
-    } break;
-    case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED: {
-        NotificationData data{NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0,
-                              _u8L("Slicing finished."), m_is_fff ? _u8L("Export G-Code.") : _u8L("Export.")};
-        update(data);
-        m_state = EState::Shown;
-    } break;
-    default: break;
-    }
+void NotificationManager::SlicingProgressNotification::count_lines()
+{
+	PopNotification::count_lines();
+	if (m_text2 != "") {
+		m_lines_count = 4;
+	}
 }
-void NotificationManager::SlicingProgressNotification::set_print_info(const std::string &info) {
-    if (m_sp_state != SlicingProgressState::SP_COMPLETED) {
-        set_progress_state(SlicingProgressState::SP_COMPLETED);
-    } else {
-        m_has_print_info = true;
-        m_print_info = info;
-    }
+bool NotificationManager::SlicingProgressNotification::set_progress_state(float percent)
+{
+	if (percent < 0.f)
+		return true;//set_progress_state(SlicingProgressState::SP_CANCELLED);
+	else if (percent >= 1.f)
+		return set_progress_state(SlicingProgressState::SP_COMPLETED);
+	else 
+		return set_progress_state(SlicingProgressState::SP_PROGRESS, percent);
 }
-void NotificationManager::SlicingProgressNotification::set_sidebar_collapsed(bool collapsed) {
-    m_sidebar_collapsed = collapsed;
-    if (m_sp_state == SlicingProgressState::SP_COMPLETED && collapsed)
-        m_state = EState::NotFading;
+bool NotificationManager::SlicingProgressNotification::set_progress_state(NotificationManager::SlicingProgressNotification::SlicingProgressState state, float percent/* = 0.f*/)
+{
+	switch (state)
+	{
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING:
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_BEGAN:
+		m_state = EState::Hidden;
+		set_percentage(-1);
+		m_has_print_info = false;
+		set_export_possible(false);
+		m_sp_state = state;
+		return true;
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS:
+		if ((m_sp_state != SlicingProgressState::SP_BEGAN && m_sp_state != SlicingProgressState::SP_PROGRESS) || percent < m_percentage)
+			return false;
+		set_percentage(percent);
+		m_has_cancel_button = true;
+		m_sp_state = state;
+		return true;
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED:
+		set_percentage(-1);
+		m_has_cancel_button = false;
+		m_has_print_info = false;
+		set_export_possible(false);
+		m_sp_state = state;
+		return true;
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED:
+		if (m_sp_state != SlicingProgressState::SP_BEGAN && m_sp_state != SlicingProgressState::SP_PROGRESS)
+			return false;
+		set_percentage(1);
+		m_has_cancel_button = false;
+		m_has_print_info = false;
+		// m_export_possible is important only for SP_PROGRESS state, thus we can reset it here
+		set_export_possible(false);
+		m_sp_state = state;
+		return true;
+	default:
+		break;
+	}
+	return false;
 }
+bool NotificationManager::SlicingProgressNotification::set_secondary_progress(const std::string& text, float percent)
+{
+	if (m_sp_state == Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS) {
+		m_text2 = text;
+		m_percentage2 = percent;
+		init();
+		return true;
+	}
 
-void NotificationManager::SlicingProgressNotification::on_cancel_button() {
-    if (m_cancel_callback) {
-        if (!m_cancel_callback()) {
-            set_progress_state(SlicingProgressState::SP_NO_SLICING);
-        }
-    }
+	return false;
 }
-int NotificationManager::SlicingProgressNotification::get_duration() {
-    if (m_sp_state == SlicingProgressState::SP_CANCELLED)
-        return 2;
-    else if (m_sp_state == SlicingProgressState::SP_COMPLETED && !m_sidebar_collapsed)
-        return 2;
-    else
-        return 0;
+void NotificationManager::SlicingProgressNotification::set_status_text(const std::string& text)
+{
+	switch (m_sp_state)
+	{
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING:
+		m_state = EState::Hidden;
+		break;
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_PROGRESS:
+	{
+		NotificationData data{ NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0, text };
+		update(data);
+		m_state = EState::NotFading;
+	}
+		break;
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_CANCELLED: 
+	{
+		NotificationData data{ NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0, text };
+		update(data);
+		m_state = EState::Shown;
+	}
+		break;
+	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED:
+	{
+		NotificationData data{ NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0,  _u8L("Slicing finished."), m_is_fff ? _u8L("Export G-Code.") : _u8L("Export.") };
+		update(data);
+		m_state = EState::Shown;
+	}
+		break;
+	default:
+		break;
+	}
 }
-bool NotificationManager::SlicingProgressNotification::update_state(bool paused, const int64_t delta) {
-    bool ret = ProgressBarNotification::update_state(paused, delta);
-    // sets Estate to hidden
-    if (get_state() == PopNotification::EState::ClosePending || get_state() == PopNotification::EState::Finished)
-        set_progress_state(SlicingProgressState::SP_NO_SLICING);
-    return ret;
+void NotificationManager::SlicingProgressNotification::set_print_info(const std::string& info)
+{
+	if (m_sp_state != SlicingProgressState::SP_COMPLETED) {
+		set_progress_state (SlicingProgressState::SP_COMPLETED);
+	} else {
+		m_has_print_info = true;
+		m_print_info = info;
+	}
 }
-void NotificationManager::SlicingProgressNotification::render_text(ImGuiWrapper &imgui,
-                                                                   const float win_size_x,
-                                                                   const float win_size_y,
-                                                                   const float win_pos_x,
-                                                                   const float win_pos_y) {
-    if (m_sp_state ==
-        SlicingProgressState::
-            SP_PROGRESS /*|| (m_sp_state == SlicingProgressState::SP_COMPLETED && !m_sidebar_collapsed)*/) {
-        if (m_text2 == "") {
-            ProgressBarNotification::render_text(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-        } else {
-            ////two line text, two line bar
-            // ImGui::SetCursorPosX(m_left_indentation);
-            // ImGui::SetCursorPosY(-m_line_height*2);
-            // imgui.text(m_text1.c_str());
-            // if (m_has_cancel_button)
-            //	render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-            // ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y,
-            // -m_line_height, m_percentage, m_render_percentage); ImGui::SetCursorPosX(m_left_indentation);
-            // ImGui::SetCursorPosY(0);
-            // imgui.text(m_text2.c_str());
-            // ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, m_line_height,
-            // m_percentage, m_render_percentage);
-            // two lines text (what doesnt fit, wont show), one line bar
-            ImGui::SetCursorPosX(m_left_indentation);
-            ImGui::SetCursorPosY(m_line_height / 4);
-            imgui.text(m_text1.c_str());
-            ImGui::SetCursorPosX(m_left_indentation);
-            ImGui::SetCursorPosY(m_line_height * 2 + m_line_height / 4);
-            imgui.text(m_text2.c_str());
-            if (m_has_cancel_button)
-                render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-            ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, -m_line_height,
-                                                m_percentage, false);
-            ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, m_line_height,
-                                                m_percentage2, true);
-        }
-        /* // enable for hypertext during slicing (correct call of export_enabled needed)
-        if (m_multiline) {
-            // two lines text, one line bar
-            ImGui::SetCursorPosX(m_left_indentation);
-            ImGui::SetCursorPosY(m_line_height / 4);
-            imgui.text(m_text1.substr(0, m_endlines[0]).c_str());
-            ImGui::SetCursorPosX(m_left_indentation);
-            ImGui::SetCursorPosY(m_line_height + m_line_height / 4);
-            std::string line = m_text1.substr(m_endlines[0] + (m_text1[m_endlines[0]] == '\n' ||
-        m_text1[m_endlines[0]] == ' ' ? 1 : 0), m_endlines[1] - m_endlines[0] - (m_text1[m_endlines[0]] == '\n' ||
-        m_text1[m_endlines[0]] == ' ' ? 1 : 0)); imgui.text(line.c_str()); if (m_sidebar_collapsed && m_sp_state ==
-        SlicingProgressState::SP_PROGRESS && m_export_possible) { ImVec2 text_size =
-        ImGui::CalcTextSize(line.c_str()); render_hypertext(imgui, m_left_indentation + text_size.x + 4, m_line_height
-        + m_line_height / 4, m_hypertext);
-            }
-            if (m_has_cancel_button)
-                render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-            render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-        }
-        else {
-            //one line text, one line bar
-            ImGui::SetCursorPosX(m_left_indentation);
-            ImGui::SetCursorPosY(m_line_height / 4);
-            std::string line = m_text1.substr(0, m_endlines[0]);
-            imgui.text(line.c_str());
-            if (m_sidebar_collapsed && m_sp_state == SlicingProgressState::SP_PROGRESS && m_export_possible) {
-                ImVec2 text_size = ImGui::CalcTextSize(line.c_str());
-                render_hypertext(imgui, m_left_indentation + text_size.x + 4, m_line_height / 4, m_hypertext);
-            }
-            if (m_has_cancel_button)
-                render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-            render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-        }
-        */
-    } else if (m_sp_state == SlicingProgressState::SP_COMPLETED && m_sidebar_collapsed) {
-        // "Slicing Finished" on line 1 + hypertext, print info on line
-        ImVec2 win_size(win_size_x, win_size_y);
-        ImVec2 text1_size = ImGui::CalcTextSize(m_text1.c_str());
-        float x_offset = m_left_indentation;
-        std::string fulltext = m_text1 + m_hypertext + m_text2;
-        ImVec2 text_size = ImGui::CalcTextSize(fulltext.c_str());
-        float cursor_y = win_size.y / 2 - text_size.y / 2;
-        if (m_sidebar_collapsed && m_has_print_info) {
-            x_offset = 20;
-            cursor_y = win_size.y / 2 + win_size.y / 6 - text_size.y / 2;
-            ImGui::SetCursorPosX(x_offset);
-            ImGui::SetCursorPosY(cursor_y);
-            imgui.text(m_print_info.c_str());
-            cursor_y = win_size.y / 2 - win_size.y / 6 - text_size.y / 2;
-        }
-        ImGui::SetCursorPosX(x_offset);
-        ImGui::SetCursorPosY(cursor_y);
-        imgui.text(m_text1.c_str());
-        if (m_sidebar_collapsed)
-            render_hypertext(imgui, x_offset + text1_size.x + 4, cursor_y, m_hypertext);
-    } else {
-        PopNotification::render_text(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-    }
-}
-void NotificationManager::SlicingProgressNotification::render_bar(ImGuiWrapper &imgui,
-                                                                  const float win_size_x,
-                                                                  const float win_size_y,
-                                                                  const float win_pos_x,
-                                                                  const float win_pos_y) {
-    if (m_sp_state != SlicingProgressState::SP_PROGRESS) {
-        return;
-    }
-    ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-}
-void NotificationManager::SlicingProgressNotification::render_hypertext(
-    ImGuiWrapper &imgui, const float text_x, const float text_y, const std::string text, bool more) {
-    if (m_sp_state == SlicingProgressState::SP_COMPLETED && !m_sidebar_collapsed)
-        return;
-    ProgressBarNotification::render_hypertext(imgui, text_x, text_y, text, more);
-}
-void NotificationManager::SlicingProgressNotification::render_cancel_button(ImGuiWrapper &imgui,
-                                                                            const float win_size_x,
-                                                                            const float win_size_y,
-                                                                            const float win_pos_x,
-                                                                            const float win_pos_y) {
-    ImVec2 win_size(win_size_x, win_size_y);
-    ImVec2 win_pos(win_pos_x, win_pos_y);
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.0f, .0f, .0f, .0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(.0f, .0f, .0f, .0f));
-    push_style_color(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f), m_state == EState::FadingOut, m_current_fade_opacity);
-    push_style_color(ImGuiCol_TextSelectedBg, ImVec4(0, .75f, .75f, 1.f), m_state == EState::FadingOut,
-                     m_current_fade_opacity);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(.0f, .0f, .0f, .0f));
-
-    std::string button_text;
-    button_text = ImGui::CancelButton;
-
-    if (ImGui::IsMouseHoveringRect(ImVec2(win_pos.x - win_size.x / 10.f, win_pos.y),
-                                   ImVec2(win_pos.x,
-                                          win_pos.y + win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0)),
-                                   true)) {
-        button_text = ImGui::CancelHoverButton;
-    }
-    ImVec2 button_pic_size = ImGui::CalcTextSize(button_text.c_str());
-    ImVec2 button_size(button_pic_size.x * 1.25f, button_pic_size.y * 1.25f);
-    ImGui::SetCursorPosX(win_size.x - m_line_height * 2.75f);
-    ImGui::SetCursorPosY(win_size.y / 2 - button_size.y);
-    if (imgui.button(button_text.c_str(), button_size.x, button_size.y)) {
-        on_cancel_button();
-    }
-
-    // invisible large button
-    ImGui::SetCursorPosX(win_size.x - m_line_height * 2.35f);
-    ImGui::SetCursorPosY(0);
-    if (imgui.button(" ", m_line_height * 2.125, win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0))) {
-        on_cancel_button();
-    }
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleColor();
+void NotificationManager::SlicingProgressNotification::set_sidebar_collapsed(bool collapsed) 
+{
+	m_sidebar_collapsed = collapsed;
+	if (m_sp_state == SlicingProgressState::SP_COMPLETED && collapsed)
+		m_state = EState::NotFading;
 }
 
-void NotificationManager::SlicingProgressNotification::render_close_button(ImGuiWrapper &imgui,
-                                                                           const float win_size_x,
-                                                                           const float win_size_y,
-                                                                           const float win_pos_x,
-                                                                           const float win_pos_y) {
-    // Do not render close button while showing progress - cancel button is rendered instead
-    if (m_sp_state != SlicingProgressState::SP_PROGRESS) {
-        ProgressBarNotification::render_close_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-    }
+void NotificationManager::SlicingProgressNotification::on_cancel_button()
+{
+	if (m_cancel_callback){
+		if (!m_cancel_callback()) {
+			set_progress_state(SlicingProgressState::SP_NO_SLICING);
+		}
+	}
 }
+int NotificationManager::SlicingProgressNotification::get_duration()
+{
+	if (m_sp_state == SlicingProgressState::SP_CANCELLED)
+		return 2;
+	else if (m_sp_state == SlicingProgressState::SP_COMPLETED && !m_sidebar_collapsed)
+		return 2;
+	else
+		return 0;
+}
+bool  NotificationManager::SlicingProgressNotification::update_state(bool paused, const int64_t delta)
+{
+	bool ret = ProgressBarNotification::update_state(paused, delta);
+	// sets Estate to hidden 
+	if (get_state() == PopNotification::EState::ClosePending || get_state() == PopNotification::EState::Finished)
+		set_progress_state(SlicingProgressState::SP_NO_SLICING);
+	return ret;
+}
+void NotificationManager::SlicingProgressNotification::render_text(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y, const float win_pos_x, const float win_pos_y)
+{
+	if (m_sp_state == SlicingProgressState::SP_PROGRESS /*|| (m_sp_state == SlicingProgressState::SP_COMPLETED && !m_sidebar_collapsed)*/) {
+		if (m_text2 == "") {
+			ProgressBarNotification::render_text(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+		} else {
+			////two line text, two line bar
+			//ImGui::SetCursorPosX(m_left_indentation);
+			//ImGui::SetCursorPosY(-m_line_height*2);
+			//imgui.text(m_text1.c_str());
+			//if (m_has_cancel_button)
+			//	render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+			//ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, -m_line_height, m_percentage, m_render_percentage);
+			//ImGui::SetCursorPosX(m_left_indentation);
+			//ImGui::SetCursorPosY(0);
+			//imgui.text(m_text2.c_str());
+			//ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, m_line_height, m_percentage, m_render_percentage);
+		// two lines text (what doesnt fit, wont show), one line bar
+			ImGui::SetCursorPosX(m_left_indentation);
+			ImGui::SetCursorPosY(m_line_height / 4);
+			imgui.text(m_text1.c_str());
+			ImGui::SetCursorPosX(m_left_indentation);
+			ImGui::SetCursorPosY(m_line_height * 2 + m_line_height / 4);
+			imgui.text(m_text2.c_str());
+			if (m_has_cancel_button)
+				render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+			ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, -m_line_height, m_percentage, false);
+			ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y, m_line_height, m_percentage2, true);
+		}
+		/* // enable for hypertext during slicing (correct call of export_enabled needed)
+		if (m_multiline) {
+			// two lines text, one line bar
+			ImGui::SetCursorPosX(m_left_indentation);
+			ImGui::SetCursorPosY(m_line_height / 4);
+			imgui.text(m_text1.substr(0, m_endlines[0]).c_str());
+			ImGui::SetCursorPosX(m_left_indentation);
+			ImGui::SetCursorPosY(m_line_height + m_line_height / 4);
+			std::string line = m_text1.substr(m_endlines[0] + (m_text1[m_endlines[0]] == '\n' || m_text1[m_endlines[0]] == ' ' ? 1 : 0), m_endlines[1] - m_endlines[0] - (m_text1[m_endlines[0]] == '\n' || m_text1[m_endlines[0]] == ' ' ? 1 : 0));
+			imgui.text(line.c_str());
+			if (m_sidebar_collapsed && m_sp_state == SlicingProgressState::SP_PROGRESS && m_export_possible) {
+				ImVec2 text_size = ImGui::CalcTextSize(line.c_str());
+				render_hypertext(imgui, m_left_indentation + text_size.x + 4, m_line_height + m_line_height / 4, m_hypertext);
+			}
+			if (m_has_cancel_button)
+				render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+			render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+		}
+		else {
+			//one line text, one line bar
+			ImGui::SetCursorPosX(m_left_indentation);
+			ImGui::SetCursorPosY(m_line_height / 4);
+			std::string line = m_text1.substr(0, m_endlines[0]);
+			imgui.text(line.c_str());
+			if (m_sidebar_collapsed && m_sp_state == SlicingProgressState::SP_PROGRESS && m_export_possible) {
+				ImVec2 text_size = ImGui::CalcTextSize(line.c_str());
+				render_hypertext(imgui, m_left_indentation + text_size.x + 4, m_line_height / 4, m_hypertext);
+			}
+			if (m_has_cancel_button)
+				render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+			render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+		}
+		*/
+	} else if (m_sp_state == SlicingProgressState::SP_COMPLETED && m_sidebar_collapsed) {
+		// "Slicing Finished" on line 1 + hypertext, print info on line
+		ImVec2 win_size(win_size_x, win_size_y);
+		ImVec2 text1_size = ImGui::CalcTextSize(m_text1.c_str());
+		float x_offset = m_left_indentation;
+		std::string fulltext = m_text1 + m_hypertext + m_text2;
+		ImVec2 text_size = ImGui::CalcTextSize(fulltext.c_str());
+		float cursor_y = win_size.y / 2 - text_size.y / 2;
+		if (m_sidebar_collapsed && m_has_print_info) {
+			x_offset = 20;
+			cursor_y = win_size.y / 2 + win_size.y / 6 - text_size.y / 2;
+			ImGui::SetCursorPosX(x_offset);
+			ImGui::SetCursorPosY(cursor_y);
+			imgui.text(m_print_info.c_str());
+			cursor_y = win_size.y / 2 - win_size.y / 6 - text_size.y / 2;
+		}
+		ImGui::SetCursorPosX(x_offset);
+		ImGui::SetCursorPosY(cursor_y);
+		imgui.text(m_text1.c_str());
+		if (m_sidebar_collapsed)
+			render_hypertext(imgui, x_offset + text1_size.x + 4, cursor_y, m_hypertext);
+	} else {
+		PopNotification::render_text(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+	}
+}
+void NotificationManager::SlicingProgressNotification::render_bar(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y, const float win_pos_x, const float win_pos_y)
+{
+	if (m_sp_state != SlicingProgressState::SP_PROGRESS) {
+		return;
+	}
+	ProgressBarNotification::render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+}
+void  NotificationManager::SlicingProgressNotification::render_hypertext(ImGuiWrapper& imgui,const float text_x, const float text_y, const std::string text, bool more)
+{
+	if (m_sp_state == SlicingProgressState::SP_COMPLETED && !m_sidebar_collapsed) 
+		return;
+	ProgressBarNotification::render_hypertext(imgui, text_x, text_y, text, more);
+}
+void NotificationManager::SlicingProgressNotification::render_cancel_button(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y, const float win_pos_x, const float win_pos_y)
+{
+	ImVec2 win_size(win_size_x, win_size_y);
+	ImVec2 win_pos(win_pos_x, win_pos_y);
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.0f, .0f, .0f, .0f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(.0f, .0f, .0f, .0f));
+	push_style_color(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f), m_state == EState::FadingOut, m_current_fade_opacity);
+	push_style_color(ImGuiCol_TextSelectedBg, ImVec4(0, .75f, .75f, 1.f), m_state == EState::FadingOut, m_current_fade_opacity);
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(.0f, .0f, .0f, .0f));
+
+
+	std::string button_text;
+	button_text = ImGui::CancelButton;
+
+	if (ImGui::IsMouseHoveringRect(ImVec2(win_pos.x - win_size.x / 10.f, win_pos.y),
+		ImVec2(win_pos.x, win_pos.y + win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0)),
+		true))
+	{
+		button_text = ImGui::CancelHoverButton;
+	}
+	ImVec2 button_pic_size = ImGui::CalcTextSize(button_text.c_str());
+	ImVec2 button_size(button_pic_size.x * 1.25f, button_pic_size.y * 1.25f);
+	ImGui::SetCursorPosX(win_size.x - m_line_height * 2.75f);
+	ImGui::SetCursorPosY(win_size.y / 2 - button_size.y);
+	if (imgui.button(button_text.c_str(), button_size.x, button_size.y))
+	{
+		on_cancel_button();
+	}
+
+	//invisible large button
+	ImGui::SetCursorPosX(win_size.x - m_line_height * 2.35f);
+	ImGui::SetCursorPosY(0);
+	if (imgui.button(" ", m_line_height * 2.125, win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0)))
+	{
+		on_cancel_button();
+	}
+	ImGui::PopStyleColor();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleColor();
+}
+
+void NotificationManager::SlicingProgressNotification::render_close_button(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y, const float win_pos_x, const float win_pos_y)
+{
+	// Do not render close button while showing progress - cancel button is rendered instead
+	if (m_sp_state != SlicingProgressState::SP_PROGRESS) {
+		ProgressBarNotification::render_close_button(imgui, win_size_x,  win_size_y, win_pos_x, win_pos_y);
+	}
+}
+
 //------ProgressIndicatorNotification-------
-void NotificationManager::ProgressIndicatorNotification::set_status_text(const char *text) {
-    NotificationData data{NotificationType::ProgressIndicator, NotificationLevel::ProgressBarNotificationLevel, 0,
-                          text};
-    update(data);
+void NotificationManager::ProgressIndicatorNotification::set_status_text(const char* text)
+{
+	NotificationData data{ NotificationType::ProgressIndicator, NotificationLevel::ProgressBarNotificationLevel, 0, text };
+	update(data);
 }
 
-void NotificationManager::ProgressIndicatorNotification::init() {
-    // skip ProgressBarNotification::init (same code here)
-    PopNotification::init();
-    if (m_endlines.empty()) {
-        m_endlines.push_back(0);
-    }
-    if (m_lines_count >= 2) {
-        m_lines_count = 3;
-        m_multiline = true;
-        while (m_endlines.size() < 3)
-            m_endlines.push_back(m_endlines.back());
-    } else {
-        m_lines_count = 2;
-        m_endlines.push_back(m_endlines.back());
-    }
-    switch (m_progress_state) {
-    case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_HIDDEN:
-        m_state = EState::Hidden;
-        break;
-    case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_PROGRESS_REQUEST:
-    case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_PROGRESS_UPDATED:
-        m_state = EState::NotFading;
-        break;
-    case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_COMPLETED:
-        m_state = EState::ClosePending;
-        break;
-    default: break;
-    }
+void NotificationManager::ProgressIndicatorNotification::init()
+{
+	// skip ProgressBarNotification::init (same code here)
+	PopNotification::init();
+	if (m_endlines.empty()) {
+		m_endlines.push_back(0);
+	}
+	if (m_lines_count >= 2) {
+		m_lines_count = 3;
+		m_multiline = true;
+		while (m_endlines.size() < 3)
+			m_endlines.push_back(m_endlines.back());
+	}
+	else {
+		m_lines_count = 2;
+		m_endlines.push_back(m_endlines.back());
+	}
+	switch (m_progress_state)
+	{
+	case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_HIDDEN:
+		m_state = EState::Hidden;
+		break;
+	case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_PROGRESS_REQUEST:
+	case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_PROGRESS_UPDATED:
+		m_state = EState::NotFading;
+		break;
+	case Slic3r::GUI::NotificationManager::ProgressIndicatorNotification::ProgressIndicatorState::PIS_COMPLETED:
+		m_state = EState::ClosePending;
+		break;
+	default:
+		break;
+	}
 }
-void NotificationManager::ProgressIndicatorNotification::set_percentage(float percent) {
-    ProgressBarNotification::set_percentage(percent);
-    if (percent >= 0.0f && percent < 1.0f) {
-        m_state = EState::NotFading;
-        m_has_cancel_button = true;
-        m_progress_state = ProgressIndicatorState::PIS_PROGRESS_REQUEST;
-    } else if (percent >= 1.0f) {
-        m_state = EState::FadingOut;
-        m_progress_state = ProgressIndicatorState::PIS_COMPLETED;
-        m_has_cancel_button = false;
-    } else {
-        m_progress_state = ProgressIndicatorState::PIS_HIDDEN;
-        m_state = EState::Hidden;
-    }
+void NotificationManager::ProgressIndicatorNotification::set_percentage(float percent)
+{
+	ProgressBarNotification::set_percentage(percent);
+	if (percent >= 0.0f && percent < 1.0f) {
+		m_state = EState::NotFading;
+		m_has_cancel_button = true;
+		m_progress_state = ProgressIndicatorState::PIS_PROGRESS_REQUEST;
+	} else if (percent >= 1.0f) {
+		m_state = EState::FadingOut;
+		m_progress_state = ProgressIndicatorState::PIS_COMPLETED;
+		m_has_cancel_button = false;
+	} else {
+		m_progress_state = ProgressIndicatorState::PIS_HIDDEN;
+		m_state = EState::Hidden;
+	}
 }
-bool NotificationManager::ProgressIndicatorNotification::update_state(bool paused, const int64_t delta) {
-    if (m_progress_state == ProgressIndicatorState::PIS_PROGRESS_REQUEST) {
-        // percentage was changed (and it called schedule_extra_frame), now update must know this needs render
-        m_next_render = 0;
-        m_progress_state = ProgressIndicatorState::PIS_PROGRESS_UPDATED;
-        m_current_fade_opacity = 1.0f;
-        return true;
-    }
-    bool ret = ProgressBarNotification::update_state(paused, delta);
-    if (get_state() == PopNotification::EState::ClosePending || get_state() == PopNotification::EState::Finished)
-        // go to PIS_HIDDEN state
-        set_percentage(-1.0f);
-    return ret;
+bool NotificationManager::ProgressIndicatorNotification::update_state(bool paused, const int64_t delta)
+{
+	if (m_progress_state == ProgressIndicatorState::PIS_PROGRESS_REQUEST) {
+		// percentage was changed (and it called schedule_extra_frame), now update must know this needs render
+		m_next_render = 0;
+		m_progress_state = ProgressIndicatorState::PIS_PROGRESS_UPDATED;
+		m_current_fade_opacity = 1.0f;
+		return true;
+	}
+	bool ret = ProgressBarNotification::update_state(paused, delta);
+	if (get_state() == PopNotification::EState::ClosePending || get_state() == PopNotification::EState::Finished)
+		// go to PIS_HIDDEN state
+		set_percentage(-1.0f);
+	return ret;
 }
 
-void NotificationManager::ProgressIndicatorNotification::render_cancel_button(ImGuiWrapper &imgui,
-                                                                              const float win_size_x,
-                                                                              const float win_size_y,
-                                                                              const float win_pos_x,
-                                                                              const float win_pos_y) {
-    ImVec2 win_size(win_size_x, win_size_y);
-    ImVec2 win_pos(win_pos_x, win_pos_y);
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.0f, .0f, .0f, .0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(.0f, .0f, .0f, .0f));
-    push_style_color(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f), m_state == EState::FadingOut, m_current_fade_opacity);
-    push_style_color(ImGuiCol_TextSelectedBg, ImVec4(0, .75f, .75f, 1.f), m_state == EState::FadingOut,
-                     m_current_fade_opacity);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(.0f, .0f, .0f, .0f));
+void NotificationManager::ProgressIndicatorNotification::render_cancel_button(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y, const float win_pos_x, const float win_pos_y)
+{
+	ImVec2 win_size(win_size_x, win_size_y);
+	ImVec2 win_pos(win_pos_x, win_pos_y);
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.0f, .0f, .0f, .0f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(.0f, .0f, .0f, .0f));
+	push_style_color(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f), m_state == EState::FadingOut, m_current_fade_opacity);
+	push_style_color(ImGuiCol_TextSelectedBg, ImVec4(0, .75f, .75f, 1.f), m_state == EState::FadingOut, m_current_fade_opacity);
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(.0f, .0f, .0f, .0f));
 
-    std::string button_text;
-    button_text = ImGui::CancelButton;
 
-    if (ImGui::IsMouseHoveringRect(ImVec2(win_pos.x - win_size.x / 10.f, win_pos.y),
-                                   ImVec2(win_pos.x,
-                                          win_pos.y + win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0)),
-                                   true)) {
-        button_text = ImGui::CancelHoverButton;
-    }
-    ImVec2 button_pic_size = ImGui::CalcTextSize(button_text.c_str());
-    ImVec2 button_size(button_pic_size.x * 1.25f, button_pic_size.y * 1.25f);
-    ImGui::SetCursorPosX(win_size.x - m_line_height * 2.75f);
-    ImGui::SetCursorPosY(win_size.y / 2 - button_size.y);
-    if (imgui.button(button_text.c_str(), button_size.x, button_size.y)) {
-        on_cancel_button();
-    }
+	std::string button_text;
+	button_text = ImGui::CancelButton;
 
-    // invisible large button
-    ImGui::SetCursorPosX(win_size.x - m_line_height * 2.35f);
-    ImGui::SetCursorPosY(0);
-    if (imgui.button(" ", m_line_height * 2.125, win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0))) {
-        on_cancel_button();
-    }
-    ImGui::PopStyleColor(5);
+	if (ImGui::IsMouseHoveringRect(ImVec2(win_pos.x - win_size.x / 10.f, win_pos.y),
+		ImVec2(win_pos.x, win_pos.y + win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0)),
+		true))
+	{
+		button_text = ImGui::CancelHoverButton;
+	}
+	ImVec2 button_pic_size = ImGui::CalcTextSize(button_text.c_str());
+	ImVec2 button_size(button_pic_size.x * 1.25f, button_pic_size.y * 1.25f);
+	ImGui::SetCursorPosX(win_size.x - m_line_height * 2.75f);
+	ImGui::SetCursorPosY(win_size.y / 2 - button_size.y);
+	if (imgui.button(button_text.c_str(), button_size.x, button_size.y))
+	{
+		on_cancel_button();
+	}
+
+	//invisible large button
+	ImGui::SetCursorPosX(win_size.x - m_line_height * 2.35f);
+	ImGui::SetCursorPosY(0);
+	if (imgui.button(" ", m_line_height * 2.125, win_size.y - (m_minimize_b_visible ? 2 * m_line_height : 0)))
+	{
+		on_cancel_button();
+	}
+	ImGui::PopStyleColor(5);
 }
-void NotificationManager::ProgressIndicatorNotification::render_close_button(ImGuiWrapper &imgui,
-                                                                             const float win_size_x,
-                                                                             const float win_size_y,
-                                                                             const float win_pos_x,
-                                                                             const float win_pos_y) {
-    // Do not render close button while showing progress - cancel button is rendered instead
-    if (m_percentage >= 1.0f) {
-        ProgressBarNotification::render_close_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
-    }
+void NotificationManager::ProgressIndicatorNotification::render_close_button(ImGuiWrapper& imgui, const float win_size_x, const float win_size_y, const float win_pos_x, const float win_pos_y)
+{
+	// Do not render close button while showing progress - cancel button is rendered instead
+	if (m_percentage >= 1.0f)
+	{
+		ProgressBarNotification::render_close_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
+	}
 }
 //------NotificationManager--------
 NotificationManager::NotificationManager(wxEvtHandler *evt_handler) : m_evt_handler(evt_handler) {}
@@ -2480,17 +2485,18 @@ void NotificationManager::set_upload_job_notification_host(int id, const std::st
     }
 }
 
-void NotificationManager::set_upload_job_notification_status(int id, const std::string &status) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::PrintHostUpload) {
-            PrintHostUploadNotification *phun = dynamic_cast<PrintHostUploadNotification *>(notification.get());
-            if (phun->compare_job_id(id)) {
-                phun->set_status(status);
-                wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
-                break;
-            }
-        }
-    }
+void NotificationManager::set_upload_job_notification_status(int id, const std::string& status)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::PrintHostUpload) {
+			PrintHostUploadNotification* phun = dynamic_cast<PrintHostUploadNotification*>(notification.get());
+			if (phun->compare_job_id(id)) {
+				phun->set_status(status);
+				wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+				break;
+			}
+		}
+	}
 }
 
 void NotificationManager::set_upload_job_notification_comp_on_100(int id, bool comp) {
@@ -2675,110 +2681,106 @@ void NotificationManager::set_download_URL_error(size_t id, const std::string &t
     }
 }
 
-void NotificationManager::init_slicing_progress_notification(std::function<bool()> cancel_callback) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            dynamic_cast<SlicingProgressNotification *>(notification.get())->set_cancel_callback(cancel_callback);
-            return;
-        }
-    }
-    NotificationData data{NotificationType::SlicingProgress,
-                          NotificationLevel::ProgressBarNotificationLevel,
-                          0,
-                          std::string(),
-                          std::string(),
-                          [](wxEvtHandler *evnthndlr) {
-                              if (evnthndlr != nullptr)
-                                  wxPostEvent(evnthndlr,
-                                              ExportGcodeNotificationClickedEvent(
-                                                  EVT_EXPORT_GCODE_NOTIFICAION_CLICKED));
-                              return true;
-                          }};
-    push_notification_data(std::make_unique<NotificationManager::SlicingProgressNotification>(data, m_id_provider,
-                                                                                              m_evt_handler,
-                                                                                              cancel_callback),
-                           0);
+void NotificationManager::init_slicing_progress_notification(std::function<bool()> cancel_callback)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+	 		dynamic_cast<SlicingProgressNotification*>(notification.get())->set_cancel_callback(cancel_callback);	
+			return;
+		}
+	}
+	NotificationData data{ NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0,  std::string(),std::string(),
+						  [](wxEvtHandler* evnthndlr) {
+							  if (evnthndlr != nullptr)
+								  wxPostEvent(evnthndlr, ExportGcodeNotificationClickedEvent(EVT_EXPORT_GCODE_NOTIFICAION_CLICKED));
+							  return true;
+						  }
+	};
+	push_notification_data(std::make_unique<NotificationManager::SlicingProgressNotification>(data, m_id_provider, m_evt_handler, cancel_callback), 0);
 }
-void NotificationManager::set_slicing_progress_began() {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            SlicingProgressNotification *spn = dynamic_cast<SlicingProgressNotification *>(notification.get());
-            spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_BEGAN);
-            return;
-        }
-    }
-    // Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
-    wxGetApp().plater()->init_notification_manager();
+void NotificationManager::set_slicing_progress_began()
+{
+	for (std::unique_ptr<PopNotification> & notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			SlicingProgressNotification* spn = dynamic_cast<SlicingProgressNotification*>(notification.get());
+			spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_BEGAN);
+			return;
+		}
+	}
+	// Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
+	wxGetApp().plater()->init_notification_manager();
 }
-void NotificationManager::set_slicing_progress_percentage(const std::string &text,
-                                                          float percentage,
-                                                          bool main /*= true*/) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            SlicingProgressNotification *spn = dynamic_cast<SlicingProgressNotification *>(notification.get());
-            if (main) {
-                if (spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_PROGRESS,
-                                            percentage)) {
-                    spn->set_status_text(text);
-                    wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
-                }
-            } else {
-                spn->set_secondary_progress(text, percentage);
-                wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
-            }
-            return;
-        }
-    }
-    // Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
-    wxGetApp().plater()->init_notification_manager();
+void NotificationManager::set_slicing_progress_percentage(const std::string& text, float percentage, bool main /*= true*/)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			SlicingProgressNotification* spn = dynamic_cast<SlicingProgressNotification*>(notification.get());
+			if (main) {
+				if (spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_PROGRESS, percentage)) {
+					spn->set_status_text(text);
+					wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+				}
+			} else {
+				spn->set_secondary_progress(text, percentage);
+				wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+			}
+			return;
+		}
+	}
+	// Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
+	wxGetApp().plater()->init_notification_manager();
 }
-void NotificationManager::set_slicing_progress_ended(const std::string &text) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            SlicingProgressNotification *spn = dynamic_cast<SlicingProgressNotification *>(notification.get());
-            if (spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_COMPLETED)) {
-                spn->set_status_text(text);
-                wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
-            }
-            return;
-        }
-    }
-    // Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
-    wxGetApp().plater()->init_notification_manager();
+void NotificationManager::set_slicing_progress_ended(const std::string& text)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			SlicingProgressNotification* spn = dynamic_cast<SlicingProgressNotification*>(notification.get());
+				if (spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_COMPLETED)) {
+					spn->set_status_text(text);
+					wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+				}
+				return;
+		}
+	}
+	// Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
+	wxGetApp().plater()->init_notification_manager();
 }
-void NotificationManager::set_slicing_progress_canceled(const std::string &text) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            SlicingProgressNotification *spn = dynamic_cast<SlicingProgressNotification *>(notification.get());
-            spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_CANCELLED);
-            spn->set_status_text(text);
-            wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
-            return;
-        }
-    }
-    // Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
-    wxGetApp().plater()->init_notification_manager();
+void NotificationManager::set_slicing_progress_canceled(const std::string& text)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			SlicingProgressNotification* spn = dynamic_cast<SlicingProgressNotification*>(notification.get());
+			spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_CANCELLED);
+			spn->set_status_text(text);
+			wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+			return;
+		}
+	}
+	// Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
+	wxGetApp().plater()->init_notification_manager();
 }
-void NotificationManager::set_slicing_progress_hidden() {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            SlicingProgressNotification *notif = dynamic_cast<SlicingProgressNotification *>(notification.get());
-            notif->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING);
-            wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
-            return;
-        }
-    }
-    // Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
-    wxGetApp().plater()->init_notification_manager();
+void NotificationManager::set_slicing_progress_hidden()
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			SlicingProgressNotification* notif = dynamic_cast<SlicingProgressNotification*>(notification.get());
+			notif->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING);
+			wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+			return;
+		}
+	}
+	// Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
+	wxGetApp().plater()->init_notification_manager();
 }
-void NotificationManager::set_slicing_complete_print_time(const std::string &info, bool sidebar_colapsed) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::SlicingProgress) {
-            dynamic_cast<SlicingProgressNotification *>(notification.get())->set_sidebar_collapsed(sidebar_colapsed);
-            dynamic_cast<SlicingProgressNotification *>(notification.get())->set_print_info(info);
-            break;
-        }
-    }
+void NotificationManager::set_slicing_complete_print_time(const std::string& info, bool sidebar_colapsed)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			dynamic_cast<SlicingProgressNotification*>(notification.get())->set_sidebar_collapsed(sidebar_colapsed);
+			dynamic_cast<SlicingProgressNotification*>(notification.get())->set_print_info(info);
+			break;
+		}
+	}
 }
 void NotificationManager::set_sidebar_collapsed(bool collapsed) {
     for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
@@ -2834,25 +2836,27 @@ void NotificationManager::progress_indicator_set_cancel_callback(CancelFn callba
     }
     init_progress_indicator();
 }
-void NotificationManager::progress_indicator_set_progress(int pr) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::ProgressIndicator) {
-            dynamic_cast<ProgressIndicatorNotification *>(notification.get())->set_progress(pr);
-            // Ask for rendering - needs to be done on every progress. Calls to here doesnt trigger IDLE event or rendering.
-            wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(100);
-            return;
-        }
-    }
-    init_progress_indicator();
+void NotificationManager::progress_indicator_set_progress(int pr)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::ProgressIndicator) {
+			dynamic_cast<ProgressIndicatorNotification*>(notification.get())->set_progress(pr);
+			// Ask for rendering - needs to be done on every progress. Calls to here doesnt trigger IDLE event or rendering. 
+			wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(100);
+			return;
+		}
+	}
+	init_progress_indicator();
 }
-void NotificationManager::progress_indicator_set_status_text(const char *text) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
-        if (notification->get_type() == NotificationType::ProgressIndicator) {
-            dynamic_cast<ProgressIndicatorNotification *>(notification.get())->set_status_text(text);
-            return;
-        }
-    }
-    init_progress_indicator();
+void NotificationManager::progress_indicator_set_status_text(const char* text)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::ProgressIndicator) {
+			dynamic_cast<ProgressIndicatorNotification*>(notification.get())->set_status_text(text);
+			return;
+		}
+	}
+	init_progress_indicator();
 }
 int NotificationManager::progress_indicator_get_range() const {
     for (const std::unique_ptr<PopNotification> &notification : m_pop_notifications) {

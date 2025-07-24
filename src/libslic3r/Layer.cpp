@@ -658,6 +658,12 @@ ExPolygons Layer::merged(coordf_t offset_scaled) const
 void Layer::make_perimeters()
 {
     BOOST_LOG_TRIVIAL(trace) << "Generating perimeters for layer " << this->id();
+
+    if (lslices().empty()) {
+        assert(false);
+        // there is nothing to make perimeter with.
+        return;
+    }
     
     // keep track of regions whose perimeters we have already generated
     std::vector<unsigned char>                              done(m_regions.size(), false);

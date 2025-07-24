@@ -149,6 +149,7 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
         max_support_material_interface_height = std::min(max_support_material_interface_height, min_nozzle_diameter);
     }
 
+
     std::shared_ptr<SlicingParameters> slicing_params = std::make_shared<SlicingParameters>();
     SlicingParameters& params = *slicing_params.get();
     params.layer_height = object_config.layer_height.value;

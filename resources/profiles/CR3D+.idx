@@ -49,3 +49,13 @@ min_slic3r_version = 2.4.0-rc
 0.0.48 changed vertical_shell_thickness to old and some other improvements
 0.0.49 disabled use ramping lift
 0.0.50 updated start-gcode for single and idex printers
+0.0.51 extrusion width changes in CR-3D+ Standard
+0.0.52 changed overhangs speeds
+0.0.53 Updated wipe tower settings and support_material_interface_layer_height = 1
+0.0.54 added flexible_material = 1 for TPU, Soft PLA
+0.0.55 added chamber_temperature to start_gcode and renamed "ABS CRbon" to "ABS CF"
+0.0.56 single_extruder_multi_material_priming set to 0
+0.0.57 fixed spacings in start_gcode
+min_slic3r_version = 2.7.0.4
+0.0.58 Activated wipe tower to default
+0.0.59 Changed filament_vendor to CR-3D+

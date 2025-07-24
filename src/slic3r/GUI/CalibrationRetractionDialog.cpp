@@ -44,7 +44,7 @@ void CalibrationRetractionDialog::create_buttons(wxStdDialogButtonSizer* buttons
     nb_steps->SetSelection(5);
 
     const DynamicPrintConfig *filament_config = this->gui_app->get_tab(Preset::TYPE_FFF_FILAMENT)->get_config();
-    int temp = int((2 + filament_config->option<ConfigOptionInts>("temperature")->get_at(0)) / 5) * 5;
+    int temp = int((2 + filament_config->option<ConfigOptionInts>("first_layer_temperature")->get_at(0)) / 5) * 5;
     temp_start = new wxTextCtrl(this, wxID_ANY, std::to_string(temp), wxDefaultPosition, size);
     temp_start->SetToolTip(_L("Note that only Multiple of 5 can be engraved in the part"));
     wxString choices_decr[] = { _L("one test"),_L("2x10°"),_L("3x10°"), _L("4x10°"), _L("3x5°"), _L("5x5°") };
@@ -174,7 +174,7 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
 
     double retraction_start = 0;
     std::string str = temp_start->GetValue().ToStdString();
-    int temp = int((2 + filament_config->option<ConfigOptionInts>("temperature")->get_at(0)) / 5) * 5;
+    int temp = int((2 + filament_config->option<ConfigOptionInts>("first_layer_temperature")->get_at(0)) / 5) * 5;
     int first_layer_temp = filament_config->option<ConfigOptionInts>("first_layer_temperature")->get_at(0);
     if (str.find_first_not_of("0123456789") == std::string::npos)
         temp = std::atoi(str.c_str());
@@ -207,7 +207,6 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     //add sub-part after scale
     float zscale_number = (first_layer_height + layer_height) / 0.4;
     std::vector<std::string> filament_temp_item_name;
-    
     for (size_t id_item = 0; id_item < nb_items; id_item++) {
         int mytemp = temp - temp_decr * id_item;
         if (mytemp <= 285 && mytemp >= 180 && mytemp % 5 == 0) {
@@ -215,7 +214,6 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
             assert(model.objects[objs_idx[id_item]]->volumes.size() == 1);
             add_part(model.objects[objs_idx[id_item]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / filament_temp_item_name.back()).string(),
                 Vec3d{ 0,0, scale * 0.0 - 4.8 }, Vec3d{ scale,scale,scale });
-                
             assert(model.objects[objs_idx[id_item]]->volumes.size() == 2);
             model.objects[objs_idx[id_item]]->volumes[1]->rotate(PI / 2, Vec3d(0, 0, 1));
             model.objects[objs_idx[id_item]]->volumes[1]->rotate(-PI / 2, Vec3d(1, 0, 0));
@@ -246,7 +244,9 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
         current_obj->config.set_key_value("perimeters", new ConfigOptionInt(2));
         current_obj->config.set_key_value("external_perimeters_first", new ConfigOptionBool(false));
         current_obj->config.set_key_value("bottom_solid_layers", new ConfigOptionInt(3));
-
+        for(auto& volume : current_obj->volumes)
+            if( volume->name == filament_temp_item_name[i] || volume->name.empty()) // if temperature patch or the main retraction patch (empty name because it's the initial volume)
+                volume->config.set_key_value("bottom_solid_layers", new ConfigOptionInt(2));
         current_obj->config.set_key_value("top_solid_layers", new ConfigOptionInt(0));
         current_obj->config.set_key_value("fill_density", new ConfigOptionPercent(0));
         //current_obj->config.set_key_value("fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinear));
@@ -273,6 +273,18 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
             
         }
     }
+
+    if (nb_items > 1) {
+        DynamicPrintConfig new_print_config = *print_config; //make a copy
+        new_print_config.set_key_value("complete_objects", new ConfigOptionBool(true));
+        //if skirt, use only one
+        if (print_config->option<ConfigOptionInt>("skirts")->get_int() > 0 && print_config->option<ConfigOptionInt>("skirt_height")->get_int() > 0) {
+            new_print_config.set_key_value("complete_objects_one_skirt", new ConfigOptionBool(true));
+        }
+        this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->load_config(new_print_config);
+        this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->update_dirty();
+        plat->on_config_change(new_print_config);
+    }
    
     plat->changed_objects(objs_idx);
     this->gui_app->get_tab(Preset::TYPE_FFF_PRINT)->update_dirty();
@@ -293,6 +305,11 @@ void CalibrationRetractionDialog::create_geometry(wxCommandEvent& event_args) {
     }
 
     plat->reslice();
+
+        if (autocenter) {
+        //re-enable auto-center after this calibration.
+        gui_app->app_config->set("autocenter", "1");
+    }
 }
 
 } // namespace GUI

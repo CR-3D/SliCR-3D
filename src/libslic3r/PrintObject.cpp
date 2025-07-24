@@ -286,8 +286,10 @@ void PrintObject::make_perimeters()
 
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment();
-                m_print->set_status( int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()), L("Generating perimeters: layer %s / %s"), 
-                    { std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max()) }, PrintBase::SlicingStatus::SECONDARY_STATE);
+               boost::format fmt(L("Generating perimeters: layer %1% / %2%"));
+               m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
+                             (fmt % nb_layers_done % m_print->secondary_status_counter_get_max()).str(),
+                             PrintBase::SlicingStatus::SECONDARY_STATE);
 
                 // make perimeters
                 m_layers[layer_idx]->make_perimeters();
@@ -363,13 +365,30 @@ void PrintObject::prepare_infill()
     // the $layerm->fill_surfaces by clipping $layerm->fill_surfaces
     // by the cummulative area of the previous $layerm->fill_surfaces.
     if (m_print->objects().size() == 1) {
-        m_print->set_status(0, L("Detect surfaces types"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        m_print->set_status(
+            0,
+            L("Detect surfaces types"),
+            {},
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     } else {
         int32_t advancement_count = m_print->secondary_status_counter_increment(25);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format message with boost::format
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0) ? advancement_count * 100 / max_count : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
     this->detect_surfaces_type();
     m_print->throw_if_canceled();
@@ -394,13 +413,24 @@ void PrintObject::prepare_infill()
     // Decide what surfaces are to be filled.
     // Here the stTop / stBottomBridge / stBottom infill is turned to just stInternal if zero top / bottom infill layers are configured.
     // Also tiny stInternal surfaces are turned to stInternalSolid.
-    BOOST_LOG_TRIVIAL(info) << "Preparing fill surfaces..." << log_memory_info();
     if (m_print->objects().size() > 1) {
         int32_t advancement_count = m_print->secondary_status_counter_increment(5);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format message using boost::format
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0) ? advancement_count * 100 / max_count : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
     for (size_t layer_idx = 0; layer_idx < m_layers.size(); ++layer_idx) {
         Layer *layer = m_layers[layer_idx];
@@ -439,56 +469,36 @@ void PrintObject::prepare_infill()
 #endif
     EnsureVerticalShellThickness ensure_vertical_shell_thickness = this->default_region_config(this->print()->default_region_config())
             .option<ConfigOptionEnum<EnsureVerticalShellThickness>>("ensure_vertical_shell_thickness")->value;
-    if (ensure_vertical_shell_thickness != EnsureVerticalShellThickness::Partial && ensure_vertical_shell_thickness != EnsureVerticalShellThickness::Enabled) {
-        // this will detect bridges and reverse bridges
-        // and rearrange top/bottom/internal surfaces
-        // It produces enlarged overlapping bridging areas.
-        //
-        // 1) stBottomBridge / stBottom infill is grown by 3mm and clipped by the total infill area. Bridges are
-        // detected. The areas may overlap. 2) stTop is grown by 3mm and clipped by the grown bottom areas. The areas
-        // may overlap. 3) Clip the internal surfaces by the grown top/bottom surfaces. 4) Merge surfaces with the
-        // same style. This will mostly get rid of the overlaps.
-        // FIXME This does not likely merge surfaces, which are supported by a material with different colors, but
-        // same properties.
-        if (m_print->objects().size() == 1) {
-            m_print->set_status(30, L("Process external surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
-        } else {
-            int32_t advancement_count = m_print->secondary_status_counter_increment(15);
-            m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(),
-                                L("Process objects: %s / %s"),
-                                {std::to_string(advancement_count),
-                                 std::to_string(m_print->secondary_status_counter_get_max())},
-                                PrintBase::SlicingStatus::SECONDARY_STATE);
-        }
-        this->process_external_surfaces(true /* old*/);
-        m_print->throw_if_canceled();
 
-#ifdef _DEBUG
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            for (const Layer *layer : m_layers) {
-                for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
-                    assert(srf.surface_type == (stPosInternal | stDensSolid) ||
-                           srf.surface_type == (stPosInternal | stDensSparse) ||
-                           // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
-                           srf.surface_type == (stPosInternal | stDensVoid) ||
-                           srf.surface_type == (stPosTop | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
-                }
-            }
-        }
-#endif
-    }
 
     // Add solid fills to ensure the shell vertical thickness.
     if (m_print->objects().size() == 1) {
-        m_print->set_status(45, L("Discover shells"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        m_print->set_status(
+            45,
+            L("Discover shells"),
+            {},
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     } else {
         int32_t advancement_count = m_print->secondary_status_counter_increment(30);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format message using boost::format
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0)
+            ? advancement_count * 100 / max_count
+            : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
     this->discover_vertical_shells();
     m_print->throw_if_canceled();
@@ -528,41 +538,35 @@ void PrintObject::prepare_infill()
         // FIXME This does not likely merge surfaces, which are supported by a material with different colors, but
         // same properties.
         if (m_print->objects().size() == 1) {
-            m_print->set_status(60, L("Process external surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+            m_print->set_status(
+                60,
+                L("Process external surfaces"),
+                {},
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         } else {
             int32_t advancement_count = m_print->secondary_status_counter_increment(15);
-            m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(),
-                                L("Process objects: %s / %s"),
-                                {std::to_string(advancement_count),
-                                 std::to_string(m_print->secondary_status_counter_get_max())},
-                                PrintBase::SlicingStatus::SECONDARY_STATE);
-        }
-        this->process_external_surfaces(false /*!old =  new*/);
-        m_print->throw_if_canceled();
+            int32_t max_count         = m_print->secondary_status_counter_get_max();
 
-#ifdef _DEBUG
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            for (const Layer *layer : m_layers) {
-                for (const Surface &srf : layer->get_region(region_id)->fill_surfaces().surfaces) {
-                    assert(srf.surface_type == (stPosInternal | stDensSolid) ||
-                           srf.surface_type == (stPosInternal | stDensSparse) ||
-                           // srf.surface_type == (stPosInternal | stDensSparse | stModBridge) ||
-                           srf.surface_type == (stPosInternal | stDensVoid) ||
-                           srf.surface_type == (stPosTop | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid) ||
-                           srf.surface_type == (stPosBottom | stDensSolid | stModBridge));
-                }
-            }
+            // Format status message using boost::format
+            boost::format fmt(L("Process objects: %1% / %2%"));
+            std::string msg = (fmt
+                % advancement_count
+                % max_count
+            ).str();
+
+            int progress = (max_count > 0)
+                ? advancement_count * 100 / max_count
+                : 0;
+
+            m_print->set_status(
+                progress,
+                msg,
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         }
-        for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
-            for (const Layer *layer : m_layers) {
-                for (const Surface &srf : layer->m_regions[region_id]->fill_surfaces().surfaces) {
-                    srf.expolygon.assert_valid();
-                }
-            }
-        }
-#endif
-    }
+        this->process_external_surfaces();
+        m_print->throw_if_canceled();
 
     // Debugging output.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
@@ -574,7 +578,7 @@ void PrintObject::prepare_infill()
         } // for each layer
     } // for each region
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
-
+}
     // Debugging output.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
@@ -606,15 +610,33 @@ void PrintObject::prepare_infill()
     }
 #endif
 
-    //as there is some too thin solid surface, please deleted them and merge all of the surfacesthat are contigous.
     if (m_print->objects().size() == 1) {
-        m_print->set_status( 75, L("Clean surfaces"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        m_print->set_status(
+            75,
+            L("Clean surfaces"),
+            {},
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     } else {
         int32_t advancement_count = m_print->secondary_status_counter_increment(5);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format message using boost::format
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0)
+            ? advancement_count * 100 / max_count
+            : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
     this->clean_surfaces();
 
@@ -673,13 +695,32 @@ void PrintObject::prepare_infill()
     // the following step needs to be done before combination because it may need
     // to remove only half of the combined infill
     if (m_print->objects().size() == 1) {
-        m_print->set_status( 80, L("Put bridges over sparse infill"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        m_print->set_status(
+            80,
+            L("Put bridges over sparse infill"),
+            {},
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     } else {
         int32_t advancement_count = m_print->secondary_status_counter_increment(15);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format the status string with boost::format
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0)
+            ? advancement_count * 100 / max_count
+            : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
 
 #ifdef _DEBUG
@@ -774,13 +815,32 @@ void PrintObject::prepare_infill()
 
     // combine fill surfaces to honor the "infill every N layers" option
     if (m_print->objects().size() == 1) {
-        m_print->set_status( 95, L("Combine infill"), {}, PrintBase::SlicingStatus::SECONDARY_STATE);
+        m_print->set_status(
+            95,
+            L("Combine infill"),
+            {},
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     } else {
         int32_t advancement_count = m_print->secondary_status_counter_increment(5);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format the progress message
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0)
+            ? advancement_count * 100 / max_count
+            : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
     this->combine_infill();
     m_print->throw_if_canceled();
@@ -806,10 +866,24 @@ void PrintObject::prepare_infill()
     
     if (m_print->objects().size() > 1) {
         int32_t advancement_count = m_print->secondary_status_counter_increment(0);
-        m_print->set_status(advancement_count * 100 / m_print->secondary_status_counter_get_max(), L("Process objects: %s / %s"),
-                            {std::to_string(advancement_count),
-                             std::to_string(m_print->secondary_status_counter_get_max())},
-                            PrintBase::SlicingStatus::SECONDARY_STATE);
+        int32_t max_count         = m_print->secondary_status_counter_get_max();
+
+        // Format status message using boost::format
+        boost::format fmt(L("Process objects: %1% / %2%"));
+        std::string msg = (fmt
+            % advancement_count
+            % max_count
+        ).str();
+
+        int progress = (max_count > 0)
+            ? advancement_count * 100 / max_count
+            : 0;
+
+        m_print->set_status(
+            progress,
+            msg,
+            PrintBase::SlicingStatus::SECONDARY_STATE
+        );
     }
     this->set_done(posPrepareInfill);
 }
@@ -864,6 +938,25 @@ void PrintObject::infill()
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                     // updating progress
                     int32_t nb_layers_done = m_print->secondary_status_counter_increment();
+                    int32_t max_layers     = m_print->secondary_status_counter_get_max();
+
+                    // Format the message
+                    boost::format fmt(L("Infilling layer %1% / %2%"));
+                    std::string msg = (fmt
+                        % nb_layers_done
+                        % max_layers
+                    ).str();
+
+                    // Calculate progress percentage safely
+                    int progress = (max_layers > 0)
+                        ? 100 * nb_layers_done / max_layers
+                        : 0;
+
+                    m_print->set_status(
+                        progress,
+                        msg,
+                        PrintBase::SlicingStatus::SECONDARY_STATE
+                    );
 
 
                     std::chrono::time_point<std::chrono::system_clock> start_make_fill = std::chrono::system_clock::now();
@@ -915,6 +1008,19 @@ void PrintObject::generate_support_spots()
         m_print->set_status(objectstep_2_percent[PrintObjectStep::posSupportSpotsSearch], L("Searching support spots"));
         if (m_print->objects().size() > 1) {
             m_print->secondary_status_counter_add_max(1);
+
+            // Format the status message with boost::format
+            boost::format fmt(L("Object %1% / %2%"));
+            std::string msg = (fmt
+                % 1                                // Start at object 1 (human-readable)
+                % m_print->objects().size()        // Total number of objects
+            ).str();
+
+            m_print->set_status(
+                0,                                 // Initial progress
+                msg,
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         } else {
             m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
@@ -938,6 +1044,26 @@ void PrintObject::generate_support_spots()
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            int32_t max_objects = m_print->secondary_status_counter_get_max();
+
+            // Format status message using boost::format
+            boost::format fmt(L("Object %1% / %2%"));
+            std::string msg = (fmt
+                % (nb_objects_done + 1)  // Human-readable index (starts from 1)
+                % max_objects
+            ).str();
+
+            // Calculate progress percentage safely
+            int progress = (max_objects > 0)
+                ? 100 * (nb_objects_done + 1) / max_objects
+                : 0;
+
+            // Set the status
+            m_print->set_status(
+                progress,
+                msg,
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         }
 
         BOOST_LOG_TRIVIAL(debug) << "Searching support spots - end";
@@ -951,9 +1077,29 @@ void PrintObject::generate_support_material()
         m_print->set_status(objectstep_2_percent[PrintObjectStep::posSupportMaterial], L("Generating support material"));
         if (m_print->objects().size() > 1) {
             m_print->secondary_status_counter_add_max(1);
+
+            // Format the status message with boost::format
+            boost::format fmt(L("Object %1% / %2%"));
+            std::string msg = (fmt
+                % 1                                 // Start from object 1 (human-readable)
+                % m_print->objects().size()         // Total object count
+            ).str();
+
+            // Set initial progress to 0% with formatted status message
+            m_print->set_status(
+                0,
+                msg,
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         } else {
-            m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
+            // No status message for single-object prints
+            m_print->set_status(
+                0,
+                "",
+                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         }
+        
         this->clear_support_layers();
         if ((this->has_support() && m_layers.size() > 1) || (this->has_raft() && ! m_layers.empty())) {
             this->_generate_support_material();
@@ -972,6 +1118,26 @@ void PrintObject::generate_support_material()
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            int32_t max_objects     = m_print->secondary_status_counter_get_max();
+
+            // Format status message using boost::format
+            boost::format fmt(L("Object %1% / %2%"));
+            std::string msg = (fmt
+                % (nb_objects_done + 1)   // Displayed index (1-based)
+                % max_objects             // Total number of objects
+            ).str();
+
+            // Calculate progress as percentage
+            int progress = (max_objects > 0)
+                ? 100 * (nb_objects_done + 1) / max_objects
+                : 0;
+
+            // Set the status
+            m_print->set_status(
+                progress,
+                msg,
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         }
     }
 }
@@ -992,9 +1158,9 @@ void PrintObject::simplify_extrusion_path()
                 
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment() + 1;
+                 boost::format fmt(L("Optimizing layer %1% / %2%"));
                 m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
-                                L("Optimizing layer %s / %s"),
-                                {std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max())},
+                                   (fmt % nb_layers_done % m_print->secondary_status_counter_get_max()).str(),
                                 PrintBase::SlicingStatus::SECONDARY_STATE);
             }
         );
@@ -1033,9 +1199,22 @@ void PrintObject::simplify_extrusion_path()
 
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment() + 1;
-                m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
-                                L("Optimizing layer %s / %s"),
-                                {std::to_string(nb_layers_done), std::to_string(m_print->secondary_status_counter_get_max())},
+                boost::format fmt(L("Optimizing layer %1% / %2%"));
+                std::string msg = (fmt
+                    % nb_layers_done                             // %1%  → current layer (1-based)
+                    % m_print->secondary_status_counter_get_max()// %2%  → total layers
+                ).str();
+
+                // Calculate progress percentage, guarding against divide-by-zero
+                int32_t max_layers = m_print->secondary_status_counter_get_max();
+                int progress = (max_layers > 0)
+                            ? int(nb_layers_done * 100 / max_layers)
+                            : 0;
+
+                // Report to the GUI
+                m_print->set_status(
+                    progress,
+                    msg,
                                 PrintBase::SlicingStatus::SECONDARY_STATE);
             }
         );
@@ -1050,9 +1229,27 @@ void PrintObject::estimate_curled_extrusions()
     if (this->set_started(posEstimateCurledExtrusions)) {
         m_print->set_status(objectstep_2_percent[PrintObjectStep::posEstimateCurledExtrusions], L("Estimate curled extrusions"));
         if (m_print->objects().size() > 1) {
+            // Tell the progress tracker that one object step is expected
             m_print->secondary_status_counter_add_max(1);
+
+            // Build the status text with boost::format
+            boost::format fmt(L("Object %1% / %2%"));
+            std::string msg = (fmt
+                % 1                                      // starting index (humans count from 1)
+                % m_print->objects().size()              // total number of objects
+            ).str();
+
+            // Report: progress = 0 %, message = “Object 1 / N”
+            m_print->set_status(
+                0,                                       // progress percentage
+                msg,                                     // formatted message
+                PrintBase::SlicingStatus::SECONDARY_STATE);
         } else {
-            m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
+            // Single-object jobs don’t need a secondary counter
+            m_print->set_status(
+                0,
+                "",
+                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
         if (this->print()->config().avoid_crossing_curled_overhangs ||
             std::any_of(this->print()->m_print_regions.begin(), this->print()->m_print_regions.end(),
@@ -1077,6 +1274,26 @@ void PrintObject::estimate_curled_extrusions()
         // updating progress
         if (m_print->objects().size() > 1) {
             int32_t nb_objects_done = m_print->secondary_status_counter_increment();
+            int32_t max_objects     = m_print->secondary_status_counter_get_max();
+
+            // Format status message
+            boost::format fmt(L("Object %1% / %2%"));
+            std::string msg = (fmt
+                % (nb_objects_done + 1)   // human-readable: starts from 1
+                % max_objects
+            ).str();
+
+            // Calculate progress percentage safely
+            int progress = (max_objects > 0)
+                ? 100 * (nb_objects_done + 1) / max_objects
+                : 0;
+
+            // Set status
+            m_print->set_status(
+                progress,
+                msg,
+                PrintBase::SlicingStatus::SECONDARY_STATE
+            );
         }
     }
 }
@@ -2442,7 +2659,7 @@ void PrintObject::apply_solid_infill_below_layer_area()
     }
 }
 
-void PrintObject::process_external_surfaces(bool old)
+void PrintObject::process_external_surfaces()
 {
     BOOST_LOG_TRIVIAL(info) << "Processing external surfaces..." << log_memory_info();
 
@@ -2525,23 +2742,15 @@ void PrintObject::process_external_surfaces(bool old)
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
         BOOST_LOG_TRIVIAL(debug) << "Processing external surfaces for region " << region_id << " in parallel - start";
         Slic3r::parallel_for(size_t(0), m_layers.size(),
-            [this, &surfaces_covered, region_id, old](const size_t layer_idx) {
+            [this, &surfaces_covered, region_id](const size_t layer_idx) {
                 PRINT_OBJECT_TIME_LIMIT_MILLIS(PRINT_OBJECT_TIME_LIMIT_DEFAULT);
                 m_print->throw_if_canceled();
                 // BOOST_LOG_TRIVIAL(trace) << "Processing external surface, layer" << m_layers[layer_idx]->print_z;
-                if (old) {
-                    m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces_old(
-                        // lower layer
-                        (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
-                        // lower layer polygons with density > 0%
-                        (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
-                } else {
                     m_layers[layer_idx]->get_region(int(region_id))->process_external_surfaces(
                         // lower layer
                         (layer_idx == 0) ? nullptr : m_layers[layer_idx - 1],
                         // lower layer polygons with density > 0%
                         (layer_idx == 0 || surfaces_covered.empty() || surfaces_covered[layer_idx - 1].empty()) ? nullptr : &surfaces_covered[layer_idx - 1]);
-                }
             }
         );
         m_print->throw_if_canceled();
@@ -2599,7 +2808,6 @@ void PrintObject::discover_vertical_shells()
         for (size_t region_id = 0; region_id < this->num_printing_regions(); ++region_id) {
             const PrintRegionConfig &config = this->printing_region(region_id).config();
             if (config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Enabled ||
-                config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Enabled_old ||
                 config.ensure_vertical_shell_thickness.value == EnsureVerticalShellThickness::Partial) {
                 has_extra_layers = true;
                 break;
@@ -2703,7 +2911,6 @@ void PrintObject::discover_vertical_shells()
         const PrintRegion &region = this->printing_region(region_id);
 
         if (region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Enabled &&
-            region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Enabled_old &&
             region.config().ensure_vertical_shell_thickness.value != EnsureVerticalShellThickness::Partial) {
             // This region will be handled by discover_horizontal_shells().
             continue;
@@ -4212,33 +4419,49 @@ static constexpr const std::initializer_list<const std::string_view> keys_extrud
 
 static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPrintConfig &in)
 {
-    // 1) Copy the "extruder key to infill_extruder and perimeter_extruder.
     auto *opt_extruder = in.opt<ConfigOptionInt>(key_extruder);
-    if (opt_extruder)
-        if (int extruder = opt_extruder->value; extruder != 0) {
-            // Not a default extruder.
-            out.infill_extruder      .value = extruder;
-            out.solid_infill_extruder.value = extruder;
-            out.perimeter_extruder   .value = extruder;
+
+    for (const auto &key : keys_extruders) {
+        std::optional<int> role_value;
+
+        // Check if the role is explicitly set
+        if (auto opt_role = in.opt<ConfigOptionInt>(std::string(key)); opt_role) {
+            role_value = opt_role->value; // Use explicitly set value, even if 1
         }
-    // 2) Copy the rest of the values.
+        // If not explicitly set, fall back to extruder if it's non-zero
+        else if (opt_extruder && (opt_extruder->value != 0 && opt_extruder->value != 1)) {
+            role_value = opt_extruder->value;
+        }
+
+        // If we have a value to assign, apply it
+        if (role_value) {
+            int key_id = -1;
+            if (key == "infill_extruder")         key_id = 0;
+            else if (key == "solid_infill_extruder") key_id = 1;
+            else if (key == "perimeter_extruder")    key_id = 2;
+
+            switch (key_id) {
+                case 0: out.infill_extruder.value       = *role_value; break;
+                case 1: out.solid_infill_extruder.value = *role_value; break;
+                case 2: out.perimeter_extruder.value    = *role_value; break;
+                default: assert(false); break;
+            }
+        }
+    }
+
     for (auto it = in.cbegin(); it != in.cend(); ++ it)
         if (it->first != key_extruder)
             if (ConfigOption* my_opt = out.option(it->first, false); my_opt != nullptr) {
-                if (one_of(it->first, keys_extruders)) {
-                    assert(dynamic_cast<ConfigOptionInt*>(my_opt));
-                    // Ignore "default" extruders.
-                    int extruder = static_cast<const ConfigOptionInt*>(it->second.get())->value;
-                    if (extruder > 0)
-                        static_cast<ConfigOptionInt *>(my_opt)->value = (extruder);
-                } else
                     my_opt->set(*it->second);
             }
+
 }
 
 PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &default_or_parent_region_config, const DynamicPrintConfig *layer_range_config, const ModelVolume &volume, size_t num_extruders)
 {
     PrintRegionConfig config = default_or_parent_region_config;
+
+    // apply by increasing priority
     if (volume.is_model_part()) {
         // default_or_parent_region_config contains the Print's PrintRegionConfig.
         // Override with ModelObject's PrintRegionConfig values.
@@ -4268,6 +4491,7 @@ PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &defau
         config.fuzzy_skin.value = FuzzySkinType::None;
     return config;
 }
+
 
 void PrintObject::update_slicing_parameters()
 {

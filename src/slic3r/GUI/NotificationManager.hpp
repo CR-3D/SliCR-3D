@@ -659,7 +659,7 @@ private:
 		bool				m_complete_on_100 { true };
 	};
 
-	class SlicingProgressNotification : public ProgressBarNotification
+class SlicingProgressNotification : public ProgressBarNotification
 	{
 	public:
 		// Inner state of notification, Each state changes bahaviour of the notification

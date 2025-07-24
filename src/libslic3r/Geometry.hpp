@@ -402,6 +402,20 @@ Transform3d scale_transform(const Vec3d& scale);
 
 // Returns the euler angles extracted from the given rotation matrix
 // Warning -> The matrix should not contain any scale or shear !!!
+Vec3d extract_euler_angles(const Eigen::Matrix<double, 3, 3, Eigen::DontAlign>& rotation_matrix);
+
+// Returns the euler angles extracted from the given affine transform
+// Warning -> The transform should not contain any shear !!!
+Vec3d extract_euler_angles(const Transform3d& transform);
+
+// get rotation from two vectors.
+// Default output is axis-angle. If rotation_matrix pointer is provided, also output rotation matrix
+// Euler angles can be obtained by extract_euler_angles()
+void rotation_from_two_vectors(Vec3d from, Vec3d to, Vec3d &rotation_axis, double &phi, Matrix3d *rotation_matrix = nullptr);
+
+
+// Returns the euler angles extracted from the given rotation matrix
+// Warning -> The matrix should not contain any scale or shear !!!
 Vec3d extract_rotation(const Eigen::Matrix<double, 3, 3, Eigen::DontAlign>& rotation_matrix);
 
 // Returns the euler angles extracted from the given affine transform

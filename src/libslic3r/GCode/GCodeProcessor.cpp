@@ -636,6 +636,8 @@ void GCodeProcessor::apply_config(const PrintConfig& config)
             // This means the value should be ignored and first layer temp should be used.
             m_extruder_temps_config[i] = m_extruder_temps_first_layer_config[i];
         }
+        m_extruder_temps[i] = m_extruder_temps_config[i];
+
         m_result.filament_diameters[i]  = static_cast<float>(config.filament_diameter.get_at(i));
         m_result.filament_densities[i]  = static_cast<float>(config.filament_density.get_at(i));
         m_result.filament_cost[i]       = static_cast<float>(config.filament_cost.get_at(i));

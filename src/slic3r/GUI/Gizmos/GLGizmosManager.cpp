@@ -186,27 +186,20 @@ void GLGizmosManager::reset_all_states()
     m_hover = Undefined;
 }
 
-bool GLGizmosManager::open_gizmo(EType type)
-{
+bool GLGizmosManager::open_gizmo(EType type) {
     int idx = static_cast<int>(type);
-    if (m_current == type) type = Undefined;
-    const Selection& selection = m_parent.get_selection();
 
-   if (selection.is_single_text() && activate_gizmo(type)) {
-      update_data();
-      return true;
-   }
-      
-    if ((m_gizmos[idx]->is_actionable() || m_gizmos[idx]->is_activable()) && activate_gizmo(type)) {
-      if (!selection.is_text())
-        m_gizmos[idx]->trigger_action();
+    // re-open same type cause closing
+    if (m_current == type)
+        type = Undefined;
+
+    if (m_gizmos[idx]->is_activable() && activate_gizmo(type)) {
         // remove update data into gizmo itself
         update_data();
         return true;
     }
     return false;
 }
-
 
 bool GLGizmosManager::check_gizmos_closed_except(EType type) const
 {

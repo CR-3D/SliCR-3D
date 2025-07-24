@@ -993,6 +993,7 @@ std::string CoolingBuffer::apply_layer_cooldown(
     default_fan_speed[ uint8_t(GCodeExtrusionRole::SolidInfill)] = FAN_CONFIG(solid_infill_fan_speed);
     default_fan_speed[ uint8_t(GCodeExtrusionRole::InternalInfill)] = FAN_CONFIG(infill_fan_speed);
     default_fan_speed[ uint8_t(GCodeExtrusionRole::OverhangPerimeter)] = FAN_CONFIG(overhangs_fan_speed);
+    default_fan_speed[ uint8_t(GCodeExtrusionRole::GapFill)] = FAN_CONFIG(gap_fill_fan_speed);
     if (m_config.overhangs_dynamic_fan_speed.is_enabled(m_current_extruder)) {
         //const GraphData graph = m_config.overhangs_dynamic_fan_speed.get_at(m_current_extruder);
         //default_fan_speed[ uint8_t(GCodeExtrusionRole::OverhangPerimeter)] = graph.data().front().y();

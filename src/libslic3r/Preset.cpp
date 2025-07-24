@@ -723,7 +723,7 @@ static std::vector<std::string> s_Preset_print_options {
         "first_layer_extrusion_spacing", 
         "first_layer_extrusion_width", 
         "first_layer_infill_extrusion_spacing", 
-        "first_layer_infill_extrusion_width", 
+        "first_layer_infill_extrusion_width",
         "perimeter_round_corners",
         "perimeter_extrusion_spacing",
         "perimeter_extrusion_width",
@@ -768,7 +768,7 @@ static std::vector<std::string> s_Preset_print_options {
         "hole_to_polyhole_twisted",
 //        "threads",
         // wipe tower
-        "wipe_tower", "wipe_tower_x", "wipe_tower_y", "wipe_tower_width", "wipe_tower_rotation_angle",
+        "wipe_tower", "wipe_tower_width", "wipe_tower_rotation_angle",
         "wipe_tower_bridging",
         "wipe_tower_brim_width",
         "priming_position",
@@ -852,6 +852,7 @@ static std::vector<std::string> s_Preset_filament_options {
         "filament_toolchange_part_fan_speed",
         "filament_dip_insertion_speed",
         "filament_dip_extraction_speed",  //skinnydip params end
+        "flexible_material",
         // Temperature
         "bed_temperature",
         "first_layer_bed_temperature",
@@ -870,6 +871,7 @@ static std::vector<std::string> s_Preset_filament_options {
         "overhangs_fan_speed",
         "overhangs_dynamic_fan_speed",
         "perimeter_fan_speed",
+        "gap_fill_fan_speed",
         "solid_infill_fan_speed",
         "support_material_fan_speed",
         "support_material_interface_fan_speed",
@@ -909,7 +911,6 @@ static std::vector<std::string> s_Preset_filament_options {
         "filament_wipe_advanced_pigment",
         "chamber_temperature",
         // SoftFever
-        "enable_pressure_advance",
         "filament_pressure_advance", "adaptive_pressure_advance", "adaptive_pressure_advance_model", "adaptive_pressure_advance_overhangs", "adaptive_pressure_advance_bridges",
 };
 
@@ -2045,6 +2046,7 @@ std::string Preset::type_name(Type t) {
     case Preset::TYPE_FFF_FILAMENT: return "filament";
     case Preset::TYPE_SLA_PRINT:    return "sla_print";
     case Preset::TYPE_SLA_MATERIAL: return "sla_material";
+    case Preset::TYPE_FREQUENT_FFF: return "freq_fff";
     case Preset::TYPE_PRINTER:      return "printer";
     default:                        return "invalid";
     }
@@ -2057,6 +2059,8 @@ Preset::Type Preset::type_from_name(std::string name) {
         return Preset::TYPE_FFF_FILAMENT;
     if ("sla_print" == name)
         return Preset::TYPE_SLA_PRINT;
+    if ("freq_fff" == name)
+        return Preset::TYPE_FREQUENT_FFF;
     if ("sla_material" == name)
         return Preset::TYPE_SLA_MATERIAL;
     if ("printer" == name)

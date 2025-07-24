@@ -731,13 +731,17 @@ public:
 
 class ExtrusionVolume : public ExtrusionVisitorRecursiveConst {
     bool _with_gap_fill = true;
+    double _flow_ratio = 1.;
 public:
     using ExtrusionVisitorRecursiveConst::use;
     double volume = 0; //unscaled
-    ExtrusionVolume(bool with_gap_fill = true) : _with_gap_fill(with_gap_fill) {}
+    ExtrusionVolume() {}
+    void set_use_gap_fill(bool with_gap_fill = true) { _with_gap_fill = (with_gap_fill); }
+    void set_flow_mult(double mult) { _flow_ratio = (mult); }
     void use(const ExtrusionPath &path) override {
         if(path.role() == ExtrusionRole::GapFill && !_with_gap_fill) return;
-        volume += unscaled(path.length()) * path.mm3_per_mm(); }
+        volume += unscaled(path.length()) * path.mm3_per_mm() * _flow_ratio;
+    }
     void use(const ExtrusionPath3D &path3D) override { volume += unscaled(path3D.length()) * path3D.mm3_per_mm(); }
     double get(const ExtrusionEntityCollection &coll);
 };
@@ -782,7 +786,7 @@ struct LoopAssertVisitor : public ExtrusionVisitorRecursiveConst {
         Point last_pt = loop.last_point();
         for (const ExtrusionPath &path : loop.paths) {
             release_assert(path.polyline.size() >= 2);
-            release_assert(!m_check_length || path.length() > SCALED_EPSILON);
+            release_assert(!m_check_length || path.length() >= SCALED_EPSILON);
             release_assert(path.first_point() == last_pt);
             if(m_check_length)
                 for (size_t idx = 1; idx < path.size(); ++idx)

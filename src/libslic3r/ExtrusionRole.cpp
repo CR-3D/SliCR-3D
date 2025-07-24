@@ -35,6 +35,7 @@ GCodeExtrusionRole extrusion_role_to_gcode_extrusion_role(ExtrusionRole role)
     if (role == ExtrusionRole::SupportMaterialInterface) return GCodeExtrusionRole::SupportMaterialInterface;
     if (role == ExtrusionRole::WipeTower)           return GCodeExtrusionRole::WipeTower;
     if (role == ExtrusionRole::Milling)             return GCodeExtrusionRole::Milling;
+    if (role == ExtrusionRole::Travel)             return GCodeExtrusionRole::Travel;
     assert(false);
     return GCodeExtrusionRole::None;
 }

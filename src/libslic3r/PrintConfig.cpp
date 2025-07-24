@@ -342,7 +342,6 @@ static const t_config_enum_values s_keys_map_EnsureVerticalShellThickness {
     { "disabled", int(EnsureVerticalShellThickness::Disabled) },
     { "partial",  int(EnsureVerticalShellThickness::Partial)  },
     { "enabled",  int(EnsureVerticalShellThickness::Enabled)  },
-    { "enabled_old",  int(EnsureVerticalShellThickness::Enabled_old)  },
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(EnsureVerticalShellThickness)
 
@@ -391,7 +390,7 @@ void PrintConfigDef::init_common_params() {
     // defautl to none : only set if loaded. only write our version
     def->set_default_value(new ConfigOptionStringVersion());
     def->cli = ConfigOptionDef::nocli;
-    def->can_phony = true;
+    def->can_phony = false; //it needs to be printed.
 
     def = this->add("printer_technology", coEnum);
     def->label = L("Printer technology");
@@ -739,6 +738,15 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionInts{0});
+
+    def = this->add("flexible_material", coBools);
+    def->label = L("Flexible Material");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("Enable this if the filament is flexible, such as TPU");
+    def->full_label = L("Bed temperature");
+    def->is_vector_extruder = true;
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBools{false});
 
     def = this->add("before_layer_gcode", coString);
     def->label = L("Before layer change G-code");
@@ -1563,13 +1571,12 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Add solid infill near sloping surfaces to guarantee the vertical shell thickness "
                    "(top+bottom solid layers).");
     def->set_enum<EnsureVerticalShellThickness>({
-        { "disabled", L("Disabled (2.5)") },
-        { "partial",  L("partial (2.9 experimental)")  },
-        { "enabled",  L("Enabled (2.7 experimental)")  },
-        { "enabled_old",  L("Enabled (2.5)")  },
+        { "disabled", L("Disabled") },
+        { "partial",  L("Partial")  },
+        { "enabled",  L("Enabled")  },
     });
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled_old));
+    def->set_default_value(new ConfigOptionEnum<EnsureVerticalShellThickness>(EnsureVerticalShellThickness::Enabled));
 
     def = this->add("external_infill_margin", coFloatOrPercent);
     def->label = L("Default");
@@ -1816,12 +1823,6 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;                        // 0 = inherit defaults
     def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open,
                          {L("default"), "1", "2", "3", "4", "5", "6", "7", "8", "9"}); // override label for item 0
-
-    def = this->add("enable_pressure_advance", coBools);
-    def->label = L("Enable pressure advance");
-    def->tooltip = L("Enable pressure advance, auto calibration result will be overwritten once enabled.");
-    def->mode = comAdvanced | comExpert;
-    def->set_default_value(new ConfigOptionBools {false, false});
     
    def = this->add("filament_pressure_advance", coGraphs);
     def->label = L("Filament Pressure Advance");
@@ -1834,7 +1835,7 @@ void PrintConfigDef::init_fff_params() {
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionGraphs(
-        {GraphData(0,4, GraphData::GraphType::LINEAR, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
+        {GraphData(0,4, GraphData::GraphType::SQUARE, {{0.3, 0.05},{0.4, 0.03},{0.6, 0.01},{0.8, 0.005}}
     )}));
     def->graph_settings = std::make_shared<GraphSettings>();
     def->graph_settings->title       = L("Pressure Advance from nozzle size");
@@ -1852,8 +1853,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 0.10;
     def->graph_settings->step_y = 0.0005;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
@@ -2710,6 +2710,8 @@ void PrintConfigDef::init_fff_params() {
                              {"20", "20%"},
                              {"25", "25%"},
                              {"30", "30%"},
+                             {"35", "35%"},
+                             {"40", "40%"},
                              {"45", "45%"},
                              {"50", "50%"},
                              {"55", "55%"},
@@ -3137,20 +3139,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
-    /*
-    def = this->add("gap_fill_extension", coFloatOrPercent);
-    def->label = L("Extension");
-    def->full_label = L("Gap fill: extra extension");
-    def->category = OptionCategory::perimeter;
-    def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
-                     "of the perimeter width");
-    def->ratio_over = "perimeter_width";
-    def->sidetext = L("mm/%");
-    def->min = 0;
-    def->max_literal = {50, true};
-    def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
-
     def = this->add("gap_fill_fan_speed", coInts);
     def->label = L("Gap fill fan speed");
     def->category = OptionCategory::cooling;
@@ -3166,6 +3154,20 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+
+    /*
+    def = this->add("gap_fill_extension", coFloatOrPercent);
+    def->label = L("Extension");
+    def->full_label = L("Gap fill: extra extension");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Increase the length of all gapfills by this amount (may overextrude a little bit)\nCan be a % "
+                     "of the perimeter width");
+    def->ratio_over = "perimeter_width";
+    def->sidetext = L("mm/%");
+    def->min = 0;
+    def->max_literal = {50, true};
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent{0, false});
 
     def = this->add("gap_fill_flow_match_perimeter", coPercent);
     def->label = L("Cap with perimeter flow");
@@ -4523,7 +4525,7 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,100},{25,80},{50,60},{75,40},{100,20}}
     )})));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4547,8 +4549,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = { GraphData::GraphType::SQUARE};
 
     def             = this->add("overhangs_dynamic_speed", coGraph);
     def->label      = L("Dynamic overhang speeds");
@@ -4561,7 +4562,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext   = L("mm/s");
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::LINEAR,
+    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,0},{25,10},{50,40},{75,70},{100,100}}
     ))));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4585,8 +4586,7 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->min_y = 0;
     def->graph_settings->max_y = 100;
     def->graph_settings->step_y = 1.;
-    def->graph_settings->allowed_types = {GraphData::GraphType::LINEAR, GraphData::GraphType::SQUARE,
-                                          GraphData::GraphType::SPLINE};
+    def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
     def = this->add("overhangs_fan_speed", coInts);
     def->label = L("Overhangs Perimeter fan speed");
@@ -4782,7 +4782,7 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Perimeter extruder");
     def->category = OptionCategory::extruders;
     def->tooltip = L("The extruder to use when printing perimeters and brim. First extruder is 1.");
-    def->aliases = {"perimeters_extruder"};
+    def->aliases = { "perimeters_extruder" };
     def->min = 1;
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionInt(1));
@@ -6376,7 +6376,7 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Support material extruder");
     def->category = OptionCategory::extruders;
     def->tooltip = L("The extruder to use when printing support material "
-                     "(1+, 0 to use the current extruder to minimize tool changes).");
+                   "(1+, 0 to use the current extruder to minimize tool changes).");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionInt(0));
@@ -6463,7 +6463,7 @@ void PrintConfigDef::init_fff_params() {
     def->label = L("Support material/raft interface extruder");
     def->category = OptionCategory::extruders;
     def->tooltip = L("The extruder to use when printing support material interface "
-                     "(1+, 0 to use the current extruder to minimize tool changes). This affects raft too.");
+        "(1+, 0 to use the current extruder to minimize tool changes). This affects raft too.");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionInt(0));
@@ -7392,21 +7392,6 @@ void PrintConfigDef::init_fff_params() {
                      "User is responsible for ensuring there is no collision with the print.");
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
-    def = this->add("wipe_tower_x", coFloat);
-    def->label = L("X");
-    def->full_label = L("Wipe tower X");
-    def->tooltip = L("X coordinate of the left front corner of a wipe tower");
-    def->sidetext = L("mm");
-    def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloat(180.));
-
-    def = this->add("wipe_tower_y", coFloat);
-    def->label = L("Y");
-    def->full_label = L("Wipe tower Y");
-    def->tooltip = L("Y coordinate of the left front corner of a wipe tower");
-    def->sidetext = L("mm");
-    def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloat(140.));
 
     def = this->add("wipe_tower_width", coFloat);
     def->label = L("Width");
@@ -7473,7 +7458,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("The extruder to use when printing perimeter of the wipe tower. "
                      "Set to 0 to use the one that is available (non-soluble would be preferred).");
     def->min = 0;
-    def->mode = comAdvancedE | comPrusa;
+    def->mode = comAdvancedE |comPrusa;
     def->set_default_value(new ConfigOptionInt(0));
 
     def = this->add("solid_infill_every_layers", coInt);
@@ -9110,7 +9095,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     }
     if (has(dict, "ensure_vertical_shell_thickness"s)) {
         if (value() == "1") {
-            value() = "enabled_old";
+            value() = "enabled";
         } else if (value() == "0") {
             value() = "disabled";
         } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) {
@@ -9310,7 +9295,7 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
     assert(!has(dict, "bridge_internal_fan_speed"s));
     for_ech_entry(dict, {
         "bridge_fan_speed"s, "default_fan_speed"s, "min_fan_speed"s/* this is default_fan_speed's alias*/, "external_perimeter_fan_speed"s, "infill_fan_speed"s, "internal_bridge_fan_speed"s, "overhangs_fan_speed"s,
-        "perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
+        "gap_fill_fan_speed"s,"perimeter_fan_speed"s, "solid_infill_fan_speed"s, "support_material_fan_speed"s, "support_material_interface_fan_speed"s, "top_fan_speed"s},
                   [](Key &opt_key, Val &value) {
             assert(print_config_def.get(opt_key) && print_config_def.get(opt_key)->type == coInts);
             // if vector, split it.
@@ -9528,7 +9513,7 @@ void PrintConfigDef::handle_legacy_composite(DynamicPrintConfig &config, std::ma
     if (old && config.has("overhangs_width") && config.get_float("overhangs_width") == 0 && config.is_enabled("overhangs_width")) {
         config.option("overhangs_width")->set_enabled(false);
     }
-    
+
     // enable_dynamic_overhang/fan_speeds
     std::map<t_config_option_key, std::string> useful_items;
     std::vector<t_config_option_key> to_erase;
@@ -10279,6 +10264,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "gcode_command_buffer",
 "gcode_min_length",
 "gcode_min_resolution",
+"gap_fill_fan_speed",
 "gap_fill_acceleration",
 "gcode_filename_illegal_char",
 "gcode_precision_e",
@@ -10351,6 +10337,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "perimeters_hole",
 "priming_position",
 "print_bed_temperature",
+"flexible_material",
 "print_extrusion_multiplier",
 "print_first_layer_bed_temperature",
 "print_first_layer_temperature",

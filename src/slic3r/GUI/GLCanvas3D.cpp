@@ -2975,7 +2975,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
         // Emplace instance ID of the volume. Both the aux volumes and model volumes share the same instance ID.
         // The wipe tower has its own wipe_tower_instance_id().
         if (m_selection.contains_volume(volume_id))
-            instance_ids_selected.push_back(volume->geometry_id.second);
+            instance_ids_selected.emplace_back(volume->geometry_id.second);
         if (mvs == nullptr || force_full_scene_refresh) {
             // This GLVolume will be released.
             if (volume->is_wipe_tower()) {
@@ -2986,8 +2986,9 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
             }
             if (!m_reload_delayed) {
                 deleted_volumes.emplace_back(volume.get(), volume_id);
-                //do not remove the idx, as you're iterating on it, and it can mess up map_glvolume_old_to_new
                 m_volumes.volumes[volume_id].reset(); // delete volume;
+
+               // delete volume;
             }
         }
         else {
@@ -3005,8 +3006,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 volume->is_modifier = !mvs->model_volume->is_model_part();
                 volume->shader_outside_printer_detection_enabled = mvs->model_volume->is_model_part();
                 volume->set_color(color_from_model_volume(*mvs->model_volume));
-                
-                // force update of render_color alpha channel
+                // force update of render_color alpha channel 
                 volume->set_render_color(volume->color.is_transparent());
 
                 // updates volumes transformations
@@ -3171,69 +3171,92 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
     if (printer_technology == ptFFF && m_config->has("nozzle_diameter")) {
         // Should the wipe tower be visualized ?
+        const Print* print = this->fff_print();
         unsigned int extruders_count = (unsigned int)m_config->option<ConfigOptionFloats>("nozzle_diameter")->size();
+      //  size_t 
+        const bool wt = m_config->option("wipe_tower")->get_bool();
+        const bool co = m_config->option("complete_objects")->get_bool() || m_config->option("parallel_objects_step")->get_float() > 0;
+        
+       bool should_load_wipe_tower = false;
 
-        const bool wt = dynamic_cast<const ConfigOptionBool*>(m_config->option("wipe_tower"))->value;
-        const bool co = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"))->value;
-            
-        const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-        const float bw = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_brim_width"))->value;
-        const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
-        if (extruders_count > 1 && wt && !co) {
-            // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
-            const float x = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_x"))->value;
-            const float y = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_y"))->value;
-            const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
-            const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
-            const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
-            
+       /// Better control to set the wipe tower or not
+       for (size_t region_id = 0; region_id < print->num_print_regions(); ++region_id){
+           const PrintRegion &region = print->get_print_region(region_id);
+           int infill_extruder = region.config().infill_extruder.value;
+           int solid_infill_extruder = region.config().solid_infill_extruder.value;
+           int perimeter_extruder = region.config().perimeter_extruder.value;
+           
+           for (const PrintObject *object : print->objects()) {
+              int support_material_extruder = object->config().support_material_extruder.value;
+              int support_material_interface_extruder = object->config().support_material_interface_extruder.value;
+              
+              should_load_wipe_tower = perimeter_extruder > 1
+                                    || solid_infill_extruder > 1
+                                    || infill_extruder > 1
+                                    || support_material_extruder > 1
+                                    || support_material_interface_extruder > 1;
+           }
+       }
+
+       if (extruders_count > 1 && wt && !co && should_load_wipe_tower) {
             for (size_t bed_idx = 0; bed_idx < s_multiple_beds.get_max_beds(); ++bed_idx) {
-                const Print *print = wxGetApp().plater()->get_fff_prints()[bed_idx].get();
-            //FIXME use real nozzle diameter, or the biggest
-            const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
-            const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
-            const float depth = wipe_tower_data.depth;
-            const float bw = wipe_tower_data.brim_width;
-            const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
-            const float height_real = wipe_tower_data.height; // -1.f = unknown
-            
+                // can't get these one from wipe_tower_data, as these use the platter's config, not the print one.
+                const float x = m_model->get_wipe_tower_vector()[0].position.x();
+                const float y = m_model->get_wipe_tower_vector()[0].position.y();
+                const float w = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_width"))->value;
+                const float a = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_rotation_angle"))->value;
+                const float ca = dynamic_cast<const ConfigOptionFloat*>(m_config->option("wipe_tower_cone_angle"))->value;
 
+                //FIXME use real nozzle diameter, or the biggest
+                const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0);
+                const WipeTowerData& wipe_tower_data = print->wipe_tower_data(m_config, first_nozzle_diameter);
+                const float depth = wipe_tower_data.depth;
+                const float bw = wipe_tower_data.brim_width;
+                const std::vector<std::pair<float, float>> z_and_depth_pairs = wipe_tower_data.z_and_depth_pairs;
+                const float height_real = wipe_tower_data.height; // -1.f = unknown
+                
+
+                // Height of a print (Show at least a slab).
                 const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
-                const bool is_wipe_tower_step_done = print->is_step_done(psWipeTower);
 
-            if (depth != 0.) {
-#if SLIC3R_OPENGL_ES
-                    if (bed_idx >= m_wipe_tower_meshes.size())
-                        m_wipe_tower_meshes.resize(bed_idx + 1);
-                    GLVolume* volume = m_volumes.load_wipe_tower_preview(
-                        x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !is_wipe_tower_step_done,
-                        bw, bed_idx, &m_wipe_tower_meshes[bed_idx]);
-#else
-                    GLVolume* volume = m_volumes.load_wipe_tower_preview(
-                        x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !is_wipe_tower_step_done,
-                        bw, bed_idx);
-#endif // SLIC3R_OPENGL_ES
-                    const BoundingBoxf3& bb = volume->bounding_box();
+                if (depth != 0.) {
+        #if ENABLE_OPENGL_ES
+                    int volume_idx_wipe_tower_new = m_volumes.load_wipe_tower_preview(
+                        x, y, w, depth, z_and_depth_pairs, (float)height, ca, a, !print->is_step_done(psWipeTower),
+                        bw, &m_wipe_tower_mesh);
+        #else
+
+                    GLVolume *volume =
+                        m_volumes.load_wipe_tower_preview(x, 
+                                                          y, 
+                                                          w, 
+                                                          depth, 
+                                                          z_and_depth_pairs,
+                                                          (float) height, 
+                                                          ca, 
+                                                          a,
+                                                          !print->is_step_done(psWipeTower),
+                                                          bw, 
+                                                          bed_idx);
+        #endif // ENABLE_OPENGL_ES
+                    const BoundingBoxf3 &bb = volume->bounding_box();
                     m_wipe_tower_bounding_boxes[bed_idx] = BoundingBoxf{to_2d(bb.min), to_2d(bb.max)};
-                    if(static_cast<int>(bed_idx) < s_multiple_beds.get_number_of_beds()) {
+                    if (static_cast<int>(bed_idx) < s_multiple_beds.get_number_of_beds()) {
                         m_volumes.volumes.emplace_back(volume);
                         const auto volume_idx_wipe_tower_new{static_cast<int>(m_volumes.volumes.size() - 1)};
                         auto it = volume_idxs_wipe_towers_old.find(m_volumes.volumes.back()->geometry_id.second);
                         if (it != volume_idxs_wipe_towers_old.end())
                             map_glvolume_old_to_new[it->second] = volume_idx_wipe_tower_new;
-                        m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() + s_multiple_beds.get_bed_translation(bed_idx));
+                        m_volumes.volumes.back()->set_volume_offset(m_volumes.volumes.back()->get_volume_offset() +
+                                                                    s_multiple_beds.get_bed_translation(bed_idx));
                     } else {
                         delete volume;
                     }
                 }
+               s_multiple_beds.ensure_wipe_towers_on_beds(wxGetApp().plater()->model(), wxGetApp().plater()->get_fff_prints());
             }
-            s_multiple_beds.ensure_wipe_towers_on_beds(wxGetApp().plater()->model(), wxGetApp().plater()->get_fff_prints());
-        } else {
-            m_wipe_tower_bounding_boxes.fill(std::nullopt);
         }
-    } else {
-        m_wipe_tower_bounding_boxes.fill(std::nullopt);
     }
 
     update_volumes_colors_by_extruder();
@@ -3273,7 +3296,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     // checks for geometry outside the print volume to render it accordingly
     if (!m_volumes.empty()) {
         ModelInstanceEPrintVolumeState state;
-        check_volumes_outside_state(m_volumes, &state, !force_full_scene_refresh);
+        const bool contained_min_one = check_volumes_outside_state(m_volumes, &state, !force_full_scene_refresh);
         const bool partlyOut = (state == ModelInstanceEPrintVolumeState::ModelInstancePVS_Partly_Outside);
         const bool fullyOut = (state == ModelInstanceEPrintVolumeState::ModelInstancePVS_Fully_Outside);
 
@@ -3296,11 +3319,15 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                 _set_warning_notification(EWarning::SlaSupportsOutside, false);
             }
         }
+
+        post_event(Event<bool>(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, 
+                               contained_min_one && !m_model->objects.empty() && !partlyOut));
     }
     else {
         _set_warning_notification(EWarning::ObjectOutside, false);
         _set_warning_notification(EWarning::ObjectClashed, false);
         _set_warning_notification(EWarning::SlaSupportsOutside, false);
+        post_event(Event<bool>(EVT_GLCANVAS_ENABLE_ACTION_BUTTONS, false));
     }
 
     refresh_camera_scene_box();
@@ -3362,6 +3389,10 @@ void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result
     if (last_showned_gcode != gcode_result.computed_timestamp) {
         last_showned_gcode = gcode_result.computed_timestamp;
         m_gcode_viewer.load(gcode_result, *this->fff_print());
+        m_gcode_viewer.set_force_shells_visible(false);
+        m_gcode_viewer.set_view_type(m_gcode_viewer.get_view_type());
+
+        
     }
 
     if (wxGetApp().is_editor()) {
@@ -5601,6 +5632,91 @@ bool GLCanvas3D::_render_arrange_menu(float pos_x, bool current_bed)
     return true;
 }
 
+//BBS: GUI refactor: adjust main toolbar position
+bool GLCanvas3D::_render_orient_menu(float left, float right, float bottom, float top, bool current_bed)
+{
+    ImGuiWrapper* imgui = wxGetApp().imgui();
+
+    auto canvas_w = float(get_canvas_size().get_width());
+    auto canvas_h = float(get_canvas_size().get_height());
+    //BBS: GUI refactor: move main toolbar to the right
+    //original use center as {0.0}, and top is (canvas_h/2), bottom is (-canvas_h/2), also plus inv_camera
+    //now change to left_up as {0,0}, and top is 0, bottom is canvas_h
+#if BBS_TOOLBAR_ON_TOP
+    const float x = (1 + left) * canvas_w / 2;
+    ImGuiWrapper::push_toolbar_style(get_scale());
+    imgui->set_next_window_pos(x, m_main_toolbar.get_height(), ImGuiCond_Always, 0.5f, 0.0f);
+#else
+    const float x = canvas_w - m_main_toolbar.get_width();
+    const float y = 0.5f * canvas_h - top * float(wxGetApp().plater()->get_camera().get_zoom());
+    imgui->set_next_window_pos(x, y, ImGuiCond_Always, 1.0f, 0.0f);
+#endif
+
+    //imgui->begin(_L("Auto Orientation options"), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+
+    OrientSettings settings = get_orient_settings();
+    OrientSettings& settings_out = get_orient_settings();
+
+    auto& appcfg = wxGetApp().app_config;
+    PrinterTechnology ptech = current_printer_technology();
+
+    bool settings_changed = false;
+    float angle_min = 45.f;
+    std::string angle_key = "overhang_angle", rot_key = "enable_rotation";
+    std::string key_min_area = "min_area";
+    std::string postfix = "_fff";
+
+    if (ptech == ptSLA) {
+        angle_min = 45.f;
+        postfix = "_sla";
+    }
+
+
+    angle_key += postfix;
+    rot_key += postfix;
+
+    //if (imgui->slider_float(_L("Overhang Angle"), &settings.overhang_angle, angle_min, 90.0f, "%5.2f") || angle_min > settings.overhang_angle) {
+    //    settings.overhang_angle = std::max(angle_min, settings.overhang_angle);
+    //    settings_out.overhang_angle = settings.overhang_angle;
+    //    appcfg->set("orient", angle_key, std::to_string(settings_out.overhang_angle));
+    //    settings_changed = true;
+    //}
+
+    if (imgui->checkbox(_L("Enable rotation"), settings.enable_rotation)) {
+        settings_out.enable_rotation = settings.enable_rotation;
+        appcfg->set("orient", rot_key, settings_out.enable_rotation ? "1" : "0");
+        settings_changed = true;
+    }
+
+    if (imgui->checkbox(_L("Optimize support interface area"), settings.min_area)) {
+        settings_out.min_area = settings.min_area;
+        appcfg->set("orient", key_min_area, settings_out.min_area ? "1" : "0");
+        settings_changed = true;
+    }
+
+    ImGui::Separator();
+
+    if (imgui->button(_L("Orient"))) {
+        //wxGetApp().plater()->set_prepare_state(Job::PREPARE_STATE_DEFAULT);
+        wxGetApp().plater()->orient();
+    }
+
+    ImGui::SameLine();
+
+    if (imgui->button(_L("Reset"))) {
+        settings_out = OrientSettings{};
+        settings_out.overhang_angle = 60.f;
+        appcfg->set("orient", angle_key, std::to_string(settings_out.overhang_angle));
+        appcfg->set("orient", rot_key, settings_out.enable_rotation ? "1" : "0");
+        appcfg->set("orient", key_min_area, settings_out.min_area? "1" : "0");
+        settings_changed = true;
+    }
+
+    imgui->end();
+    //ImGuiWrapper::pop_toolbar_style();
+    return settings_changed;
+}
+
 #define ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT 0
 #if ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT
 static void debug_output_thumbnail(const ThumbnailData& thumbnail_data)
@@ -5623,6 +5739,9 @@ static void debug_output_thumbnail(const ThumbnailData& thumbnail_data)
     image.SaveFile("C:/prusa/test/test.png", wxBITMAP_TYPE_PNG);
 }
 #endif // ENABLE_THUMBNAIL_GENERATOR_DEBUG_OUTPUT
+
+
+
 
 void GLCanvas3D::_render_thumbnail_internal(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, const GLVolumeCollection& volumes, Camera::EType camera_type)
 {
@@ -6186,10 +6305,29 @@ bool GLCanvas3D::_init_main_toolbar()
     if (!m_main_toolbar.add_item(item))
         return false;
 
+    item.name = "orient";
+    item.icon_filename = "toolbar_orient.svg";
+    item.tooltip = _u8L("Auto orient");
+    item.sprite_id = 3;
+    item.left.render_callback = nullptr;
+    item.enabling_callback = []()->bool { return wxGetApp().plater()->can_arrange(); };
+    item.left.toggable = false;  // allow right mouse click
+    //BBS: GUI refactor: adjust the main toolbar position
+    item.left.action_callback = [this]() {
+        if (m_canvas != nullptr)
+        {
+            wxGetApp().plater()->orient();
+            //BBS do not show orient menu
+           // _render_orient_menu(left, right, bottom, top, false);
+        }
+    };
+    if (!m_main_toolbar.add_item(item))
+        return false;
+
     item.name = "arrange";
     item.icon_filename = "arrange.svg";
     item.tooltip = _u8L("Arrange") + " [A]\n" + _u8L("Arrange selection") + " [Shift+A]\n" + _u8L("Click right mouse button to show arrangement options");
-    item.sprite_id = 3;
+    item.sprite_id = 4;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_ARRANGE)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_arrange(); };
     item.right.toggable = true;
@@ -6205,7 +6343,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.tooltip =
         _u8L("Arrange current bed") + " [D]\n"
         + _u8L("Arrange selection on current bed") + " [Shift+D]\n";
-    item.sprite_id = 4;
+    item.sprite_id = 5;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_ARRANGE_CURRENT_BED)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_arrange(); };
     item.right.toggable = true;
@@ -6226,7 +6364,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "copy";
     item.icon_filename = "copy.svg";
     item.tooltip = _u8L("Copy") + " [" + GUI::shortkey_ctrl_prefix() + "C]";
-    item.sprite_id = 5;
+    item.sprite_id = 6;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_COPY)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_copy_to_clipboard(); };
     if (!m_main_toolbar.add_item(item))
@@ -6235,7 +6373,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "paste";
     item.icon_filename = "paste.svg";
     item.tooltip = _u8L("Paste") + " [" + GUI::shortkey_ctrl_prefix() + "V]";
-    item.sprite_id = 6;
+    item.sprite_id = 7;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_PASTE)); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_paste_from_clipboard(); };
     if (!m_main_toolbar.add_item(item))
@@ -6247,7 +6385,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "more";
     item.icon_filename = "instance_add.svg";
     item.tooltip = _u8L("Add instance") + " [+]";
-    item.sprite_id = 7;
+    item.sprite_id = 8;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_MORE)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_increase_instances(); };
@@ -6258,7 +6396,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "fewer";
     item.icon_filename = "instance_remove.svg";
     item.tooltip = _u8L("Remove instance") + " [-]";
-    item.sprite_id = 8;
+    item.sprite_id = 9;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_FEWER)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_decrease_instances(); };
@@ -6271,7 +6409,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "splitobjects";
     item.icon_filename = "split_objects.svg";
     item.tooltip = _u8L("Split to objects");
-    item.sprite_id = 9;
+    item.sprite_id = 10;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_SPLIT_OBJECTS)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_split_to_objects(); };
@@ -6281,7 +6419,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "splitvolumes";
     item.icon_filename = "split_parts.svg";
     item.tooltip = _u8L("Split to parts");
-    item.sprite_id = 10;
+    item.sprite_id = 11;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_SPLIT_VOLUMES)); };
     item.visibility_callback = []()->bool { return wxGetApp().get_mode() != comSimple || get_app_config()->get_bool("objects_always_expert"); };
     item.enabling_callback = []()->bool { return wxGetApp().plater()->can_split_to_volumes(); };
@@ -6296,7 +6434,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.tooltip = _u8L("Switch to Settings") + "\n" + "[" + GUI::shortkey_ctrl_prefix() + "4] - " + _u8L("Print Settings Tab")    + 
                                                 "\n" + "[" + GUI::shortkey_ctrl_prefix() + "5] - " + (current_printer_technology() == ptFFF ? _u8L("Filament Settings Tab") : _u8L("Material Settings Tab") +
                                                 "\n" + "[" + GUI::shortkey_ctrl_prefix() + "6] - " + _u8L("Printer Settings Tab")) ;
-    item.sprite_id = 11;
+    item.sprite_id = 12;
     item.enabling_callback    = GLToolbarItem::Default_Enabling_Callback;
     item.visibility_callback  = []() { return get_app_config()->get_bool("new_settings_layout_mode") ||
                                                    get_app_config()->get_bool("dlg_settings_layout_mode"); };
@@ -6312,7 +6450,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "search";
     item.icon_filename = "search_.svg";
     item.tooltip = _u8L("Search") + " [" + GUI::shortkey_ctrl_prefix() + "F]";
-    item.sprite_id = 12;
+    item.sprite_id = 13;
     item.left.toggable = true;
     item.left.render_callback = [this](float left, float right, float, float) {
         if (m_canvas != nullptr) {
@@ -6334,7 +6472,7 @@ bool GLCanvas3D::_init_main_toolbar()
     item.name = "layersediting";
     item.icon_filename = "layers_white.svg";
     item.tooltip = _u8L("Variable layer height");
-    item.sprite_id = 13;
+    item.sprite_id = 14;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_LAYERSEDITING)); };
     item.visibility_callback = [this]()->bool {
         bool res = current_printer_technology() == ptFFF;
@@ -8682,7 +8820,9 @@ void GLCanvas3D::_load_wipe_tower_toolpaths(const BuildVolume& build_volume, con
         ctxt.final.emplace_back(*print->wipe_tower_data().final_purge.get());
 
     ctxt.wipe_tower_angle = ctxt.print->config().wipe_tower_rotation_angle.value/180.f * PI;
-    ctxt.wipe_tower_pos = Vec2f(ctxt.print->config().wipe_tower_x.value, ctxt.print->config().wipe_tower_y.value);
+    //  m_model->get_wipe_tower_vector()[0].position.x();
+    ctxt.wipe_tower_pos = Vec2f(m_model->get_wipe_tower_vector()[0].position.x(),
+                                m_model->get_wipe_tower_vector()[0].position.y());
 
     ctxt.color_support = m_gcode_viewer.get_extrusion_colors()[uint8_t(GCodeExtrusionRole::WipeTower)];
 
@@ -9207,6 +9347,11 @@ void GLCanvas3D::WipeTowerInfo::apply_wipe_tower(Vec2d pos, double rot, int bed_
 {
     wxGetApp().plater()->model().wipe_tower(bed_index).position = pos;
     wxGetApp().plater()->model().wipe_tower(bed_index).rotation = (180. / M_PI) * rot;
+}
+
+void GLCanvas3D::WipeTowerInfo::apply_wipe_tower() const
+{
+    apply_wipe_tower(m_pos, m_rotation, m_bed_index);
 }
 
 void GLCanvas3D::RenderTimer::Notify()
