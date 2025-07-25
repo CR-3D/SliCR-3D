@@ -101,7 +101,7 @@ inline bool operator & (LoadStrategy & lhs, LoadStrategy rhs)
     extern bool is_project_3mf(const std::string& filename);
 
     // Load the content of a 3mf file into the given model and preset bundle.
-    extern bool load_3mf(const char* path, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, Model* model, bool check_version);
+    extern bool load_3mf(const char* path, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, Model* model, bool check_version, LoadStrategy strategy, Semver* file_version);
 
     struct OptionStore3mf {
         bool fullpath_sources = true;

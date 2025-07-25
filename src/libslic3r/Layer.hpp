@@ -405,14 +405,16 @@ public:
     // Test whether whether there are any slices assigned to this layer.
     bool                    empty() const;    
     void                    make_slices();
-    // After creating the slices on all layers, chain the islands overlapping in Z.
-    static void             build_up_down_graph(Layer &below, Layer &above);
-    // Backup and restore raw sliced regions if needed.
-    //FIXME Review whether not to simplify the code by keeping the raw_slices all the time.
+
+    // BBS: backup
     void                    backup_untyped_slices();
     void                    restore_untyped_slices();
     // To improve robustness of detect_surfaces_type() when reslicing (working with typed slices), see GH issue #7442.
     void                    restore_untyped_slices_no_extra_perimeters();
+
+    // After creating the slices on all layers, chain the islands overlapping in Z.
+    static void             build_up_down_graph(Layer &below, Layer &above);
+
     // Slices merged into islands, to be used by the elephant foot compensation to trim the individual surfaces with the shrunk merged slices.
     ExPolygons              merged(coordf_t offset_scaled = 0) const;
     void                    make_perimeters();

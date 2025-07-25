@@ -1734,6 +1734,9 @@ void ObjectList::load_generic_subobject(const std::string& type_name, const Mode
     }
     new_volume->set_offset(v->get_instance_transformation().get_matrix_no_offset().inverse() * offset);
 
+    // BBS: backup
+    Slic3r::save_object_mesh(model_object);
+
     std::string base_name = "Generic";
     if (new_volume->is_seam_position()) base_name = "Seam";
     if (new_volume->is_brim())          base_name = "Brim";
@@ -1838,6 +1841,9 @@ void ObjectList::load_mesh_object(const TriangleMesh &mesh, const std::string &n
     new_volume->config.set_key_value("extruder", new ConfigOptionInt(0));
     new_object->invalidate_bounding_box();
     
+    // BBS: backup
+    Slic3r::save_object_mesh(*new_object);
+
     auto bb = mesh.bounding_box();
     new_object->translate(-bb.center());
     new_object->instances[0]->set_offset(

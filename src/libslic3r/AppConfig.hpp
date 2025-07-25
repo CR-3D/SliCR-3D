@@ -199,6 +199,7 @@ public:
 	bool 				update_config_dir(const std::string &dir);
 	bool 				update_skein_dir(const std::string &dir);
 
+	// BBS: backup
 	std::string 		get_last_backup_dir() const;
 	void                update_last_backup_dir(const std::string &dir);
    

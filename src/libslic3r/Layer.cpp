@@ -91,6 +91,55 @@ void Layer::make_slices()
     assert(this->lslices().size() == this->lslice_indices_sorted_by_print_order.size());
 }
 
+static inline bool layer_needs_raw_backup(const Layer *layer)
+{
+    // BBS: backup raw slice for generating support
+    //return ! (layer->regions().size() == 1 && (layer->id() > 0 || layer->object()->config().elefant_foot_compensation.value == 0));
+    return true;
+}
+
+void Layer::backup_untyped_slices()
+{
+    if (layer_needs_raw_backup(this)) {
+        for (LayerRegion *layerm : m_regions)
+            layerm->raw_slices = to_expolygons(layerm->slices.surfaces);
+    } else {
+        assert(m_regions.size() == 1);
+        m_regions.front()->raw_slices.clear();
+    }
+}
+
+void Layer::restore_untyped_slices()
+{
+    if (layer_needs_raw_backup(this)) {
+        for (LayerRegion *layerm : m_regions)
+            layerm->slices.set(layerm->raw_slices, stInternal);
+    } else {
+        assert(m_regions.size() == 1);
+        m_regions.front()->slices.set(this->lslices, stInternal);
+    }
+}
+
+// Similar to Layer::restore_untyped_slices()
+// To improve robustness of detect_surfaces_type() when reslicing (working with typed slices), see GH issue #7442.
+// Only resetting layerm->slices if Slice::extra_perimeters is always zero or it will not be used anymore
+// after the perimeter generator.
+void Layer::restore_untyped_slices_no_extra_perimeters()
+{
+    if (layer_needs_raw_backup(this)) {
+        for (LayerRegion *layerm : m_regions)
+            //BBS: remove extra_perimeters. Always false
+        	//if (! layerm->region().config().extra_perimeters.value)
+            	layerm->slices.set(layerm->raw_slices, stInternal);
+    } else {
+    	assert(m_regions.size() == 1);
+    	LayerRegion *layerm = m_regions.front();
+    	// This optimization is correct, as extra_perimeters are only reused by prepare_infill() with multi-regions.
+        //if (! layerm->region().config().extra_perimeters.value)
+        	layerm->slices.set(this->lslices, stInternal);
+    }
+}
+
 // used by Layer::build_up_down_graph()
 // Shrink source polygons one by one, so that they will be separated if they were touching
 // at vertices (non-manifold situation).

@@ -192,7 +192,7 @@ wxDEFINE_EVENT(EVT_PROCESS_COMPLETED,               SlicingProcessCompletedEvent
 wxDEFINE_EVENT(EVT_EXPORT_BEGAN,                    wxCommandEvent);
 wxDEFINE_EVENT(EVT_REGENERATE_BED_THUMBNAILS, SimpleEvent);
 
-// Restore
+// BBS: backup & Restore
 wxDEFINE_EVENT(EVT_RESTORE_PROJECT,                 wxCommandEvent);
 
 
@@ -2173,7 +2173,14 @@ struct Plater::priv
         return !no_project && dirty_state.is_dirty();
     }
     bool is_presets_dirty() const { return dirty_state.is_presets_dirty(); }
-    void update_project_dirty_from_presets() { dirty_state.update_from_presets(); }
+
+    void update_project_dirty_from_presets()
+    {
+        // BBS: backup
+        Slic3r::put_other_changes();
+        dirty_state.update_from_presets();
+    }
+
     int  save_project_if_dirty(const wxString &reason)
     {
         int res = wxID_NO;
@@ -2293,8 +2300,8 @@ struct Plater::priv
     //   std::shared_ptr<ProgressStatusBar> statusbar();
     bool get_config_bool(const std::string &key) const;
     
+    // BBS: backup
     std::vector<size_t> load_files(const std::vector<fs::path>& input_files, LoadStrategy strategy, bool ask_multi = false);
-
     std::vector<size_t> load_model_objects(const ModelObjectPtrs& model_objects, bool allow_negative_z = false, bool call_selection_changed = true);
     
     fs::path get_export_file_path(GUI::FileType file_type);
@@ -2483,7 +2490,7 @@ struct Plater::priv
     std::string                 last_output_dir_path;
     bool                        inside_snapshot_capture() { return m_prevent_snapshots != 0; }
     
-    // Backup
+    // BBS: Backup
     bool up_to_date(bool saved, bool backup);
     size_t m_saved_timestamp = 0;
     size_t m_backup_timestamp = 0;
@@ -3003,6 +3010,7 @@ void Plater::notify_about_installed_presets()
     }
 }
 
+// BBS: backup
 std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_files, LoadStrategy strategy, bool ask_multi) {
     
     std::vector<size_t> empty_result;
@@ -3109,6 +3117,8 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
             strategy = strategy | LoadStrategy::LoadAuxiliary;
         }
         
+        if (load_config) strategy = strategy | LoadStrategy::CheckVersion;
+        
         bool          is_project_file = type_prusa;
         try {
             if (type_3mf || type_zip_amf) {
@@ -3124,13 +3134,14 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                     progress_dlg = nullptr;
                 }
 #endif
+                Semver file_version;
+                
                 DynamicPrintConfig config;
                 PrinterTechnology  loaded_printer_technology{ptFFF};
                 {
                     DynamicPrintConfig        config_loaded;
                     ConfigSubstitutionContext config_substitutions{ForwardCompatibilitySubstitutionRule::Enable};
-                    model = Slic3r::Model::read_from_archive(path.string(), &config_loaded, &config_substitutions,
-                                                             only_if(load_config, Model::LoadAttribute::CheckVersion));
+                    model = Slic3r::Model::read_from_archive(path.string(), &config_loaded, &config_substitutions, strategy, &file_version );
                     if (load_config && !config_loaded.empty()) {
                         // loaded: allow to ask again for support_material_overhangs
                         wxGetApp().get_tab(Preset::TYPE_FFF_PRINT)->get_config_manipulation().initialize_support_material_overhangs_queried(false);
@@ -7002,6 +7013,7 @@ void Plater::refresh_print()
     p->preview->refresh_print();
 }
 
+//BBS: backup 
 std::vector<size_t> Plater::load_files(const std::vector<fs::path>& input_files, LoadStrategy strategy, bool ask_multi) {
     return p->load_files(input_files, strategy, ask_multi);
 }
@@ -8895,7 +8907,7 @@ bool set_by_local_path(SvgFile &svg, const SvgFiles& svgs)
 /// Function to secure private data before store to 3mf
 /// </summary>
 /// <param name="model">Data(also private) to clean before publishing</param>
-void publish(Model &model) {
+void publish(Model &model, SaveStrategy strategy) {
     
     // SVG file publishing
     bool exist_new = false;
@@ -8918,7 +8930,7 @@ void publish(Model &model) {
         }
     }
     
-    if (exist_new){
+   if (exist_new && !(strategy & SaveStrategy::Silence)){
         MessageDialog dialog(nullptr,
                              _L("Are you sure you want to store original SVGs with their local paths into the 3MF file?\n"
                                 "If you hit 'NO', all SVGs in the project will not be editable any more."),
@@ -8948,6 +8960,7 @@ void publish(Model &model) {
 }
 }
 
+// BBS: Backup
 bool Plater::export_3mf(const boost::filesystem::path& output_path, SaveStrategy strategy)
 {
     if (p->model.objects.empty()) {
@@ -8971,7 +8984,7 @@ bool Plater::export_3mf(const boost::filesystem::path& output_path, SaveStrategy
     
     // take care about private data stored into .3mf
     // modify model
-    publish(p->model);
+    publish(p->model, strategy);
     
     DynamicPrintConfig cfg = wxGetApp().preset_bundle->full_config_secure();
     const std::string path_u8 = into_u8(path);

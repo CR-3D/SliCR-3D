@@ -74,6 +74,7 @@
 namespace Slic3r {
 namespace GUI {
 
+// BBS: backup
 wxDEFINE_EVENT(EVT_BACKUP_POST, wxCommandEvent);
 wxDEFINE_EVENT(EVT_LOAD_PRINTER_URL, LoadPrinterViewEvent);
 
@@ -294,6 +295,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
 
         preferences_dialog = new PreferencesDialog(this);
 
+        // BBS: Backup
         if (wxGetApp().app_config->get_bool("backup_switch") == true) {
             std::string backup_interval;
             if (!wxGetApp().app_config->get("app", "backup_interval", backup_interval)) {
@@ -863,6 +865,10 @@ void MainFrame::update_layout()
 // Called when closing the application and when switching the application language.
 void MainFrame::shutdown()
 {
+
+    //BBS: Backup
+    Slic3r::set_backup_callback(nullptr);
+
 #ifdef _WIN32
     if (m_hDeviceNotify) {
     ::UnregisterDeviceNotification(HDEVNOTIFY(m_hDeviceNotify));

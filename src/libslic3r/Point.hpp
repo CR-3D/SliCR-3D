@@ -705,6 +705,7 @@ namespace cereal {
     template<class Archive, class T, int N> inline void serialize(Archive& archive, Eigen::Transform<T, N, Eigen::Affine, Eigen::DontAlign>& t){ archive(t.matrix()); }
 }
 
+
 // To be able to use Vec<> and Mat<> in range based for loops:
 namespace Eigen {
 template<class T, int N, int M>

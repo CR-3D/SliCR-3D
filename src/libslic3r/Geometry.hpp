@@ -490,6 +490,16 @@ public:
     bool operator==(const Transformation& trsf) const;
     bool operator!=(const Transformation& trsf) const { return !operator==(trsf); }
 
+/*
+    friend bool operator==(Transformation const& l, Transformation const& r) {
+        return l.m_matrix.isApprox(r.m_matrix);
+    }
+
+    friend bool operator!=(Transformation const &l, Transformation const &r)
+    {
+        return !(l == r);
+    }
+    */
 private:
 	friend class cereal::access;
     template<class Archive> void serialize(Archive& ar) { ar(m_matrix); }

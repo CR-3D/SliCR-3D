@@ -844,8 +844,8 @@ template<typename T> ObjectID StackImpl::save_mutable_object(const T &object)
 		// Serialize the object into a string.
 		std::ostringstream oss;
 		{
-			Slic3r::UndoRedo::OutputArchive archive(*this, oss);
-			archive(object);
+			//Slic3r::UndoRedo::OutputArchive archive(*this, oss);
+			//archive(object);
 		}
 		object_history->save(m_active_snapshot_time, m_current_time, oss.str());
 	}
@@ -895,9 +895,9 @@ template<typename T> void StackImpl::load_mutable_object(const Slic3r::ObjectID 
 	auto *object_history = static_cast<const MutableObjectHistory<T>*>(it_object_history->second.get());
 	// Then get the data associated with the object history and m_active_snapshot_time.
 	std::istringstream iss(object_history->load(m_active_snapshot_time));
-	Slic3r::UndoRedo::InputArchive archive(*this, iss);
+//	Slic3r::UndoRedo::InputArchive archive(*this, iss);
 	target.m_id = id;
-	archive(target);
+	//archive(target);
 }
 
 // Store the current application state onto the Undo / Redo stack, remove all snapshots after m_active_snapshot_time.

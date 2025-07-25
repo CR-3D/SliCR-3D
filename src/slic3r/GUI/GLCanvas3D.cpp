@@ -4845,9 +4845,11 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
             if (model_object != nullptr) {
                 if (selection_mode == Selection::Instance)
                     model_object->instances[instance_idx]->set_transformation(v->get_instance_transformation());
-                else if (selection_mode == Selection::Volume)
+                else if (selection_mode == Selection::Volume) {
                     model_object->volumes[volume_idx]->set_transformation(v->get_volume_transformation());
-
+                    // BBS: Backup
+                    Slic3r::save_object_mesh(*model_object);
+                }
                 object_moved = true;
                 model_object->invalidate_bounding_box();
             }
@@ -4966,8 +4968,11 @@ void GLCanvas3D::do_rotate(const std::string& snapshot_type)
         if (model_object != nullptr) {
             if (selection_mode == Selection::Instance)
                 model_object->instances[instance_idx]->set_transformation(v->get_instance_transformation());
-            else if (selection_mode == Selection::Volume)
+            else if (selection_mode == Selection::Volume) {
                 model_object->volumes[volume_idx]->set_transformation(v->get_volume_transformation());
+                // BBS: backup
+                Slic3r::save_object_mesh(*model_object);
+            }
             model_object->invalidate_bounding_box();
         }
     }
@@ -5045,6 +5050,9 @@ void GLCanvas3D::do_scale(const std::string& snapshot_type)
             else if (selection_mode == Selection::Volume) {
                 model_object->instances[instance_idx]->set_transformation(v->get_instance_transformation());
                 model_object->volumes[volume_idx]->set_transformation(v->get_volume_transformation());
+
+                // BBS: Backup
+                Slic3r::save_object_mesh(*model_object);
             }
             model_object->invalidate_bounding_box();
         }
@@ -5116,8 +5124,12 @@ void GLCanvas3D::do_mirror(const std::string& snapshot_type)
         if (model_object != nullptr) {
             if (selection_mode == Selection::Instance)
                 model_object->instances[instance_idx]->set_transformation(v->get_instance_transformation());
-            else if (selection_mode == Selection::Volume)
+            else if (selection_mode == Selection::Volume) {
                 model_object->volumes[volume_idx]->set_transformation(v->get_volume_transformation());
+
+                // BBS: backup
+                Slic3r::save_object_mesh(*model_object);
+            }
             model_object->invalidate_bounding_box();
         }
     }

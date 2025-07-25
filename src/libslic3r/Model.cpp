@@ -97,6 +97,11 @@ Model& Model::assign_copy(Model &&rhs)
     this->custom_gcode_per_print_z_vector = std::move(rhs.custom_gcode_per_print_z_vector);
     this->wipe_tower_vector = rhs.wipe_tower_vector;
 
+    // BBS: backup
+    this->backup_path = std::move(rhs.backup_path);
+    this->object_backup_id_map = std::move(rhs.object_backup_id_map);
+    this->next_object_backup_id = rhs.next_object_backup_id;
+
     return *this;
 }
 
@@ -178,7 +183,11 @@ const CustomGCode::Info& Model::custom_gcode_per_print_z() const
 
 
 // Loading model from a file, it may be a simple geometry file as STL or OBJ, however it may be a project file as well.
-Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
+Model Model::read_from_file(const std::string& input_file, 
+                            DynamicPrintConfig* config, 
+                            ConfigSubstitutionContext* config_substitutions, 
+                            LoadStrategy options,
+                            Semver* file_version)
 {
     Model model;
 
@@ -188,6 +197,10 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
         config = &temp_config;
     if (config_substitutions == nullptr)
         config_substitutions = &temp_config_substitutions_context;
+
+    Semver temp_version;
+    if (file_version == nullptr)
+        file_version = &temp_version;
 
     bool result = false;
     if (boost::algorithm::iends_with(input_file, ".stl"))
@@ -200,7 +213,7 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
         result = load_amf(input_file.c_str(), config, config_substitutions, &model, options & LoadAttribute::CheckVersion);
     else if (boost::algorithm::iends_with(input_file, ".3mf") || boost::algorithm::iends_with(input_file, ".zip"))
         //FIXME options & LoadAttribute::CheckVersion ? 
-        result = load_3mf(input_file.c_str(), *config, *config_substitutions, &model, false);
+        result = load_3mf(input_file.c_str(), *config, *config_substitutions, &model, false, options, file_version);
     else if (boost::algorithm::iends_with(input_file, ".svg"))
         result = load_svg(input_file, model);
     else
@@ -229,7 +242,7 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
 }
 
 // Loading model from a file (3MF or AMF), not from a simple geometry file (STL or OBJ).
-Model Model::read_from_archive(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
+Model Model::read_from_archive(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options, Semver* file_version)
 {
     assert(config != nullptr);
     assert(config_substitutions != nullptr);
@@ -317,12 +330,28 @@ ModelObject* Model::add_object(const ModelObject &other)
 	ModelObject* new_object = ModelObject::new_clone(other);
     new_object->set_model(this);
     this->objects.push_back(new_object);
+    // BBS: backup
+    if (need_backup) {
+        if (auto model = other.get_model()) {
+            auto iter = object_backup_id_map.find(other.id().id);
+            if (iter != object_backup_id_map.end()) {
+                object_backup_id_map.emplace(new_object->id().id, iter->second);
+                object_backup_id_map.erase(iter);
+                return new_object;
+            }
+        }
+        Slic3r::save_object_mesh(*new_object);
+    }
     return new_object;
 }
 
 void Model::delete_object(size_t idx)
 {
     ModelObjectPtrs::iterator i = this->objects.begin() + idx;
+
+    // BBS: backup
+    Slic3r::delete_object_mesh(**i);
+
     delete *i;
     this->objects.erase(i);
 }
@@ -333,6 +362,8 @@ bool Model::delete_object(ModelObject* object)
         size_t idx = 0;
         for (ModelObject *model_object : objects) {
             if (model_object == object) {
+                // BBS: backup
+                Slic3r::delete_object_mesh(*model_object);
                 delete model_object;
                 objects.erase(objects.begin() + idx);
                 return true;
@@ -349,6 +380,8 @@ bool Model::delete_object(ObjectID id)
         size_t idx = 0;
         for (ModelObject *model_object : objects) {
             if (model_object->id() == id) {
+                // BBS: backup
+                Slic3r::delete_object_mesh(*model_object);
                 delete model_object;
                 objects.erase(objects.begin() + idx);
                 return true;
@@ -361,9 +394,14 @@ bool Model::delete_object(ObjectID id)
 
 void Model::clear_objects()
 {
-    for (ModelObject *o : this->objects)
+    for (ModelObject *o : this->objects) {
+        // BBS: backup
+        Slic3r::delete_object_mesh(*o);
         delete o;
+    } 
     this->objects.clear();
+    object_backup_id_map.clear();
+    next_object_backup_id = 1;
 }
 
 void Model::delete_material(t_model_material_id material_id)
@@ -540,6 +578,7 @@ void Model::set_backup_path(std::string const& path)
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__<<boost::format(", model %1%, id %2%, set backup to %3%")%this%this->id().id%backup_path;
 }
 
+// BBS: backup
 void Model::set_need_backup()
 {
     need_backup = true;
@@ -978,7 +1017,10 @@ ModelVolume* ModelObject::add_volume(const TriangleMesh &mesh, ModelVolumeType t
     ModelVolume* v = new ModelVolume(this, mesh);
     this->volumes.push_back(v);
     if(centered) v->center_geometry_after_creation();
-    this->invalidate_bounding_box();
+        this->invalidate_bounding_box();
+    
+    // BBS: backup
+    Slic3r::save_object_mesh(*this);
     return v;
 }
 
@@ -987,7 +1029,10 @@ ModelVolume* ModelObject::add_volume(TriangleMesh &&mesh, ModelVolumeType type /
     ModelVolume* v = new ModelVolume(this, std::move(mesh), type);
     this->volumes.push_back(v);
     if(centered) v->center_geometry_after_creation();
-    this->invalidate_bounding_box();
+        this->invalidate_bounding_box();
+    
+    // BBS: backup
+    Slic3r::save_object_mesh(*this);
     return v;
 }
 
@@ -1001,6 +1046,8 @@ ModelVolume* ModelObject::add_volume(const ModelVolume &other, ModelVolumeType t
 	// The volume should already be centered at this point of time when copying shared pointers of the triangle mesh and convex hull.
 //    if(centered) v->center_geometry_after_creation();
 //    if(centered) this->invalidate_bounding_box();
+    //BBS: backup
+    Slic3r::save_object_mesh(*this);
     return v;
 }
 
@@ -1009,7 +1056,9 @@ ModelVolume* ModelObject::add_volume(const ModelVolume &other, TriangleMesh &&me
     ModelVolume* v = new ModelVolume(this, other, std::move(mesh));
     this->volumes.push_back(v);
     if(centered) v->center_geometry_after_creation();
-    this->invalidate_bounding_box();
+        this->invalidate_bounding_box();
+    // BBS: backup
+    Slic3r::save_object_mesh(*this);
     return v;
 }
 
@@ -1036,6 +1085,8 @@ void ModelObject::delete_volume(size_t idx)
     }
 
     this->invalidate_bounding_box();
+    // BBS: backup
+    Slic3r::save_object_mesh(*this);
 }
 
 void ModelObject::clear_volumes()
@@ -1087,6 +1138,9 @@ ModelInstance* ModelObject::add_instance()
     ModelInstance* i = new ModelInstance(this);
     this->instances.push_back(i);
     this->invalidate_bounding_box();
+    // BBS backup
+    if (this->instances.size() == 1)
+        Slic3r::save_object_mesh(*this);
     return i;
 }
 

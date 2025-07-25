@@ -658,42 +658,35 @@ private:
         assert(this->config.id().invalid());
         assert(this->layer_height_profile.id().invalid());
 	}
-	template<class Archive> void serialize(Archive &ar) {
-         
+    template<class Archive> void save(Archive& ar) const {
+        ar(cereal::base_class<ObjectBase>(this));
+        Internal::StaticSerializationWrapper<ModelConfigObject const> config_wrapper(config);
+        Internal::StaticSerializationWrapper<LayerHeightProfile const> layer_heigth_profile_wrapper(layer_height_profile);
+        ar(name, input_file, instances, volumes, config_wrapper, layer_config_ranges, layer_heigth_profile_wrapper,
+            sla_support_points, sla_points_status, sla_drain_holes, printable, origin_translation,
+            m_bounding_box_approx, m_bounding_box_approx_valid, 
+            m_bounding_box_exact, m_bounding_box_exact_valid, m_min_max_z_valid,
+            m_raw_bounding_box, m_raw_bounding_box_valid, m_raw_mesh_bounding_box, m_raw_mesh_bounding_box_valid,
+            cut_connectors, cut_id);
+    }
+    template<class Archive> void load(Archive& ar) {
         ar(cereal::base_class<ObjectBase>(this));
         Internal::StaticSerializationWrapper<ModelConfigObject> config_wrapper(config);
         Internal::StaticSerializationWrapper<LayerHeightProfile> layer_heigth_profile_wrapper(layer_height_profile);
         // BBS: add backup, check modify
         SaveObjectGaurd gaurd(*this);
-        ar(name,
-           input_file,
-           instances,
-           volumes,
-           config_wrapper,
-           layer_config_ranges,
-           layer_heigth_profile_wrapper,
-           sla_support_points,
-           sla_points_status,
-           sla_drain_holes,
-           printable,
-           origin_translation,
-           m_bounding_box_approx,
-           m_bounding_box_approx_valid,
-           m_bounding_box_exact,
-           m_bounding_box_exact_valid,
-           m_min_max_z_valid,
-           m_raw_bounding_box,
-           m_raw_bounding_box_valid,
-           m_raw_mesh_bounding_box,
-           m_raw_mesh_bounding_box_valid,
-           cut_connectors,
-           cut_id);
+        ar(name, input_file, instances, volumes, config_wrapper, layer_config_ranges, layer_heigth_profile_wrapper,
+            sla_support_points, sla_points_status, sla_drain_holes, printable, origin_translation,
+            m_bounding_box_approx, m_bounding_box_approx_valid, 
+            m_bounding_box_exact, m_bounding_box_exact_valid, m_min_max_z_valid,
+            m_raw_bounding_box, m_raw_bounding_box_valid, m_raw_mesh_bounding_box, m_raw_mesh_bounding_box_valid,
+            cut_connectors, cut_id);
         std::vector<ObjectID> volume_ids2;
         std::transform(volumes.begin(), volumes.end(), std::back_inserter(volume_ids2), std::mem_fn(&ObjectBase::id));
         if (volume_ids != volume_ids2)
             Slic3r::save_object_mesh(*this);
         volume_ids.clear();
-	}
+    }
 
     // Called by Print::validate() from the UI thread.
     unsigned int update_instances_print_volume_state(const BuildVolume &build_volume);
@@ -1345,14 +1338,20 @@ public:
     };
     using LoadAttributes = enum_bitmask<LoadAttribute>;
 
+    // BBS: backup
     static Model read_from_file(
         const std::string& input_file, 
-        DynamicPrintConfig* config = nullptr, ConfigSubstitutionContext* config_substitutions = nullptr,
-        LoadAttributes options = LoadAttribute::AddDefaultInstances);
+        DynamicPrintConfig* config = nullptr, 
+        ConfigSubstitutionContext* config_substitutions = nullptr,
+        LoadAttributes options = LoadAttribute::AddDefaultInstances,
+        Semver* file_version = nullptr);
+
+    // BBS: Backup
     static Model read_from_archive(
         const std::string& input_file, 
         DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions,
-        LoadAttributes options = LoadAttribute::AddDefaultInstances);
+        LoadStrategy options = LoadStrategy::AddDefaultInstances, 
+        Semver* file_version = nullptr);
 
     bool equals(const Model& rhs) const;
 
@@ -1366,6 +1365,7 @@ public:
     bool         delete_object(ModelObject* object);
     void         clear_objects();
 
+    // BBS: backup
     void         collect_reusable_objects(std::vector<ObjectBase *> & objects);
     void         set_object_backup_id(ModelObject const & object, int uuid);
     int          get_object_backup_id(ModelObject const & object); // generate new if needed
@@ -1501,8 +1501,11 @@ static const double SINKING_MIN_Z_THRESHOLD = 0.05;
 
 namespace cereal
 {
-	template <class Archive> struct specialize<Archive, Slic3r::ModelVolume, cereal::specialization::member_load_save> {};
-	template <class Archive> struct specialize<Archive, Slic3r::ModelConfigObject, cereal::specialization::member_serialize> {};
+    template <class Archive> struct specialize<Archive, Slic3r::ModelVolume, cereal::specialization::member_load_save> {};
+    // BBS: backup
+    template <class Archive> struct specialize<Archive, Slic3r::Model, cereal::specialization::member_load_save> {};
+    template <class Archive> struct specialize<Archive, Slic3r::ModelObject, cereal::specialization::member_load_save> {};
+    template <class Archive> struct specialize<Archive, Slic3r::ModelConfigObject, cereal::specialization::member_serialize> {};
 }
 
 #endif /* slic3r_Model_hpp_ */

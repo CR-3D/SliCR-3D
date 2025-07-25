@@ -347,6 +347,8 @@ public:
     void export_stl_obj(std::string path, bool extended = false, bool selection_only = false);
     void export_amf();
     void export_all_gcodes(bool prefer_removable);
+
+    // BBS: backup
     bool export_3mf(const boost::filesystem::path& output_path = boost::filesystem::path(), SaveStrategy strategy = SaveStrategy::Default);
     void reload_from_disk();
     void replace_with_stl();

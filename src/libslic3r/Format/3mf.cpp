@@ -678,13 +678,17 @@ namespace Slic3r {
     }
 
 
-    bool _3MF_Importer::load_model_from_file(const std::string& filename, Model& model, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, bool check_version)
+    bool _3MF_Importer::load_model_from_file(const std::string& filename, Model& model, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, bool check_version, LoadStrategy strategy, Semver& file_version)
     {
         m_version = 0;
         m_fdm_supports_painting_version = 0;
         m_seam_painting_version = 0;
         m_mm_painting_version = 0;
-        m_check_version = check_version;
+        m_check_version = strategy & LoadStrategy::CheckVersion;
+        //BBS: auxiliary data
+        m_load_model  = strategy & LoadStrategy::LoadModel;
+        m_load_restore = strategy & LoadStrategy::Restore;
+        m_load_config = strategy & LoadStrategy::LoadConfig;
         m_model = &model;
         m_unit_factor = 1.0f;
         m_curr_object.reset();
@@ -4257,15 +4261,21 @@ bool _3MF_Exporter::_add_wipe_tower_information_file_to_archive( mz_zip_archive&
     return true;
 }
 
-bool load_3mf(const char* path, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, Model* model, bool check_version)
+bool load_3mf(const char* path, 
+             DynamicPrintConfig& config,
+             ConfigSubstitutionContext& config_substitutions,
+             Model* model, 
+             bool check_version,
+             LoadStrategy strategy,
+             Semver* file_version)
 {
-    if (path == nullptr || model == nullptr)
+    if (path == nullptr || config == nullptr || model == nullptr)
         return false;
 
     // All import should use "C" locales for number formatting.
     CNumericLocalesSetter locales_setter;
     _3MF_Importer         importer;
-    bool res = importer.load_model_from_file(path, *model, config, config_substitutions, check_version);
+    bool res = importer.load_model_from_file(path, *model, config, config_substitutions, check_version, strategy, *file_version);
     importer.log_errors();
     handle_legacy_project_loaded(importer.version(), config, importer.prusaslicer_generator_version());
 
