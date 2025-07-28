@@ -893,6 +893,8 @@ void GCodeGenerator::do_export(Print* print, const char* path, GCodeProcessorRes
     print->set_status(100, L("Gcode done"), PrintBase::SlicingStatus::FlagBits::GCODE_ENDED);
     
     m_processor.set_status_monitor(nullptr);
+    int* p = nullptr;
+*p = 42;
 }
 
 // free functions called by GCodeGenerator::_do_export()

@@ -1343,14 +1343,15 @@ public:
         const std::string& input_file, 
         DynamicPrintConfig* config = nullptr, 
         ConfigSubstitutionContext* config_substitutions = nullptr,
-        LoadAttributes options = LoadAttribute::AddDefaultInstances,
+        LoadStrategy options = LoadStrategy::AddDefaultInstances,
         Semver* file_version = nullptr);
 
     // BBS: Backup
     static Model read_from_archive(
         const std::string& input_file, 
-        DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions,
-        LoadStrategy options = LoadStrategy::AddDefaultInstances, 
+        DynamicPrintConfig* config,
+        ConfigSubstitutionContext* config_substitutions,
+        LoadStrategy options = LoadStrategy::AddDefaultInstances,
         Semver* file_version = nullptr);
 
     bool equals(const Model& rhs) const;

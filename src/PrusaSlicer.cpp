@@ -271,7 +271,7 @@ int CLI::run(int argc, char **argv)
                 DynamicPrintConfig config;
                 ConfigSubstitutionContext config_substitutions(config_substitution_rule);
                 //FIXME should we check the version here? // | Model::LoadAttribute::CheckVersion ?
-                model = Model::read_from_file(file, &config, &config_substitutions, Model::LoadAttribute::AddDefaultInstances);
+               model = Model::read_from_file(file, &config, &config_substitutions, LoadStrategy::AddDefaultInstances);
                 PrinterTechnology other_printer_technology = get_printer_technology(config);
                 if (printer_technology == ptUnknown) {
                     printer_technology = other_printer_technology;

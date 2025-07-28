@@ -3223,8 +3223,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                         wxGetApp().app_config->update_config_dir(path.parent_path().string());
                 }
             } else {
-                model = Slic3r::Model::read_from_file(path.string(), nullptr, nullptr,
-                                                      only_if(load_config, Model::LoadAttribute::CheckVersion));
+                model = Slic3r::Model::read_from_file(path.string(), nullptr, nullptr, LoadStrategy::CheckVersion);
                 for (auto obj : model.objects) {
                     if (obj->name.empty()) {
                         obj->name = fs::path(obj->input_file).filename().string();
@@ -4461,7 +4460,7 @@ bool Plater::priv::replace_volume_with_stl(int             object_idx,
     
     Model new_model;
     try {
-        new_model = Model::read_from_file(path, nullptr, nullptr, Model::LoadAttribute::AddDefaultInstances);
+        new_model = Model::read_from_file(path, nullptr, nullptr, LoadStrategy::AddDefaultInstances);
         for (ModelObject *model_object : new_model.objects) {
             model_object->center_around_origin();
             model_object->ensure_on_bed();
@@ -4711,7 +4710,7 @@ void Plater::priv::reload_from_disk()
         
         Model new_model;
         try {
-            new_model = Model::read_from_file(path, nullptr, nullptr, Model::LoadAttribute::AddDefaultInstances);
+            new_model = Model::read_from_file(path, nullptr, nullptr, LoadStrategy::AddDefaultInstances);
             for (ModelObject *model_object : new_model.objects) {
                 model_object->center_around_origin();
                 model_object->ensure_on_bed();
@@ -6566,6 +6565,9 @@ bool Plater::new_project(std::string project_name)
     wxGetApp().update_saved_preset_from_current_preset();
     // Update Project dirty state, update application title bar.
     update_project_dirty_from_presets();
+    
+    wxGetApp().app_config->update_last_backup_dir(model().get_backup_path());
+
     // Update physical printer config
     //refresh_physical_printer_config();
     up_to_date(true, false);
@@ -6708,8 +6710,15 @@ void Plater::add_model(bool imperial_units /* = false*/)
     auto strategy = LoadStrategy::LoadModel;
     if (imperial_units) strategy = strategy | LoadStrategy::ImperialUnits;
     
-    if (!load_files(paths, strategy, ask_multi).empty())
+    if (!load_files(paths, strategy, ask_multi).empty()) {
+
+       if (get_project_filename() == _L("Untitled") && paths.size() > 0) {
+            boost::filesystem::path full_path(paths[0].string());
+            p->set_project_filename(from_u8(full_path.stem().string()));
+        }
+
         wxGetApp().mainframe->update_title();
+    }
     
     refresh_physical_printer_config();
 }

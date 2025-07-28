@@ -33,9 +33,16 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem/operations.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/nowide/fstream.hpp>
+#include <boost/nowide/cstdio.hpp>
 #include <boost/spirit/include/karma.hpp>
 #include <boost/spirit/include/qi_int.hpp>
 #include <boost/log/trivial.hpp>
+#include <boost/beast/core/detail/base64.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+#include <boost/foreach.hpp>
 
 #include <boost/property_tree/xml_parser.hpp>
 namespace pt = boost::property_tree;
@@ -509,7 +516,14 @@ namespace Slic3r {
         // Version of the 3mf file
         unsigned int m_version;
         bool m_check_version;
+        bool m_load_model = false;
+        bool m_load_config = false;
         bool m_trying_read_prusa = false;
+
+        // backup & restore
+        bool m_load_restore = false;
+        std::string m_backup_path;
+        std::string m_origin_file; 
 
         // Semantic version of PrusaSlicer, that generated this 3MF.
         std::optional<Semver> m_prusaslicer_generator_version;
@@ -545,7 +559,14 @@ namespace Slic3r {
         _3MF_Importer();
         ~_3MF_Importer();
 
-        bool load_model_from_file(const std::string& filename, Model& model, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, bool check_version);
+        bool load_model_from_file(const std::string& filename,
+                                             Model& model,
+                                             DynamicPrintConfig& config,
+                                             ConfigSubstitutionContext& config_substitutions,
+                                             bool check_version,
+                                             LoadStrategy strategy,
+                                             Semver& file_version);
+                                             
         unsigned int version() const { return m_version; }
         std::optional<Semver> prusaslicer_generator_version() const { return m_prusaslicer_generator_version; }
 
@@ -678,14 +699,19 @@ namespace Slic3r {
     }
 
 
-    bool _3MF_Importer::load_model_from_file(const std::string& filename, Model& model, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, bool check_version, LoadStrategy strategy, Semver& file_version)
+    bool _3MF_Importer::load_model_from_file(const std::string& filename,
+                                             Model& model,
+                                             DynamicPrintConfig& config,
+                                             ConfigSubstitutionContext& config_substitutions,
+                                             bool check_version,
+                                             LoadStrategy strategy,
+                                             Semver& file_version)
     {
         m_version = 0;
         m_fdm_supports_painting_version = 0;
         m_seam_painting_version = 0;
         m_mm_painting_version = 0;
         m_check_version = strategy & LoadStrategy::CheckVersion;
-        //BBS: auxiliary data
         m_load_model  = strategy & LoadStrategy::LoadModel;
         m_load_restore = strategy & LoadStrategy::Restore;
         m_load_config = strategy & LoadStrategy::LoadConfig;
@@ -705,6 +731,29 @@ namespace Slic3r {
         m_curr_metadata_name.clear();
         m_curr_characters.clear();
         clear_errors();
+        // restore
+        if (m_load_restore) {
+            m_backup_path = filename.substr(0, filename.size() - 5);
+            model.set_backup_path(m_backup_path);
+            try {
+                if (boost::filesystem::exists(model.get_backup_path() + "/origin.txt"))
+                    load_string_file(model.get_backup_path() + "/origin.txt", m_origin_file);
+            } catch (...) {}
+            save_string_file(
+                model.get_backup_path() + "/lock.txt",
+                boost::lexical_cast<std::string>(get_current_pid()));
+        }
+        else {
+            m_backup_path = model.get_backup_path();
+        }
+        bool result = _load_model_from_file(filename, model, config, config_substitutions);
+
+        // save for restore
+        if (result && !m_load_restore) {
+            save_string_file(model.get_backup_path() + "/origin.txt", filename);
+        }
+        if (m_load_restore && !result) // not clear failed backup data for later analyze
+            model.set_backup_path("detach");
 
         return _load_model_from_file(filename, model, config, config_substitutions);
     }
@@ -2792,12 +2841,14 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
     {
         struct BuildItem
         {
+            std::string path;
             unsigned int id;
             Transform3d transform;
             bool printable;
 
-            BuildItem(unsigned int id, const Transform3d& transform, const bool printable)
-                : id(id)
+            BuildItem(std::string const &path, unsigned int id, const Transform3d& transform, const bool printable)
+                : path(path)
+                , id(id)
                 , transform(transform)
                 , printable(printable)
             {
@@ -2824,6 +2875,9 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
         struct ObjectData
         {
             ModelObject* object;
+            std::string sub_path;
+            int backup_id;
+            int object_id = 0;
             VolumeToOffsetsMap volumes_offsets;
             VolumeToObjectIDMap volumes_objectID;
 
@@ -2862,6 +2916,14 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
         bool _add_model_config_file_to_archive(mz_zip_archive& archive, const Model& model, const DynamicPrintConfig& print_config, const IdToObjectDataMap &objects_data, const std::string &file_path);
         bool _add_custom_gcode_per_print_z_file_to_archive(mz_zip_archive& archive, Model& model, const DynamicPrintConfig& config);
         bool _add_wipe_tower_information_file_to_archive( mz_zip_archive& archive, Model& model);
+        
+        bool m_from_backup_save{ false };   // the object save is from backup store
+        bool m_split_model { false };       // save object per file with Production Extention
+        bool m_share_mesh { false };        // whether to share mesh between objects
+        bool m_skip_model { false };        // skip model when exporting .gcode.3mf
+
+        std::map<void const *, std::pair<ObjectData*, ModelVolume const *>> m_shared_meshes;
+
     };
 
     bool _3MF_Exporter::save_model_to_file(const std::string& filename, Model& model, const DynamicPrintConfig* config, const OptionStore3mf& options)
@@ -2875,6 +2937,9 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
     {
         mz_zip_archive archive;
         mz_zip_zero_struct(&archive);
+
+        //m_share_mesh       = store_params.strategy & SaveStrategy::ShareMesh;
+        //m_from_backup_save = store_params.strategy & SaveStrategy::Backup;
 
         if (!open_zip_writer(&archive, filename)) {
             add_error("Unable to open the file");
@@ -3095,6 +3160,10 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
 
     bool _3MF_Exporter::_add_model_file_to_archive(const std::string& filename, mz_zip_archive& archive, const Model& model, IdToObjectDataMap& objects_data)
     {
+
+        bool sub_model = !objects_data.empty();
+        bool write_object = sub_model || !m_split_model;
+
         mz_zip_writer_staged_context context;
         if (!mz_zip_writer_add_staged_open(&archive, &context, MODEL_FILE.c_str(), 
             m_options.zip64 ?
@@ -3155,6 +3224,8 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
         // all the object instances of all ModelObjects are stored and indexed in a 1 based linear fashion.
         // Therefore the list of object_ids here may not be continuous.
         unsigned int object_id = 1;
+        std::vector<std::string> object_paths;
+        
         for (ModelObject* obj : model.objects) {
             if (obj == nullptr)
                 continue;
@@ -3162,15 +3233,58 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
             // Index of an object in the 3MF file corresponding to the 1st instance of a ModelObject.
             unsigned int curr_id = object_id;
             IdToObjectDataMap::iterator object_it = objects_data.insert({ curr_id, ObjectData(obj) }).first;
-            // Store geometry of all ModelVolumes contained in a single ModelObject into a single 3MF indexed triangle set object.
-            // object_it->second.volumes_offsets will contain the offsets of the ModelVolumes in that single indexed triangle set.
-            // object_id will be increased to point to the 1st instance of the next ModelObject.
-            if (!_add_object_to_model_stream(context, object_id, *obj, build_items, object_it->second.volumes_offsets)) {
-                add_error("Unable to add object to archive");
-                mz_zip_writer_add_staged_finish(&context);
-                return false;
+                if (!sub_model) {
+                    // For backup, use backup id as object id
+                    int backup_id = const_cast<Model&>(model).get_object_backup_id(*obj);
+                    if (m_from_backup_save) object_id = backup_id;
+                    object_it = objects_data.insert({ backup_id, ObjectData(obj) }).first;
+                    auto & object_data = object_it->second;
+
+                    if (m_split_model) {
+                        auto filename = boost::format("3D/Objects/%s_%d.model") % obj->name % backup_id;
+                        object_data.sub_path = "/" + filename.str();
+                        object_paths.push_back(filename.str());
+                    }
+
+                    auto &volumes_objectID = object_data.volumes_objectID;
+                    unsigned int volume_id = object_id, volume_count = 0;
+                    for (ModelVolume *volume : obj->volumes) {
+                        if (volume == nullptr)
+                            continue;
+                        volume_count++;
+
+                        if (m_from_backup_save)
+                            volume_id = (volume_count << 16 | backup_id);
+                        volumes_objectID.insert({volume, volume_id});
+                        volume_id++;
+                    }
+
+                    if (!m_from_backup_save) object_id = volume_id;
+                        object_data.object->id() = object_id;
+                }
+
+                if (m_skip_model) continue;
+
+                if (write_object) {
+                    // Store geometry of all ModelVolumes contained in a single ModelObject into a single 3MF indexed triangle set object.
+                    // object_it->second.volumes_objectID will contain the offsets of the ModelVolumes in that single indexed triangle set.
+                    // object_id will be increased to point to the 1st instance of the next ModelObject.
+
+                }
+
+                if (sub_model) break;
+
+                unsigned int count = 0;
+                for (const ModelInstance* instance : obj->instances) {
+                    Transform3d t = instance->get_matrix();
+                    // instance_id is just a 1 indexed index in build_items.
+                    //assert(m_skip_static || curr_id == build_items.size() + 1);
+                   build_items.emplace_back("", object_it->second.object_id, t, instance->printable);
+                    count++;
+                }
+
+                if (!m_from_backup_save) object_id++;
             }
-        }
 
         {
             std::stringstream stream;
@@ -3193,6 +3307,36 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
                 add_error("Unable to add model file to archive");
                 return false;
             }
+        }
+
+        if (m_skip_model || write_object) return true;
+
+        if (!m_from_backup_save) {
+            boost::mutex mutex;
+           tbb::parallel_for(tbb::blocked_range<size_t>(0, objects_data.size(), 1), [this, &mutex, &model, objects = model.objects, &objects_data, &object_paths, main = &archive, object_id](const tbb::blocked_range<size_t>& range) {
+                for (size_t i = range.begin(); i < range.end(); ++i) {
+                   auto iter = objects_data.find(object_id);
+                   IdToObjectDataMap objects_data2;
+                    objects_data2.insert(*iter);
+                    auto & object = *iter->second.object;
+                    mz_zip_archive archive;
+                    mz_zip_zero_struct(&archive);
+                    mz_zip_writer_init_heap(&archive, 0, 1024 * 1024);
+                    CNumericLocalesSetter locales_setter;
+                    _add_model_file_to_archive(object_paths[i], archive, model, objects_data2);
+                    iter->second = objects_data2.begin()->second;
+                    void *ppBuf; size_t pSize;
+                    mz_zip_writer_finalize_heap_archive(&archive, &ppBuf, &pSize);
+                    mz_zip_writer_end(&archive);
+                    mz_zip_zero_struct(&archive);
+                    mz_zip_reader_init_mem(&archive, ppBuf, pSize, 0);
+                    {
+                        boost::unique_lock l(mutex);
+                        mz_zip_writer_add_from_zip_reader(main, &archive, 0);
+                    }
+                    mz_zip_reader_end(&archive);
+                }
+            });
         }
 
         return true;
@@ -3229,7 +3373,7 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
             Transform3d t = instance->get_matrix();
             // instance_id is just a 1 indexed index in build_items.
             assert(instance_id == build_items.size() + 1);
-            build_items.emplace_back(instance_id, t, instance->printable);
+            build_items.emplace_back("", instance_id, t, instance->printable);
 
             stream << "  </" << OBJECT_TAG << ">\n";
 
@@ -3522,6 +3666,7 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
     
     bool _3MF_Exporter::save_object_mesh(const std::string& temp_path, ModelObject const & object, int obj_id)
     {
+        m_from_backup_save = true;
 
         Model const & model = *object.get_model();
 
@@ -4269,7 +4414,7 @@ bool load_3mf(const char* path,
              LoadStrategy strategy,
              Semver* file_version)
 {
-    if (path == nullptr || config == nullptr || model == nullptr)
+    if (path == nullptr || model == nullptr)
         return false;
 
     // All import should use "C" locales for number formatting.
