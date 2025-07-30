@@ -2335,8 +2335,8 @@ bool MainFrame::load_config_file(const std::string &path, bool from_prusa)
 {
     try {
         ConfigSubstitutions config_substitutions = wxGetApp().preset_bundle->load_config_file(path, ForwardCompatibilitySubstitutionRule::Enable, from_prusa);
-        if (!config_substitutions.empty())
-            show_substitutions_info(config_substitutions, path);
+       // if (!config_substitutions.empty())
+            //show_substitutions_info(config_substitutions, path);
     } catch (const std::exception &ex) {
         show_error(this, ex.what());
         return false;
@@ -2409,8 +2409,8 @@ void MainFrame::load_configbundle(wxString file/* = wxEmptyString*/, bool from_p
         return;
     }
 
-    if (! config_substitutions.empty())
-        show_substitutions_info(config_substitutions);
+   // if (! config_substitutions.empty())
+        //show_substitutions_info(config_substitutions);
 
     // Load the currently selected preset into the GUI, update the preset selection box.
     wxGetApp().load_current_presets();

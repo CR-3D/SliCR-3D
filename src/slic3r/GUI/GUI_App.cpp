@@ -876,8 +876,6 @@ void GUI_App::post_init() {
     } else if (this->init_params->start_downloader) {
         start_download(this->init_params->download_url);
     } else {
-        if (!this->init_params->preset_substitutions.empty())
-            show_substitutions_info(this->init_params->preset_substitutions);
 
 #if 0
         // Load the cummulative config over the currently active profiles.
@@ -3111,14 +3109,6 @@ void GUI_App::add_config_menu(wxMenuBar *menu) {
                                         Config::SnapshotDB::singleton()
                                             .restore_snapshot(dlg.snapshot_to_activate(), *app_config)
                                             .id);
-                        // Enable substitutions, log both user and system substitutions. There should not be any
-                        // substitutions performed when loading system presets because compatibility of profiles shall
-                        // be verified using the min_slic3r_version keys in config index, but users are known to be
-                        // creative and mess with the config files in various ways.
-                        if (PresetsConfigSubstitutions all_substitutions =
-                                preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::Enable);
-                            !all_substitutions.empty())
-                            show_substitutions_info(all_substitutions);
 
                         // Load the currently selected preset into the GUI, update the preset selection box.
                         load_current_presets();

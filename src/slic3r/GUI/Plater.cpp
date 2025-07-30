@@ -3088,8 +3088,8 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path> &input_
                         // and place the loaded config over the base.
                         config += std::move(config_loaded);
                     }
-                    if (!config_substitutions.empty())
-                        show_substitutions_info(config_substitutions.get(), filename.string());
+                   // if (!config_substitutions.empty())
+                       // show_substitutions_info(config_substitutions.get(), filename.string());
                     
                     if (load_config) {
                         this->model.get_custom_gcode_per_print_z_vector() = model.get_custom_gcode_per_print_z_vector();

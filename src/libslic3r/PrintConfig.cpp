@@ -9379,6 +9379,38 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
                 value = "!200";
             }
         }
+        
+        // Handle disabling from old version
+        if (value == "!0") {
+           if (opt_key == "wipe_tower_extruder"s) {
+               value = "0";
+           }
+           if (opt_key == "perimeter_extruder"s) {
+               value = "0";
+           }
+           if (opt_key == "infill_extruder"s) {
+               value = "0";
+           }
+           if (opt_key == "solid_infill_extruder"s) {
+               value = "0";
+           }
+        }
+        
+         if (value == "!1") {
+           if (opt_key == "wipe_tower_extruder"s) {
+               value = "1";
+           }
+           if (opt_key == "perimeter_extruder"s) {
+               value = "1";
+           }
+           if (opt_key == "infill_extruder"s) {
+               value = "1";
+           }
+           if (opt_key == "solid_infill_extruder"s) {
+               value = "1";
+           }
+        }
+        
         // nil-> disabled
         if (value.find("e+") != std::string::npos) {
             const ConfigOptionDef *def = print_config_def.get(opt_key);
