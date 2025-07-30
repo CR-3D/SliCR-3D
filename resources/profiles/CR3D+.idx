@@ -61,3 +61,5 @@ min_slic3r_version = 2.7.0.4
 0.0.59 Changed filament_vendor to CR-3D+
 min_slic3r_version = 2.7.0.5-intern
 0.0.60 Added print profiles: Draft, Strong, Flex
+0.0.61 Changed nozzle for pa from '0.61' to '0.6'
+0.0.62 chamber_temperature = 50; filament_pressure_advance rounded values; ASA-X FibCR20 = 280

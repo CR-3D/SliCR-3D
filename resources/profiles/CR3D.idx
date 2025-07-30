@@ -39,3 +39,5 @@ min_slic3r_version = 2.7.0.1
 0.0.41 disabled filament_wipe for ASA
 0.0.42 redefined printer_variant so it is selectable again
 0.0.43 updated duplicate mode and printer variant for I65+
+min_slic3r_version = 2.7.0.5-intern
+0.0.44 Set 'first_layer_height = layer_height'
