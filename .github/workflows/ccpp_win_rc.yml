@@ -8,7 +8,7 @@ on:
 
 jobs:
   build_dep:
-    runs-on: windows-2022
+    runs-on: [self-hosted, Windows]
 
     steps:
     - uses: actions/checkout@v3
@@ -29,7 +29,7 @@ jobs:
         msbuild /m ALL_BUILD.vcxproj
 
   build:
-    runs-on: windows-2022
+    runs-on: [self-hosted, Windows]
     needs: build_dep
     
     steps:
