@@ -7,6 +7,22 @@ on:
       - master_27_dev
 
 jobs:
+  setup_masm:
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Install MASM if missing
+        shell: powershell
+        run: |
+          $vsInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
+          if (-not (Test-Path $vsInstaller)) {
+            Write-Error "VS Installer not found!"
+            exit 1
+          }
+          & "$vsInstaller" modify --installPath "C:\Program Files\Microsoft Visual Studio\2022\Community" `
+              --add Microsoft.VisualStudio.Component.VC.MASM.x86.x64 `
+              --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+              --norestart --quiet
+              
   build_dep:
     runs-on: [self-hosted, Windows]
 
@@ -15,7 +31,6 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
       with: 
           arch: x64
-          toolset: 14.3
 
     - name: mkdir in deps
       run: mkdir deps/build
@@ -41,7 +56,6 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
       with: 
           arch: x64
-          toolset: 14.3
           
     - name: update submodule profiles
       working-directory: ./resources/profiles
