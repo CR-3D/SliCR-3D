@@ -22,11 +22,24 @@ jobs:
               --add Microsoft.VisualStudio.Component.VC.MASM.x86.x64 `
               --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
               --norestart --quiet
-              
+
   build_dep:
     runs-on: [self-hosted, Windows]
 
     steps:
+    - name: Install MASM if missing
+      shell: powershell
+      run: |
+          $vsInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
+          if (-not (Test-Path $vsInstaller)) {
+            Write-Error "VS Installer not found!"
+            exit 1
+          }
+          & "$vsInstaller" modify --installPath "C:\Program Files\Microsoft Visual Studio\2022\Community" `
+              --add Microsoft.VisualStudio.Component.VC.MASM.x86.x64 `
+              --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+              --norestart --quiet
+
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
       with: 
