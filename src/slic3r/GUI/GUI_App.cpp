@@ -1605,13 +1605,14 @@ bool GUI_App::on_init_inner() {
 
     obj_list()->set_min_height();
 
-    show_printer_webview_tab();
+    
     DynamicPrintConfig *selected_printer_config = preset_bundle->physical_printers.get_selected_printer_config();
-    if (selected_printer_config)
+    if (selected_printer_config) {
+        show_printer_webview_tab();
         if (selected_printer_config->has("print_host"))
             if (selected_printer_config->opt_string("print_host") != "")
                 plater_->set_physical_printer_config(selected_printer_config);
-
+   }
     update_mode(); // update view mode after fix of the object_list size
 
 #ifdef __APPLE__
