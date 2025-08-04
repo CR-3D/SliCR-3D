@@ -1815,8 +1815,8 @@ PageReloadFromDisk::PageReloadFromDisk(ConfigWizard* parent)
 PageFilesAssociation::PageFilesAssociation(ConfigWizard* parent)
     : ConfigWizardPage(parent, _L("Files association"), _L("Files association"))
 {
-    cb_3mf = new wxCheckBox(this, wxID_ANY, _L("Associate .3mf files to PrusaSlicer"));
-    cb_stl = new wxCheckBox(this, wxID_ANY, _L("Associate .stl files to PrusaSlicer"));
+    cb_3mf = new wxCheckBox(this, wxID_ANY, _L("Associate .3mf files to SliCR-3D"));
+    cb_stl = new wxCheckBox(this, wxID_ANY, _L("Associate .stl files to SliCR-3D"));
 //    cb_gcode = new wxCheckBox(this, wxID_ANY, _L("Associate .gcode files to PrusaSlicer G-code Viewer"));
 
     append(cb_3mf);
