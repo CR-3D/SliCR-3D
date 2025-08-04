@@ -1105,15 +1105,11 @@ void MainFrame::init_tabpanel()
 
             if (bt_idx_sel == 0) {
                 this->m_plater->select_view_3D("3D");
-                this->m_webViewPanel->Hide();
-                this->m_webViewPanel->Lower();
-                this->m_webViewPanel->Disable();
                 this->m_plater->Show();
                 this->m_plater->Raise();
                 this->m_plater->SetFocus();
                 
             } else if (bt_idx_sel == 1) {
-                this->m_webViewPanel->Hide();
                 this->m_plater->Show();
 
                 if (this->m_plater->get_force_preview() != Preview::ForceState::ForceGcode) {
@@ -1129,7 +1125,6 @@ void MainFrame::init_tabpanel()
             } else if (bt_idx_sel == 2) {
                 this->m_webViewPanel->m_webView->Show();
                 this->m_webViewPanel->m_combo_printer->update();
-                
                 this->m_plater->Hide();
                 DynamicPrintConfig *selected_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
                 
@@ -1198,6 +1193,7 @@ void MainFrame::load_printer_url(wxString url) {
     }
                      
 void MainFrame::add_printer_webview_tab(const wxString &url) {
+
     if (m_printer_webview_added) {
             return;
     }
