@@ -93,6 +93,8 @@ slic3r_remap_configs("${OCCT_LIBS}" RelWithDebInfo Release)
 target_include_directories(OCCTWrapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(OCCTWrapper PUBLIC ${OpenCASCADE_INCLUDE_DIR})
 target_link_libraries(OCCTWrapper ${OCCT_LIBS})
+target_link_libraries(OCCTWrapper libslic3r admesh)
+
 
 include(GNUInstallDirs)
 

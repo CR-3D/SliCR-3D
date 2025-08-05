@@ -194,6 +194,24 @@ static void trianglemesh_repair_on_import(stl_file &stl)
     BOOST_LOG_TRIVIAL(debug) << "TriangleMesh::repair() finished";
 }
 
+void TriangleMesh::from_facets(std::vector<stl_facet> &&facets, bool repair)
+{
+    stl_file stl;
+    stl.stats.type                = inmemory;
+    stl.stats.number_of_facets    = uint32_t(facets.size());
+    stl.stats.original_num_facets = int(stl.stats.number_of_facets);
+
+    stl_allocate(&stl);
+    stl.facet_start               = std::move(facets);
+
+    if (repair) {
+        trianglemesh_repair_on_import(stl);
+    }
+
+    stl_generate_shared_vertices(&stl, this->its);
+    fill_initial_stats(this->its, this->m_stats);
+}
+
 bool TriangleMesh::ReadSTLFile(const char* input_file, bool repair)
 { 
     stl_file stl;

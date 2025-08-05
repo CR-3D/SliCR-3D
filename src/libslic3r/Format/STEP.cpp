@@ -42,7 +42,7 @@ LoadStepFn get_load_step_fn()
 #endif
 
     if (!load_step_fn) {
-        boost::filesystem::path libpath = boost::dll::program_location().parent_path();
+        auto libpath = boost::dll::program_location().parent_path();
 #ifdef _WIN32
         libpath /= "OCCTWrapper.dll";
         HMODULE module = LoadLibraryW(libpath.wstring().c_str());
@@ -64,27 +64,7 @@ LoadStepFn get_load_step_fn()
 #elif __APPLE__
         load_step_fn = &load_step_internal;
 #else
-        // first try with system install directory
-        if (libpath.filename() == "bin") {
-            libpath = libpath.parent_path();
-            libpath /= "lib";
-        }
-        libpath /= "superslicer";
         libpath /= "OCCTWrapper.so";
-        BOOST_LOG_TRIVIAL(debug) << "Exsists"<<libpath.string()<< " ? "<<boost::filesystem::exists(libpath);
-        if (!boost::filesystem::exists(libpath)) {
-            boost::filesystem::path libpath_old = libpath;
-            // retry with appimage directory
-            libpath = boost::dll::program_location().parent_path();
-            libpath /= "OCCTWrapper.so";
-            BOOST_LOG_TRIVIAL(debug) << "Exsists"<<libpath.string()<< " ? "<<boost::filesystem::exists(libpath);
-            if (!boost::filesystem::exists(libpath)) {
-                BOOST_LOG_TRIVIAL(error) << "Error: can't find '"<<libpath_old.string()<< "' nor '"<<libpath.string()<<"' to load.";
-                libpath = "OCCTWrapper.so";
-            }
-        }
-
-        BOOST_LOG_TRIVIAL(debug) << "try to open dll "<<libpath.c_str()<< " ? "<<boost::filesystem::exists(libpath);
         void *plugin_ptr = dlopen(libpath.c_str(), RTLD_NOW | RTLD_GLOBAL);
 
         if (plugin_ptr) {
@@ -129,23 +109,13 @@ bool load_step(const char *path, Model *model /*BBS:, ImportStepProgressFn proFn
     else
         new_object->name = occt_object.object_name;
 
-
-    for (size_t i=0; i<occt_object.volumes.size(); ++i) {
-        indexed_triangle_set its;
-        for (size_t j=0; j<occt_object.volumes[i].vertices.size(); ++j)
-            its.vertices.emplace_back(Vec3f(occt_object.volumes[i].vertices[j][0],
-                                            occt_object.volumes[i].vertices[j][1],
-                                            occt_object.volumes[i].vertices[j][2]));
-        for (size_t j=0; j<occt_object.volumes[i].indices.size(); ++j)
-            its.indices.emplace_back(Vec3i32(occt_object.volumes[i].indices[j][0],
-                                           occt_object.volumes[i].indices[j][1],
-                                           occt_object.volumes[i].indices[j][2]));
-        its_merge_vertices(its, true);
-        TriangleMesh triangle_mesh(std::move(its));
+    for (size_t i = 0; i < occt_object.volumes.size(); ++i) {
+        TriangleMesh triangle_mesh;
+        triangle_mesh.from_facets(std::move(occt_object.volumes[i].facets));
         ModelVolume* new_volume = new_object->add_volume(std::move(triangle_mesh));
 
         new_volume->name = occt_object.volumes[i].volume_name.empty()
-                       ? std::string("Part") + std::to_string(i+1)
+                       ? std::string("Part") + std::to_string(i + 1)
                        : occt_object.volumes[i].volume_name;
         new_volume->source.input_file = path;
         new_volume->source.object_idx = (int)model->objects.size() - 1;
