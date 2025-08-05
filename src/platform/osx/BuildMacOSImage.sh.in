@@ -70,8 +70,9 @@ done
         mkdir pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/MacOS
 
         # copy Resources
-        cp -Rf ../resources pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources
-        cp pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources/icons/@SLIC3R_APP_KEY@.icns pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/resources/@SLIC3R_APP_KEY@.icns
+        cp -Rf ../resources/ pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources
+        cp pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources/icons/@SLIC3R_APP_KEY@.icns \
+            pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Resources/@SLIC3R_APP_KEY@.icns
         cp src/Info.final.plist pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/Info.plist
         echo -n -e 'APPL????\x0a' > PkgInfo
         cp PkgInfo pack/@SLIC3R_APP_KEY@/@SLIC3R_APP_KEY@.app/Contents/PkgInfo
