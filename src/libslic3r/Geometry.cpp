@@ -68,6 +68,8 @@ template bool contains(const ExPolygons &vector, const Point &point);
 void simplify_polygons(const Polygons &polygons, double tolerance, Polygons* retval)
 {
     Polygons simplified_raw;
+    simplified_raw.reserve(polygons.size());
+
     for (const Polygon &source_polygon : polygons) {
         Points simplified = MultiPoint::douglas_peucker(to_polyline(source_polygon).points, tolerance);
         if (simplified.size() > 3) {
@@ -169,6 +171,7 @@ bool
 arrange(size_t total_parts, const Vec2d &part_size, coordf_t dist, const BoundingBoxf* bb, Pointfs &positions)
 {
     positions.clear();
+    positions.reserve(total_parts);
 
     Vec2d part = part_size;
 
@@ -207,7 +210,8 @@ arrange(size_t total_parts, const Vec2d &part_size, coordf_t dist, const Boundin
     
     // list of cells, sorted by distance from center
     std::vector<ArrangeItemIndex> cellsorder;
-    
+    cellsorder.reserve(cellw * cellh);
+
     // work out distance for all cells, sort into list
     for (size_t i = 0; i <= cellw-1; ++i) {
         for (size_t j = 0; j <= cellh-1; ++j) {

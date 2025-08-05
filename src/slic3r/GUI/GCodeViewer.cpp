@@ -1542,9 +1542,9 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
     ColorRGBA default_color;
     decode_color("#FF8000", default_color);
 
-    // ensure there are enough colors defined
-    while (m_tool_colors.size() < std::max(size_t(1), gcode_result.extruders_count))
-        m_tool_colors.push_back(default_color);
+    const size_t extruders = std::max<size_t>(1, gcode_result.extruders_count);
+    if (m_tool_colors.size() < extruders)
+        m_tool_colors.resize(extruders, default_color);
 
     if (!gcode_result.filament_colors.empty()) {
         assert(str_tool_colors.size() == gcode_result.filament_colors.size());
@@ -1557,12 +1557,8 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
         decode_colors(str_tool_colors, m_filament_colors);
     }
 
-    // ensure there are enough colors defined
-    while (m_filament_colors.size() < std::max(size_t(1), gcode_result.extruders_count)) {
-        ColorRGBA decoded;
-        decode_color("#FF8000",decoded);
-        m_filament_colors.push_back(decoded);
-    }
+    if (m_filament_colors.size() < extruders)
+        m_filament_colors.resize(extruders, default_color);
 
     // update ranges for coloring / legend
     m_extrusions.reset_ranges();
@@ -1832,6 +1828,7 @@ void GCodeViewer::export_toolpaths_to_obj(const char* filename) const
 
     // collect color information to generate materials
     std::vector<ColorRGBA> colors;
+    colors.reserve(t_buffer.render_paths.size());
     for (const RenderPath& path : t_buffer.render_paths) {
         colors.push_back(path.color);
     }
@@ -1884,7 +1881,14 @@ void GCodeViewer::export_toolpaths_to_obj(const char* filename) const
         size_t offset;
     };
     std::vector<VerticesOffset> vertices_offsets;
+    vertices_offsets.reserve(t_buffer.vertices.vbos.size());
     vertices_offsets.push_back({ t_buffer.vertices.vbos.front(), 0 });
+
+    size_t total_vertices = 0;
+    for (size_t size_bytes : t_buffer.vertices.sizes)
+        total_vertices += size_bytes / sizeof(float) / floats_per_vertex;
+    out_vertices.reserve(total_vertices);
+    out_normals.reserve(total_vertices);
 
     // get vertices/normals data from vertex buffers on gpu
     for (size_t i = 0; i < t_buffer.vertices.vbos.size(); ++i) {
@@ -2330,6 +2334,7 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
     m_cog.reset();
 
     m_sequential_view.gcode_ids.clear();
+    m_sequential_view.gcode_ids.reserve(gcode_result.moves.size());
     for (size_t i = 0; i < gcode_result.moves.size(); ++i) {
         const GCodeProcessorResult::MoveVertex& move = gcode_result.moves[i];
         if (move.type != EMoveType::Seam)
@@ -2341,9 +2346,17 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
     std::vector<InstanceBuffer> instances(m_buffers.size());
     std::vector<InstanceIdBuffer> instances_ids(m_buffers.size());
     std::vector<InstancesOffsets> instances_offsets(m_buffers.size());
+    for (auto& buf : instances)
+        buf.reserve(m_moves_count);
+    for (auto& buf : instances_ids)
+        buf.reserve(m_moves_count);
+    for (auto& buf : instances_offsets)
+        buf.reserve(m_moves_count);
     std::vector<float> options_zs;
+    options_zs.reserve(m_moves_count);
 
     std::vector<size_t> biased_seams_ids;
+    biased_seams_ids.reserve(m_moves_count);
 
     // toolpaths data -> extract vertices from result
     for (size_t i = 0; i < m_moves_count; ++i) {

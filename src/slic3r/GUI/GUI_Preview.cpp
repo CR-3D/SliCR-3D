@@ -642,6 +642,7 @@ void Preview::update_layers_slider(const std::vector<double>& layers_z, bool sho
                 const std::vector<std::pair<coordf_t, float>> &layerz_to_area =
                plater->active_fff_print().print_statistics().layer_area_stats;
                 std::vector<float> areas;
+                areas.reserve(layerz_to_area.size());
                 for (auto [z, area] : layerz_to_area) areas.push_back(area);
                 m_layers_slider->SetLayersAreas(areas);
                 //assert(areas.size() == plater->active_sla_print().print_statistics.modes.front().layers_times.size());
@@ -926,13 +927,14 @@ void Preview::load_print_as_fff(bool keep_z_range)
     // set color print values, if it si selected "ColorPrint" view type
     if (gcode_view_type == GCodeViewer::EViewType::ColorPrint) {
        colors = wxGetApp().plater()->get_colors_for_color_print(*active_gcode_result());
+       colors.reserve(colors.size() + 1);
 
         if (!gcode_preview_data_valid) {
             if (wxGetApp().is_editor())
                 color_print_values = wxGetApp().plater()->model().custom_gcode_per_print_z().gcodes;
             else
                 color_print_values = m_canvas->get_custom_gcode_per_print_z();
-            colors.push_back("#808080"); // gray color for pause print or custom G-code 
+            colors.push_back("#808080"); // gray color for pause print or custom G-code
         }
     }
     else if (gcode_view_type == GCodeViewer::EViewType::Filament)

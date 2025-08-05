@@ -962,7 +962,7 @@ namespace DoExport {
                 entity->visit(*this);
         }
         double reset_use_get(const ExtrusionEntityCollection entity) { reset(); use(entity); return get(); }
-        double get() { return min; }
+        double get() const { return min == std::numeric_limits<double>::max() ? 0.0 : min; }
         void reset() { min = std::numeric_limits<double>::max(); }
         //test if at least a ExtrusionRole from tests is used for min computation
         bool is_compatible(std::initializer_list<ExtrusionRole> tests) { 

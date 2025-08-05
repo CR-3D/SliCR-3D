@@ -15,21 +15,24 @@ namespace Slic3r {
 void SurfaceCollection::simplify(double tolerance)
 {
     Surfaces ss;
-    for (Surfaces::const_iterator it_s = this->surfaces.begin(); it_s != this->surfaces.end(); ++it_s) {
-        ExPolygons expp;
-        it_s->expolygon.simplify(tolerance, expp);
-        for (ExPolygons::const_iterator it_e = expp.begin(); it_e != expp.end(); ++it_e) {
-            Surface s = *it_s;
-            s.expolygon = *it_e;
-            ss.push_back(s);
+    ss.reserve(this->surfaces.size());
+    ExPolygons expp;
+    for (const Surface &surf : this->surfaces) {
+        expp.clear();
+        surf.expolygon.simplify(tolerance, expp);
+        for (const ExPolygon &xp : expp) {
+            Surface s = surf;
+            s.expolygon = xp;
+            ss.emplace_back(std::move(s));
         }
     }
-    this->surfaces = ss;
+    this->surfaces = std::move(ss);
 }
 
 /* group surfaces by common properties */
 void SurfaceCollection::group(std::vector<SurfacesPtr> *retval) const
 {
+    retval->reserve(retval->size() + this->surfaces.size());
     for (const Surface &surface : this->surfaces) {
         // find a group with the same properties
         SurfacesPtr *group = nullptr;
@@ -51,6 +54,8 @@ void SurfaceCollection::group(std::vector<SurfacesPtr> *retval) const
 SurfacesConstPtr SurfaceCollection::filter_by_type(const SurfaceType type) const
 {
     SurfacesConstPtr ss;
+        ss.reserve(this->surfaces.size());
+
     for (const Surface & surface : this->surfaces) {
         if (surface.surface_type == type)
             ss.push_back(&surface);
@@ -61,15 +66,21 @@ SurfacesConstPtr SurfaceCollection::filter_by_type(const SurfaceType type) const
 SurfacesConstPtr SurfaceCollection::filter_by_type_flag(const SurfaceType allowed, const SurfaceType not_allowed) const
 {
     SurfacesConstPtr ss;
+        ss.reserve(this->surfaces.size());
+
     for (const Surface & surface : this->surfaces) {
-        if ((surface.surface_type & allowed) == allowed && (surface.surface_type & not_allowed) == 0) ss.push_back(&surface);
-    }
+        if ((surface.surface_type & allowed) == allowed && (surface.surface_type & not_allowed) == 0)
+            ss.push_back(&surface);
+        
+        }
     return ss;
 }
 
 SurfacesConstPtr SurfaceCollection::filter_by_types(std::initializer_list<SurfaceType> types) const
 {
     SurfacesConstPtr ss;
+        ss.reserve(this->surfaces.size());
+
     for (const Surface &surface : this->surfaces)
         if (std::find(types.begin(), types.end(), surface.surface_type) != types.end())
             ss.push_back(&surface);
@@ -78,6 +89,8 @@ SurfacesConstPtr SurfaceCollection::filter_by_types(std::initializer_list<Surfac
 
 void SurfaceCollection::filter_by_type(const SurfaceType type, Polygons *polygons) const
 {
+    polygons->reserve(polygons->size() + this->surfaces.size());
+
     for (const Surface & surface : this->surfaces) {
         if (surface.surface_type == type) {
             Polygons pp = to_polygons(surface.expolygon);
@@ -88,6 +101,8 @@ void SurfaceCollection::filter_by_type(const SurfaceType type, Polygons *polygon
 void
 SurfaceCollection::filter_by_type_flag(Polygons* polygons, const SurfaceType flags_needed, const SurfaceType flags_not_allowed) const
 {
+        polygons->reserve(polygons->size() + this->surfaces.size());
+
     for (const Surface & surface : this->surfaces) {
         if ((surface.surface_type & flags_needed) == flags_needed && (surface.surface_type & flags_not_allowed)==0) {
             Polygons pp = to_polygons(surface.expolygon);
