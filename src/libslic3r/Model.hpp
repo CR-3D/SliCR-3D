@@ -1317,7 +1317,8 @@ public:
     static Model read_from_file(
         const std::string& input_file, 
         DynamicPrintConfig* config = nullptr, ConfigSubstitutionContext* config_substitutions = nullptr,
-        LoadAttributes options = LoadAttribute::AddDefaultInstances);
+        LoadAttributes options = LoadAttribute::AddDefaultInstances, std::optional<std::pair<double, double>> step_deflections = std::nullopt);
+        
     static Model read_from_archive(
         const std::string& input_file, 
         DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions,

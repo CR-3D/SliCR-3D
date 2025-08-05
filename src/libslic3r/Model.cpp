@@ -178,7 +178,11 @@ const CustomGCode::Info& Model::custom_gcode_per_print_z() const
 
 
 // Loading model from a file, it may be a simple geometry file as STL or OBJ, however it may be a project file as well.
-Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
+Model Model::read_from_file(const std::string& input_file,
+                            DynamicPrintConfig* config,
+                            ConfigSubstitutionContext* config_substitutions,
+                            LoadAttributes options,
+                            std::optional<std::pair<double, double>> step_deflections)
 {
     Model model;
 
@@ -195,7 +199,7 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
     else if (boost::algorithm::iends_with(input_file, ".obj"))
         result = load_obj(input_file.c_str(), &model);
     else if (boost::algorithm::iends_with(input_file, ".step") || boost::algorithm::iends_with(input_file, ".stp"))
-        result = load_step(input_file.c_str(), &model);
+        result = load_step(input_file.c_str(), &model, step_deflections);
     else if (boost::algorithm::iends_with(input_file, ".amf") || boost::algorithm::iends_with(input_file, ".amf.xml"))
         result = load_amf(input_file.c_str(), config, config_substitutions, &model, options & LoadAttribute::CheckVersion);
     else if (boost::algorithm::iends_with(input_file, ".3mf") || boost::algorithm::iends_with(input_file, ".zip"))
@@ -229,7 +233,11 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
 }
 
 // Loading model from a file (3MF or AMF), not from a simple geometry file (STL or OBJ).
-Model Model::read_from_archive(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
+Model Model::read_from_archive(const std::string& input_file,
+                               DynamicPrintConfig* config,
+                               ConfigSubstitutionContext* config_substitutions,
+                               LoadAttributes options
+                               )
 {
     assert(config != nullptr);
     assert(config_substitutions != nullptr);

@@ -77,7 +77,7 @@ static void getNamedSolids(const TopLoc_Location& location, const Handle(XCAFDoc
     }
 }
 
-extern "C" OCCTWRAPPER_EXPORT bool load_step_internal(const char *path, OCCTResult* res /*BBS:, ImportStepProgressFn proFn*/)
+extern "C" OCCTWRAPPER_EXPORT bool load_step_internal(const char *path, OCCTResult* res /*BBS:, ImportStepProgressFn proFn*/, std::optional<std::pair<double, double>> deflections /*= std::nullopt*/)
 {
 try {
     //bool cb_cancel = false;
@@ -126,24 +126,17 @@ try {
     std::string obj_name((last_slash == nullptr) ? path : last_slash + 1);
     res->object_name = obj_name;
 
-    for (size_t i = 0; i < namedSolids.size(); ++i) {
-        //BBS:if (proFn) {
-        //    proFn(LOAD_STEP_STAGE_GET_MESH, i, namedSolids.size(), cb_cancel);
-        //    if (cb_cancel) {
-        //        model->delete_object(new_object);
-        //        shapeTool.reset(nullptr);
-        //        application->Close(document);
-        //        return false;
-        //    }
-        //}
+    for (const NamedSolid &namedSolid : namedSolids) {
+        BRepMesh_IncrementalMesh mesh(namedSolid.solid, 
+                                      deflections.has_value() ? deflections.value().first  : STEP_TRANS_CHORD_ERROR, false, 
+                                      deflections.has_value() ? deflections.value().second : STEP_TRANS_ANGLE_RES, true);
+        res->volumes.emplace_back();
 
         res->volumes.emplace_back();
         auto& vertices = res->volumes.back().vertices;
         auto& indices  = res->volumes.back().indices;
 
-        BRepMesh_IncrementalMesh mesh(namedSolids[i].solid, STEP_TRANS_CHORD_ERROR, false, STEP_TRANS_ANGLE_RES, true);
-
-        for (TopExp_Explorer anExpSF(namedSolids[i].solid, TopAbs_FACE); anExpSF.More(); anExpSF.Next()) {
+        for (TopExp_Explorer anExpSF(namedSolid.solid, TopAbs_FACE); anExpSF.More(); anExpSF.Next()) {
             const int aNodeOffset = int(vertices.size());
             const TopoDS_Shape& aFace = anExpSF.Current();
             TopLoc_Location aLoc;
@@ -176,7 +169,7 @@ try {
             }
         }
 
-        res->volumes.back().volume_name = namedSolids[i].name;
+        res->volumes.back().volume_name = namedSolid.name;
 
         if (vertices.empty())
             res->volumes.pop_back();        

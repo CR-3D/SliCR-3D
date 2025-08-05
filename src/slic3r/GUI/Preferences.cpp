@@ -234,7 +234,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
             m_optkey_to_optgroup[opt_key]->set_value(OptionKeyIdx::scalar(opt_key), app_config->get_bool(opt_key), true, false);
 
         for (const std::string opt_key : {"default_action_on_close_application", "default_action_on_new_project",
-                                          "default_action_on_select_preset"})
+                                          "default_action_on_select_preset", "show_step_import_parameters"})
             m_optkey_to_optgroup[opt_key]->set_value(OptionKeyIdx::scalar(opt_key), app_config->get(opt_key) == "none", true, false);
         m_optkey_to_optgroup["default_action_on_dirty_project"]
             ->set_value(OptionKeyIdx::scalar("default_action_on_dirty_project"),
@@ -910,6 +910,11 @@ void PreferencesDialog::build()
 			L("Allow automatically color change"),
 			L("If enabled, related notification will be shown, when sliced object looks like a logo or a sign."),
 			app_config->get_bool("allow_auto_color_change"));
+   
+		append_bool_option(m_tabid_2_optgroups.back().back(), "show_step_import_parameters",
+			L("Show STEP file import parameters"),
+			L("If enabled, SliCR-3D will show dialog with quality selection when importing STEP file."),
+			app_config->get_bool("show_step_import_parameters"));
 
 
 		// FIXME separator don't work anymore
