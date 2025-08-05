@@ -21,6 +21,8 @@
 #include "BRepBuilderAPI_Transform.hxx"
 #include "TopExp_Explorer.hxx"
 #include "BRep_Tool.hxx"
+#include "admesh/stl.h"
+#include "libslic3r/Point.hpp"
 
 const double STEP_TRANS_CHORD_ERROR = 0.005;
 const double STEP_TRANS_ANGLE_RES = 1;
@@ -132,10 +134,8 @@ try {
                                       deflections.has_value() ? deflections.value().second : STEP_TRANS_ANGLE_RES, true);
         res->volumes.emplace_back();
 
-        res->volumes.emplace_back();
-        auto& vertices = res->volumes.back().vertices;
-        auto& indices  = res->volumes.back().indices;
-
+        std::vector<Vec3f>      vertices;
+        std::vector<stl_facet> &facets = res->volumes.back().facets;
         for (TopExp_Explorer anExpSF(namedSolid.solid, TopAbs_FACE); anExpSF.More(); anExpSF.Next()) {
             const int aNodeOffset = int(vertices.size());
             const TopoDS_Shape& aFace = anExpSF.Current();
@@ -149,23 +149,29 @@ try {
             for (Standard_Integer aNodeIter = 1; aNodeIter <= aTriangulation->NbNodes(); ++aNodeIter) {
                 gp_Pnt aPnt = aTriangulation->Node(aNodeIter);
                 aPnt.Transform(aTrsf);
-                vertices.push_back({float(aPnt.X()), float(aPnt.Y()), float(aPnt.Z())});
+                vertices.emplace_back(std::move(Vec3f(float(aPnt.X()), float(aPnt.Y()), float(aPnt.Z()))));
             }
-            // Now the indices.
+
+            // Now copy the facets.
             const TopAbs_Orientation anOrientation = anExpSF.Current().Orientation();
             for (Standard_Integer aTriIter = 1; aTriIter <= aTriangulation->NbTriangles(); ++aTriIter) {
+                const int aTriangleOffet = int(facets.size());
                 Poly_Triangle aTri = aTriangulation->Triangle(aTriIter);
 
                 Standard_Integer anId[3];
                 aTri.Get(anId[0], anId[1], anId[2]);
-                if (anOrientation == TopAbs_REVERSED)
+                if (anOrientation == TopAbs_REVERSED) {
                     std::swap(anId[1], anId[2]);
+                }
 
-                // Account for the vertices we already have from previous faces.
-                // anId is 1-based index !
-                indices.push_back({anId[0] - 1 + aNodeOffset,
-                                   anId[1] - 1 + aNodeOffset,
-                                   anId[2] - 1 + aNodeOffset});
+                stl_facet facet;
+                facet.vertex[0] = vertices[anId[0] + aNodeOffset - 1];
+                facet.vertex[1] = vertices[anId[1] + aNodeOffset - 1];
+                facet.vertex[2] = vertices[anId[2] + aNodeOffset - 1];
+                facet.normal    = (facet.vertex[1] - facet.vertex[0]).cross(facet.vertex[2] - facet.vertex[1]).normalized();
+                facet.extra[0]  = 0;
+                facet.extra[1]  = 0;
+                facets.emplace_back(std::move(facet));
             }
         }
 

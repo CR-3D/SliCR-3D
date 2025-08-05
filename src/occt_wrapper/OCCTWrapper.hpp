@@ -8,12 +8,15 @@
 #include <utility>
 #include <optional>
 
+struct stl_facet;
+
 namespace Slic3r {
 
 struct OCCTVolume {
     std::string volume_name;
     std::vector<std::array<float, 3>> vertices;
     std::vector<std::array<int, 3>> indices;
+    std::vector<stl_facet> facets;
 };
 
 struct OCCTResult {
