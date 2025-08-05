@@ -1105,12 +1105,15 @@ void MainFrame::init_tabpanel()
 
             if (bt_idx_sel == 0) {
                 this->m_plater->select_view_3D("3D");
+                this->m_webViewPanel->Hide();
+
                 this->m_plater->Show();
                 this->m_plater->Raise();
                 this->m_plater->SetFocus();
                 
             } else if (bt_idx_sel == 1) {
                 this->m_plater->Show();
+                this->m_webViewPanel->Hide();
 
                 if (this->m_plater->get_force_preview() != Preview::ForceState::ForceGcode) {
                     this->m_plater->set_force_preview(Preview::ForceState::ForceGcode);
