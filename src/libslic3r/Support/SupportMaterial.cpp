@@ -1511,8 +1511,10 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(c
                     ensure_valid(enforcer_polygons, resolution);
                     polygons_append(overhang_polygons, enforcer_polygons);
                     slices_margin_update(std::min(lower_layer_offset, float(scale_(gap_xy))), no_interface_offset);
-                    polygons_append(contact_polygons, enforcer_polygons);
-
+                    polygons_append(contact_polygons,
+                                    diff(enforcer_polygons,
+                                         slices_margin.all_polygons.empty() ? slices_margin.polygons :
+                                                                              slices_margin.all_polygons));
                     // ensure_valid(overhang_polygons, resolution);
                     assert_valid(overhang_polygons);
                     ensure_valid(contact_polygons, resolution);
