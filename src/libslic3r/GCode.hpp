@@ -598,7 +598,7 @@ private:
 
     std::function<void()> m_throw_if_canceled = [](){};
 
-    double                    _compute_e_per_mm(const ExtrusionPath &path);
+    double                    _compute_e_per_mm(const ExtrusionPath &path, double current_speed_mm_s);
     std::string               _extrude(const ExtrusionPath &path, const std::string_view description, double speed = -1);
     void                      _extrude_line(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment, ExtrusionRole role);
     void                      _extrude_line_cut_corner(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment, Point& last_pos, const double path_width);

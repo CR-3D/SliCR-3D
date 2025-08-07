@@ -566,6 +566,7 @@ private:
     bool m_dirty;
     std::time_t last_showned_gcode = 0;
     std::time_t last_showned_print = 0;
+    std::vector<std::string> m_last_tool_colors;
     bool m_initialized;
     bool m_apply_zoom_to_volumes_filter;
     bool m_picking_enabled;

@@ -4217,8 +4217,8 @@ std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop
                 }
             }
 
-            // calculate extrusion length per distance unit
-            double e_per_mm_per_height = _compute_e_per_mm(*path);
+            // calculate extrusion length per distance unit using the current speed
+            double e_per_mm_per_height = _compute_e_per_mm(*path, m_writer.get_speed_mm_s());
             //extrude
             {
                 std::string_view comment = config().gcode_comments ? description : ""sv;
@@ -5739,8 +5739,8 @@ std::string GCodeGenerator::extrude_path_3D(const ExtrusionPath3D &path, const s
 
     std::string gcode = this->_before_extrude(simplifed_path, description, speed);
 
-    // calculate extrusion length per distance unit
-    double e_per_mm = _compute_e_per_mm(simplifed_path);
+    // calculate extrusion length per distance unit using the current speed
+    double e_per_mm = _compute_e_per_mm(simplifed_path, m_writer.get_speed_mm_s());
     double path_length = 0.;
     {
         std::string_view comment = m_config.gcode_comments ? description : ""sv;
@@ -5758,7 +5758,7 @@ std::string GCodeGenerator::extrude_path_3D(const ExtrusionPath3D &path, const s
     }
     gcode += this->_after_extrude(simplifed_path);
     // ensure z is reset
-    if (!is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON)) {
+    if (m_layer != nullptr && !is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON)) {
         assert(m_writer.get_position().z() > m_layer->print_z);
         m_writer.set_lift(m_writer.get_position().z() - m_layer->print_z);
     }
@@ -6221,7 +6221,7 @@ void GCodeGenerator::_extrude_line_cut_corner(std::string& gcode_str, const Line
     }
 }
 
-double GCodeGenerator::_compute_e_per_mm(const ExtrusionPath &path) {
+double GCodeGenerator::_compute_e_per_mm(const ExtrusionPath &path, double current_speed_mm_s) {
     const double path_mm3_per_mm = path.mm3_per_mm(); 
     // no e if no extrusion axis
     if (m_writer.extrusion_axis().empty() || path_mm3_per_mm <= 0)
@@ -6235,10 +6235,7 @@ double GCodeGenerator::_compute_e_per_mm(const ExtrusionPath &path) {
         GraphData eems_graph = this->config().extruder_extrusion_multiplier_speed.get_at(this->m_writer.tool()->id());
         if (eems_graph.data_size() > 0 && this->config().extruder_extrusion_multiplier_speed.is_enabled(this->m_writer.tool()->id())) {
             assert(e_per_mm > 0);
-            double current_speed_mm_s = this->writer().get_speed_mm_s();
-            if (eems_graph.data_size() > 0) {
-                e_per_mm *= eems_graph.interpolate(current_speed_mm_s);
-            }
+            e_per_mm *= eems_graph.interpolate(current_speed_mm_s);
             assert(e_per_mm > 0);
         }
     }
@@ -6246,10 +6243,9 @@ double GCodeGenerator::_compute_e_per_mm(const ExtrusionPath &path) {
     if (path.role() == ExtrusionRole::TopSolidInfill) {
         e_per_mm *= EXTRUDER_CONFIG_WITH_DEFAULT(filament_fill_top_flow_ratio, 100) * 0.01;
     }
-    // first layer mult
-    if (this->m_layer->bottom_z() < EPSILON) {
+    // first layer multiplier
+    if (this->m_layer != nullptr && this->m_layer->bottom_z() < EPSILON) {
         e_per_mm *= m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
-        e_per_mm *= EXTRUDER_CONFIG_WITH_DEFAULT(filament_first_layer_flow_ratio, 100) * 0.01;
     }
     return e_per_mm;
 }
@@ -6267,8 +6263,8 @@ std::string GCodeGenerator::_extrude(const ExtrusionPath &path, const std::strin
             comment);
     };
 
-    // calculate extrusion length per distance unit
-    double e_per_mm = _compute_e_per_mm(path);
+    // calculate extrusion length per distance unit using the current speed
+    double e_per_mm = _compute_e_per_mm(path, m_writer.get_speed_mm_s());
     ArcPolyline polyline = path.as_polyline();
     if (polyline.size() > 1) {
         std::string comment = m_config.gcode_comments ? descr : "";
@@ -6391,6 +6387,11 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
 
     float factor = 1;
     double speed = set_speed;
+    double path_mm3_per_mm = path.mm3_per_mm();
+    if (m_layer->bottom_z() < EPSILON) {
+        path_mm3_per_mm *= this->m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
+        path_mm3_per_mm *= EXTRUDER_CONFIG_WITH_DEFAULT(filament_first_layer_flow_ratio, 100) * 0.01;
+    }
     // set speed
     if (speed < 0) {
         //if speed == -1, then it's means "choose yourself, but if it's < SMALL_PERIMETER_SPEED_RATIO_OFFSET, then it's a scaling from small_perimeter.
@@ -6428,13 +6429,13 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
         } else if (path.role() == ExtrusionRole::GapFill) {
             speed = m_config.get_computed_value("gap_fill_speed");
             if(comment) *comment = "gap_fill_speed";
-            if (m_region) {
-                //compute intended perimeter flow
+            if (m_region && m_layer != nullptr) {
+                // compute intended perimeter flow
                 Flow fl = m_region->flow(*m_layer->object(), FlowRole::frPerimeter, m_layer->height, m_layer->id());
                 double max_vol_speed = fl.mm3_per_mm() * m_config.get_computed_value("perimeter_speed");
-                double current_vol_speed = path.mm3_per_mm() * speed;
+                double current_vol_speed = path_mm3_per_mm * speed;
                 if (max_vol_speed < current_vol_speed) {
-                    speed = max_vol_speed / path.mm3_per_mm();
+                    speed = max_vol_speed / path_mm3_per_mm;
                     if(comment) *comment = "max_vol_speed (from " + (*comment) + ")";
                 }
             }
@@ -6461,12 +6462,14 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
             throw Slic3r::InvalidArgument("Invalid speed");
         }
     } else {
+        if (speed == 0)
+            speed = m_writer.get_speed_mm_s();
         if (comment) *comment = "previous speed";
     }
     const std::string comment_auto_speed = "(from autospeed)";
     if (m_volumetric_speed != 0. && speed == 0) {
         //if m_volumetric_speed, use the max size for thinwall & gapfill, to avoid variations
-        double vol_speed = m_volumetric_speed / path.mm3_per_mm();
+        double vol_speed = m_volumetric_speed / path_mm3_per_mm;
         double max_print_speed = m_config.get_computed_value("max_print_speed");
         if (vol_speed > max_print_speed) {
             vol_speed = max_print_speed;
@@ -6543,7 +6546,7 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
             if (m_volumetric_speed != 0. && other_speed == 0) {
                 // copy/paste
                 // if m_volumetric_speed, use the max size for thinwall & gapfill, to avoid variations
-                double vol_speed = m_volumetric_speed / path.mm3_per_mm();
+                double vol_speed = m_volumetric_speed / path_mm3_per_mm;
                 double max_print_speed = m_config.get_computed_value("max_print_speed");
                 if (vol_speed > max_print_speed) {
                     vol_speed = max_print_speed;
@@ -6627,11 +6630,6 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
         }
     }
 
-    // the first_layer_flow_ratio is added at the last time to take into account everything. So do the compute like it's here.
-    double path_mm3_per_mm = path.mm3_per_mm();
-    if (m_layer->bottom_z() < EPSILON) {
-        path_mm3_per_mm *= this->m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
-    }
     // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
     if (m_config.max_volumetric_speed.value > 0 && path_mm3_per_mm > 0 && m_config.max_volumetric_speed.value / path_mm3_per_mm < speed) {
         speed = m_config.max_volumetric_speed.value / path_mm3_per_mm;

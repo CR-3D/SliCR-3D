@@ -206,7 +206,7 @@ void GCodeProcessor::TimeMachine::CustomGCodeTime::reset()
 {
     needed = false;
     cache = 0.0f;
-    times = std::vector<std::pair<CustomGCode::Type, float>>();
+    times.clear();
 }
 
 void GCodeProcessor::TimeMachine::reset()
@@ -221,16 +221,16 @@ void GCodeProcessor::TimeMachine::reset()
     extrude_factor_override_percentage = 1.0f;
     time = 0.0f;
     travel_time = 0.0f;
-    stop_times = std::vector<StopTime>();
+    stop_times.clear();
     time_acceleration = 1.0f;
     curr.reset();
     prev.reset();
     gcode_time.reset();
-    blocks = std::vector<TimeBlock>();
-    g1_times_cache = std::vector<G1LinesCacheItem>();
+    blocks.clear();
+    g1_times_cache.clear();
     std::fill(moves_time.begin(), moves_time.end(), 0.0f);
     std::fill(roles_time.begin(), roles_time.end(), 0.0f);
-    layers_time = std::vector<float>();
+    layers_time.clear();
 }
 
 void GCodeProcessor::TimeMachine::simulate_st_synchronize_call(std::vector<GCodeProcessorResult::MoveVertex> &moves, float additional_time)
@@ -330,6 +330,7 @@ void GCodeProcessor::TimeMachine::calculate_time(std::vector<GCodeProcessorResul
     recalculate_trapezoids(blocks);
 
     size_t n_blocks_process = blocks.size() - keep_last_n_blocks;
+    g1_times_cache.reserve(g1_times_cache.size() + n_blocks_process);
     for (size_t i = 0; i < n_blocks_process; ++i) {
         const TimeBlock& block = blocks[i];
         float block_time = block.time() * time_acceleration;
@@ -2995,9 +2996,15 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
             }
         }
 
-#if ENABLE_GCODE_VIEWER_DATA_CHECKING
+    #if ENABLE_GCODE_VIEWER_DATA_CHECKING
         m_width_compare.update(m_width, m_extrusion_role);
-#endif // ENABLE_GCODE_VIEWER_DATA_CHECKING
+    #endif // ENABLE_GCODE_VIEWER_DATA_CHECKING
+    } else {
+        // For non-extrusion moves, ensure volumetric flow and dimensions are reset
+        // so that viewer statistics don't inherit values from previous extrusions.
+        m_mm3_per_mm = 0.0f;
+        m_width = 0.0f;
+        m_height = 0.0f;
     }
 
     // time estimate section
