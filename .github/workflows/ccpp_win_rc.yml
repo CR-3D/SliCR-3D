@@ -123,15 +123,28 @@ jobs:
         xcopy /RCYIE Slic3r_win_build\local-settings.bat package\${{ github.event.repository.name }}_local-settings.bat
         xcopy /RCYIE Slic3r_win_build\mesa package\
 
-    - name: Clean old resources
+    - name: Clean and recreate package/resources
       working-directory: ./build
       shell: powershell
-      run: Remove-Item -Recurse -Force package/resources
+      run: |
+          $resPath = "package\resources"
+          
+          if (Test-Path $resPath) {
+            Write-Host "Removing existing $resPath"
+            Remove-Item -Recurse -Force $resPath
+          } else {
+            Write-Host "$resPath does not exist. Creating fresh."
+          }
+
+          New-Item -ItemType Directory -Path $resPath | Out-Null
 
     - name: Copy updated resources
       working-directory: ./build
       shell: powershell
-      run: Copy-Item -Recurse -Force -Path ../resources/* -Destination package/resources
+      run: |
+           $src = "src\resources\*"
+           $dest = "package\resources"
+           Copy-Item -Recurse -Force -Path $src -Destination $dest
 
     - name: copy dll & exe
       working-directory: ./build
