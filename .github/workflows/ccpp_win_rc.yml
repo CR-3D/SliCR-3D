@@ -111,11 +111,10 @@ jobs:
       shell: powershell
       run: '(new-object System.Net.WebClient).DownloadFile("https://github.com/supermerill/SuperSlicer_deps/releases/download/1.8/Slic3r_win_build.zip", "Slic3r_win_build.zip")'
 
-    - name: unzip release
+    - name: unzip
       working-directory: ./build
       shell: cmd
       run: '"C:/Program Files/7-Zip/7z.exe" x Slic3r_win_build.zip'
-
     - name: copy missing dll content from old release
       working-directory: ./build
       shell: cmd
@@ -123,28 +122,37 @@ jobs:
         xcopy /RCYIE Slic3r_win_build\local-settings.bat package\${{ github.event.repository.name }}_local-settings.bat
         xcopy /RCYIE Slic3r_win_build\mesa package\
 
-    - name: Clean and recreate package/resources
+    - name: list build folder
+      working-directory: ./build
+      shell: powershell
+      run: Get-ChildItem -Recurse -Force
+
+    - name: Clean & copy updated resources (auto-detect)
       working-directory: ./build
       shell: powershell
       run: |
-          $resPath = "package\resources"
-          
-          if (Test-Path $resPath) {
-            Write-Host "Removing existing $resPath"
-            Remove-Item -Recurse -Force $resPath
-          } else {
-            Write-Host "$resPath does not exist. Creating fresh."
-          }
+        # Find resources folder (search up to 3 levels up)
+        $resourcesPath = Get-ChildItem -Path .. -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Name -eq 'resources' } |
+                        Select-Object -First 1 -ExpandProperty FullName
 
-          New-Item -ItemType Directory -Path $resPath | Out-Null
+        if (-not $resourcesPath) {
+          Write-Host " Could not find 'resources' directory."
+          exit 1
+        }
 
-    - name: Copy updated resources
-      working-directory: ./build
-      shell: powershell
-      run: |
-           $src = "src\resources\*"
-           $dest = "package\resources"
-           Copy-Item -Recurse -Force -Path $src -Destination $dest
+        $dest = "package/resources"
+
+        if (Test-Path $dest) {
+          Write-Host "🧹 Removing existing $dest"
+          Remove-Item -Recurse -Force $dest
+        }
+
+        New-Item -ItemType Directory -Path $dest | Out-Null
+
+        Copy-Item -Recurse -Force -Path "$resourcesPath/*" -Destination $dest
+
+        Write-Host "Copied resources to $dest"
 
     - name: copy dll & exe
       working-directory: ./build
