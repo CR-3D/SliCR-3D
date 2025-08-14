@@ -90,19 +90,16 @@ void GCodeViewer::VBuffer::reset()
     if (!vbos.empty()) {
         glsafe(::glDeleteBuffers(static_cast<GLsizei>(vbos.size()), static_cast<const GLuint*>(vbos.data())));
         vbos.clear();
-        vbos.shrink_to_fit();
     }
 
 #if ENABLE_GL_CORE_PROFILE
     if (!vaos.empty()) {
         glsafe(::glDeleteVertexArrays(static_cast<GLsizei>(vaos.size()), static_cast<const GLuint*>(vaos.data())));
         vaos.clear();
-        vaos.shrink_to_fit();
     }
 #endif // ENABLE_GL_CORE_PROFILE
 
     sizes.clear();
-    sizes.shrink_to_fit();
     count = 0;
 }
 
@@ -115,17 +112,12 @@ void GCodeViewer::InstanceVBuffer::Ranges::reset()
     }
 
     ranges.clear();
-    ranges.shrink_to_fit();
 }
 
 void GCodeViewer::InstanceVBuffer::reset()
 {
     s_ids.clear();
-    s_ids.shrink_to_fit();
     buffer.clear();
-    buffer.shrink_to_fit();
-    offsets.clear();
-    offsets.shrink_to_fit();
     render_ranges.reset();
 }
 
@@ -169,10 +161,10 @@ bool GCodeViewer::Path::matches(const GCodeProcessorResult::MoveVertex& move, co
                 compare.width.is_same_value(width, move.width) &&
                 temperature == move.temperature;
         // use rounding to reduce the number of generated paths
-        if ((uint8_t(mode) & uint8_t(mmWithVolumetricRate)) != 0)
+        if ((uint8_t(mode) & uint8_t(mmWithVolumetric)) != 0)
             is_equal = is_equal &&
-                (compare.volumetric_rate.is_same_value(volumetric_rate, move.volumetric_rate()) ||
-                 matches_percent(volumetric_rate, move.volumetric_rate(), 0.001f));
+                (compare.volumetric_rate.is_same_value(volumetric_rate, move.volumetric_rate()) || matches_percent(volumetric_rate, move.volumetric_rate(), 0.001f)) &&
+                (compare.volumetric_flow.is_same_value(volumetric_flow, move.mm3_per_mm) || matches_percent(volumetric_flow, move.mm3_per_mm, 0.05f));
         if ((uint8_t(mode) & uint8_t(mmWithTime)) != 0)
             is_equal = is_equal && 
                 int(elapsed_time) == int(move.move_time);
@@ -198,11 +190,8 @@ void GCodeViewer::TBuffer::reset()
     }
 
     indices.clear();
-    indices.shrink_to_fit();
     paths.clear();
-    paths.shrink_to_fit();
     render_paths.clear();
-    render_paths.shrink_to_fit();
     model.reset();
 }
 
@@ -210,23 +199,10 @@ void GCodeViewer::TBuffer::add_path(const GCodeProcessorResult::MoveVertex& move
 {
     Path::Endpoint endpoint = { b_id, i_id, s_id, move.position };
     // use rounding to reduce the number of generated paths
-    paths.emplace_back();
-    Path &new_path = paths.back();
-    new_path.type            = move.type;
-    new_path.role            = move.extrusion_role;
-    new_path.delta_extruder  = move.delta_extruder;
-    new_path.height          = move.height;
-    new_path.width           = move.width;
-    new_path.feedrate        = move.feedrate;
-    new_path.fan_speed       = move.fan_speed;
-    new_path.temperature     = move.temperature;
-    new_path.volumetric_rate = move.volumetric_rate();
-    new_path.volumetric_flow = move.mm3_per_mm;
-    new_path.extruder_id     = move.extruder_id;
-    new_path.cp_color_id     = move.cp_color_id;
-    new_path.object_id       = move.object_id;
-    new_path.sub_paths.push_back({ endpoint, endpoint });
-    new_path.elapsed_time    = move.move_time;
+    paths.push_back({ move.type, move.extrusion_role, move.delta_extruder,
+        move.height, move.width,
+        move.feedrate, move.fan_speed, move.temperature,
+        move.volumetric_rate(), move.mm3_per_mm, move.extruder_id, move.cp_color_id, move.object_id, { { endpoint, endpoint } }, move.move_time });
 }
 
 void GCodeViewer::COG::render()
@@ -250,10 +226,7 @@ void GCodeViewer::COG::render()
         const double inv_zoom = camera.get_inv_zoom();
         model_matrix = model_matrix * Geometry::scale_transform(inv_zoom);
     }
-    
-    Transform3d view_matrix = camera.get_view_matrix();
-    view_matrix.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
-    
+    const Transform3d& view_matrix = camera.get_view_matrix();
     shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
     shader->set_uniform("projection_matrix", camera.get_projection_matrix());
     const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
@@ -792,10 +765,8 @@ GCodeViewer::Extrusions::Ranges::Ranges(uint8_t max_decimals) :
             fan_speed(0),
             // Color mapping by volumetric extrusion rate.
             volumetric_rate(max_decimals),
-            // Color mapping by volumetric extrusion mm3/mm. Use fewer decimals to
-            // avoid generating an excessive amount of unique values which slows
-            // down legend rendering.
-            volumetric_flow(std::min(max_decimals, uint8_t(2))),
+            // Color mapping by volumetric extrusion mm3/mm.
+            volumetric_flow(max_decimals),
             // Color mapping by extrusion temperature.
             temperature(0),
             // Color mapping by layer time.
@@ -934,8 +905,6 @@ void GCodeViewer::SequentialView::GCodeWindow::load_gcode(const GCodeProcessorRe
     m_filename = gcode_result.filename;
     m_is_binary_file = gcode_result.is_binary_file;
     m_lines_ends = gcode_result.lines_ends;
-    m_lines_cache.clear();
-    m_lines_cache.shrink_to_fit();
 }
 
 void GCodeViewer::SequentialView::GCodeWindow::add_gcode_line_to_lines_cache(const std::string& src)
@@ -970,8 +939,6 @@ void GCodeViewer::SequentialView::GCodeWindow::render(float top, float bottom, s
     auto update_lines_ascii = [this]() {
         m_lines_cache.clear();
         m_lines_cache.reserve(m_cache_range.size());
-        if (m_lines_ends.empty())
-            return;
         const std::vector<size_t>& lines_ends = m_lines_ends.front();
         FILE* file = boost::nowide::fopen(m_filename.c_str(), "rb");
         if (file != nullptr) {
@@ -1448,11 +1415,14 @@ void GCodeViewer::init()
     m_gl_data_initialized = true;
 }
 
+bool GCodeViewer::is_loaded(const GCodeProcessorResult& gcode_result) {
+    return (m_last_result_id == gcode_result.id);
+}
+
 void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& print)
 {
-
-    m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
-
+    if (!m_gcode_result.has_value())
+        m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
     assert(&m_gcode_result->get() == &gcode_result);
     if (!m_print.has_value())
         m_print = print;
@@ -1463,7 +1433,7 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     // avoid processing if called with the same gcode_result
     // unless you changed the path merge mode
-    if (m_last_result_id == gcode_result.id && m_last_mode == m_current_mode &&
+    if (m_last_result_id == gcode_result.id && (m_current_mode == m_last_mode) &&
         ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
         return;
     }
@@ -1625,7 +1595,7 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
                 m_extrusions.ranges.volumetric_flow.update_from(curr.mm3_per_mm);
                 for (size_t i = 0; i < gcode_result.print_statistics.modes.size(); ++i) {
                     // only the first & the last are usefull
-               //     m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
+                    m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
                 }
             }
             [[fallthrough]];
@@ -1840,9 +1810,6 @@ void GCodeViewer::set_options_visibility_from_flags(unsigned int flags)
 
 void GCodeViewer::set_layers_z_range(const std::array<unsigned int, 2>& layers_z_range)
 {
-    if (layers_z_range == m_layers_z_range)
-        return;
-        
     bool keep_sequential_current_first = layers_z_range[0] >= m_layers_z_range[0];
     bool keep_sequential_current_last = layers_z_range[1] <= m_layers_z_range[1];
     m_layers_z_range = layers_z_range;
@@ -1888,7 +1855,7 @@ void GCodeViewer::export_toolpaths_to_obj(const char* filename) const
     }
 
     fprintf(fp, "# G-Code Toolpaths Materials\n");
-    fprintf(fp, "# Generated by %s-%s based on Slic3r\n", SLIC3R_APP_NAME, SLIC3R_VERSION);
+    fprintf(fp, "# Generated by %s-%s based on Slic3r\n", SLIC3R_APP_NAME, SLIC3R_VERSION_FULL);
 
     unsigned int colors_count = 1;
     for (const ColorRGBA& color : colors) {
@@ -1908,7 +1875,7 @@ void GCodeViewer::export_toolpaths_to_obj(const char* filename) const
     }
 
     fprintf(fp, "# G-Code Toolpaths\n");
-    fprintf(fp, "# Generated by %s-%s based on Slic3r\n", SLIC3R_APP_NAME, SLIC3R_VERSION);
+    fprintf(fp, "# Generated by %s-%s based on Slic3r\n", SLIC3R_APP_NAME, SLIC3R_VERSION_FULL);
     fprintf(fp, "\nmtllib ./%s\n", mat_filename.filename().string().c_str());
 
     const size_t floats_per_vertex = t_buffer.vertices.vertex_size_floats();
@@ -2429,17 +2396,14 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
         InstancesOffsets& inst_offsets = instances_offsets[id];
 
         // ensure there is at least one vertex buffer
-        if (v_multibuffer.empty()) {
-            v_multibuffer.emplace_back();
-            v_multibuffer.back().reserve(t_buffer.vertices.max_size_bytes() / sizeof(float));
-        }
+        if (v_multibuffer.empty())
+            v_multibuffer.push_back(VertexBuffer());
 
         // if adding the vertices for the current segment exceeds the threshold size of the current vertex buffer
         // add another vertex buffer
         size_t vertices_size_to_add = (t_buffer.render_primitive_type == TBuffer::ERenderPrimitiveType::BatchedModel) ? t_buffer.model.data.vertices_size_bytes() : t_buffer.max_vertices_per_segment_size_bytes();
         if (v_multibuffer.back().size() * sizeof(float) > t_buffer.vertices.max_size_bytes() - vertices_size_to_add) {
-            v_multibuffer.emplace_back();
-            v_multibuffer.back().reserve(t_buffer.vertices.max_size_bytes() / sizeof(float));
+            v_multibuffer.push_back(VertexBuffer());
             if (t_buffer.render_primitive_type == TBuffer::ERenderPrimitiveType::Triangle) {
                 Path& last_path = t_buffer.paths.back();
                 if (prev.type == curr.type && last_path.matches(curr, m_extrusions.ranges, m_current_mode))
@@ -3269,12 +3233,10 @@ void GCodeViewer::refresh_render_paths(bool keep_sequential_current_first, bool 
     // first pass: collect visible paths and update sequential view data
     //                    <tbuffer_id,    ibuffer_id,   path_id,      sub_path_id>
     std::vector<std::tuple<unsigned char, unsigned int, unsigned int, unsigned int>> paths;
-    paths.reserve(m_moves_count);
     for (size_t b = 0; b < m_buffers.size(); ++b) {
         TBuffer& buffer = const_cast<TBuffer&>(m_buffers[b]);
         // reset render paths
         buffer.render_paths.clear();
-        buffer.render_paths.reserve(buffer.paths.size());
 
         if (!buffer.visible)
             continue;
@@ -3407,7 +3369,7 @@ void GCodeViewer::refresh_render_paths(bool keep_sequential_current_first, bool 
                         glsafe(::glUnmapBuffer(GL_ARRAY_BUFFER));
 #else
                         glsafe(::glGetBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(index * buffer.vertices.vertex_size_bytes()), static_cast<GLsizeiptr>(3 * sizeof(float)), static_cast<void*>(sequential_view->current_position.data())));
-#endif // ENABLE_OPENGL_E
+#endif // ENABLE_OPENGL_ES
                         glsafe(::glBindBuffer(GL_ARRAY_BUFFER, 0));
 
                         sequential_view->current_offset = Vec3f::Zero();
@@ -4119,9 +4081,9 @@ void GCodeViewer::render_shells()
     shader->start_using();
     shader->set_uniform("emission_factor", 0.1f);
     const Camera& camera = wxGetApp().plater()->get_camera();
-
     Transform3d tr = camera.get_view_matrix();
     tr.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
+    m_shells.volumes.render(GLVolumeCollection::ERenderType::Transparent, true, camera.get_view_matrix(), camera.get_projection_matrix());
 
     shader->set_uniform("emission_factor", 0.0f);
     shader->stop_using();
@@ -4584,13 +4546,13 @@ void GCodeViewer::render_legend(float& legend_height)
         //wxGetApp().plater()->refresh_print(); //doesn't work anymore, as there is a check to avoid redrawing uselessy, now call this->load(m_gcode_result->get(), m_print->get()) directly
         
         // update path merging mode.
-        // Only enable volumetric comparison when viewing volumetric rate.
-        if (view_type == EViewType::VolumetricRate) {
-           m_current_mode = Path::MatchMode(uint8_t(m_current_mode) | uint8_t(Path::MatchMode::mmWithVolumetricRate));
-        } else {
-           m_current_mode = Path::MatchMode(uint8_t(m_current_mode) & (~uint8_t(Path::MatchMode::mmWithVolumetricRate)));
+        // mmWithVolumetric
+        if (view_type == EViewType::VolumetricFlow || view_type == EViewType::VolumetricRate) {
+            m_current_mode = Path::MatchMode(uint8_t(m_current_mode) | uint8_t(Path::MatchMode::mmWithVolumetric));
+        } else if (view_type != EViewType::VolumetricFlow && view_type != EViewType::VolumetricRate) {
+            m_current_mode = Path::MatchMode(uint8_t(m_current_mode) & (~uint8_t(Path::MatchMode::mmWithVolumetric)));
         }
-        // mmWithTime (also in a switch in the width button
+        // mmWithTime (also in a switch in the width button)
         if (old_view_type == EViewType::Chronology) {
             m_current_mode = Path::MatchMode(uint8_t(m_current_mode) & (~uint8_t(Path::MatchMode::mmWithTime)));
         }

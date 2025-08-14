@@ -5364,7 +5364,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &param
                     break;
                 }
             }
-            if (peri_entities.m_entities.size() > reordered_extrusions.size()) {
+            if (peri_entities.entities().size() > reordered_extrusions.size()) {
                 // we didnt find any more islands, so lets move the remaining skipped perimeters to the reordered
                 // extrusions list.
                 for (auto extrusion_skipped : skipped_extrusions)

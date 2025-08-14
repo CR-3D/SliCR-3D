@@ -45,8 +45,6 @@
 #include "GCode/Travels.hpp"
 #include "EdgeGrid.hpp"
 #include "tcbspan/span.hpp"
-#include "GCode/PressureEqualizer.hpp"
-#include "GCode/AdaptivePAProcessor.hpp"
 
 #include <memory>
 #include <map>
@@ -310,19 +308,6 @@ private:
     std::string     extrude_path(const ExtrusionPath &path, const std::string_view description, double speed = -1.);
     std::string     extrude_path_3D(const ExtrusionPath3D &path, const std::string_view description, double speed = -1.);
 
-    // Orca: Adaptive PA variables
-    // Used for adaptive PA when extruding paths with multiple, varying flow segments.
-    // This contains the sum of the mm3_per_mm values weighted by the length of each path segment.
-    // The m_multi_flow_segment_path_pa_set constrains the PA change request to the first extrusion segment.
-    // It sets the mm3_mm value for the adaptive PA post processor to be the average of that path
-    // as calculated and stored in the m_multi_segment_path_average_mm3_per_mm value
-    double          m_multi_flow_segment_path_average_mm3_per_mm = 0;
-    bool            m_multi_flow_segment_path_pa_set = false;
-    // Adaptive PA last set flow to enable issuing of PA change commands when adaptive PA for overhangs
-    // is enabled
-    double          m_last_mm3_mm = 0;
-    // Orca: Adaptive PA code segment end
-
     void            split_at_seam_pos(ExtrusionLoop &loop, bool was_clockwise);
     template <typename THING = ExtrusionEntity> // can be templated safely because private
     void            add_wipe_points(const std::vector<THING>& paths, bool reverse, bool is_loop);
@@ -559,8 +544,6 @@ private:
     int32_t                             m_spiral_vase_layer = 0;
     std::unique_ptr<GCodeFindReplace>   m_find_replace;
     std::unique_ptr<PressureEqualizer>  m_pressure_equalizer;
-    std::unique_ptr<AdaptivePAProcessor> m_pa_processor;
-
     std::unique_ptr<GCode::WipeTowerIntegration> m_wipe_tower;
     // to get extruded volume, for stats
     const WipeTowerData                *m_wipe_tower_data;
@@ -598,7 +581,7 @@ private:
 
     std::function<void()> m_throw_if_canceled = [](){};
 
-    double                    _compute_e_per_mm(const ExtrusionPath &path, double current_speed_mm_s);
+    double                    _compute_e_per_mm(const ExtrusionPath &path);
     std::string               _extrude(const ExtrusionPath &path, const std::string_view description, double speed = -1);
     void                      _extrude_line(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment, ExtrusionRole role);
     void                      _extrude_line_cut_corner(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment, Point& last_pos, const double path_width);

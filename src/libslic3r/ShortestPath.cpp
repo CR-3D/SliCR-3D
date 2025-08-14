@@ -1033,25 +1033,22 @@ std::vector<std::pair<size_t, bool>> chain_segments_greedy2(SegmentEndPointFunc 
 
 std::vector<std::pair<size_t, bool>> chain_extrusion_entities(const std::vector<ExtrusionEntity*> &entities, const Point *start_near, const bool reversed)
 {
-    auto segment_end_point = [&entities](size_t idx, bool first_point) -> const Point & {
-        return first_point ? entities[idx]->first_point() : entities[idx]->last_point();
-    };
-    auto could_reverse = [&entities](size_t idx) {
-        const ExtrusionEntity *ee = entities[idx];
-        return ee->is_loop() || ee->can_reverse();
-    };
-    std::vector<std::pair<size_t, bool>> out = chain_segments_greedy_constrained_reversals<
-        Point, decltype(segment_end_point), decltype(could_reverse)>(segment_end_point, could_reverse,
-                                                                     entities.size(), start_near);
-    for (std::pair<size_t, bool> &segment : out) {
-        ExtrusionEntity *ee = entities[segment.first];
-        if (ee->is_loop())
-            // Ignore reversals for loops, as the start point equals the end point.
-            segment.second = false;
-        // Is can_reverse() respected by the reversals?
-        assert(ee->can_reverse() || !segment.second);
-    }
-    return out;
+	auto segment_end_point = [&entities, reversed](size_t idx, bool first_point) -> const Point& { return first_point == reversed ? entities[idx]->last_point() : entities[idx]->first_point(); };
+	auto could_reverse 	   = [&entities](size_t idx) { const ExtrusionEntity *ee = entities[idx]; return ee->can_reverse(); };
+	std::vector<std::pair<size_t, bool>> out = chain_segments_greedy_constrained_reversals<Point, decltype(segment_end_point), decltype(could_reverse)>(
+		segment_end_point, could_reverse, entities.size(), start_near);
+	for (std::pair<size_t, bool> &segment : out) {
+		const ExtrusionEntity *ee = entities[segment.first];
+		if (ee->is_loop())
+			// Ignore reversals for loops, as the start point equals the end point.
+			segment.second = false;
+		else if (reversed)
+			// Input was already reversed.
+			segment.second = ! segment.second;
+		// Is can_reverse() respected by the reversals?
+		assert(ee->can_reverse() || ! segment.second);
+	}
+	return out;
 }
 std::vector<std::pair<size_t, bool>> chain_extrusion_entities(const std::vector<const ExtrusionEntity*> &entities, const Point *start_near, const bool reversed)
 {
@@ -2024,7 +2021,7 @@ static inline void reorder_by_three_exchanges_with_segment_flipping2(std::vector
 // and to order the brim lines.
 static inline void improve_ordering_by_two_exchanges_with_segment_flipping(Polylines &polylines, bool fixed_start)
 {
-	//assert_valid(polylines);
+	assert_valid(polylines);
 #ifndef NDEBUG
 	auto cost = [&polylines]() {
 		double sum = 0.;

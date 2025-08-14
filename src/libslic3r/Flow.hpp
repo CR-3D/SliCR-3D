@@ -76,9 +76,8 @@ public:
     // Non bridging flow: Layer height.
     // Bridging flow: Bridge thread diameter = layer height.
     float   height()          const { return m_height; }
-    // Spacing between the extrusion centerlines.  Returns the cached spacing
-    // when available, otherwise derives it from the stored parameters.
-    float   spacing()         const;
+    // Spacing between the extrusion centerlines.
+    float   spacing()         const;// { return m_spacing; } use the compute, as I can't be 100% sure yet that this cachced value is good.
     coord_t scaled_spacing()  const { return scale_t(spacing()); }
     float   spacing_ratio()   const { return m_spacing_ratio; }
     // Nozzle diameter. 

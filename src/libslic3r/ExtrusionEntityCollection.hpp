@@ -24,9 +24,9 @@ void filter_by_extrusion_role_in_place(ExtrusionEntitiesPtr &extrusion_entities,
 // Returned extrusion entities are shared with the source vector, they are NOT cloned, they are considered to be owned by extrusion_entities.
 inline ExtrusionEntitiesPtr filter_by_extrusion_role(const ExtrusionEntitiesPtr &extrusion_entities, ExtrusionRole role)
 {
-    ExtrusionEntitiesPtr out { extrusion_entities };
-    filter_by_extrusion_role_in_place(out, role);
-    return out;
+	ExtrusionEntitiesPtr out { extrusion_entities }; 
+	filter_by_extrusion_role_in_place(out, role);
+	return out;
 }
 #endif
 
@@ -148,7 +148,7 @@ public:
 
     /// count of entities inside this container.
     size_t size() const { return entities().size(); }
-    // Recursively count paths and loops contained in this collection.
+    // Recursively count paths and loops contained in this collection. 
     // this->items_count() >= this->size()
     size_t items_count() const;
     /// Returns a flattened copy of this ExtrusionEntityCollection. That is, all of the items in its entities() vector are not collections.
@@ -176,7 +176,7 @@ public:
 
     coordf_t length() const override {
         throw Slic3r::RuntimeError("Calling length() on a ExtrusionEntityCollection");
-        return 0.;
+        return 0.;        
     }
     bool empty() const override {
         for (const ExtrusionEntity *extrusion_entity : this->entities())

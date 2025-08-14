@@ -352,7 +352,7 @@ class GCodeViewer
 
         struct Ranges
         {
-            // Color mapping by layer height
+            // Color mapping by layer height.
             Range height;
             // Color mapping by extrusion width.
             Range width;
@@ -437,14 +437,9 @@ class GCodeViewer
         };
         
         enum MatchMode : uint8_t {
-            mmDefault            = 0,
-            // Include volumetric rate in path matching. The volumetric flow is
-            // determined by the width and height already, so it does not need
-            // special handling here.
-            mmWithVolumetricRate = 1 << 0,
-            mmWithTime           = 1 << 1,
-            // Include feedrate in path matching to show speed transitions.
-            mmWithFeedrate       = 1 << 2,
+            mmDefault =         0,
+            mmWithVolumetric =  1 << 0,
+            mmWithTime =        1 << 1,
         };
 
         EMoveType type{ EMoveType::Noop };
@@ -948,7 +943,7 @@ public:
 
     // extract rendering data from the given parameters
     void load(const GCodeProcessorResult& gcode_result, const Print& print);
-   // bool is_loaded(const GCodeProcessorResult& gcode_result);
+    bool is_loaded(const GCodeProcessorResult& gcode_result);
     // recalculate ranges in dependence of what is visible and sets tool/print colors
     void refresh(const GCodeProcessorResult& gcode_result, const std::vector<std::string>& str_tool_colors);
     void refresh_render_paths(bool keep_sequential_current_first, bool keep_sequential_current_last) const;
