@@ -77,7 +77,7 @@ int s_support_fff_get(string &out get_val)
 	}
 	bool support_material_auto = get_bool("support_material_auto");
 	if (!support_material_auto) { // For support enforcers only
-		return 2;
+		return 3;
 	}
 	bool support_material_buildplate_only = get_bool("support_material_buildplate_only");
 	if (support_material_buildplate_only) { // Support on build plate only
