@@ -1886,6 +1886,10 @@ static bool is_default(wxWindow *win) {
 
 void GUI_App::UpdateDarkUI(wxWindow *window, bool highlited /* = false*/, bool just_font /* = false*/) {
 #ifdef _WIN32
+    assert(window);
+    if (!window) {
+        return;
+    }
     const bool is_dark_mode = dark_mode();
     bool is_focused_button = false;
     bool is_default_button = false;

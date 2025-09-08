@@ -159,6 +159,7 @@
 #include "Gizmos/GLGizmoCut.hpp"
 #include "FileArchiveDialog.hpp"
 #include "BulkExportDialog.hpp"
+#include "Widgets/CheckBox.hpp"
 #include "LoadStepDialog.hpp"
 
 #ifdef __APPLE__

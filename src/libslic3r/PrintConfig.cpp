@@ -154,35 +154,38 @@ static const t_config_enum_values s_keys_map_FuzzySkinType{{"none", int(FuzzySki
                                                            {"all", int(FuzzySkinType::All)}};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(FuzzySkinType)
 
-static const t_config_enum_values s_keys_map_InfillPattern{{"rectilinear", ipRectilinear},
-                                                           {"rectilineargapfill", ipRectilinearWGapFill},
-                                                           {"alignedrectilinear", ipAlignedRectilinear},
-                                                           {"monotonic", ipMonotonic},
-                                                           {"monotonicgapfill", ipMonotonicWGapFill},
-                                                           {"grid", ipGrid},
-                                                           {"triangles", ipTriangles},
-                                                           {"stars", ipStars},
-                                                           {"cubic", ipCubic},
-                                                           {"line", ipLine},
-                                                           {"monotoniclines", ipMonotonicLines},
-                                                           {"concentric", ipConcentric},
-                                                           {"concentricgapfill", ipConcentricGapFill},
-                                                           {"honeycomb", ipHoneycomb},
-                                                           {"3dhoneycomb", ip3DHoneycomb},
-                                                           {"gyroid", ipGyroid},
-                                                           {"hilbertcurve", ipHilbertCurve},
-                                                           {"archimedeanchords", ipArchimedeanChords},
-                                                           {"octagramspiral", ipOctagramSpiral},
-                                                           {"smooth", ipSmooth},
-                                                           {"smoothtriple", ipSmoothTriple},
-                                                           {"smoothhilbert", ipSmoothHilbert},
-                                                           {"rectiwithperimeter", ipRectiWithPerimeter},
-                                                           {"scatteredrectilinear", ipScatteredRectilinear},
-                                                           {"sawtooth", ipSawtooth},
-                                                           {"adaptivecubic", ipAdaptiveCubic},
-                                                           {"supportcubic", ipSupportCubic},
-                                                           {"lightning", ipLightning},
-                                                           {"auto", ipAuto}};
+static const t_config_enum_values s_keys_map_InfillPattern {
+    {"rectilinear",         ipRectilinear},
+    {"rectilineargapfill",  ipRectilinearWGapFill},
+    {"alignedrectilinear",  ipAlignedRectilinear},
+    {"monotonic",           ipMonotonic},
+    {"monotonicgapfill",    ipMonotonicWGapFill},
+    {"grid",                ipGrid},
+    {"triangles",           ipTriangles},
+    {"stars",               ipStars},
+    {"cubic",               ipCubic},
+    {"line",                ipLine},
+    {"monotoniclines",      ipMonotonicLines },
+    {"concentric",          ipConcentric},
+    {"concentricgapfill",   ipConcentricGapFill},
+    {"honeycomb",           ipHoneycomb},
+    {"3dhoneycomb",         ip3DHoneycomb},
+    {"gyroid",              ipGyroid},
+    {"hilbertcurve",        ipHilbertCurve},
+    {"archimedeanchords",   ipArchimedeanChords},
+    {"octagramspiral",      ipOctagramSpiral},
+    {"smooth",              ipSmooth},
+    {"smoothtriple",        ipSmoothTriple},
+    {"smoothhilbert",       ipSmoothHilbert},
+    {"rectiwithperimeter",  ipRectiWithPerimeter},
+    {"scatteredrectilinear", ipScatteredRectilinear},
+    {"sawtooth",            ipSawtooth},
+    {"adaptivecubic",       ipAdaptiveCubic},
+    {"supportcubic",        ipSupportCubic},
+    {"lightning",           ipLightning},
+    {"ensuring",            ipEnsuring},
+    {"auto",                ipAuto}
+};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(InfillPattern)
 
 static const t_config_enum_values s_keys_map_IroningType{{"top", int(IroningType::TopSurfaces)},
@@ -357,12 +360,20 @@ namespace {
 const int max_temp = 1500;
 };
 
-ConfigOption *disable_defaultoption(ConfigOption *option, bool default_is_disabled = true) {
-    return option->set_can_be_disabled(default_is_disabled);
+ConfigOption *disable_default_option(ConfigOption *option) {
+    return option->set_can_be_disabled(true);
 }
 
-ConfigOptionVectorBase *disable_defaultoption(ConfigOptionVectorBase *option, bool default_is_disabled = true) {
-    return (ConfigOptionVectorBase *) option->set_can_be_disabled(default_is_disabled);
+ConfigOptionVectorBase *disable_default_option(ConfigOptionVectorBase *option) {
+    return (ConfigOptionVectorBase *)option->set_can_be_disabled(true);
+}
+
+ConfigOption *enable_default_option(ConfigOption *option) {
+    return option->set_can_be_disabled(false);
+}
+
+ConfigOptionVectorBase *enable_default_option(ConfigOptionVectorBase *option) {
+    return (ConfigOptionVectorBase *)option->set_can_be_disabled(false);
 }
 
 PrintConfigDef::PrintConfigDef() {
@@ -822,7 +833,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->can_be_disabled = true;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0.), false));
+    def->set_default_value(enable_default_option(new ConfigOptionFloat(0.)));
 
     def = this->add("bridged_infill_margin", coFloatOrPercent);
     def->label = L("Bridged");
@@ -850,7 +861,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts{100}, false));
+    def->set_default_value(enable_default_option(new ConfigOptionInts{ 100 }));
 
     def = this->add("bridge_fill_pattern", coEnum);
     def->label = L("Bridging fill pattern");
@@ -1350,8 +1361,8 @@ void PrintConfigDef::init_fff_params() {
     def->max = 100;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
-    def->aliases = {"min_fan_speed"}; // only if "fan_always_on"
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
+    def->aliases = { "min_fan_speed" }; // only if "fan_always_on"
 
     def = this->add("default_print_profile", coString);
     def->label = L("Default print profile");
@@ -1515,22 +1526,23 @@ void PrintConfigDef::init_fff_params() {
                      "filling little spaces."
                      "\nIf you want an 'aligned' pattern, set 90° to the fill angle increment setting.");
     def->set_enum<InfillPattern>({
-        {"rectilinear", L("Rectilinear")},
-        {"rectilineargapfill", L("Rectilinear (filled)")},
-        {"monotonic", L("Monotonic")},
-        {"monotonicgapfill", L("Monotonic (filled)")},
-        {"monotoniclines", L("Monotonic Lines")},
-        {"alignedrectilinear", L("Aligned Rectilinear")},
-        {"concentric", L("Concentric")},
-        {"concentricgapfill", L("Concentric (filled)")},
-        {"hilbertcurve", L("Hilbert Curve")},
-        {"archimedeanchords", L("Archimedean Chords")},
-        {"octagramspiral", L("Octagram Spiral")},
-        {"smooth", L("Ironing")},
+        { "ensuring",           L("Ensuring") },
+        { "rectilinear",        L("Rectilinear") },
+        { "rectilineargapfill", L("Rectilinear (filled)") },
+        { "monotonic",          L("Monotonic") },
+        { "monotonicgapfill",   L("Monotonic (filled)") },
+        { "monotoniclines",     L("Monotonic Lines") },
+        { "alignedrectilinear", L("Aligned Rectilinear") },
+        { "concentric",         L("Concentric") },
+        { "concentricgapfill",  L("Concentric (filled)") },
+        { "hilbertcurve",       L("Hilbert Curve") },
+        { "archimedeanchords",  L("Archimedean Chords") },
+        { "octagramspiral",     L("Octagram Spiral") },
+        { "smooth",             L("Ironing") },
     });
 
     def->mode = comExpert | comSuSi;
-    def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill));
+    def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipEnsuring));
 
     def = this->add("bridge_fill_pattern", coEnum);
     def->label = L("Bridging fill pattern");
@@ -1689,7 +1701,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("external_perimeter_overlap", coPercent);
     def->label = L("external perimeter overlap");
@@ -1873,11 +1885,11 @@ void PrintConfigDef::init_fff_params() {
     def->gui_type = ConfigOptionDef::GUIType::i_enum_open;
     def->label = L("First layer extruder");
     def->category = OptionCategory::extruders;
-    def->tooltip = L(
-        "The extruder to use (unless more specific extruder settings are specified) for the first layer.");
-    def->min = 0; // 0 = inherit defaults
-    def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open,
-                         {L("default"), "1", "2", "3", "4", "5", "6", "7", "8", "9"}); // override label for item 0
+    def->tooltip = L("The extruder to use (unless more specific extruder settings are specified) for the first layer.");
+    def->min = 0;  // 0 = inherit defaults
+    def->mode = comExpert | comSuSi;
+    def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open, 
+        { L("default"), "1", "2", "3", "4", "5", "6", "7", "8", "9" }); // override label for item 0
 
     def = this->add("extruder_clearance_height", coFloat);
     def->label = L("Height");
@@ -2832,7 +2844,7 @@ void PrintConfigDef::init_fff_params() {
                     "\nIt's always disabled on the first layer, to not compromise adhesion.");
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,10, GraphData::GraphType::SPLINE,
+    def->set_default_value(disable_default_option(new ConfigOptionGraph(GraphData(0,10, GraphData::GraphType::SPLINE,
         {{0,0},{0.2,0.44},{0.4,0.61},{0.6,0.7},{0.8,0.76},{1.5,0.86},{2,0.89},{3,0.92},{5,0.95},{10,1}}
     ))));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -2913,7 +2925,7 @@ void PrintConfigDef::init_fff_params() {
     def->can_phony = true;
     def->can_be_disabled = true;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloatOrPercent(140, true), false));
+    def->set_default_value(enable_default_option(new ConfigOptionFloatOrPercent(140, true)));
 
     def = this->add("first_layer_extrusion_spacing", coFloatOrPercent);
     def->label = L("First Layer");
@@ -2955,7 +2967,7 @@ void PrintConfigDef::init_fff_params() {
     def->can_phony = true;
     def->can_be_disabled = true;
     def->mode = comAdvancedE | comSuSi;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloatOrPercent(140, true)));
+    def->set_default_value(disable_default_option(new ConfigOptionFloatOrPercent(140, true)));
 
     def = this->add("first_layer_infill_extrusion_spacing", coFloatOrPercent);
     def->label = L("First layer");
@@ -3153,7 +3165,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({100})));
 
     /*
     def = this->add("gap_fill_extension", coFloatOrPercent);
@@ -3411,7 +3423,7 @@ void PrintConfigDef::init_fff_params() {
     def->can_be_disabled = true;
     def->mode = comSimpleAE | comPrusa;
     def->is_vector_extruder = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts{30}));
+    def->set_default_value(disable_default_option(new ConfigOptionInts{30}));
 
     auto def_infill_anchor_min = def = this->add("infill_anchor", coFloatOrPercent);
     def->label = L("Length of the infill anchor");
@@ -3642,7 +3654,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("infill_first", coBool);
     def->label = L("Infill before perimeters");
@@ -3751,8 +3763,8 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
-    def->aliases = {"bridge_internal_fan_speed"};
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
+    def->aliases = { "bridge_internal_fan_speed" };
 
     def = this->add("internal_bridge_min_width", coFloatOrPercent);
     def->label = L("Internal bridge infill threshold width");
@@ -4148,7 +4160,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0), true));
+    def->set_default_value(disable_default_option(new ConfigOptionFloat(1500)));
 
     def = this->add("max_fan_speed", coInts);
     def->label = L("Max");
@@ -4179,7 +4191,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comSimpleAE | comPrusa;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloatsOrPercents{FloatOrPercent{75, true}}, false));
+    def->set_default_value(enable_default_option(new ConfigOptionFloatsOrPercents{ FloatOrPercent{ 75, true} }));
 
     def = this->add("max_print_speed", coFloatOrPercent);
     def->label = L("Max auto-speed");
@@ -4498,7 +4510,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->can_be_disabled = true;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0)));
+    def->set_default_value(disable_default_option(new ConfigOptionFloat(0)));
 
     def = this->add("overhangs_bridge_upper_layers", coInt);
     def->label = L("Consider upper bridges");
@@ -4510,7 +4522,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->can_be_disabled = true;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(2), false));
+    def->set_default_value(enable_default_option(new ConfigOptionInt(2)));
 
     def = this->add("overhangs_dynamic_fan_speed", coGraphs);
     def->label = L("Dynamic overhang speeds");
@@ -4525,7 +4537,7 @@ void PrintConfigDef::init_fff_params() {
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::SQUARE,
+   def->set_default_value(disable_default_option(new ConfigOptionGraphs({GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,100},{25,80},{50,60},{75,40},{100,20}}
     )})));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4562,7 +4574,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext   = L("mm/s");
     def->can_be_disabled = true;
     def->mode       = comExpert | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::SQUARE,
+   def->set_default_value(disable_default_option(new ConfigOptionGraph(GraphData(0,5, GraphData::GraphType::SQUARE,
         {{0,0},{25,10},{50,40},{75,70},{100,100}}
     ))));
     def->graph_settings = std::make_shared<GraphSettings>();
@@ -4600,7 +4612,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("overhangs_max_slope", coFloatOrPercent);
     def->label = L("Overhangs max slope");
@@ -4658,7 +4670,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->can_be_disabled = true;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloatOrPercent(55, true), false));
+    def->set_default_value(enable_default_option(new ConfigOptionFloatOrPercent(55,true)));
 
     def = this->add("overhangs_width", coFloatOrPercent);
     def->label = L("'As bridge' flow threshold");
@@ -4676,7 +4688,7 @@ void PrintConfigDef::init_fff_params() {
     def->max_literal = {10, true};
     def->can_be_disabled = true;
     def->mode = comExpert | comSuSi;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloatOrPercent(75, true), false));
+    def->set_default_value(enable_default_option(new ConfigOptionFloatOrPercent(75, true)));
 
     def = this->add("overhangs_reverse", coBool);
     def->label = L("Reverse on even");
@@ -4870,7 +4882,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("perimeter_loop", coBool);
     def->label = L("Perimeters loop");
@@ -4976,7 +4988,7 @@ void PrintConfigDef::init_fff_params() {
     def->max = 10000;
     def->can_be_disabled = true;
     def->mode = comAdvancedE | comSuSi;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(0)));
+    def->set_default_value(disable_default_option(new ConfigOptionInt(0)));
 
     def = this->add("post_process", coStrings);
     def->label = L("Post-processing scripts");
@@ -5048,7 +5060,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(60)));
+    def->set_default_value(disable_default_option(new ConfigOptionInt(60)));
 
     def = this->add("print_first_layer_bed_temperature", coInt);
     def->label = L("First Layer Bed Temperature");
@@ -5060,7 +5072,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(60)));
+    def->set_default_value(disable_default_option(new ConfigOptionInt(60)));
 
     def = this->add("print_first_layer_temperature", coInt);
     def->label = L("First Layer Temperature");
@@ -5071,7 +5083,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(200)));
+    def->set_default_value(disable_default_option(new ConfigOptionInt(200)));
 
     def = this->add("print_retract_length", coFloat);
     def->label = L("Retraction length");
@@ -5080,7 +5092,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0)));
+    def->set_default_value(disable_default_option(new ConfigOptionFloat(0)));
 
     def = this->add("print_retract_lift", coFloat);
     def->label = L("Z-lift override");
@@ -5090,7 +5102,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloat(0)));
+    def->set_default_value(disable_default_option(new ConfigOptionFloat(0)));
 
     def = this->add("print_temperature", coInt);
     def->label = L("Temperature");
@@ -5101,7 +5113,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(200)));
+    def->set_default_value(disable_default_option(new ConfigOptionInt(200)));
 
     def = this->add("printer_model", coString);
     def->label = L("Printer type");
@@ -5315,7 +5327,7 @@ void PrintConfigDef::init_fff_params() {
     def->precision = 6;
     def->mode = comExpert | comSuSi;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionFloatOrPercent(0.02, false), false));
+    def->set_default_value(enable_default_option(new ConfigOptionFloatOrPercent(0.02, false)));
     def->aliases = {"min_length"};
 
     def = this->add("gcode_min_resolution", coFloatOrPercent);
@@ -6023,7 +6035,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("solid_infill_speed", coFloatOrPercent);
     def->label = L("Solid");
@@ -6411,7 +6423,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("support_material_interface_angle", coFloat);
     def->label = L("Pattern angle");
@@ -6450,7 +6462,8 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
+
 
     def = this->add("support_material_interface_contact_loops", coBool);
     def->label = L("Interface loops");
@@ -6494,7 +6507,7 @@ void PrintConfigDef::init_fff_params() {
                           {"2", L("2 (default)")},
                           {"3", L("3 (heavy)")}});
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInt(0)));
+    def->set_default_value(disable_default_option(new ConfigOptionInt(0)));
 
     def = this->add("support_material_closing_radius", coFloat);
     def->label = L("Closing radius");
@@ -6980,7 +6993,7 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comSuSi;
     def->is_vector_extruder = true;
     def->can_be_disabled = true;
-    def->set_default_value(disable_defaultoption(new ConfigOptionInts({100})));
+    def->set_default_value(disable_default_option(new ConfigOptionInts({ 100 })));
 
     def = this->add("top_infill_extrusion_width", coFloatOrPercent);
     def->label = L("Top solid infill");
@@ -7235,6 +7248,7 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("When wiping, it will lift gradually to this height, so the filament can be 'cut' more easily."
         "\nCan be a percentage of the current layer height.");
     def->mode = comAdvancedE | comSuSi;
+    def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloatsOrPercents{FloatOrPercent{0, false}});
     
     def = this->add("wipe_lift_length", coFloatsOrPercents);
@@ -7246,6 +7260,7 @@ void PrintConfigDef::init_fff_params() {
         " If lower than the wipe distance, then the lift began after the start, so the end of the lift occur at the end of the wipe."
         "\nCan be a percentage of the wipe distance.");
     def->mode = comAdvancedE | comSuSi;
+    def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloatsOrPercents{FloatOrPercent{50, true}});
 
     def = this->add("wipe_min", coFloatsOrPercents);
@@ -7255,6 +7270,7 @@ void PrintConfigDef::init_fff_params() {
         "\nCan be a percentage of the needed travel for the retraction"
         " (if this is set to 0, then it's posisble that the end of the retraction occur after the end of the wipe).");
     def->mode = comAdvancedE | comSuSi;
+    def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloatsOrPercents{FloatOrPercent{150, true}});
 
     def = this->add("wipe_only_crossing", coBools);
@@ -7273,7 +7289,8 @@ void PrintConfigDef::init_fff_params() {
                      "set by ( 100% - 'retract before wipe') * 'retaction length' / 'retraction speed'."
                      "\nIf set to zero, the travel speed is used.");
     def->mode = comAdvancedE | comSuSi;
-    def->set_default_value(new ConfigOptionFloats{0});
+    def->is_vector_extruder = true;
+    def->set_default_value(new ConfigOptionFloats{ 0 });
 
     def = this->add("wipe_tower", coBool);
     def->label = L("Enable");
@@ -10285,6 +10302,9 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "fill_angle_template",
 "fill_smooth_distribution",
 "fill_smooth_width",
+"fill_top_flow_ratio",
+"fill_top_flow_ratio",
+"first_layer_extruder",
 "first_layer_extrusion_spacing",
 "first_layer_infill_extrusion_width",
 "first_layer_infill_extrusion_spacing",
@@ -10716,6 +10736,12 @@ std::map<std::string, std::string> PrintConfigDef::to_prusa(t_config_option_key 
     }
     if ("arc_fitting" == opt_key && "bambu" == value) {
         value = "emit_center";
+    }
+    if ("wipe_tower_brim_width" == opt_key && value.find("%") != std::string::npos) {
+        const ConfigOptionFloatOrPercent *current_opt = all_conf.option<ConfigOptionFloatOrPercent>(opt_key);
+        assert(current_opt && current_opt->percent);
+        const ConfigOptionFloats *nozzle_diameters = all_conf.option<ConfigOptionFloats>("nozzle_diameter");
+        value = std::to_string(current_opt->get_abs_value(nozzle_diameters->get_at(0)));
     }
 
     if ("thumbnails" == opt_key) {

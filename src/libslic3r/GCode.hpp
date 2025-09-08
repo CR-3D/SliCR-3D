@@ -502,6 +502,7 @@ private:
         std::vector<SliceIsland> slices;
         std::vector<SliceIsland> slices_offsetted;
         const Layer* last_layer;
+        const PrintObject* last_object;
         coord_t diameter;
     }                                   m_layer_slices_offseted{ {},{},nullptr, 0};
     double                              m_volumetric_speed;
@@ -551,7 +552,7 @@ private:
     // Heights (print_z) at which the skirt has already been extruded.
     std::vector<coordf_t>               m_skirt_done;
     // Has the brim been extruded already? Brim is being extruded only for the first object of a multi-object print.
-    bool                                m_brim_done;
+    std::map<std::pair<const PrintObject *, int>, bool>  m_brim_done;
     // Flag indicating whether the nozzle temperature changes from 1st to 2nd layer were performed.
     bool                                m_second_layer_things_done;
     int                                 m_bed_temperature; // computed at second layer, kept as vairable for all layers

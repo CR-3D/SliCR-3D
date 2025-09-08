@@ -9,6 +9,7 @@
 
 #include "libslic3r/Config.hpp" // for GraphSettings
 #include "RammingChart.hpp"
+#include "Widgets/SpinInput.hpp"
 
 namespace Slic3r { namespace GUI {
 
@@ -21,12 +22,12 @@ public:
 
 private:
     Chart *           m_chart        = nullptr;
-    wxSpinCtrlDouble *m_widget_min_x = nullptr;
-    wxSpinCtrlDouble *m_widget_max_x = nullptr;
-    wxSpinCtrlDouble *m_widget_min_y = nullptr;
-    wxSpinCtrlDouble *m_widget_max_y = nullptr;
-    wxSpinCtrlDouble *m_widget_x     = nullptr;
-    wxSpinCtrlDouble *m_widget_y     = nullptr;
+    SpinInputDouble *m_widget_min_x = nullptr;
+    SpinInputDouble *m_widget_max_x = nullptr;
+    SpinInputDouble *m_widget_min_y = nullptr;
+    SpinInputDouble *m_widget_max_y = nullptr;
+    SpinInputDouble *m_widget_x     = nullptr;
+    SpinInputDouble *m_widget_y     = nullptr;
     double            m_last_min_x   = 0.f;
     double            m_last_max_x   = 1.f;
     double            m_last_min_y   = 0.f;

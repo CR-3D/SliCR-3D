@@ -515,7 +515,6 @@ Slic3r::Polygons offset(const Slic3r::Polygon &polygon, const double delta, Clip
 Slic3r::ExPolygons offset_ex(const Slic3r::Polygon &polygon, const double delta, ClipperLib::JoinType joinType, double miterLimit)
     { return PolyTreeToExPolygons(offset_paths<ClipperLib::PolyTree>(ClipperUtils::SinglePathProvider(polygon.points), delta, joinType, miterLimit)); }
 
-
 Slic3r::Polygons offset(const Slic3r::Polygons &polygons, const double delta, ClipperLib::JoinType joinType, double miterLimit)
     { return to_polygons(offset_paths<ClipperLib::Paths>(ClipperUtils::PolygonsProvider(polygons), delta, joinType, miterLimit)); }
 Slic3r::ExPolygons offset_ex(const Slic3r::Polygons &polygons, const double delta, ClipperLib::JoinType joinType, double miterLimit)

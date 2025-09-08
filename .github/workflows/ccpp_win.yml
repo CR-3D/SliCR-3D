@@ -81,6 +81,12 @@ jobs:
     - name: make .pot
       working-directory: ./build
       run: msbuild /m /P:Configuration=RelWithDebInfo gettext_make_pot.vcxproj
+    - name: create OCCT wrapper
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\occt_wrapper\OCCTWrapper.vcxproj
+    - name: copy dll
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\slic3rDllsCopy.vcxproj
     - name: create directory and copy into it
       working-directory: ./build
       run: ls
@@ -101,7 +107,6 @@ jobs:
       working-directory: ./build
       shell: cmd
       run: |
-        xcopy /RCYIE Slic3r_win_build\*.dll package\
         xcopy /RCYIE Slic3r_win_build\local-settings.bat package\${{ github.event.repository.name }}_local-settings.bat
         xcopy /RCYIE Slic3r_win_build\mesa package\
     - name: copy new resources
@@ -115,6 +120,7 @@ jobs:
         xcopy /RCYIE src\RelWithDebInfo\*.dll package\
         xcopy /RCYIE src\RelWithDebInfo\*.exe package\
         xcopy /RCYIE c:\windows\system32\VCRUNTIME140* package\
+        xcopy /RCYIE c:\windows\system32\msvcp140* package\
         del package\opengl32.dll
 #    - name: create zip
 #      working-directory: ./build

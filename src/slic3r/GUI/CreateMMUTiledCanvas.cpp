@@ -511,9 +511,10 @@ void CreateMMUTiledCanvas::recompute_colors()
         }
     }
 
-    const int color_algo = m_config.option<ConfigOptionInt>("color_comp")->value;
-    bool use_near_color = m_config.option<ConfigOptionBool>("near_color")->value;
-    int nb_extruders = dynamic_cast<TabPrinter*>(m_gui_app->get_tab(Preset::TYPE_PRINTER))->m_extruders_count;
+    const int color_algo = m_config.option("color_comp")->get_int();
+    bool use_near_color = m_config.option("near_color")->get_bool();
+    //int nb_extruders = dynamic_cast<TabPrinter*>(m_gui_app->get_tab(Preset::TYPE_PRINTER))->m_extruders_count;
+    int nb_extruders = m_config.option("extruders")->get_int();
     // re-order and fusion
     if (use_spool) {
         //use only spools first
@@ -615,9 +616,8 @@ void CreateMMUTiledCanvas::load_config()
         //create defs
         ConfigOptionDef def;
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"size", coPoint};
         def.label = L("Pixels count");
-        def.type = coPoint;
         def.tooltip = L("Number of pixels in x and y axis to include in the tile.");
         def.sidetext = L("px");
         def.min = 0;
@@ -625,9 +625,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.config_def.options["size"] = def;
         m_config.set_key_value("size", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"size_px", coPoint};
         def.label = L("Pixel Size");
-        def.type = coPoint;
         def.tooltip = L("Size in mm on x and y axis for a pixel");
         def.sidetext = L("mm");
         def.min = 0;
@@ -635,9 +634,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.config_def.options["size_px"] = def;
         m_config.set_key_value("size_px", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"height", coFloat};
         def.label = L("height");
-        def.type = coFloat;
         def.tooltip = L("Height of the full object.");
         def.set_default_value(new ConfigOptionFloat{ 1 });
         def.sidetext = L("mm");
@@ -646,9 +644,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.config_def.options["height"] = def;
         m_config.set_key_value("height", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"offset", coPoint};
         def.label = L("Offset");
-        def.type = coPoint;
         def.tooltip = L("First pixel position (top left corner) in the image.");
         def.sidetext = L("mm");
         def.min = 0;
@@ -657,9 +654,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.set_key_value("offset", def.default_value.get()->clone());
 
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"separation_xy", coFloat};
         def.label = L("XY");
-        def.type = coFloat;
         def.tooltip = L("Number of mm between (pixel) tiles.");
         //def.sidetext = L("mm");
         def.min = 0;
@@ -668,9 +664,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.config_def.options["separation_xy"] = def;
         m_config.set_key_value("separation_xy", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"separation_z", coFloat};
         def.label = L("Z");
-        def.type = coFloat;
         def.tooltip = L("Height of the separation. If higher than the height, then tiles won't be joined."
             "\nA zero value isn't supported yet. Please use at least one layer of separation.");
         def.sidetext = L("mm");
@@ -680,9 +675,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.config_def.options["separation_z"] = def;
         m_config.set_key_value("separation_z", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"bezel", coFloat};
         def.label = L("Bezel");
-        def.type = coFloat;
         def.tooltip = L("Bevel for the bottom of the 'pillars'. Should be less than half of Pixel Size");
         def.sidetext = L("mm");
         def.min = 0.0;
@@ -691,9 +685,8 @@ void CreateMMUTiledCanvas::load_config()
         m_config.config_def.options["bezel"] = def;
         m_config.set_key_value("bezel", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"border", coFloat};
         def.label = L("Border");
-        def.type = coFloat;
         def.tooltip = L("Border width over the mosaic plate.");
         def.sidetext = L("mm");
         def.min = 0.0;
@@ -713,33 +706,29 @@ void CreateMMUTiledCanvas::load_config()
         //m_config.config_def.options["bump"] = def;
         //m_config.set_key_value("bump", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"near_color", coBool};
         def.label = L("Use nearest color");
-        def.type = coBool;
         def.tooltip = L("If there is not enough extruders configured, use the one with the nearest color. It will use the nearest spool color if spool_colors is set.");
         def.set_default_value(new ConfigOptionBool{ true });
         m_config.config_def.options["near_color"] = def;
         m_config.set_key_value("near_color", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"order_dark", coBool};
         def.label = L("From dark to light");
-        def.type = coBool;
         def.tooltip = L("If checked, it will order the extruder from the darker to the lighter, and the opposite if unchecked. Useful to optimise the purge volume needed when switching colors.");
         def.set_default_value(new ConfigOptionBool{ false });
         m_config.config_def.options["order_dark"] = def;
         m_config.set_key_value("order_dark", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"spool_colors", coBool};
         def.label = L("Use real spool colors");
-        def.type = coBool;
         def.tooltip = L("Uses colors from your spools, defined in the second tab.");
         def.set_default_value(new ConfigOptionBool{ false });
         m_config.config_def.options["spool_colors"] = def;
         m_config.set_key_value("spool_colors", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"color_comp", coInt};
         def.label = L("Comparator");
-        def.type = coInt;
         def.tooltip = L("Choose how to compare color, to choose what's merged");
         def.gui_type = ConfigOptionDef::GUIType::i_enum_open;
         def.set_enum_values(ConfigOptionDef::GUIType::i_enum_open, {
@@ -752,35 +741,31 @@ void CreateMMUTiledCanvas::load_config()
         m_config.set_key_value("color_comp", def.default_value.get()->clone());
 
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"original", coBool};
         def.label = L("Show original colors");
-        def.type = coBool;
         def.tooltip = L("The preview shows what's going to be generated. Select this option to see the original file instead.");
         def.set_default_value(new ConfigOptionBool{ false });
         m_config.config_def.options["original"] = def;
         m_config.set_key_value("original", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"extruders", coInt};
         def.label = L("Extruders");
-        def.type = coInt;
         def.min = 1;
         def.tooltip = L("Shortcut to change the number of extruders quickly. It's not refreshed when the real setting changes, so be careful to don't be confused.");
         def.set_default_value(new ConfigOptionInt((int)dynamic_cast<TabPrinter*>(this->m_gui_app->get_tab(Preset::TYPE_PRINTER))->m_extruders_count));
         m_config.config_def.options["extruders"] = def;
         m_config.set_key_value("extruders", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"available_colors", coStrings};
         def.label = L("Available colors");
-        def.type = coStrings;
         def.tooltip = L("Colors available for printing (your spools colors)");
         def.gui_type = ConfigOptionDef::GUIType::color;
         def.set_default_value(new ConfigOptionStrings{ "#0000FF" });
         m_config.config_def.options["available_colors"] = def;
         m_config.set_key_value("available_colors", def.default_value.get()->clone());
 
-        def = ConfigOptionDef();
+        def = ConfigOptionDef{"background_color", coString};
         def.label = L("Background color");
-        def.type = coString;
         def.tooltip = L("Color for pillars and base layers.");
         def.gui_type = ConfigOptionDef::GUIType::color;
         def.set_default_value(new ConfigOptionString( "#FFFFFF" ));
@@ -989,21 +974,19 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
             return;
         }
         //open default program
-        wxFileType* ftype = wxTheMimeTypesManager->GetFileTypeFromExtension("png");
-        wxFileType* ftypejpg = wxTheMimeTypesManager->GetFileTypeFromExtension("jpg");
+        std::unique_ptr<wxFileType> ftype(wxTheMimeTypesManager->GetFileTypeFromExtension("png"));
+        std::unique_ptr<wxFileType> ftypejpg(wxTheMimeTypesManager->GetFileTypeFromExtension("jpg"));
         if (ftype) {
             boost::filesystem::path path(m_filename_ctrl->GetValue().ToStdString());
             path.make_preferred();
             try {
                 wxString command = ftype->GetOpenCommand(path.string());
                 wxString commandjpg;
-                if (ftype) commandjpg = ftypejpg->GetOpenCommand(path.string());
+                if (ftypejpg) commandjpg = ftypejpg->GetOpenCommand(path.string());
                 if (!command.empty()) {
                     wxExecute(command);
-                    delete ftype;
                 } else if (!commandjpg.empty()) {
                     wxExecute(commandjpg);
-                    delete ftype;
                 } else {
 #ifdef _WIN32
                     command = "explorer \"" + path.string() + "\"";
@@ -1067,6 +1050,7 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
         this->get_canvas()->Refresh();
         }));
     wxButton* bt_rplace = new wxButton(tab, wxID_ANY, _L("r/place") + dots);
+    bt_rplace->SetToolTip("Download a pixel art image from reddit/place 2022");
     wxGetApp().UpdateDarkUI(bt_rplace);
     horiSizer->Add(bt_rplace, 0, wxALIGN_CENTER_VERTICAL);
     bt_rplace->Bind(wxEVT_BUTTON, ([this](wxCommandEvent& e) {
@@ -1100,6 +1084,7 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
     }
     main_sizer->Add(horiSizer, wxGBPosition(1, 1), wxGBSpan(1, 2), wxEXPAND | wxALL, 2);
 
+    Line line = { "", "" };
 
     group_size = std::make_shared<ConfigOptionsGroup>(tab, "Options", &m_config);
     group_size->m_on_change = [this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
@@ -1109,10 +1094,6 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
         this->save_config();
     };
     group_size->title_width = 15;
-
-    ConfigOptionDef def;
-    Option option(def);
-    Line line = { "", "" };
 
     //group_size->append_single_option_line(option);
 
@@ -1147,14 +1128,15 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
     group_size->reload_config();
     group_size->update_visibility(comSimple);
     main_sizer->Add(group_size->sizer, wxGBPosition(2, 2), wxGBSpan(1, 1), wxEXPAND | wxALL, 2);
+    group_size->parent()->Layout();
 
 
     group_colors = std::make_shared<ConfigOptionsGroup>(tab, "Colors", &m_config);
     group_colors->m_on_change = [this](const OptionKeyIdx &opt_key_idx, bool enabled, const boost::any &value) {
         assert(enabled);
-        if ("extruders" == opt_key_idx.key) {
-            dynamic_cast<TabPrinter*>(this->m_gui_app->get_tab(Preset::TYPE_PRINTER))->extruders_count_changed(boost::any_cast<int>(value));
-        }
+    //    if ("extruders" == opt_key_idx.key) {
+    //        dynamic_cast<TabPrinter*>(this->m_gui_app->get_tab(Preset::TYPE_PRINTER))->extruders_count_changed(boost::any_cast<int>(value));
+    //    }
         m_dirty = true;
         this->get_canvas()->Refresh();// paintNow();
         this->save_config();
@@ -1179,16 +1161,6 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
 
     group_colors->append_single_option_line(group_colors->create_option_from_def("background_color"));
 
-    //line = { "", "" };
-    //line.full_width = 1;
-    m_txt_extruder_count = new wxStaticText(tab, wxID_ANY, "test", wxDefaultPosition, wxDefaultSize);
-    //line.widget = [this](wxWindow* parent) {
-    //    auto sizer = new wxBoxSizer(wxHORIZONTAL);
-    //    sizer->Add(nbExtruders, 1, wxEXPAND | wxALL, 0);
-    //    return sizer;
-    //};
-    //group_colors->append_line(line);
-    //FIXME: refresh from printer update;
 
     //group_colors->append_single_option_line(group_colors->get_option("near_color"));
 
@@ -1204,14 +1176,25 @@ void CreateMMUTiledCanvas::create_main_tab(wxPanel* tab)
     group_colors->update_visibility(comSimple);
     main_sizer->Add(group_colors->sizer, wxGBPosition(3, 2), wxGBSpan(1, 1), wxEXPAND | wxALL, 2);
 
+    //line = { "", "" };
+    //line.full_width = 1;
+    m_txt_extruder_count = new wxStaticText(tab, wxID_ANY, "test", wxDefaultPosition, wxDefaultSize);
+    //line.widget = [this](wxWindow* parent) {
+    //    auto sizer = new wxBoxSizer(wxHORIZONTAL);
+    //    sizer->Add(nbExtruders, 1, wxEXPAND | wxALL, 0);
+    //    return sizer;
+    //};
+    //group_colors->append_line(line);
+    //FIXME: refresh from printer update;
     main_sizer->Add(m_txt_extruder_count, wxGBPosition(4, 2), wxGBSpan(1, 1), wxEXPAND | wxALL, 2);
 
-
+    // create canvas
     m_canvas = new BasicDrawPane(tab, &this->m_config);
     m_canvas->parent = this;
     this->get_canvas()->loadImage(m_filename_ctrl->GetValue().ToStdString());
-
     main_sizer->Add(m_canvas, wxGBPosition(2, 1), wxGBSpan(3, 1), wxEXPAND | wxALL, 2);
+
+    // set growable
     main_sizer->AddGrowableCol(1);
     main_sizer->AddGrowableRow(4);
 
@@ -1342,7 +1325,8 @@ public:
 };
 
 int CreateMMUTiledCanvas::find_extruder(wxColour color) {
-    int nb_extruders = dynamic_cast<TabPrinter*>(this->m_gui_app->get_tab(Preset::TYPE_PRINTER))->m_extruders_count;
+    //int nb_extruders = dynamic_cast<TabPrinter*>(this->m_gui_app->get_tab(Preset::TYPE_PRINTER))->m_extruders_count;
+    int nb_extruders = m_config.option<ConfigOptionInt>("extruders")->value;;
     const int color_algo = m_config.option<ConfigOptionInt>("color_comp")->value;
     bool use_near_color = m_config.option<ConfigOptionBool>("near_color")->value;
     int idx_extruder = 0;
@@ -1565,6 +1549,7 @@ indexed_triangle_set its_make_pyramid_inverted(double xd, double yd, double zd, 
 
 void CreateMMUTiledCanvas::create_geometry(wxCommandEvent& event_args) {
 
+    static_cast<TabPrinter*>(this->m_gui_app->get_tab(Preset::TYPE_PRINTER))->extruders_count_changed(m_config.opt_int("extruders"));
 
     //create the base
     Plater* plat = this->m_main_frame->plater();

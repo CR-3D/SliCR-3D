@@ -108,8 +108,8 @@ RammingPanel::RammingPanel(wxWindow* parent, const std::string& parameters)
 	m_chart = new Chart(this, wxRect(scale(1),scale(1),scale(48),scale(36)), buttons, scale(1));
     m_chart->set_type(Slic3r::GraphData::GraphType::SPLINE);
     m_chart->set_xy_range(0, 0, 0.25f * ramming_speed_size, 20.);
-    m_chart->set_x_label(_L("Time") + " ("+_L("s")+")", 0.1f);
-    m_chart->set_y_label(_L("Volumetric speed") + " (" + _L("mm³/s") + ")", 1);
+    m_chart->set_x_label(_L("Time") + " ("+_L("s")+")", 0.05f);
+    m_chart->set_y_label(_L("Volumetric speed") + " (" + _L("mm³/s") + ")", 0.1f);
     m_chart->set_no_point_label(_L("NO RAMMING AT ALL"));
 #ifdef _WIN32
     update_ui(m_chart);

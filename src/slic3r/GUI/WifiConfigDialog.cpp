@@ -58,7 +58,7 @@ WifiConfigDialog::WifiConfigDialog(wxWindow* parent, std::string& file_path, Rem
     auto* ssid_sizer = new wxBoxSizer(wxHORIZONTAL);
     // TRN SSID of WiFi network. It is a standard abbreviation which should probably not change in most languages.
     wxStaticText* ssid_label = new wxStaticText(panel, wxID_ANY, GUI::format_wxstr("%1%:", _L("SSID")));
-    m_ssid_combo = new ::ComboBox(panel, wxID_ANY, wxString(""), wxDefaultPosition, wxDefaultSize, 0, nullptr, DD_NO_CHECK_ICON);
+    m_ssid_combo = new ::ComboBox(panel, wxID_ANY, wxString(""), wxDefaultPosition, wxDefaultSize, 0, nullptr, DD_NO_CHECK_ICON | wxFULL_REPAINT_ON_RESIZE);
 #if __APPLE__
     m_ssid_combo->SetToolTip(_L("On some versions of MacOS, this only loads SSID of connected network."));
 #endif // __APPLE__
@@ -72,7 +72,7 @@ WifiConfigDialog::WifiConfigDialog(wxWindow* parent, std::string& file_path, Rem
     auto* pass_sizer = new wxBoxSizer(wxHORIZONTAL);
     // TRN Password of WiFi network.
     wxStaticText* password_label = new wxStaticText(panel, wxID_ANY, GUI::format_wxstr("%1%:", _L("Password")));
-    m_pass_textctrl = new ::TextInput(panel, "", "", "", wxDefaultPosition, wxDefaultSize);
+    m_pass_textctrl = new ::TextInput(panel, "", "", "", wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE);
 #if __APPLE__
     pass_sizer->Add(m_pass_textctrl, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
     m_pass_button_id = NewControlId();
@@ -89,7 +89,7 @@ WifiConfigDialog::WifiConfigDialog(wxWindow* parent, std::string& file_path, Rem
     auto* drive_sizer = new wxBoxSizer(wxHORIZONTAL);
     // TRN description of Combo Box with path to USB drive.
     wxStaticText* drive_label = new wxStaticText(panel, wxID_ANY, GUI::format_wxstr("%1%:", _L("Drive")));
-    m_drive_combo = new ::ComboBox(panel, wxID_ANY, wxString(""), wxDefaultPosition, wxDefaultSize, 0, nullptr, DD_NO_CHECK_ICON);
+    m_drive_combo = new ::ComboBox(panel, wxID_ANY, wxString(""), wxDefaultPosition, wxDefaultSize, 0, nullptr, DD_NO_CHECK_ICON | wxFULL_REPAINT_ON_RESIZE);
     rescan_drives(preffered_drive);
     m_drive_button_id = NewControlId();
     // TRN Text of button to rescan connect usb drives in Wifi Config dialog.

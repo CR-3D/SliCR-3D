@@ -191,6 +191,13 @@ struct SurfaceFillParams : FillParams
             RETURN_COMPARE_NON_EQUAL(config->region_gcode.value)
             RETURN_COMPARE_NON_EQUAL(config->small_area_infill_flow_compensation_model.is_enabled())
             RETURN_COMPARE_NON_EQUAL(config->small_area_infill_flow_compensation_model.value);
+            // print modifier, because region are fused in gode wiew if not.
+            RETURN_COMPARE_NON_EQUAL(config->print_extrusion_multiplier.value);
+            RETURN_COMPARE_NON_EQUAL(config->print_first_layer_temperature.value);
+            RETURN_COMPARE_NON_EQUAL(config->print_retract_length.value);
+            RETURN_COMPARE_NON_EQUAL(config->print_retract_lift.value);
+            RETURN_COMPARE_NON_EQUAL(config->print_temperature.value);
+            // end print modifier
             if (this->pattern == ipConcentric || rhs.pattern == ipConcentric) {
                 // arachne if concentric
                 RETURN_COMPARE_NON_EQUAL(config->perimeter_generator.value);
@@ -232,6 +239,13 @@ struct SurfaceFillParams : FillParams
             || config->region_gcode != rhs.config->region_gcode
             || config->small_area_infill_flow_compensation_model.is_enabled() != rhs.config->small_area_infill_flow_compensation_model.is_enabled()
             || config->small_area_infill_flow_compensation_model != rhs.config->small_area_infill_flow_compensation_model
+            // print modifier, because region are fused in gode wiew if not.
+            || config->print_extrusion_multiplier        != rhs.config->print_extrusion_multiplier
+            || config->print_first_layer_temperature     != rhs.config->print_first_layer_temperature
+            || config->print_retract_length              != rhs.config->print_retract_length
+            || config->print_retract_lift                != rhs.config->print_retract_lift
+            || config->print_temperature                 != rhs.config->print_temperature
+            // end print modifier
             ))
             return false;
         if (config != nullptr && (this->pattern == ipConcentric || rhs.pattern == ipConcentric) &&

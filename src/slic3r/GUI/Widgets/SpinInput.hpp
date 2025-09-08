@@ -152,6 +152,17 @@ public:
         double          initial = 0.,
         double          inc = 1.);
 
+    SpinInputDouble(wxWindow* parent,
+        int             id = 0,
+        wxString        label = "",
+        const wxPoint&  pos = wxDefaultPosition,
+        const wxSize&   size = wxDefaultSize,
+        long            style = 0,
+        double          min = 0.,
+        double          max = 100.,
+        double          initial = 0.,
+        double          inc = 1.);
+
     void Create(wxWindow* parent,
         wxString        text,
         wxString        label = "",
@@ -172,6 +183,7 @@ public:
 
     void SetRange(double min, double max);
     void SetIncrement(double inc);
+    double GetIncrement() const;
     void SetDigits(unsigned digits);
 
     double GetMin() const { return this->min; }
@@ -185,6 +197,7 @@ protected:
     void onTimer(wxTimerEvent& evnet) override;
     void onTextLostFocus(wxEvent& event) override;
     void onTextEnter(wxCommandEvent& event) override;
+    void sendSpinDoubleEvent();
 };
 
 #endif // !slic3r_GUI_SpinInput_hpp_
