@@ -491,7 +491,7 @@ public:
 
 	WipeTowerWriter& flush_planner_queue()
 	{ 
-	    m_gcode += "G4 S0\n"; 
+	   // m_gcode += "G4 S0\n"; 
 		return *this;
 	}
 
