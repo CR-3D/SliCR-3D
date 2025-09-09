@@ -21,7 +21,6 @@ group:Offsets (for multi-extruder printers)
 group:Travel Lift
 	setting:idx:retract_lift
 	setting:idx:travel_ramping_lift
-	setting:idx:travel_max_lift
 	setting:idx:travel_slope
 	setting:idx:travel_lift_before_obstacle
 
