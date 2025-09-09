@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master_27
-      - master_27_dev
+      - master_27
 
 jobs:
   build_dep:
@@ -89,13 +89,13 @@ jobs:
 
     - name: make .pot
       working-directory: ./build
-      run: msbuild /m /P:Configuration=Release gettext_make_pot.vcxproj
+      run: msbuild /m /P:Configuration=RelWithDebInfo gettext_make_pot.vcxproj
     - name: create OCCT wrapper
       working-directory: ./build
-      run: msbuild /m /P:Configuration=Release src\occt_wrapper\OCCTWrapper.vcxproj
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\occt_wrapper\OCCTWrapper.vcxproj
     - name: copy dll
       working-directory: ./build
-      run: msbuild /m /P:Configuration=Release src\slic3rDllsCopy.vcxproj
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\slic3rDllsCopy.vcxproj
     - name: create directory and copy into it
       working-directory: ./build
       run: msbuild /m /P:Configuration=RelWithDebInfo src\occt_wrapper\OCCTWrapper.vcxproj
