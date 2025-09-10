@@ -6251,7 +6251,7 @@ double GCodeGenerator::_compute_e_per_mm(const ExtrusionPath &path) {
     }
     // first layer mult
     if (this->m_layer->bottom_z() < EPSILON) {
-        e_per_mm *= this->config().filament_first_layer_flow_ratio.get_abs_value(1, writer().tool()->id());
+        e_per_mm *= m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
         e_per_mm *= EXTRUDER_CONFIG_WITH_DEFAULT(filament_first_layer_flow_ratio, 100) * 0.01;
     }
     return e_per_mm;
@@ -6431,11 +6431,10 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
         } else if (path.role() == ExtrusionRole::GapFill) {
             speed = m_config.get_computed_value("gap_fill_speed");
             if(comment) *comment = "gap_fill_speed";
-            double max_ratio = 0.0;
-            if (max_ratio > 0 && m_region) {
+            if (m_region) {
                 //compute intended perimeter flow
                 Flow fl = m_region->flow(*m_layer->object(), FlowRole::frPerimeter, m_layer->height, m_layer->id());
-                double max_vol_speed = fl.mm3_per_mm() * max_ratio * m_config.get_computed_value("perimeter_speed");
+                double max_vol_speed = fl.mm3_per_mm() * m_config.get_computed_value("perimeter_speed");
                 double current_vol_speed = path.mm3_per_mm() * speed;
                 if (max_vol_speed < current_vol_speed) {
                     speed = max_vol_speed / path.mm3_per_mm();
@@ -6634,7 +6633,7 @@ double_t GCodeGenerator::_compute_speed_mm_per_sec(const ExtrusionPath& path, co
     // the first_layer_flow_ratio is added at the last time to take into account everything. So do the compute like it's here.
     double path_mm3_per_mm = path.mm3_per_mm();
     if (m_layer->bottom_z() < EPSILON) {
-       path_mm3_per_mm *= this->config().filament_first_layer_flow_ratio.get_abs_value(1, writer().tool()->id());
+        path_mm3_per_mm *= this->m_config.filament_first_layer_flow_ratio.get_abs_value(m_writer.tool()->id(), 1.0);
     }
     // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
     if (m_config.max_volumetric_speed.value > 0 && path_mm3_per_mm > 0 && m_config.max_volumetric_speed.value / path_mm3_per_mm < speed) {

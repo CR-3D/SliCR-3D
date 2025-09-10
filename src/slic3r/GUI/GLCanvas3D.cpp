@@ -3380,31 +3380,26 @@ void GLCanvas3D::load_gcode_shells()
 }
 
 bool GLCanvas3D::is_gcode_preview_dirty(const GCodeProcessorResult& gcode_result) {
-    return last_showned_gcode != gcode_result.computed_timestamp;
+    return false;
 }
 
 void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result,
                                     const std::vector<std::string> &str_tool_colors)
 {
-    bool gcode_changed   = last_showned_gcode != gcode_result.computed_timestamp;
-    bool colors_changed = m_last_tool_colors != str_tool_colors;
-
-    if (gcode_changed) {
+    if (last_showned_gcode != gcode_result.computed_timestamp) {
         last_showned_gcode = gcode_result.computed_timestamp;
         m_gcode_viewer.load(gcode_result, *this->fff_print());
         m_gcode_viewer.set_force_shells_visible(false);
         m_gcode_viewer.set_view_type(m_gcode_viewer.get_view_type());
+
+        
     }
 
     if (wxGetApp().is_editor()) {
         _set_warning_notification_if_needed(EWarning::ToolpathOutside);
         _set_warning_notification_if_needed(EWarning::GCodeConflict);
     }
-
-    if (gcode_changed || colors_changed)
-        m_gcode_viewer.refresh(gcode_result, str_tool_colors);
-
-    m_last_tool_colors = str_tool_colors;
+    m_gcode_viewer.refresh(gcode_result, str_tool_colors);
     set_as_dirty();
     request_extra_frame();
 }
@@ -7249,7 +7244,7 @@ void GLCanvas3D::_render_objects(GLVolumeCollection::ERenderType type)
 
             // In case a painting gizmo is open, it should render the painted triangles
             // before transparent objects are rendered. Otherwise they would not be
-            // visible when inside modifier meshes etc
+            // visible when inside modifier meshes etc.
             {
                 GLGizmosManager& gm = get_gizmos_manager();
 //                GLGizmosManager::EType type = gm.get_current_type();

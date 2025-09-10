@@ -346,15 +346,7 @@ std::string PresetHints::maximum_volumetric_flow_description(const PresetBundle 
     bool support_material_interface_extruder_active = feature_extruder_active(print_config.option("support_material_interface_extruder")->get_int());
 
     // Current filament values
-    // Use the filament diameter of the active extruder. Previously the value was
-    // always read from index 0 which could lead to an incorrect volumetric
-    // cross‑section being used on the first slice when the filament was assigned
-    // to a different extruder. This resulted in a mismatch between the reported
-    // flow (mm³/s) and the volumetric flow rate. By querying the diameter using
-    // the current extruder index (falling back to 0 if not assigned) the correct
-    // cross‑section is used immediately on the first slice.
-    double filament_diameter                = filament_config.opt_float(
-        "filament_diameter", std::max(0, idx_extruder));
+    double filament_diameter                = filament_config.opt_float("filament_diameter", 0);
     double filament_crossection             = M_PI * 0.25 * filament_diameter * filament_diameter;
     // double extrusion_multiplier             = filament_config.opt_float("extrusion_multiplier", 0);
     // The following value will be annotated by this hint, so it does not take part in the calculation.

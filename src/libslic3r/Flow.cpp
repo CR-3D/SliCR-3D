@@ -486,21 +486,21 @@ Flow Flow::with_spacing_ratio_from_width(float new_spacing_ratio) const
 
 // This method returns the centerline spacing between two adjacent extrusions 
 // having the same extrusion width (and other properties).
-float Flow::spacing() const
+float Flow::spacing() const 
 {
 #ifdef HAS_PERIMETER_LINE_OVERLAP
     if (this->bridge)
         return this->width + BRIDGE_EXTRA_SPACING;
     // rectangle with semicircles at the ends
-    float min_flow_spacing = this->width - this->height * (1. - 0.25 * PI) * m_spacing_ratio;
+    float min_flow_spacing = this->width - this->height * (1. - 0.25 * PI) * spacing_ratio;
     float res = this->width - PERIMETER_LINE_OVERLAP_FACTOR * (this->width - min_flow_spacing);
 #else
     float res = float(this->bridge() ? (this->width() /*+ BRIDGE_EXTRA_SPACING_MULT * nozzle_diameter*/) : (this->width() - this->height() * (1. - 0.25 * PI) * m_spacing_ratio));
 #endif
 //    assert(res > 0.f);
-        if (res <= 0.f)
-                throw FlowErrorNegativeSpacing();
-        return res;
+	if (res <= 0.f)
+		throw FlowErrorNegativeSpacing();
+	return res;
 }
 
 // Adjust the width / height of a rounded extrusion model to reach the prescribed cross section area while maintaining extrusion spacing.

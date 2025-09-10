@@ -371,6 +371,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "min_layer_height"
             || opt_key == "max_layer_height"
             || opt_key == "filament_max_overlap"
+            || opt_key == "wall_sequence"
             || opt_key == "gcode_min_resolution") {
             osteps.emplace_back(posPerimeters);
             osteps.emplace_back(posInfill);
@@ -411,6 +412,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             invalidated |= object->invalidate_step(ostep);
     if(invalidated)
         m_timestamp_last_change = std::time(0);
+        
     return invalidated;
 }
 
@@ -526,7 +528,7 @@ std::set<uint16_t> Print::extruders(float z /*= -1*/) const
 
     if (z < 0) {
         // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
-        // append its extruder into the list too.
+     // append its extruder into the list too.
         if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
             assert(config().wipe_tower_extruder > 0 &&
                    config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
@@ -1331,15 +1333,12 @@ void Print::process()
         }
         //also simplify object skirt & brim
         if (enable_arc_fitting && (!this->m_skirt.empty() || !this->m_brim.empty())) {
-            coordf_t scaled_resolution = scale_d(
-                config().arc_fitting_resolution.get_abs_value(config().resolution.value));
-            if (scaled_resolution == 0)
-                scaled_resolution = SCALED_EPSILON * 2;
-            const ConfigOptionFloatOrPercent &arc_fitting_tolerance = config().arc_fitting_tolerance;
+            coordf_t scaled_resolution = scale_d(config().arc_fitting_resolution.get_abs_value(config().resolution.value));
+            if (scaled_resolution == 0) scaled_resolution = SCALED_EPSILON * 2 ;
+            const ConfigOptionFloatOrPercent& arc_fitting_tolerance = config().arc_fitting_tolerance;
 
-            this->set_status(0, L("Optimizing skirt & brim %s%%"), {std::to_string(0)},
-                             PrintBase::SlicingStatus::SECONDARY_STATE);
-            std::atomic<int> atomic_count{0};
+            this->set_status(0, L("Optimizing skirt & brim %s%%"), { std::to_string(0) }, PrintBase::SlicingStatus::SECONDARY_STATE);
+            std::atomic<int> atomic_count{ 0 };
             GetPathsVisitor visitor;
             this->m_skirt.visit(visitor);
             this->m_brim.visit(visitor);
@@ -1349,33 +1348,20 @@ void Print::process()
 #endif
             tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, visitor.paths.size() + visitor.paths3D.size()),
-                [this, &visitor, scaled_resolution, &arc_fitting_tolerance,
-                 &atomic_count](const tbb::blocked_range<size_t> &range) {
+                [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count](const tbb::blocked_range<size_t>& range) {
                     size_t path_idx = range.begin();
                     for (; path_idx < range.end() && path_idx < visitor.paths.size(); ++path_idx) {
-                        visitor.paths[path_idx]->simplify(scaled_resolution, config().arc_fitting.value,
-                                                          scale_d(arc_fitting_tolerance.get_abs_value(
-                                                              visitor.paths[path_idx]->width())));
+                        visitor.paths[path_idx]->simplify(scaled_resolution, config().arc_fitting.value, scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width())));
                         int nb_items_done = (++atomic_count);
-                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())),
-                                         L("Optimizing skirt & brim %s%%"),
-                                         {std::to_string(int(100 * nb_items_done /
-                                                             double(visitor.paths.size() + visitor.paths3D.size())))},
-                                         PrintBase::SlicingStatus::SECONDARY_STATE);
+                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())), L("Optimizing skirt & brim %s%%"), { std::to_string(int(100*nb_items_done / double(visitor.paths.size() + visitor.paths3D.size()))) }, PrintBase::SlicingStatus::SECONDARY_STATE);
                     }
-                    for (; path_idx < range.end() && path_idx - visitor.paths.size() < visitor.paths3D.size();
-                         ++path_idx) {
-                        visitor.paths3D[path_idx - visitor.paths.size()]
-                            ->simplify(scaled_resolution, config().arc_fitting.value,
-                                       scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width())));
+                    for (; path_idx < range.end() && path_idx - visitor.paths.size() < visitor.paths3D.size(); ++path_idx) {
+                        visitor.paths3D[path_idx - visitor.paths.size()]->simplify(scaled_resolution, config().arc_fitting.value, scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width())));
                         int nb_items_done = (++atomic_count);
-                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())),
-                                         L("Optimizing skirt & brim %s%%"),
-                                         {std::to_string(int(100 * nb_items_done /
-                                                             double(visitor.paths.size() + visitor.paths3D.size())))},
-                                         PrintBase::SlicingStatus::SECONDARY_STATE);
+                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())), L("Optimizing skirt & brim %s%%"), { std::to_string(int(100*nb_items_done / double(visitor.paths.size() + visitor.paths3D.size()))) }, PrintBase::SlicingStatus::SECONDARY_STATE);
                     }
-                });
+                }
+            );
 #if _DEBUG
             get_loops.loops.clear();
             this->m_skirt.visit(get_loops);
@@ -2153,18 +2139,16 @@ const WipeTowerData& Print::wipe_tower_data(const ConfigBase* config, double noz
         if (first_layer_height > 0 && first_layer_height < layer_height) {
             layer_height = first_layer_height;
         }
-
+        
         const_cast<Print *>(this)->m_wipe_tower_data.position = model().wipe_tower().position;
-        const_cast<Print *>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
-        const_cast<Print *>(this)->m_wipe_tower_data.rotation_angle = float(
-            config->option("wipe_tower_rotation_angle")->get_float());
-        const_cast<Print *>(this)->m_wipe_tower_data.depth = (maximum / layer_height) / this->m_wipe_tower_data.width;
-        const_cast<Print *>(this)->m_wipe_tower_data.brim_width = unscaled_brim_width;
-        const_cast<Print *>(this)->m_wipe_tower_data.cone_angle = float(
-            config->option("wipe_tower_cone_angle")->get_float());
-        const_cast<Print *>(this)->m_wipe_tower_data.first_layer_height = first_layer_height;
-        const_cast<Print *>(this)->m_wipe_tower_data.height = -1.f;             // unknown yet
-        const_cast<Print *>(this)->m_wipe_tower_data.z_and_depth_pairs.clear(); // unknown yet
+        const_cast<Print*>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
+        const_cast<Print*>(this)->m_wipe_tower_data.rotation_angle = float(config->option("wipe_tower_rotation_angle")->get_float());
+        const_cast<Print*>(this)->m_wipe_tower_data.depth = (maximum/layer_height)/this->m_wipe_tower_data.width;
+        const_cast<Print*>(this)->m_wipe_tower_data.brim_width = unscaled_brim_width;
+        const_cast<Print*>(this)->m_wipe_tower_data.cone_angle = float(config->option("wipe_tower_cone_angle")->get_float());
+        const_cast<Print*>(this)->m_wipe_tower_data.first_layer_height = first_layer_height;
+        const_cast<Print*>(this)->m_wipe_tower_data.height = -1.f; // unknown yet
+        const_cast<Print*>(this)->m_wipe_tower_data.z_and_depth_pairs.clear(); // unknown yet
     }
 
     return this->m_wipe_tower_data;
@@ -2222,8 +2206,12 @@ void Print::_make_wipe_tower()
     this->throw_if_canceled();
 
     // Initialize the wipe tower.
-    WipeTower wipe_tower(model().wipe_tower().position.cast<float>(), m_config, m_default_object_config,
-                         m_default_region_config, wipe_volumes, m_wipe_tower_data.tool_ordering.first_extruder());
+    WipeTower wipe_tower(model().wipe_tower().position.cast<float>(), 
+                         m_config, 
+                         m_default_object_config,
+                         m_default_region_config, 
+                         wipe_volumes, 
+                         m_wipe_tower_data.tool_ordering.first_extruder());
 
     // Set the extruder & material properties at the wipe tower object.
     for (size_t i = 0; i < m_config.nozzle_diameter.size(); ++ i)
