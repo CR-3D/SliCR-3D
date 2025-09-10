@@ -1005,6 +1005,7 @@ void MainFrame::update_title()
         title += (" " + _L(SLIC3R_BASED_ON));
 
     SetTitle(title);
+    //SetBackgroundColour(wxColour(255, 13, 13, 90));
 }
 
 void MainFrame::init_tabpanel()

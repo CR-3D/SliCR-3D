@@ -1460,7 +1460,7 @@ public:
 
     std::string serialize() const override
     {
-        return escape_string_cstyle(std::string("SUSI_") + SLIC3R_VERSION_FULL); 
+        return escape_string_cstyle(std::string("SUSI_") + SLIC3R_VERSION); 
     }
 };
 

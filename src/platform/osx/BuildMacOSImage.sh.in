@@ -26,7 +26,7 @@ while getopts ":ixavhz" opt; do
         export OS_NAME="macOS-arm"
         ;;
     v )
-        export VERSION_NUMBER="-@SLIC3R_VERSION_FULL@"
+        export VERSION_NUMBER="-@SLIC3R_VERSION@"
         ;;
     z )
         export INCLUDE_LIBZSTD="1"
@@ -181,7 +181,7 @@ echo -e "\n[8/8] Creating .tgz and DMG Image for distribution..."
   {
 
     tar -czvf @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.tgz pack/@SLIC3R_APP_KEY@
-    #tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.tgz pack/@SLIC3R_APP_KEY@
+    #tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION@-macOS.tgz pack/@SLIC3R_APP_KEY@
 
     # create dmg
     hdiutil create -ov -fs HFS+ -volname "@SLIC3R_APP_KEY@" -srcfolder "pack/@SLIC3R_APP_KEY@" temp.dmg
@@ -212,7 +212,7 @@ else
     echo waiting...; while pgrep XProtect; do sleep 3; done;
 
     tar -czvf @SLIC3R_APP_KEY@${VERSION_NUMBER}-$OS_NAME.tgz pack/@SLIC3R_APP_KEY@
-    #tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION_FULL@-macOS.tgz pack/@SLIC3R_APP_KEY@
+    #tar -czvf @SLIC3R_APP_KEY@-@SLIC3R_VERSION@-macOS.tgz pack/@SLIC3R_APP_KEY@
 
     # create dmg
     hdiutil create -ov -fs HFS+ -volname "@SLIC3R_APP_KEY@" -srcfolder "pack/@SLIC3R_APP_KEY@" temp.dmg

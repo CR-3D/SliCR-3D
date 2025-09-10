@@ -886,7 +886,7 @@ bool sync_inner(std::string& manifest, PresetUpdaterUIStatus* ui_status)
     if (!add_authorization_header(http))
         return false;
     http
-		.timeout_max(30)
+		.timeout_max(50)
 		.on_error([&](std::string body, std::string error, unsigned http_status) {
 			BOOST_LOG_TRIVIAL(error) << "Failed to get online archive source manifests: "<< body << " ; " << error << " ; " << http_status;
             ui_status->set_error(error);

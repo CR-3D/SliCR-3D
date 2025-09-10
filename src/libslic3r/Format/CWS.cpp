@@ -60,7 +60,7 @@ void fill_iniconf(ConfMap &m, const SLAPrint &print)
     m["printProfile"]   = get_cfg_value(cfg, "sla_print_settings_id");
     m["fileCreationTimestamp"] = Utils::utc_timestamp();
     m["slicerName"]     = SLIC3R_APP_NAME;
-    m["slicerVersion"]  = SLIC3R_VERSION_FULL;
+    m["slicerVersion"]  = SLIC3R_VERSION;
     
     SLAPrintStatistics stats = print.print_statistics();
     // Set statistics values to the printer

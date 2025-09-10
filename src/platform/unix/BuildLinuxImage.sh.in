@@ -34,7 +34,7 @@ while getopts ":iagvh" opt; do
         export FORCE_GTK2="1"
         ;;
     v )
-        export VERSION_NUMBER="-@SLIC3R_VERSION_FULL@"
+        export VERSION_NUMBER="-@SLIC3R_VERSION@"
         ;;
     h ) echo "Usage: ./BuildLinuxImage.sh [-g][-i][-a][-h]"
         echo "   -g: force gtk2 build"

@@ -24,7 +24,7 @@ def get_version():
 	settings_stream = open("./version.inc", mode="r", encoding="utf-8");
 	lines = settings_stream.read().splitlines();
 	for line in lines:
-		if("SLIC3R_VERSION_FULL" in line):
+		if("SLIC3R_VERSION" in line):
 			elems = line.split("\"");
 			return elems[1];
 	return "";

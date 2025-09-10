@@ -6,6 +6,6 @@
 
 namespace Slic3r {
 
-Semver SEMVER { SLIC3R_VERSION_FULL };
+Semver SEMVER { SLIC3R_VERSION };
 
 }
