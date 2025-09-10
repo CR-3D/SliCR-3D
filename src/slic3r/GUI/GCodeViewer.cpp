@@ -1433,7 +1433,8 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     // avoid processing if called with the same gcode_result
     // unless you changed the path merge mode
-    if (m_last_result_id == gcode_result.id && ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
+    if (m_last_result_id == gcode_result.id && (m_current_mode == m_last_mode) &&
+        ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
         return;
     }
 
@@ -2334,6 +2335,7 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
     m_cog.reset();
 
     m_sequential_view.gcode_ids.clear();
+    m_sequential_view.gcode_ids.reserve(gcode_result.moves.size());
     for (size_t i = 0; i < gcode_result.moves.size(); ++i) {
         const GCodeProcessorResult::MoveVertex& move = gcode_result.moves[i];
         if (move.type != EMoveType::Seam)

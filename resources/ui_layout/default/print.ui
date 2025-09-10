@@ -409,9 +409,6 @@ group:title_width$19:Ironing post-process (This will go on top of infills and pe
 page:Skirt & Brim:skirt+brim
 group:Skirt
 	setting:tags$Advanced$Expert$Prusa:skirts
-	line:Skirt Distance
-		setting:label$_:skirt_distance
-	end_line
 	line:Skirt Distance From Brim
 		setting:label$From Brim:skirt_distance_from_brim
 		setting:label$From Object:skirt_distance
