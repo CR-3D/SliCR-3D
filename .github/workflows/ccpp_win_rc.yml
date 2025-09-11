@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master_27
-      - master_27
+      - master_27_dev
 
 jobs:
   build_dep:
@@ -177,5 +177,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: nightly_win64
+        name: alpha_win64
         path: build/package/
