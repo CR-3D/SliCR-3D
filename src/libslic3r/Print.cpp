@@ -1339,43 +1339,55 @@ void Print::process()
 
             this->set_status(0, L("Optimizing skirt & brim %s%%"), {std::to_string(0)},
                              PrintBase::SlicingStatus::SECONDARY_STATE);
-            std::atomic<int> atomic_count{0};
-            GetPathsVisitor visitor;
-            this->m_skirt.visit(visitor);
-            this->m_brim.visit(visitor);
-#if _DEBUG
-            this->m_skirt.visit(get_loops);
-            for (auto loop : get_loops.loops) assert(loop->is_counter_clockwise());
-#endif
-            tbb::parallel_for(
-                tbb::blocked_range<size_t>(0, visitor.paths.size() + visitor.paths3D.size()),
-                [this, &visitor, scaled_resolution, &arc_fitting_tolerance,
-                 &atomic_count](const tbb::blocked_range<size_t> &range) {
-                    size_t path_idx = range.begin();
-                    for (; path_idx < range.end() && path_idx < visitor.paths.size(); ++path_idx) {
-                        visitor.paths[path_idx]->simplify(scaled_resolution, config().arc_fitting.value,
-                                                          scale_d(arc_fitting_tolerance.get_abs_value(
-                                                              visitor.paths[path_idx]->width())));
-                        int nb_items_done = (++atomic_count);
-                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())),
-                                         L("Optimizing skirt & brim %s%%"),
-                                         {std::to_string(int(100 * nb_items_done /
-                                                             double(visitor.paths.size() + visitor.paths3D.size())))},
-                                         PrintBase::SlicingStatus::SECONDARY_STATE);
-                    }
-                    for (; path_idx < range.end() && path_idx - visitor.paths.size() < visitor.paths3D.size();
-                         ++path_idx) {
-                        visitor.paths3D[path_idx - visitor.paths.size()]
-                            ->simplify(scaled_resolution, config().arc_fitting.value,
-                                       scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width())));
-                        int nb_items_done = (++atomic_count);
-                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())),
-                                         L("Optimizing skirt & brim %s%%"),
-                                         {std::to_string(int(100 * nb_items_done /
-                                                             double(visitor.paths.size() + visitor.paths3D.size())))},
-                                         PrintBase::SlicingStatus::SECONDARY_STATE);
-                    }
-                });
+
+        std::atomic<int> atomic_count{0};
+        GetPathsVisitor visitor;
+        this->m_skirt.visit(visitor);
+        this->m_brim.visit(visitor);
+
+        #if _DEBUG
+        this->m_skirt.visit(get_loops);
+        for (auto loop : get_loops.loops)
+            assert(loop->is_counter_clockwise());
+        #endif
+
+        const size_t total_paths = visitor.paths.size() + visitor.paths3D.size();
+
+        // initial status
+        {
+            boost::format fmt(L("Optimizing skirt & brim %1%%%"));
+            std::string msg = (fmt % 0).str();
+            this->set_status(0, msg, PrintBase::SlicingStatus::SECONDARY_STATE);
+        }
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, total_paths),
+            [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count, total_paths](const tbb::blocked_range<size_t>& range) {
+                size_t path_idx = range.begin();
+                for (; path_idx < range.end() && path_idx < visitor.paths.size(); ++path_idx) {
+                    visitor.paths[path_idx]->simplify(
+                        scaled_resolution,
+                        config().arc_fitting.value,
+                        scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width()))
+                    );
+                    int nb_items_done = ++atomic_count;
+                    boost::format fmt(L("Optimizing skirt & brim %1%%%"));
+                    std::string msg = (fmt % int(100 * nb_items_done / double(total_paths))).str();
+                    this->set_status((nb_items_done * 100) / total_paths, msg, PrintBase::SlicingStatus::SECONDARY_STATE);
+                }
+                for (; path_idx < range.end() && path_idx - visitor.paths.size() < visitor.paths3D.size(); ++path_idx) {
+                    visitor.paths3D[path_idx - visitor.paths.size()]->simplify(
+                        scaled_resolution,
+                        config().arc_fitting.value,
+                        scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width()))
+                    );
+                    int nb_items_done = ++atomic_count;
+                    boost::format fmt(L("Optimizing skirt & brim %1%%%"));
+                    std::string msg = (fmt % int(100 * nb_items_done / double(total_paths))).str();
+                    this->set_status((nb_items_done * 100) / total_paths, msg, PrintBase::SlicingStatus::SECONDARY_STATE);
+                }
+            }
+        );
 #if _DEBUG
             get_loops.loops.clear();
             this->m_skirt.visit(get_loops);
