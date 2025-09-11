@@ -219,7 +219,7 @@ ModeSizer::ModeSizer(wxWindow *parent, int hgap, int max_col) :
         Add(m_mode_btns.back());
     }
     
-    parent->SetBackgroundColour(wxColour(255, 13, 13, 60));
+  //  parent->SetBackgroundColour(wxColour(255, 13, 13, 60));
 }
 
 void ModeSizer::SetMode(ConfigOptionMode mode)
