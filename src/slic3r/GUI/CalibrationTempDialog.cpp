@@ -121,7 +121,7 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
     const ConfigOptionFloats* nozzle_diameter_config = printer_config->option<ConfigOptionFloats>("nozzle_diameter");
     assert(nozzle_diameter_config->size() > 0);
     float nozzle_diameter = nozzle_diameter_config->get_at(0);
-    float xyzScale = nozzle_diameter / 0.4;
+    float xyzScale = nozzle_diameter / nozzle_diameter;
     //do scaling
     if (xyzScale < 0.9 || 1.1 < xyzScale) {
         model.objects[objs_idx[0]]->scale(xyzScale, xyzScale * 0.5, xyzScale);
@@ -147,26 +147,50 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
             vol->set_transformation(trsf);
         };
 
-    //add 8 others
-    float zshift = (1 - xyzScale) / 2;
-    if (temperature > 175 && temperature < 290 && temperature%5==0) {
-        Vec3d translate{ 0 - xyzScale * 3.75, -xyzScale * 2.7, xyzScale * (0 * 10 - 2.45) };
-        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t"+std::to_string(temperature)+".amf")).string(),
-            translate, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 });
+const double cell_h = 10.0;
+const double zshift = (1.0 - xyzScale) * (cell_h / 2.0);
+
+if (temperature > 175 && temperature < 290 && temperature % 5 == 0) {
+    Vec3d translate{
+        0 - xyzScale * 3.75,
+        -xyzScale * 2.7,
+        /* old: xyzScale * (0*10 - 2.45) */
+        zshift                                  // keep label on bed after scaling
+    };
+    add_part(
+        model.objects[objs_idx[0]],
+        (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(temperature) + ".amf")).string(),
+        translate,
+        Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }
+    );
+    translate_from_rotation(0, translate);
+}
+
+for (int16_t i = 1; i < nb_items; i++) {
+    add_part(
+        model.objects[objs_idx[0]],
+        (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / "Smart_compact_temperature_calibration_item.amf").string(),
+        /* Z spacing honors scale AND keeps base on the bed */
+        Vec3d{ 0, 0, i * cell_h * xyzScale + zshift },
+        Vec3d{ xyzScale, xyzScale * 0.5, xyzScale }
+    );
+
+    int sub_temp = temperature - i * step_temp;
+    if (sub_temp > 175 && sub_temp < 290 && sub_temp % 5 == 0) {
+        Vec3d translate{
+            0 - xyzScale * 3.75,
+            -xyzScale * 2.7,
+            zshift
+        };
+        add_part(
+            model.objects[objs_idx[0]],
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(sub_temp) + ".amf")).string(),
+            translate,
+            Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }
+        );
         translate_from_rotation(0, translate);
     }
-    for (int16_t i = 1; i < nb_items; i++) {
-        add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("Smart_compact_temperature_calibration_item.amf")).string(),
-            Vec3d{ 0,0, i * 10 * xyzScale }, Vec3d{ xyzScale, xyzScale * 0.5, xyzScale });
-        int sub_temp = temperature - i * step_temp;
-        if (sub_temp > 175 && sub_temp < 290 && sub_temp % 5 == 0) {
-            Vec3d translate{ 0 - xyzScale * 3.75, -xyzScale * 2.7, xyzScale * (0 * 10 - 2.45) };
-            add_part(model.objects[objs_idx[0]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(sub_temp) + ".amf")).string(),
-                translate, Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 });
-            translate_from_rotation(0, translate);
-        }
-    }
-
+}
 
     /// --- translate ---
 
