@@ -1721,6 +1721,18 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
         for (unsigned int extruder_id : tool_ordering.all_extruders())
             is_extruder_used[extruder_id] = true;
         this->placeholder_parser().set("is_extruder_used", new ConfigOptionBools(is_extruder_used));
+
+        std::vector<unsigned char> is_flexible_material(
+            std::max(size_t(255), print.config().nozzle_diameter.size()), 0);
+
+        for (unsigned int extruder_id : tool_ordering.all_extruders()) {
+            if (m_config.flexible_material.get_at(extruder_id)) {
+                is_flexible_material[extruder_id] = true;
+            }
+        }
+
+        this->placeholder_parser().set("is_flexible_material", new ConfigOptionBools(is_flexible_material));
+
     }
 
     //misc
@@ -8171,9 +8183,9 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
         std::string start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
 
         // Conditionally append based on flexible material
-        if (m_config.flexible_material.get_at(extruder_id)) {
-            start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) + " ENABLE=0";
-        }
+      //  if (m_config.flexible_material.get_at(extruder_id)) {
+      //      start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) + " ENABLE=0";
+      //  }
 
         if (! start_filament_gcode.empty()) {
             DynamicConfig config;
@@ -8251,10 +8263,10 @@ std::string GCodeGenerator::set_extruder(uint16_t extruder_id, double print_z, b
     std::string start_filament_gcode = m_config.start_filament_gcode.get_at(extruder_id);
 
     // Conditionally append based on flexible material
-    if (m_config.flexible_material.get_at(extruder_id)) {
-        start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) +
-            " ENABLE=0";
-    }
+  //  if (m_config.flexible_material.get_at(extruder_id)) {
+    //    start_filament_gcode += "\nSET_FILAMENT_SENSOR SENSOR=encoder_sensor_T" + std::to_string(extruder_id) +
+      //      " ENABLE=0";
+    //}
 
 
     if (!start_filament_gcode.empty()) {
