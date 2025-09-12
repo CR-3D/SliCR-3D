@@ -69,3 +69,6 @@ min_slic3r_version = 2.7.0.4
 0.0.66 updated PA values
 0.0.67 Nozzle variants all at 0.6; I444 printbed size fixed; added C2-IDEX-Xtend+ and C2-Xtend+; Renamed tool_name to Links;Rechts
 0.0.68 Disable the filament sensor when a flexible material is printed.
+
+min_slic3r_version = 2.7.0.5-alpha1
+0.0.69 Changed output filename to 2.7.0.5-alpha1_{input_filename_base}_{layer_height}mm_{filament_type[0]}_n{nozzle_diameter[0]}.gcode

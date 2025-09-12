@@ -1246,7 +1246,9 @@ private:
 class ModelWipeTower
 {
 public:
-	Vec2d		position = Vec2d(180., 140.);
+
+
+	Vec2d		position;
 	double 		rotation = 0.;
 
     bool operator==(const ModelWipeTower& other) const { return position == other.position && rotation == other.rotation; }
@@ -1282,7 +1284,8 @@ public:
     ModelWipeTower& wipe_tower(const int bed_index);
     std::vector<ModelWipeTower>& get_wipe_tower_vector() { return wipe_tower_vector; }
     const std::vector<ModelWipeTower>& get_wipe_tower_vector() const { return wipe_tower_vector; }
-
+    void  set_center_pos(const DynamicPrintConfig& config, const DynamicPrintConfig& print_config);
+    
     CustomGCode::Info& custom_gcode_per_print_z();
     const CustomGCode::Info& custom_gcode_per_print_z() const;
     std::vector<CustomGCode::Info>& get_custom_gcode_per_print_z_vector() { return custom_gcode_per_print_z_vector; }

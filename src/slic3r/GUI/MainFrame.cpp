@@ -85,7 +85,7 @@ enum class ERescaleTarget
     SettingsDialog
 };
 
-#if __APPLE__
+#ifdef __APPLE__
 class PrusaSlicerTaskBarIcon : public wxTaskBarIcon
 {
 public:
@@ -93,7 +93,7 @@ public:
     wxMenu *CreatePopupMenu() override {
         wxMenu *menu = new wxMenu;
         if(wxGetApp().app_config->get("single_instance") == "0") {
-            // Only allow opening a new Slic3r instance on OSX if "single_instance" is disabled,
+            // Only allow opening a new Slic3r instance on OSX if "single_instance" is disabled, 
             // as starting new instances would interfere with the locking mechanism of "single_instance" support.
             append_menu_item(menu, wxID_ANY, _L("Open new instance"), wxString::Format(_L("Open a new %s instance"), SLIC3R_APP_NAME),
             [](wxCommandEvent&) { start_new_slicer(); }, "", nullptr);
@@ -153,7 +153,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     // Fonts were created by the DPIFrame constructor for the monitor, on which the window opened.
     wxGetApp().update_fonts(this);
 /*
-#ifndef __WXOSX__ // Don't call SetFont under OSX to avoid name cutting in ObjectList
+#ifndef __WXOSX__ // Don't call SetFont under OSX to avoid name cutting in ObjectList 
     this->SetFont(this->normal_font());
 #endif
     // Font is already set in DPIFrame constructor
@@ -177,7 +177,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     // Load the icon either from the exe, or from the ico file.
     SetIcon(main_frame_icon(wxGetApp().get_app_mode()));
 
-    // initialize status bar
+	// initialize status bar
 //    m_statusbar = std::make_shared<ProgressStatusBar>(this);
 //    m_statusbar->set_font(GUI::wxGetApp().normal_font());
 //    if (wxGetApp().is_editor())
@@ -223,10 +223,15 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     sizer->SetSizeHints(this);
     Fit();
 
-    const wxSize min_size = wxSize(85 * em_unit(), 50 * em_unit());
+    const wxSize min_size = wxGetApp().get_min_size(this);
+#if __APPLE__
+    // Using SetMinSize() on Mac messes up the window position in some cases
+    // cf. https://groups.google.com/forum/#!topic/wx-users/yUKPBBfXWO0
+    SetSize(min_size/*wxSize(760, 490)*/);
+#else
     SetMinSize(min_size/*wxSize(760, 490)*/);
     SetSize(GetMinSize());
-
+#endif
     Layout();
 
     update_title();
@@ -310,7 +315,6 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
 
     bind_diff_dialog();
 }
-
 void MainFrame::bind_diff_dialog()
 {
     auto get_tab = [](Preset::Type type) {

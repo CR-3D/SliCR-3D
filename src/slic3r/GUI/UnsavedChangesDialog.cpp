@@ -1922,7 +1922,7 @@ void DiffPresetDialog::update_tree()
             wxString left_val = from_u8((boost::format("%1%") % left_config.opt<ConfigOptionStrings>("extruder_colour")->size()).str());
             wxString right_val = from_u8((boost::format("%1%") % right_congig.opt<ConfigOptionStrings>("extruder_colour")->size()).str());
 
-            m_tree->Append(OptionKeyIdx::scalar("extruders_count"), type, _L("General"), _L("Capabilities"), local_label, left_val, right_val, "", category_icon_map.at("General"));
+            m_tree->Append(OptionKeyIdx::scalar("extruders_count"), type, _L("General"), _L("Capabilities"), local_label, left_val, right_val, "", category_icon_map.find("General") != category_icon_map.end() ? category_icon_map.at("General") : "wrench");
         }
 
         for (auto &[opt_key_id, flag] : dirty_options) {

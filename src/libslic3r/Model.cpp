@@ -166,6 +166,38 @@ ModelWipeTower& Model::wipe_tower(const int bed_index)
     return wipe_tower_vector[bed_index];
 }
 
+void Model::set_center_pos(const DynamicPrintConfig& config, const DynamicPrintConfig& print_config) {
+
+      BoundingBoxf bed_bb;
+      for (const auto &p : config.option<ConfigOptionPoints>("bed_shape")->get_values())
+       bed_bb.merge(Vec2d(p.x(), p.y()));
+
+      // Get wipe tower width from config (for clamping)
+      double width = print_config.option("wipe_tower_width")->get_float();
+      const double margin = 1.0;
+
+      double x_offset = 30.0; // mm to move left
+      double x_aim = 0.5 * (bed_bb.min.x() + bed_bb.max.x()) - x_offset;
+
+      // Keep your original front-positioning logic for Y
+      double y_aim = bed_bb.min.y() + margin + 0.5;
+
+      // Clamp if necessary (so it stays fully on the bed)
+      double x_min = bed_bb.min.x() + 0.5 * width + margin;
+      double x_max = bed_bb.max.x() - 0.5 * width - margin;
+      double y_min = bed_bb.min.y() + 0.5 * width + margin;
+      double y_max = bed_bb.max.y() - 0.5 * width - margin;
+
+      Vec2d pos{
+       std::clamp(x_aim, x_min, x_max),  // centered X
+       std::clamp(y_aim, y_min, y_max)   // near-front Y (unchanged)
+      };
+
+      wipe_tower().position = pos;
+    
+    //return wipe_tower
+}
+
 CustomGCode::Info& Model::custom_gcode_per_print_z()
 {
     return const_cast<CustomGCode::Info&>(const_cast<const Model*>(this)->custom_gcode_per_print_z());

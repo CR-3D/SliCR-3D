@@ -167,7 +167,7 @@ public:
     virtual ArrangeSettingsDb& set_arrange_strategy(ArrangeStrategy v) = 0;
 
     struct Values {
-        float d_obj = 6.f, d_bed = 0.f, d_obj_prev = 6.f; // last distance used when last pressed on "arrange". Used when "duplicate_distance" is set to 0
+        float d_obj = 2.f, d_bed = 3.f, d_obj_prev = 6.f; // last distance used when last pressed on "arrange". Used when "duplicate_distance" is set to 0
         bool rotations = true;
         XLPivots xl_align = XLPivots::xlpFrontLeft;
         GeometryHandling geom_handling = GeometryHandling::ghConvex;

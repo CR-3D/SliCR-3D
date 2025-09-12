@@ -89,7 +89,7 @@ void CalibrationOverBridgeDialog::create_geometry(bool over_bridge) {
     const ConfigOptionFloats* nozzle_diameter_config = printer_config->option<ConfigOptionFloats>("nozzle_diameter");
     assert(nozzle_diameter_config->size() > 0);
     float nozzle_diameter = nozzle_diameter_config->get_at(0);
-    float xyz_scale = (0.2 + nozzle_diameter) / 0.6;
+   float xyz_scale = (0.2 + nozzle_diameter) / nozzle_diameter;
     //do scaling
     if (xyz_scale < 0.9 || 1.2 < xyz_scale) {
     } else {
@@ -160,15 +160,7 @@ void CalibrationOverBridgeDialog::create_geometry(bool over_bridge) {
     ObjectList* obj = this->gui_app->obj_list();
     obj->update_after_undo_redo();
     freeze_gui.reset();
-    // arrange if needed, after new settings, to take them into account
-    if (has_to_arrange) {
-        //update print config (done at reslice but we need it here)
-        if (plat->printer_technology() == ptFFF)
-            plat->active_fff_print().apply(plat->model(), *plat->config());
-        Worker &ui_job_worker = plat->get_ui_job_worker();
-        plat->arrange(ui_job_worker, ArrangeSelectionMode::CurrentBedFull);
-        ui_job_worker.wait_for_current_job(20000);
-    }
+
 
     plat->reslice();
     gui_app->app_config->set("autocenter", "0");

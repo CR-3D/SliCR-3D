@@ -6176,6 +6176,7 @@ void Plater::priv::take_snapshot(const std::string &snapshot_name, const UndoRed
     // not in the Print config.
     if (this->printer_technology == ptFFF) {
         const DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
+        model.set_center_pos(wxGetApp().preset_bundle->printers.get_edited_preset().config, config);
         model.wipe_tower().position = Vec2d(model.wipe_tower().position.x(), model.wipe_tower().position.y());
         model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
     }
@@ -6267,8 +6268,9 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
     // not in the Print config.
     if (this->printer_technology == ptFFF) {
         const DynamicPrintConfig &config = wxGetApp().preset_bundle->fff_prints.get_edited_preset().config;
+        model.set_center_pos(wxGetApp().preset_bundle->printers.get_edited_preset().config, config);
         model.wipe_tower().position = Vec2d(model.wipe_tower().position.x(), model.wipe_tower().position.y());
-       model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
+        model.wipe_tower().rotation        = config.opt_float("wipe_tower_rotation_angle");
     }
     const int layer_range_idx = it_snapshot->snapshot_data.layer_range_idx;
     // Flags made of Snapshot::Flags enum values.
