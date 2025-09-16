@@ -149,17 +149,18 @@ void CalibrationTempDialog::create_geometry(wxCommandEvent& event_args) {
 
 const double cell_h = 10.0;
 const double zshift = (1.0 - xyzScale) * (cell_h / 2.0);
+    const double z_offset = 1.0;
 
-if (temperature > 175 && temperature < 290 && temperature % 5 == 0) {
+if (temperature > 175 && temperature < 350 && temperature % 5 == 0) {
     Vec3d translate{
         0 - xyzScale * 3.75,
         -xyzScale * 2.7,
         /* old: xyzScale * (0*10 - 2.45) */
-        zshift                                  // keep label on bed after scaling
+        zshift - z_offset   // lower it by z_offset mm
     };
     add_part(
         model.objects[objs_idx[0]],
-        (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(temperature) + ".amf")).string(),
+        (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(temperature) + ".stl")).string(),
         translate,
         Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }
     );
@@ -176,15 +177,15 @@ for (int16_t i = 1; i < nb_items; i++) {
     );
 
     int sub_temp = temperature - i * step_temp;
-    if (sub_temp > 175 && sub_temp < 290 && sub_temp % 5 == 0) {
+    if (sub_temp > 175 && sub_temp < 350 && sub_temp % 5 == 0) {
         Vec3d translate{
             0 - xyzScale * 3.75,
             -xyzScale * 2.7,
-            zshift
+            zshift - 2 - z_offset
         };
         add_part(
             model.objects[objs_idx[0]],
-            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(sub_temp) + ".amf")).string(),
+            (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_temp" / ("t" + std::to_string(sub_temp) + ".stl")).string(),
             translate,
             Vec3d{ xyzScale, xyzScale, xyzScale * 0.43 }
         );
