@@ -615,7 +615,7 @@ PageWelcome::PageWelcome(ConfigWizard *parent)
         _L("Desktop-Integration durchführen (macht diese Anwendung systemweit auffindbar)."));
 
     // --- Banner as bundle (SVG preferred by your get_bmp_bundle) ---
-    auto* banner = new wxStaticBitmap(this, wxID_ANY, *get_bmp_bundle("cr3d_welcome_image", 400, 400));
+    auto* banner = new wxStaticBitmap(this, wxID_ANY, *get_bmp_bundle("cr3d_welcome_image", 300, 300));
     // Make it look clickable
     banner->SetCursor(wxCursor(wxCURSOR_HAND));
 
@@ -636,7 +636,7 @@ PageWelcome::PageWelcome(ConfigWizard *parent)
 
     // ---------- Layout ----------
     auto* root = new wxBoxSizer(wxVERTICAL);
-    root->AddSpacer(FromDIP(15, this));
+    root->AddSpacer(FromDIP(60, this));
 
     auto* row = new wxBoxSizer(wxHORIZONTAL);
     auto* content = new wxBoxSizer(wxVERTICAL);

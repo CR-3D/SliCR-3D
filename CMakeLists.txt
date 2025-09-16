@@ -11,6 +11,10 @@
 cmake_minimum_required(VERSION 3.13)
 project(Slic3r)
 
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO")
+
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/version.date.inc")
 	include("version.date.inc")
 else()
