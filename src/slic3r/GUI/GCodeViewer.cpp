@@ -766,7 +766,7 @@ GCodeViewer::Extrusions::Ranges::Ranges(uint8_t max_decimals) :
             // Color mapping by volumetric extrusion rate.
             volumetric_rate(max_decimals),
             // Color mapping by volumetric extrusion mm3/mm.
-            volumetric_flow(max_decimals),
+            volumetric_flow(1),
             // Color mapping by extrusion temperature.
             temperature(0),
             // Color mapping by layer time.

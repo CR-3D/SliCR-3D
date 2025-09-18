@@ -191,7 +191,7 @@ void AppConfig::set_defaults()
             set("side_panel_width", "42");
 
         if (get("gcodeviewer_decimals").empty())
-            set("gcodeviewer_decimals", "2");
+            set("gcodeviewer_decimals", "0");
 
         //get default color from the ini file
 
