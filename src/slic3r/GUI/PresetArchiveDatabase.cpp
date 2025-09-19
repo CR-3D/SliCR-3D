@@ -207,7 +207,7 @@ bool OnlineArchiveRepository::get_file_inner(const std::string& url, const fs::p
     if (!add_authorization_header(http))
         return false;
     http
-		.timeout_max(30)
+		.timeout_max(8000)
 		.on_progress([](Http::Progress, bool& cancel) {
 			//if (cancel) { cancel = true; }
 		})
