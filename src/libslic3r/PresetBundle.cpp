@@ -43,7 +43,7 @@ static std::vector<std::string> s_project_options {
     "wiping_volumes_matrix"
 };
 
-const char *PresetBundle::PRUSA_BUNDLE = "CR3D";
+const char *PresetBundle::CR3D_BUNDLE = "CR-3D";
 
 PresetBundle::PresetBundle() :
     fff_prints(Preset::TYPE_FFF_PRINT, Preset::print_options(), static_cast<const PrintRegionConfig&>(FullPrintConfig::defaults())),
