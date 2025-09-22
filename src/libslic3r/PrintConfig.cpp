@@ -2999,7 +2999,7 @@ void PrintConfigDef::init_fff_params() {
     def->min = 0;
     def->max_literal = {20, false};
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloatOrPercent(75, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0.2, false));
 
     def = this->add("link_layer_heights", coBool);
     def->label = L("Link Layer Heights");
