@@ -1498,17 +1498,22 @@ bool GUI_App::on_init_inner() {
 
         m_preset_updater_wrapper = std::make_unique<PresetUpdaterWrapper>();
         Bind(EVT_SLIC3R_VERSION_ONLINE, &GUI_App::on_version_read, this);
-        Bind(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE, [this](const wxCommandEvent &evt) {
-            if (this->plater_ != nullptr &&
-                (m_app_updater->get_triggered_by_user() || app_config->get("notify_release") == "1")) {
+        Bind(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE, [this](const wxCommandEvent& evt) {
+            if (this->plater_ != nullptr && (m_app_updater->get_triggered_by_user() || app_config->get("notify_release") == "internal")) {
                 std::string evt_string = into_u8(evt.GetString());
                 if (*Semver::parse(SLIC3R_VERSION) < *Semver::parse(evt_string)) {
-                    auto notif_type = (evt_string.find("beta") != std::string::npos ?
-                                           NotificationType::NewBetaAvailable :
-                                           NotificationType::NewAlphaAvailable);
+                    auto notif_type = (evt_string.find("beta") != std::string::npos ? NotificationType::NewBetaAvailable : NotificationType::NewAlphaAvailable);
+                    
+                    this->plater_->get_notification_manager()->push_version_notification( notif_type
+                        , NotificationManager::NotificationLevel::ImportantNotificationLevel
+                        , Slic3r::format(_u8L("New prerelease version %1% is available."), evt_string)
+                        , _u8L("Download Now")
+                        , [this](wxEvtHandler* evnthndlr) {app_updater(false); return true; }
+                    );
                 }
             }
         });
+        
         Bind(EVT_SLIC3R_APP_DOWNLOAD_PROGRESS, [this](const wxCommandEvent &evt) {
             // lm:This does not force a render. The progress bar only updateswhen the mouse is moved.
             if (this->plater_ != nullptr)
@@ -4100,6 +4105,7 @@ void GUI_App::app_updater(bool from_user) {
                                                               app_data.target_path.filename().string()),
                                                   std::bind(&AppUpdater::cancel_callback, this->m_app_updater.get()));
         app_data.start_after = dwnld_dlg.run_after_download();
+        //app_data.size = 30584800;
         m_app_updater->set_app_data(std::move(app_data));
         m_app_updater->sync_download();
     }
