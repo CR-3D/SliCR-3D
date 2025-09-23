@@ -94,8 +94,8 @@ bool Bundle::load(fs::path source_path, BundleLocation location, bool ais_prusa_
     
     std::string path_string = source_path.string();
     // Throw when parsing invalid configuration. Only valid configuration is supposed to be provided over the air.
-    auto [config_substitutions, presets_loaded] = preset_bundle->load_configbundle(
-                                                                                   path_string, PresetBundle::LoadConfigBundleAttribute::LoadSystem, ForwardCompatibilitySubstitutionRule::Disable);
+    auto [config_substitutions, presets_loaded] = preset_bundle->load_configbundle(path_string, PresetBundle::LoadConfigBundleAttribute::LoadSystem, ForwardCompatibilitySubstitutionRule::Disable);
+    
     UNUSED(config_substitutions);
     // No substitutions shall be reported when loading a system config bundle, no substitutions are allowed.
     assert(config_substitutions.empty());
@@ -363,7 +363,7 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
             
             
             if (i == 1) {
-                auto *alt_label = new wxStaticText(variants_panel, wxID_ANY, _L("Alternate nozzles:"));
+                auto *alt_label = new wxStaticText(variants_panel, wxID_ANY, _L("Alternate Tools:"));
                 alt_label->SetFont(font_alt_nozzle);
                 variants_sizer->Add(alt_label, 0, wxBOTTOM, 3);
                 is_variants = true;
@@ -1730,8 +1730,6 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
         const auto bgr_clr_str = wxGetApp().get_html_bg_color(parent);
         const auto text_clr_str = encode_color(ColorRGB(text_clr.Red(), text_clr.Green(), text_clr.Blue()));
 
-        const wxString link = format_wxstr("<a href = \"%1%\">%1%</a>", "printables.com");
-
         const wxFont& font = this->GetFont();
         const int fs = font.GetPointSize();
         int size[] = { fs,fs,fs,fs,fs,fs,fs };
@@ -1739,7 +1737,7 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
 
         html_window->SetPage(format_wxstr(
             "<html><body bgcolor=%1% link=%2%>"
-            "<font color=%2% size=\"3\">%3%</font>"
+            "<font color=%2% size=\"3\"></font>"
             "</body></html>"
             , bgr_clr_str
             , text_clr_str
