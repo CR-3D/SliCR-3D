@@ -41,6 +41,9 @@
 #include "DesktopIntegrationDialog.hpp"
 #endif //__linux__
 
+
+//#define INTERNAL_VERSION 1
+
 namespace Slic3r {
 
     static t_config_enum_names enum_names_from_keys_map(const t_config_enum_values& enum_keys_map)
@@ -64,11 +67,17 @@ namespace Slic3r {
     enum NotifyReleaseMode {
         NotifyReleaseAll,
         NotifyReleaseOnly,
+#ifdef INTERNAL_VERSION
+        NotifyInternalOnly,
+#endif
         NotifyReleaseNone
     };
     static const t_config_enum_values s_keys_map_NotifyReleaseMode = {
         {"all",     NotifyReleaseAll},
         {"release", NotifyReleaseOnly},
+#ifdef INTERNAL_VERSION
+        {"internal", NotifyInternalOnly},
+#endif
         {"none",    NotifyReleaseNone},
     };
     CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NotifyReleaseMode)
@@ -944,6 +953,9 @@ void PreferencesDialog::build()
             new ConfigOptionEnum<NotifyReleaseMode>(static_cast<NotifyReleaseMode>(s_keys_map_NotifyReleaseMode.at(notify_release_value))),
             { { "all", L("All") },
               { "release", L("Release only") },
+#ifdef INTERNAL_VERSION
+              {  "internal", L("Internal Only")},
+#endif
               { "none", L("None") }
             });
 

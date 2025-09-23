@@ -1732,11 +1732,6 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
 
         const wxString link = format_wxstr("<a href = \"%1%\">%1%</a>", "printables.com");
 
-        // TRN ConfigWizard : Downloader : %1% = "printables.com", %2% = "PrusaSlicer"
-        const wxString main_text = format_wxstr(_L("If enabled, you will be able to open models from the %1% "
-                                                   "online database with a single click (using a %2% logo button)."
-        ), link, SLIC3R_APP_NAME);
-
         const wxFont& font = this->GetFont();
         const int fs = font.GetPointSize();
         int size[] = { fs,fs,fs,fs,fs,fs,fs };
@@ -1748,7 +1743,6 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
             "</body></html>"
             , bgr_clr_str
             , text_clr_str
-            , main_text
         ));
     }
 
