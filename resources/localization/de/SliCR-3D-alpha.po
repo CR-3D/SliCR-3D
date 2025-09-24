@@ -12772,6 +12772,21 @@ msgstr "Teile das gewählte Objekt"
 msgid "Split the selected object into individual objects"
 msgstr "Ausgewähltes Objekt in Einzelobjekte trennen"
 
+msgid ""
+"This is a experimental feature that will ignore the extruder clearance radius "
+"when using sequential printing. Use it with caution and only if you are sure "
+"that your printer won't have any collision. This is useful for projects "
+"where the objects need to be very close to each other."
+msgstr ""
+"Dies ist eine experimentelle Funktion, die beim sequenziellen Drucken den "
+"Extruder-Sicherheitsradius ignoriert. Verwenden Sie sie mit Vorsicht und nur, "
+"wenn Sie sicher sind, dass Ihr Drucker keine Kollisionen verursacht. "
+"Nützlich für Projekte, bei denen die Objekte sehr nah beieinander platziert "
+"werden müssen."
+
+msgid "Ignore Extruder Clearance"
+msgstr "Ignoriere den Extruder Freiraum"
+
 #: src/slic3r/GUI/GUI_Factories.cpp:940 src/slic3r/GUI/GUI_Factories.cpp:975
 msgid "Split the selected object into individual parts"
 msgstr "Das ausgewählte Objekt in einzelne Teile aufteilen"

@@ -880,6 +880,7 @@ group:Platter
 	setting:duplicate_distance
 group:Sequential printing
 	setting:tags$Advanced$Expert$Prusa:complete_objects
+	setting:ignore_extruder_clearance
 	setting:parallel_objects_step
 	setting:complete_objects_one_skirt
 	setting:complete_objects_sort

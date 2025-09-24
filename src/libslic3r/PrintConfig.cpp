@@ -1192,6 +1192,16 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
 
+    def = this->add("ignore_extruder_clearance", coBool);
+    def->label = L("Ignore Extruder Clearance");
+    def->category = OptionCategory::output;
+    def->tooltip = L("This is a experimental feature that will ignore the extruder clearance radius "
+                     "when using sequential printing. Use it with caution and only if you are sure "
+                     "that your printer won't have any collision. This is useful for projects "
+                     "where the objects need to be very close to each other.");
+    def->mode = comSimpleAE | comPrusa;
+    def->set_default_value(new ConfigOptionBool(false));
+
     def = this->add("parallel_objects_step", coFloat);
     def->label = L("Parallel printing step");
     def->category = OptionCategory::output;
