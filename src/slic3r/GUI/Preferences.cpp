@@ -708,14 +708,14 @@ void PreferencesDialog::build()
 		append_bool_option(m_tabid_2_optgroups.back().back(), "default_action_on_dirty_project",
 			L("Ask for unsaved changes in project"),
 			L("Always ask for unsaved changes in project, when: \n"
-						"- Closing Slic3r,\n"
+						"- Closing SliCR-3D,\n"
 						"- Loading or creating a new project"),
 			app_config->get("default_action_on_dirty_project").empty());
 
 		append_bool_option(m_tabid_2_optgroups.back().back(), "default_action_on_close_application",
 			L("Ask to save unsaved changes in presets when closing the application or when loading a new project"),
 			L("Always ask for unsaved changes in presets, when: \n"
-						"- Closing Slic3r while some presets are modified,\n"
+						"- Closing SliCR-3D while some presets are modified,\n"
 						"- Loading a new project while some presets are modified"),
 			app_config->get("default_action_on_close_application") == "none");
 

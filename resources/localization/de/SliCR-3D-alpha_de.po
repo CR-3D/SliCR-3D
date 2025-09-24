@@ -1026,8 +1026,8 @@ msgid "Alt + Mouse wheel"
 msgstr "Alt + Mausrad"
 
 #: src/slic3r/GUI/ConfigWizard.cpp:266
-msgid "Alternate nozzles:"
-msgstr "Alternative Düsen:"
+msgid "Alternate Tools:"
+msgstr "Alternative Druckköpfe:"
 
 #: src/slic3r/GUI/Preferences.cpp:251
 msgid "Always ask for unsaved changes in presets when creating new project"

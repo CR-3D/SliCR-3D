@@ -5454,7 +5454,7 @@ void PrintConfigDef::init_fff_params() {
 
     def = this->add("travel_lift_before_obstacle", coBools);
     def->label = L("Steeper ramp before obstacles");
-    def->tooltip = L("If enabled, PrusaSlicer detects obstacles along the travel path and makes the slope steeper "
+    def->tooltip = L("If enabled, SliCR-3D detects obstacles along the travel path and makes the slope steeper "
                      "in case an obstacle might be hit during the initial phase of the travel.");
     def->mode = comExpert | comPrusa;
     def->is_vector_extruder = true;
@@ -12282,13 +12282,13 @@ ReadWriteSlicingStatesConfigDef::ReadWriteSlicingStatesConfigDef() {
     def->tooltip = L(
         "Position of the extruder at the beginning of the custom G-code block. If the custom G-code travels "
         "somewhere else, "
-        "it should write to this variable so PrusaSlicer knows where it travels from when it gets control back.");
+        "it should write to this variable so SliCR-3D knows where it travels from when it gets control back.");
 
     def = this->add("e_retracted", coFloats);
     def->label = L("Retraction");
     def->tooltip = L(
         "Retraction state at the beginning of the custom G-code block. If the custom G-code moves the extruder axis, "
-        "it should write to this variable so PrusaSlicer deretracts correctly when it gets control back.");
+        "it should write to this variable so SliCR-3D deretracts correctly when it gets control back.");
 
     def = this->add("e_restart_extra", coFloats);
     def->label = L("Extra deretraction");

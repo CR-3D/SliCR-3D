@@ -949,9 +949,9 @@ void GUI_App::check_and_swap_vendor_bundle() {
     
     // Add a Notification window
     RichMessageDialogBase dlg(nullptr,
-        "The CR-3D+ printer profiles have been updated to a newer version. "
-        "Your existing presets will be automatically migrated to the new profiles.",
-        "Profile Update Required",
+        _L("The CR-3D+ printer profiles have been updated to a newer version. "
+           "Your existing presets will be automatically migrated to the new profiles."),
+        _L("Profile Update Required"),
         wxOK | wxICON_INFORMATION);
     dlg.SetOKLabel(_L("Update"));
     
