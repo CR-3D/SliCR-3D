@@ -100,6 +100,7 @@ void s_support_fff_set(string &in new_val, int idx)
 	} else if(idx == 2) { // For support enforcers only
 		set_bool("support_material_buildplate_only", false);
 		set_bool("support_material_auto", false);
+		set_bool("support_enforcers_only", true);
 		set_bool("support_material", true);
 	} else if(idx == 3) { // everywhere
 		set_bool("support_material_buildplate_only", false);
