@@ -144,6 +144,7 @@
 #endif
 
 using namespace std::literals;
+namespace fs = boost::filesystem;
 
 namespace Slic3r { namespace GUI {
 
@@ -872,6 +873,7 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
                                const std::vector<std::string>& default_materials,
                                bool alsoSelectDefaultMaterials)
 {
+    
     auto* app           = &wxGetApp();
     auto* app_config    = app->app_config;
     auto* updater       = app->get_preset_updater_wrapper();
@@ -937,7 +939,6 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
 
 // Check for old CR3D+ vendor bundle and swap it for CR-3D+ if needed.
 void GUI_App::check_and_swap_vendor_bundle() {
-    namespace fs = boost::filesystem;
     using namespace std::literals;
     fs::path vendor_dir = (fs::path(data_dir()) / "vendor").make_preferred();
     fs::path resources_dir_cr3d = (fs::path(resources_dir()) / "profiles").make_preferred();
