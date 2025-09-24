@@ -558,7 +558,7 @@ static bool run_updater_win()
     std::string msg;
     bool res = create_process(path_updater, L"/silent", msg);
     if (!res)
-        BOOST_LOG_TRIVIAL(error) << msg; 
+        BOOST_LOG_TRIVIAL(error) << msg;
     return res;
 }
 #endif // 0
@@ -727,8 +727,8 @@ static void register_win32_device_notification_event() {
                     plater->GetEventHandler()->AddPendingEvent(VolumeAttachedEvent(EVT_VOLUME_ATTACHED));
                 else if (lpdb->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
                     PDEV_BROADCAST_DEVICEINTERFACE lpdbi = (PDEV_BROADCAST_DEVICEINTERFACE) lpdb;
-                    //				if (lpdbi->dbcc_classguid == GUID_DEVINTERFACE_VOLUME) {
-                    //					printf("DBT_DEVICEARRIVAL %d - Media has arrived: %ws\n", msg_count, lpdbi->dbcc_name);
+                    //                if (lpdbi->dbcc_classguid == GUID_DEVINTERFACE_VOLUME) {
+                    //                    printf("DBT_DEVICEARRIVAL %d - Media has arrived: %ws\n", msg_count, lpdbi->dbcc_name);
                     if (lpdbi->dbcc_classguid == GUID_DEVINTERFACE_HID)
                         plater->GetEventHandler()->AddPendingEvent(
                             HIDDeviceAttachedEvent(EVT_HID_DEVICE_ATTACHED, boost::nowide::narrow(lpdbi->dbcc_name)));
@@ -739,8 +739,8 @@ static void register_win32_device_notification_event() {
                     plater->GetEventHandler()->AddPendingEvent(VolumeDetachedEvent(EVT_VOLUME_DETACHED));
                 else if (lpdb->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
                     PDEV_BROADCAST_DEVICEINTERFACE lpdbi = (PDEV_BROADCAST_DEVICEINTERFACE) lpdb;
-                    //				if (lpdbi->dbcc_classguid == GUID_DEVINTERFACE_VOLUME)
-                    //					printf("DBT_DEVICEARRIVAL %d - Media was removed: %ws\n", msg_count, lpdbi->dbcc_name);
+                    //                if (lpdbi->dbcc_classguid == GUID_DEVINTERFACE_VOLUME)
+                    //                    printf("DBT_DEVICEARRIVAL %d - Media was removed: %ws\n", msg_count, lpdbi->dbcc_name);
                     if (lpdbi->dbcc_classguid == GUID_DEVINTERFACE_HID)
                         plater->GetEventHandler()->AddPendingEvent(
                             HIDDeviceDetachedEvent(EVT_HID_DEVICE_DETACHED, boost::nowide::narrow(lpdbi->dbcc_name)));
@@ -865,6 +865,158 @@ static void generic_exception_handle() {
     }
 }
 
+
+bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
+                               const std::string& model_id,
+                               const std::string& variant_name,
+                               const std::vector<std::string>& default_materials,
+                               bool alsoSelectDefaultMaterials)
+{
+    auto* app           = &wxGetApp();
+    auto* app_config    = app->app_config;
+    auto* updater       = app->get_preset_updater_wrapper();
+    AppConfig *appconfig_new = app_config;
+
+    // 1) Ensure the vendor bundle is installed (like ConfigWizard does).
+    const fs::path vendor_dir = (fs::path(resources_dir()) / "profiles").make_preferred();
+    const fs::path vendor_ini = vendor_dir / (vendor_id + ".ini");
+    if (updater) {
+        // Install from resources/cache if not present.
+        if (!boost::filesystem::exists(vendor_ini)) {
+            std::vector<std::string> bundles;
+            bundles.push_back(vendor_id + ".ini");
+            updater->install_bundles_rsrc_or_cache_vendor(bundles, false);
+        }
+    }
+
+    // 2) Mark the specific model/variant as selected in AppConfig.
+    {
+        AppConfig::VendorMap vmap = appconfig_new->vendors();
+        vmap[vendor_id][model_id].insert(variant_name);
+        for (const std::string& material : default_materials)
+            appconfig_new->set(AppConfig::SECTION_FILAMENTS, material, "1");
+        
+        appconfig_new->set_vendors(vmap);
+        appconfig_new->save();
+        appconfig_new->load();
+    }
+
+    // 4) Reload presets and make the new printer active via selection hint.
+    PresetBundle::PresetPreferences selection_hint;
+      selection_hint.printer_model_id = model_id;
+      selection_hint.printer_variant  = variant_name;
+     // selection_hint.filament         = default_materials[0];
+      selection_hint.sla_material     = "";
+
+    preset_bundle->load_installed_printers(*appconfig_new);
+    preset_bundle->setup_directories();
+    //preset_bundle->update_system_maps();
+    
+    preset_bundle->load_presets(
+        *appconfig_new,
+        ForwardCompatibilitySubstitutionRule::EnableSilentDisableSystem,
+        selection_hint
+    );
+
+    // 5) Persist the current selections back to the config.
+    preset_bundle->export_selections(*appconfig_new);
+
+    // 6) Refresh UI bits that depend on current presets.
+    //app->load_current_presets(false);
+    app->update_mode();
+    if (auto manipul = app->obj_manipul(); manipul) {
+        manipul->update_ui_from_settings();
+    }
+
+    load_current_presets();
+    plater()->set_bed_shape();
+    BOOST_LOG_TRIVIAL(info) << "Installed and activated printer: "
+                            << vendor_id << " / " << model_id << " / " << variant_name;
+    return true;
+}
+
+// Check for old CR3D+ vendor bundle and swap it for CR-3D+ if needed.
+void GUI_App::check_and_swap_vendor_bundle() {
+    namespace fs = boost::filesystem;
+    using namespace std::literals;
+    fs::path vendor_dir = (fs::path(data_dir()) / "vendor").make_preferred();
+    fs::path resources_dir_cr3d = (fs::path(resources_dir()) / "profiles").make_preferred();
+    fs::path old_ini = vendor_dir / "CR3D+.ini";
+    if (!fs::exists(old_ini))
+        return;
+    
+    
+    // Add a Notification window
+    RichMessageDialogBase dlg(nullptr,
+        "The CR-3D+ printer profiles have been updated to a newer version. "
+        "Your existing presets will be automatically migrated to the new profiles.",
+        "Profile Update Required",
+        wxOK | wxICON_INFORMATION);
+    dlg.SetOKLabel(_L("Update"));
+    
+    if (dlg.ShowModal() != wxID_OK)
+        return;
+
+    // Remove CR3D+.ini and CR3D+.idx
+    for (const char *ext : {".ini", ".idx"}) {
+        fs::path old_file = vendor_dir / ("CR3D+"s + ext);
+        boost::system::error_code ec;
+        fs::remove(old_file, ec);
+    }
+    
+    // Also remove it from resources dir since we dont need it anymore
+    for (const char *ext : {".ini", ".idx"}) {
+        fs::path old_file = resources_dir_cr3d / ("CR3D+"s + ext);
+        boost::system::error_code ec;
+        fs::remove(old_file, ec);
+        if (ec)
+            BOOST_LOG_TRIVIAL(warning) << "Failed to remove " << old_file.string() << ": " << ec.message();
+    }
+
+    // Remove the CR3D+ folder entirely
+    fs::path old_folder = resources_dir_cr3d / "CR3D+";
+    boost::system::error_code ec;
+    fs::remove_all(old_folder, ec);
+    if (ec)
+        BOOST_LOG_TRIVIAL(warning) << "Failed to remove folder " << old_folder.string() << ": " << ec.message();
+
+    // Install CR-3D+.ini vendor bundle
+    auto updater = get_preset_updater_wrapper();
+        std::vector<std::string> bundles{"CR-3D+.ini"};
+        updater->install_bundles_rsrc_or_cache_vendor(bundles, false);
+    
+
+    // Recover previously selected model/variant for CR3D+ and activate the new one.
+    if (app_config) {
+        auto vmap = app_config->vendors();
+        auto it = vmap.find("CR3D+");
+        if (it != vmap.end()) {
+            for (const auto &[model_id, old_variants] : it->second) {
+                VendorProfile new_model = VendorProfile::from_ini(fs::path(resources_dir() + "/profiles/CR-3D+.ini"));
+                
+                for (VendorProfile::PrinterModel model : new_model.models) {
+                    const auto &new_variants = model.variants;
+                    const auto &default_materials = model.default_materials;
+                    
+                    for (const VendorProfile::PrinterVariant &variant : new_variants) {
+                        
+                        for (const auto &old_variant : old_variants) {
+                            std::string new_variant;
+                            if (!new_variants.empty()) {
+                                // Simple: pick the first available variant (or you could try a fuzzy match)
+                                new_variant = variant.name;
+                            } else {
+                                new_variant = old_variant; // fallback
+                            }
+                            install_and_load_old_printers("CR-3D+", model_id, new_variant, default_materials, true);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 void GUI_App::post_init() {
     assert(initialized());
     if (!this->initialized())
@@ -928,6 +1080,9 @@ void GUI_App::post_init() {
     // Neither wxShowEvent nor wxWindowCreateEvent work reliably.
     if (this->get_preset_updater_wrapper()) { // G-Code Viewer does not initialize preset_updater.
         CallAfter([this] {
+            
+            // Check and swap CR3D+ vendor bundle if needed
+            this->check_and_swap_vendor_bundle();
             // preset_updater->sync downloads profile updates and than via event checks updates and incompatible presets. We need to run it on startup.
             // start before cw so it is canceled by cw if needed?
             this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle);
@@ -1056,7 +1211,7 @@ void GUI_App::init_app_config() {
     SetAppName(SLIC3R_APP_KEY);
 #endif
 
-    //	SetAppDisplayName(SLIC3R_APP_NAME);
+    //    SetAppDisplayName(SLIC3R_APP_NAME);
 
     // Set the Slic3r data directory at the Slic3r XS module.
     // Unix: ~/ .Slic3rP
@@ -1550,7 +1705,7 @@ bool GUI_App::on_init_inner() {
         init_params->preset_substitutions =
             preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSystemSilent);
     } catch (const std::exception &ex) {
-        delayed_error_load_presets = ex.what(); 
+        delayed_error_load_presets = ex.what();
     }
 
     //now that new_preset_bundle is initialized, we can publish it
@@ -2080,7 +2235,7 @@ void GUI_App::update_fonts(const MainFrame *main_frame) {
     m_code_font.SetPointSize(m_normal_font.GetPointSize());
 }
 
-void GUI_App::set_label_clr_modified(const wxColour& clr) 
+void GUI_App::set_label_clr_modified(const wxColour& clr)
 {
     if (dark_mode()) {
         if (m_color_dark_mode_label_modified == clr)
@@ -3509,7 +3664,7 @@ void GUI_App::load_current_presets(bool check_printer_presets_ /*= true*/) {
         check_printer_presets();
 
     PrinterTechnology printer_technology = get_current_printer_technology();
-	this->plater()->set_printer_technology(printer_technology);
+    this->plater()->set_printer_technology(printer_technology);
     for (Tab *tab : tabs_list)
         if (tab->supports_printer_technology(printer_technology) && tab->get_presets()) {
             if (tab->type() == Preset::TYPE_PRINTER) {
@@ -3685,9 +3840,9 @@ wxString GUI_App::current_language_code_safe() const {
             "pl",
             "pl_PL",
         },
-        //{ "uk", 	"uk_UA", },
-        //{ "zh", 	"zh_CN", },
-        //{ "ru", 	"ru_RU", },
+        //{ "uk",     "uk_UA", },
+        //{ "zh",     "zh_CN", },
+        //{ "ru",     "ru_RU", },
     };
     wxString language_code = this->current_language_code().BeforeFirst('_');
     auto it = mapping.find(language_code);
@@ -3724,7 +3879,7 @@ bool GUI_App::may_switch_to_SLA_preset(const wxString &caption) {
 bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage start_page) {
     wxCHECK_MSG(mainframe != nullptr, false, "Internal error: Main frame not created / null");
 
-    // Loading of Config Wizard takes some time. 
+    // Loading of Config Wizard takes some time.
     // First part is to download neccessary data.
     // That is done on worker thread while nice modal progress is shown.
     // TRN: Progress dialog title
@@ -3939,7 +4094,7 @@ bool GUI_App::config_wizard_startup() {
 }
 
 bool GUI_App::check_updates(const bool verbose)
-{	
+{
     PresetUpdater::UpdateResult updater_result;
     if (verbose)
     {
@@ -3947,17 +4102,17 @@ bool GUI_App::check_updates(const bool verbose)
     } else {
         updater_result = get_preset_updater_wrapper()->check_updates_on_startup(app_config->orig_version());
     }
-	if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
-		mainframe->Close();
+    if (updater_result == PresetUpdater::R_INCOMPAT_EXIT) {
+        mainframe->Close();
         // Applicaiton is closing.
         return false;
-	}
-	else if (updater_result == PresetUpdater::R_INCOMPAT_CONFIGURED) {
+    }
+    else if (updater_result == PresetUpdater::R_INCOMPAT_CONFIGURED) {
         m_app_conf_exists = true;
-	} else if (verbose && updater_result == PresetUpdater::R_NOOP) {
-		MsgNoUpdates dlg;
-		dlg.ShowModal();
-	}
+    } else if (verbose && updater_result == PresetUpdater::R_NOOP) {
+        MsgNoUpdates dlg;
+        dlg.ShowModal();
+    }
     // Applicaiton will continue.
     return true;
 }
@@ -4284,9 +4439,9 @@ void GUI_App::open_wifi_config_dialog(bool forced, const wxString& drive_path/* 
         // dialog was already declined this run, show only notification
         notification_manager()->push_notification(NotificationType::WifiConfigFileDetected
             , NotificationManager::NotificationLevel::ImportantNotificationLevel
-            // TRN Text of notification when Slicer starts and usb stick with printer settings ini file is present 
+            // TRN Text of notification when Slicer starts and usb stick with printer settings ini file is present
             , _u8L("Printer configuration file detected on removable media.")
-            // TRN Text of hypertext of notification when Slicer starts and usb stick with printer settings ini file is present 
+            // TRN Text of hypertext of notification when Slicer starts and usb stick with printer settings ini file is present
             , _u8L("Write Wi-Fi credentials."), [drive_path](wxEvtHandler* evt_hndlr) {
                 wxGetApp().open_wifi_config_dialog(true, drive_path);
                 return true; });
