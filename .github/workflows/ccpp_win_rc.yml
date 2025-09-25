@@ -156,14 +156,12 @@ jobs:
         Copy-Item -Recurse -Force -Path "$resourcesPath/*" -Destination $dest
 
         Write-Host "Copied resources to $dest"
-
     - name: copy dll & exe
       working-directory: ./build
       shell: cmd
       run: |
         xcopy /RCYIE src\RelWithDebInfo\*.dll package\
         xcopy /RCYIE src\RelWithDebInfo\*.exe package\
-       # xcopy /RCYIE src\RelWithDebInfo\*.pdb package\
         xcopy /RCYIE c:\windows\system32\VCRUNTIME140* package\
         xcopy /RCYIE c:\windows\system32\msvcp140* package\
         del package\opengl32.dll
