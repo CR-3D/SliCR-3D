@@ -400,7 +400,8 @@ public:
                                    const std::string& variant_name,
                                    const std::vector<std::string>& default_materials,
                                    bool alsoSelectDefaultMaterials = true);
-    void check_and_swap_vendor_bundle();
+    void check_and_swap_vendor_bundle(const std::vector<std::pair<std::string, std::string>> &vendor_mappings,
+                                                                   const std::vector<std::string>& bundles_to_install);
     
     RemovableDriveManager *removable_drive_manager() { return m_removable_drive_manager.get(); }
     OtherInstanceMessageHandler *other_instance_message_handler() { return m_other_instance_message_handler.get(); }

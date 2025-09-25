@@ -890,6 +890,8 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
             updater->install_bundles_rsrc_or_cache_vendor(bundles, false);
         }
     }
+    
+    
 
     // 2) Mark the specific model/variant as selected in AppConfig.
     {
@@ -938,79 +940,73 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
 }
 
 // Check for old CR3D+ vendor bundle and swap it for CR-3D+ if needed.
-void GUI_App::check_and_swap_vendor_bundle() {
-    using namespace std::literals;
-    fs::path vendor_dir = (fs::path(data_dir()) / "vendor").make_preferred();
-    fs::path resources_dir_cr3d = (fs::path(resources_dir()) / "profiles").make_preferred();
-    fs::path old_ini = vendor_dir / "CR3D+.ini";
-    if (!fs::exists(old_ini))
+// Check for old vendor bundle and swap it for a new one dynamically.
+void GUI_App::check_and_swap_vendor_bundle(
+    const std::vector<std::pair<std::string, std::string>> &vendor_mappings,
+    const std::vector<std::string> &bundles_to_install)
+{
+    fs::path vendor_dir       = (fs::path(data_dir()) / "vendor").make_preferred();
+    fs::path resources_dir_v  = (fs::path(resources_dir()) / "profiles").make_preferred();
+
+    // Track which vendors are actually present
+    std::vector<std::pair<std::string, std::string>> vendors_to_migrate;
+
+    for (const auto &[old_vendor_id, new_vendor_id] : vendor_mappings) {
+        fs::path old_ini      = vendor_dir / (old_vendor_id + ".ini");
+        fs::path old_ini_plus = vendor_dir / (old_vendor_id + "+.ini");
+        if (fs::exists(old_ini) || fs::exists(old_ini_plus))
+            vendors_to_migrate.emplace_back(old_vendor_id, new_vendor_id);
+    }
+
+    if (vendors_to_migrate.empty())
         return;
-    
-    
-    // Add a Notification window
+
+    // Inform user once, regardless of how many vendors we are migrating
     RichMessageDialogBase dlg(nullptr,
-        _L("The CR-3D+ printer profiles have been updated to a newer version. "
-           "Your existing presets will be automatically migrated to the new profiles."),
+        _L("Your printer profiles have been updated to a newer version. "
+           "Your existing presets will be automatically migrated."),
         _L("Profile Update Required"),
         wxOK | wxICON_INFORMATION);
     dlg.SetOKLabel(_L("Update"));
-    
     if (dlg.ShowModal() != wxID_OK)
         return;
 
-    // Remove CR3D+.ini and CR3D+.idx
-    for (const char *ext : {".ini", ".idx"}) {
-        fs::path old_file = vendor_dir / ("CR3D+"s + ext);
+    // Remove all old vendor files and folders
+    for (const auto &[old_vendor_id, new_vendor_id] : vendors_to_migrate) {
+        for (const char *ext : {".ini", ".idx"}) {
+            boost::system::error_code ec;
+            fs::remove(vendor_dir / (old_vendor_id + ext), ec);
+            fs::remove(resources_dir_v / (old_vendor_id + ext), ec);
+        }
+
+        // Remove entire old folder
         boost::system::error_code ec;
-        fs::remove(old_file, ec);
-    }
-    
-    // Also remove it from resources dir since we dont need it anymore
-    for (const char *ext : {".ini", ".idx"}) {
-        fs::path old_file = resources_dir_cr3d / ("CR3D+"s + ext);
-        boost::system::error_code ec;
-        fs::remove(old_file, ec);
-        if (ec)
-            BOOST_LOG_TRIVIAL(warning) << "Failed to remove " << old_file.string() << ": " << ec.message();
+        fs::remove_all(resources_dir_v / old_vendor_id, ec);
     }
 
-    // Remove the CR3D+ folder entirely
-    fs::path old_folder = resources_dir_cr3d / "CR3D+";
-    boost::system::error_code ec;
-    fs::remove_all(old_folder, ec);
-    if (ec)
-        BOOST_LOG_TRIVIAL(warning) << "Failed to remove folder " << old_folder.string() << ": " << ec.message();
-
-    // Install CR-3D+.ini vendor bundle
+    // Install all new bundles at once
     auto updater = get_preset_updater_wrapper();
-        std::vector<std::string> bundles{"CR-3D+.ini"};
-        updater->install_bundles_rsrc_or_cache_vendor(bundles, false);
-    
+    updater->install_bundles_rsrc_or_cache_vendor(bundles_to_install, false);
 
-    // Recover previously selected model/variant for CR3D+ and activate the new one.
+    // Migrate user models / variants for each vendor found
     if (app_config) {
         auto vmap = app_config->vendors();
-        auto it = vmap.find("CR3D+");
-        if (it != vmap.end()) {
+        for (const auto &[old_vendor_id, new_vendor_id] : vendors_to_migrate) {
+            auto it = vmap.find(old_vendor_id);
+            if (it == vmap.end())
+                continue;
+
             for (const auto &[model_id, old_variants] : it->second) {
-                VendorProfile new_model = VendorProfile::from_ini(fs::path(resources_dir() + "/profiles/CR-3D+.ini"));
-                
-                for (VendorProfile::PrinterModel model : new_model.models) {
-                    const auto &new_variants = model.variants;
-                    const auto &default_materials = model.default_materials;
-                    
-                    for (const VendorProfile::PrinterVariant &variant : new_variants) {
-                        
-                        for (const auto &old_variant : old_variants) {
-                            std::string new_variant;
-                            if (!new_variants.empty()) {
-                                // Simple: pick the first available variant (or you could try a fuzzy match)
-                                new_variant = variant.name;
-                            } else {
-                                new_variant = old_variant; // fallback
-                            }
-                            install_and_load_old_printers("CR-3D+", model_id, new_variant, default_materials, true);
-                        }
+                VendorProfile new_profile = VendorProfile::from_ini(
+                    fs::path(resources_dir() + "/profiles/" + new_vendor_id + ".ini"));
+
+                for (const auto &model : new_profile.models) {
+                    for (const auto &old_variant : old_variants) {
+                        std::string chosen_variant =
+                            !model.variants.empty() ? model.variants.front().name : old_variant;
+
+                        install_and_load_old_printers(new_vendor_id, model_id, chosen_variant,
+                                                      model.default_materials, true);
                     }
                 }
             }
@@ -1082,8 +1078,14 @@ void GUI_App::post_init() {
     if (this->get_preset_updater_wrapper()) { // G-Code Viewer does not initialize preset_updater.
         CallAfter([this] {
             
-            // Check and swap CR3D+ vendor bundle if needed
-            this->check_and_swap_vendor_bundle();
+            check_and_swap_vendor_bundle(
+                {
+                    {"CR3D",  "CR-3D"},   // map old "CR3D" to new "CR-3D"
+                    {"CR3D+", "CR-3D+"}   // map old "CR3D+" to new "CR-3D+"
+                },
+                {"CR-3D", "CR-3D+"}       // bundles to install (both at once)
+            );
+            
             // preset_updater->sync downloads profile updates and than via event checks updates and incompatible presets. We need to run it on startup.
             // start before cw so it is canceled by cw if needed?
             this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle);
@@ -1704,7 +1706,7 @@ bool GUI_App::on_init_inner() {
         // If there are substitutions in system profiles, then a "reconfigure" event shall be triggered, which will force
         // installation of a compatible system preset, thus nullifying the system preset substitutions.
         init_params->preset_substitutions =
-            preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSystemSilent);
+            preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::EnableSilent);
     } catch (const std::exception &ex) {
         delayed_error_load_presets = ex.what();
     }
