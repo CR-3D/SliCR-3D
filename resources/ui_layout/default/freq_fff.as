@@ -77,7 +77,7 @@ int s_support_fff_get(string &out get_val)
 	}
 	bool support_material_auto = get_bool("support_material_auto");
 	if (!support_material_auto) { // For support enforcers only
-		return 3;
+		return 2;
 	}
 	bool support_material_buildplate_only = get_bool("support_material_buildplate_only");
 	if (support_material_buildplate_only) { // Support on build plate only
@@ -86,6 +86,7 @@ int s_support_fff_get(string &out get_val)
 	// everywhere
 	return 3;
 }
+
 
 void s_support_fff_set(string &in new_val, int idx)
 {
@@ -100,7 +101,6 @@ void s_support_fff_set(string &in new_val, int idx)
 	} else if(idx == 2) { // For support enforcers only
 		set_bool("support_material_buildplate_only", false);
 		set_bool("support_material_auto", false);
-		set_bool("support_enforcers_only", true);
 		set_bool("support_material", true);
 	} else if(idx == 3) { // everywhere
 		set_bool("support_material_buildplate_only", false);
