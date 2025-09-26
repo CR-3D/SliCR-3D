@@ -909,15 +909,32 @@ void AppConfig::save()
 }
 
 bool AppConfig::erase(const std::string &section, const std::string &key)
-{       
+{
     if (auto it_storage = m_storage.find(section); it_storage != m_storage.end()) {
-        auto &section = it_storage->second;
-        auto it = section.find(key);
-        if (it != section.end()) {
-            section.erase(it);
+        auto &section_map = it_storage->second;  // clearer name
+        auto it = section_map.find(key);
+        if (it != section_map.end()) {
+            section_map.erase(it);
             m_dirty = true;
+
+            // Optional: erase the whole section if it's now empty
+            if (section_map.empty()) {
+                m_storage.erase(it_storage);
+            }
+
             return true;
         }
+    }
+    return false;
+}
+
+bool AppConfig::erase_section(const std::string &section_name)
+{
+    auto it = m_vendors.find(section_name);
+    if (it != m_vendors.end()) {
+        m_vendors.erase(it);  // removes the section and all its keys
+        m_dirty = true;       // mark config as changed
+        return true;
     }
     return false;
 }

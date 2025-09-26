@@ -879,6 +879,10 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
     auto* updater       = app->get_preset_updater_wrapper();
     AppConfig *appconfig_new = app_config;
 
+    // Also remove section from AppConfig
+    appconfig_new->erase_section("CR3D");
+    appconfig_new->erase_section("CR3D+");
+
     // 1) Ensure the vendor bundle is installed (like ConfigWizard does).
     const fs::path vendor_dir = (fs::path(resources_dir()) / "profiles").make_preferred();
     const fs::path vendor_ini = vendor_dir / (vendor_id + ".ini");
@@ -890,8 +894,6 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
             updater->install_bundles_rsrc_or_cache_vendor(bundles, false);
         }
     }
-    
-    
 
     // 2) Mark the specific model/variant as selected in AppConfig.
     {
@@ -899,7 +901,6 @@ bool GUI_App::install_and_load_old_printers(const std::string& vendor_id,
         vmap[vendor_id][model_id].insert(variant_name);
         for (const std::string& material : default_materials)
             appconfig_new->set(AppConfig::SECTION_FILAMENTS, material, "1");
-        
         appconfig_new->set_vendors(vmap);
         appconfig_new->save();
         appconfig_new->load();
@@ -1085,7 +1086,7 @@ void GUI_App::post_init() {
                 },
                 {"CR-3D", "CR-3D+"}       // bundles to install (both at once)
             );
-            
+                        
             // preset_updater->sync downloads profile updates and than via event checks updates and incompatible presets. We need to run it on startup.
             // start before cw so it is canceled by cw if needed?
             this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle);
@@ -1107,6 +1108,7 @@ void GUI_App::post_init() {
     // Set Slic3r version and save to Slic3r.ini or Slic3rGcodeViewer.ini.
     app_config->set("version", SLIC3R_VERSION);
     app_config->save();
+
 
 #ifdef _WIN32
     // Sets window property to mainframe so other instances can indentify it.
