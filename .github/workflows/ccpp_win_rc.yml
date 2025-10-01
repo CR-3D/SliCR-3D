@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - master_27
-      - master_27
+      - master_27_dev
 
 jobs:
   build_dep:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows, x64]
     
     steps:
     - uses: actions/checkout@v3
@@ -29,7 +29,7 @@ jobs:
         msbuild /m ALL_BUILD.vcxproj
 
   build:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows, x64]
     needs: build_dep
     
     steps:
