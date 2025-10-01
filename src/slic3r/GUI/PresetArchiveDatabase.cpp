@@ -880,7 +880,7 @@ namespace {
 bool sync_inner(std::string& manifest, PresetUpdaterUIStatus* ui_status)
 {
 	bool ret = false;
-    const std::string url = "http://files.cr3d.de/updates/SliCR-3D_Internal/v1/repos/ArchiveRepositoryManifest.json";
+    const std::string url = "http://files.cr3d.de/updates/SliCR-3D/v1/repos/ArchiveRepositoryManifest.json";
 	//std::string url = Utils::ServiceConfig::instance().preset_repo_repos_url();
     auto http = Http::get(std::move(url));
     if (!add_authorization_header(http))

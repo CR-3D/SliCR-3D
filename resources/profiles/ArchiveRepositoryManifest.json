@@ -4,7 +4,7 @@
     "description": "CR-3D printers",
     "visibility": "",
     "id": "cr3d-fff",
-    "url": "http://files.cr3d.de/updates/SliCR-3D_Internal/v1/repos/cr3d-fff/",
-    "index_url": "http://files.cr3d.de/updates/SliCR-3D_Internal/v1/repos/cr3d-fff/vendor_indices.zip"
+    "url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/",
+    "index_url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/vendor_indices.zip"
   }
 ]
