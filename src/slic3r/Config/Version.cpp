@@ -7,6 +7,7 @@
 #include <cctype>
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/directory.hpp>
 #include <boost/nowide/fstream.hpp>
 
 #include "libslic3r/libslic3r.h"
@@ -56,8 +57,8 @@ bool Version::is_slic3r_supported(const Semver &slic3r_version) const
 		// Released config is always supported.
 		return true;
 	else if (prerelease_slic3r == nullptr)
-		// Released slic3r only supports released configs unless it's far ahead.
-		return slic3r_version >= min_slic3r_version;
+		// Released slic3r only supports released configs.
+		return false;
 	// Compare the pre-release status of Slic3r against the config.
 	// If the prerelease status of slic3r is lexicographically lower or equal 
 	// to the prerelease status of the config, accept it.
@@ -168,7 +169,7 @@ size_t Index::load(const boost::filesystem::path &path)
 		if (key_value_pair)
 			value = left_trim(value + 1);
 		*key_end = 0;
-    	std::optional<Semver> semver;
+        std::optional<Semver> semver;
         if (maybe_semver)
     		semver = Semver::parse(key);
         if (key_value_pair) {
@@ -238,9 +239,11 @@ Index::const_iterator Index::recommended() const
 std::vector<Index> Index::load_db()
 {
     boost::filesystem::path cache_dir = boost::filesystem::path(Slic3r::data_dir()) / "cache";
+    boost::filesystem::path vendor_dir = boost::filesystem::path(Slic3r::data_dir()) / "vendor";
 
     std::vector<Index> index_db;
     std::string errors_cummulative;
+    
 	for (auto &dir_entry : boost::filesystem::directory_iterator(cache_dir))
         if (Slic3r::is_idx_file(dir_entry)) {
         	Index idx;
@@ -252,6 +255,20 @@ std::vector<Index> Index::load_db()
                 continue;
 			}
             index_db.emplace_back(std::move(idx));
+        }
+
+    for (auto &dir_entry : boost::filesystem::directory_iterator(vendor_dir))
+        if (Slic3r::is_idx_file(dir_entry)) {
+        	Index idx;
+            try {
+            	idx.load(dir_entry.path());
+            } catch (const std::runtime_error &err) {
+                errors_cummulative += err.what();
+                errors_cummulative += "\n";
+                continue;
+			}
+            if (std::find_if(index_db.begin(), index_db.end(), [idx](const Index& index) { return idx.vendor() == index.vendor();}) == index_db.end())
+                index_db.emplace_back(std::move(idx));
         }
 
     if (! errors_cummulative.empty())

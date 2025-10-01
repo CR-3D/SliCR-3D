@@ -1216,7 +1216,7 @@ void convert_config(boost::filesystem::path &path_in, boost::filesystem::path &p
         //c << line << endl;
         ok = &std::getline(ifs, line);
     }
-    c  << "min_slic3r_version = " << SLIC3R_VERSION_FULL << "\n";
+    c  << "min_slic3r_version = " << SLIC3R_VERSION << "\n";
     c << ver_susi.to_string() << " auto-convert to susi profile" << endl;
     c << line << endl;
     while (std::getline(ifs, line)) {

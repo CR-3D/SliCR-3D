@@ -1142,11 +1142,18 @@ void CalibrationPressureAdvDialog::create_geometry(wxCommandEvent& event_args) {
         ui_job_worker.wait_for_current_job(20000);
     }
 
+    bool autocenter2 = gui_app->app_config->get("autocenter") == "1";
+    if (autocenter2) {
+        gui_app->app_config->set("autocenter", "0");
+    }
+
     if (selected_extrusion_role != "CheckAll") {//don't auto slice so user can manual add PA values
 #ifndef _DEBUG
             plat->reslice(); //forces a slice of plater.
 #endif
     }
+
+
 }
 
 /*

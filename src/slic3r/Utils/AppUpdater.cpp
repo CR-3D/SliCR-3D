@@ -125,6 +125,8 @@ struct AppUpdater::priv
     bool run_downloaded_file(boost::filesystem::path path);
     // gets version file via http
     void version_check(const std::string &version_check_url);
+    
+    size_t file_size;
 #if 0
 	// parsing of Prusaslicer.version2
 	void parse_version_string_old(const std::string& body) const;
@@ -196,17 +198,19 @@ bool AppUpdater::priv::http_get_file(const std::string &url,
     return res;
 }
 
-boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &data) const {
+boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData& data) const
+{
     boost::filesystem::path dest_path;
     size_t last_gui_progress = 0;
     dest_path = data.target_path;
     assert(!dest_path.empty());
-    if (dest_path.empty()) {
+    if (dest_path.empty())
+    {
         std::string line1 = GUI::format(_u8L("Internal download error for url %1%:"), data.url);
         std::string line2 = _u8L("Destination path is empty.");
         std::string message = GUI::format("%1%\n%2%", line1, line2);
         BOOST_LOG_TRIVIAL(error) << message;
-        wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
+        wxCommandEvent* evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
         evt->SetString(message);
         if (wxApp::GetInstance() != nullptr)
             GUI::wxGetApp().QueueEvent(evt);
@@ -215,7 +219,7 @@ boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &d
 
     boost::filesystem::path tmp_path = dest_path;
     tmp_path += format(".%1%%2%", std::to_string(GUI::GLCanvas3D::timestamp_now()), ".download");
-    FILE *file;
+    FILE* file;
     file = boost::nowide::fopen(tmp_path.string().c_str(), "wb");
     assert(file != NULL);
     if (file == NULL) {
@@ -230,63 +234,79 @@ boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &d
         }
         return boost::filesystem::path();
     }
-
+    
     std::string error_message;
-    bool res = http_get_file(
-        data.url,
-        256 * 1024 * 1024
+    bool res = http_get_file(data.url,
         // on_progress
-        ,
-        [&last_gui_progress](Http::Progress progress) {
-
-            // progress event
-            size_t gui_progress = progress.dltotal > 0 ? 100 * progress.dlnow / progress.dltotal : 0;
-            BOOST_LOG_TRIVIAL(debug) << "App download " << gui_progress << "% " << progress.dlnow << " of "
-                                     << progress.dltotal;
-            if (last_gui_progress < gui_progress && (last_gui_progress != 0 || gui_progress != 100)) {
-                last_gui_progress = gui_progress;
-                if (wxApp::GetInstance() != nullptr) {
-                    wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_PROGRESS);
-                    evt->SetString(GUI::from_u8(std::to_string(gui_progress)));
-                    GUI::wxGetApp().QueueEvent(evt);
-                }
-            }
-            return true;
+        256 * 1024 * 1024,
+                             [&last_gui_progress, data](Http::Progress progress) {
+        
+        int gui_progress = 0;
+        std::string status;
+        if (progress.dltotal == 0) {
+            progress.dltotal = 358000; // your known file size in bytes
         }
-        // on_complete
-        ,
-        [&file, dest_path, tmp_path](std::string body, std::string &error_message) {
-            // Size check. Does always 1 char == 1 byte?
-            size_t body_size = body.size();
+        
+        if (progress.dltotal > 0) {
+            gui_progress = static_cast<int>(100.0 * progress.dlnow / progress.dltotal);
+            status = std::to_string(gui_progress) + "% (" +
+            std::to_string(progress.dlnow / (1024 * 1024)) + "MB / " +
+            std::to_string(progress.dltotal / (1024 * 1024)) + "MB)";
+        }
+        
+        BOOST_LOG_TRIVIAL(debug) << "App download " << status;
+        
+        // Only update GUI if progress is new and meaningful
+        if ((gui_progress != last_gui_progress && gui_progress != -1) ||
+            (gui_progress == -1 && progress.dlnow / (1024 * 1024) > last_gui_progress)) {
+            last_gui_progress = (gui_progress != -1) ? gui_progress : (progress.dlnow / (1024 * 1024));
+            if (wxApp::GetInstance() != nullptr) {
+                wxCommandEvent* evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_PROGRESS);
+                // Display percent if possible, or just bytes downloaded otherwise
+                    evt->SetString(GUI::from_u8(std::to_string(gui_progress)));
 
+                GUI::wxGetApp().QueueEvent(evt);
+            }
+        }
+        return true;
+    }
+
+        // on_complete
+        , [&file, dest_path, tmp_path](std::string body, std::string& error_message){
+            // Size check. Does always 1 char == 1 byte?
+ 
             if (file == NULL) {
                 error_message = GUI::format(_u8L("Can't create file at %1%"), tmp_path.string());
                 return false;
             }
-            try {
+            try
+            {
                 fwrite(body.c_str(), 1, body.size(), file);
                 fclose(file);
                 boost::filesystem::rename(tmp_path, dest_path);
-            } catch (const std::exception &e) {
-                error_message = GUI::format(_u8L("Failed to write to file or to move %1% to %2%:\n%3%"), tmp_path,
-                                            dest_path, e.what());
+            }
+            catch (const std::exception& e)
+            {
+                error_message = GUI::format(_u8L("Failed to write to file or to move %1% to %2%:\n%3%"), tmp_path, dest_path, e.what());
                 return false;
             }
             return true;
-        },
-        error_message);
-    if (!res) {
+        }
+        , error_message
+    );
+    if (!res)
+    {
         if (m_cancel) {
             BOOST_LOG_TRIVIAL(info) << error_message;
             if (wxApp::GetInstance() != nullptr) {
-                wxCommandEvent *evt = new wxCommandEvent(
-                    EVT_SLIC3R_APP_DOWNLOAD_FAILED); // FAILED with empty msg only closes progress notification
+                wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED
+                ); // FAILED with empty msg only closes progress notification
                 GUI::wxGetApp().QueueEvent(evt);
             }
         } else {
-            std::string message = (error_message.empty() ? std::string() :
-                                                           GUI::format(_u8L("Downloading new %1% has failed:\n%2%"),
-                                                                       SLIC3R_APP_NAME, error_message));
+            std::string message = (error_message.empty()
+                ? std::string()
+                : GUI::format(_u8L("Downloading new %1% has failed:\n%2%"), SLIC3R_APP_NAME, error_message));
             if (wxApp::GetInstance() != nullptr) {
                 wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_APP_DOWNLOAD_FAILED);
                 if (!message.empty()) {
@@ -301,7 +321,6 @@ boost::filesystem::path AppUpdater::priv::download_file(const DownloadAppData &d
 
     return dest_path;
 }
-
 bool AppUpdater::priv::run_downloaded_file(boost::filesystem::path path) {
     assert(!path.empty());
     return false;
@@ -328,6 +347,7 @@ void AppUpdater::priv::version_check(const std::string &version_check_url) {
 
 void AppUpdater::priv::parse_version_string(const std::string &body) {
     size_t start = body.find('[');
+    
     if (start == std::string::npos) {
 #if 0
 		BOOST_LOG_TRIVIAL(error) << "Could not find property tree in version file. Starting old parsing.";
@@ -419,10 +439,6 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
                     // prerelease versions - write down to be sorted and send to UI layer
                 } else if (data.first == "alpha") {
                     prerelease_versions.emplace_back(data.second.data());
-                } else if (data.first == "beta") {
-                    prerelease_versions.emplace_back(data.second.data());
-                } else if (data.first == "rc") {
-                    prerelease_versions.emplace_back(data.second.data());
                 }
             }
             // find recent version that is newer than last full release.
@@ -435,6 +451,7 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
                 if (ver && *new_data.version < *ver &&
                     ((recent_version && *recent_version < *ver) || !recent_version)) {
                     recent_version = ver;
+                    new_data.version = ver;
                     version_string = ver_string;
                 }
             }
@@ -445,9 +462,13 @@ void AppUpdater::priv::parse_version_string(const std::string &body) {
                 wxCommandEvent *evt = new wxCommandEvent(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE);
                 evt->SetString(GUI::from_u8(version_string));
                 GUI::wxGetApp().QueueEvent(evt);
+
             }
         }
     }
+    
+    //new_data.size = body.size();
+    
     assert(!new_data.url.empty());
     assert(new_data.version);
     // save
@@ -574,6 +595,8 @@ void AppUpdater::sync_download() {
         p->m_download_ongoing = true;
         if (boost::filesystem::path dest_path = p->download_file(input_data); boost::filesystem::exists(dest_path)) {
             if (input_data.start_after) {
+                p->run_downloaded_file(std::move(dest_path));
+            } else {
                 GUI::desktop_open_folder(dest_path.parent_path());
             }
         }

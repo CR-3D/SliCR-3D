@@ -344,6 +344,7 @@ coord_t Fill::_line_spacing_for_density(const FillParams& params) const
 //FIXME: add recent improvmeent from perimetergenerator: avoid thick gapfill
 void
 Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, ExtrusionEntitiesPtr& coll_out) const {
+
     ThickPolylines polylines_gapfill;
     coord_t min = coord_t(0.4 * scale_t(params.flow.nozzle_diameter()) * (1 - INSET_OVERLAP_TOLERANCE));
     coord_t max = 2 * params.flow.scaled_width();
@@ -351,21 +352,23 @@ Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, Ext
     // most of the parameters % are about "periemter width". But infill can be printed with a bigger nozzl,e so it's
     double unscaled_width = params.flow.width();
     // safer to use the current flow for it.
-   // Define fixed, reasonable values
-   const coord_t minwidth = scale_t(0.2);   // Minimum gap width to attempt (e.g., 0.3mm)
-   const coord_t maxwidth = scale_t(0.6);   // Maximum gap width to consider (e.g., 0.6mm)
+    if (params.config != nullptr) {
+        const coord_t minwidth = scale_t(0.0);
+        const coord_t maxwidth = scale_t(0.0);
 
-   min = std::max(min, minwidth);
-   max = std::min(max, maxwidth);
+        if (minwidth > 0) {
+            min = std::max(min, minwidth);
+        }
+        if (maxwidth > 0) {
+            max = std::min(max, maxwidth);
+        }
+    }
+    // 100% of reference area (width²)
+    const double minarea = scale_d(scale_d(1.0 * sqr(unscaled_width)));
 
-   // Use a small minimum area to filter out tiny unusable gaps (e.g., 0.04 mm²)
-    double minarea = double(params.flow.scaled_width()) * double(params.flow.scaled_width());
-
-   // Only fill gaps longer than this (0 = no filtering)
-   const coord_t minlength = scale_t(0.6); // Don't fill gaps shorter than 0.6mm
-
-   // How far to extend gap fill lines into perimeters for robustness (e.g., 0.05 mm)
-   const coord_t gapfill_extension = scale_t(0.05);
+    // length and extension forced to 0
+    const coord_t minlength        = scale_t(0.0);
+    const coord_t gapfill_extension = scale_t(0.0);
     // collapse 
     //be sure we don't gapfill where the perimeters are already touching each other (negative spacing).
     min = std::max(min,
@@ -389,9 +392,18 @@ Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, Ext
     }
     if (!polylines_gapfill.empty() && !params.role.is_bridge()) {
         //test
+#ifdef _DEBUG
+        for (ThickPolyline poly : polylines_gapfill) {
+            for (coord_t width : poly.points_width) {
+                if (width > params.flow.scaled_width() * 2.2) {
+                    BOOST_LOG_TRIVIAL(error) << "ERRROR!!!! gapfill width = " << unscaled(width) << " > max_width = " << (params.flow.width() * 2) << "\n";
+                }
+            }
+        }
+#endif
 
         ExtrusionEntitiesPtr gap_fill_entities =
-       Geometry::thin_variable_width(polylines_gapfill, ExtrusionRole::SolidInfill, params.flow,
+            Geometry::thin_variable_width(polylines_gapfill, ExtrusionRole::GapFill, params.flow,
                                           scale_t((params.config == nullptr) ?
                                                       EPSILON :
                                                       params.config->get_computed_value("resolution_internal")),

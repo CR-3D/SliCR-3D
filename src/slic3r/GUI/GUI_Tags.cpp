@@ -218,6 +218,8 @@ ModeSizer::ModeSizer(wxWindow *parent, int hgap, int max_col) :
         m_mode_btns.back()->Bind(wxEVT_BUTTON, std::bind(modebtnfn, std::placeholders::_1, int(m_mode_btns.size() - 1)));
         Add(m_mode_btns.back());
     }
+    
+  //  parent->SetBackgroundColour(wxColour(255, 13, 13, 60));
 }
 
 void ModeSizer::SetMode(ConfigOptionMode mode)

@@ -1,12 +1,10 @@
-name: C/C++ Nightly arm macos
+name: C/C++ Release candidate arm macos
 
 on:
   push:
     branches:
-      - Nigthly
-      - nightly_dev
-      - nightly_master
-      - debug_macos
+      - rc
+      - master_27
 
 jobs:
   build_dep:
@@ -22,7 +20,7 @@ jobs:
       run: autoconf --version
     - name: update automake for mpfr
       run: |
-        curl -O -L http://ftpmirror.gnu.org/automake/automake-1.16.5.tar.gz
+        curl -O -L https://github.com/supermerill/SuperSlicer_deps/releases/download/automake/automake-1.16.5.tar.gz
         tar -xzf automake-1.16.5.tar.gz
         cd automake-*
         ./configure
@@ -54,14 +52,14 @@ jobs:
         key: macos_arm_2.7
         path: deps/build/destdir
     - name: build slicer
-      run: ./BuildMacOS.sh -asiv
+      run: ./BuildMacOS.sh -asi
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: nightly_${{ github.event.repository.name }}-macOS-arm.dmg
+        name: rc_${{ github.event.repository.name }}-macOS-arm.dmg
         path: build/${{ github.event.repository.name }}-macOS-arm.dmg
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: nightly_${{ github.event.repository.name }}-macOS-arm.tgz
+        name: rc_${{ github.event.repository.name }}-macOS-arm.tgz
         path: build/${{ github.event.repository.name }}-macOS-arm.tgz

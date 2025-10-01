@@ -2569,32 +2569,29 @@ void NotificationManager::upload_job_notification_show_error(int id,
         }
     }
 }
-void NotificationManager::push_download_progress_notification(const std::string &text,
-                                                              std::function<bool()> cancel_callback) {
+void NotificationManager::push_download_progress_notification(const std::string& text, std::function<bool()> cancel_callback)
+{
     // If already exists, change text and reset progress
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
+    for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
         if (notification->get_type() == NotificationType::AppDownload) {
-            notification->update(
-                {NotificationType::AppDownload, NotificationLevel::ProgressBarNotificationLevel, 10, text});
-            auto *pbwcn = dynamic_cast<ProgressBarWithCancelNotification *>(notification.get());
+            notification->update({ NotificationType::AppDownload, NotificationLevel::ProgressBarNotificationLevel, 10, text });
+            auto* pbwcn = dynamic_cast<ProgressBarWithCancelNotification*>(notification.get());
             pbwcn->set_percentage(0.0f);
             pbwcn->set_cancel_callback(cancel_callback);
             return;
         }
     }
     // push new one
-    NotificationData data{NotificationType::AppDownload, NotificationLevel::ProgressBarNotificationLevel, 10, text};
-    push_notification_data(std::make_unique<NotificationManager::ProgressBarWithCancelNotification>(data,
-                                                                                                    m_id_provider,
-                                                                                                    m_evt_handler,
-                                                                                                    cancel_callback),
-                           0);
+    NotificationData data{ NotificationType::AppDownload, NotificationLevel::ProgressBarNotificationLevel, 10, text };
+    push_notification_data(std::make_unique<NotificationManager::ProgressBarWithCancelNotification>(data, m_id_provider, m_evt_handler, cancel_callback), 0);
 }
-void NotificationManager::set_download_progress_percentage(float percentage) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
+
+
+void NotificationManager::set_download_progress_percentage(float percentage)
+{
+     for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
         if (notification->get_type() == NotificationType::AppDownload) {
-            ProgressBarWithCancelNotification *pbwcn = dynamic_cast<ProgressBarWithCancelNotification *>(
-                notification.get());
+            ProgressBarWithCancelNotification* pbwcn = dynamic_cast<ProgressBarWithCancelNotification*>(notification.get());
             // if this changes the percentage, it should be shown now
             float percent_b4 = pbwcn->get_percentage();
             pbwcn->set_percentage(percentage);
@@ -2623,10 +2620,11 @@ void NotificationManager::push_download_URL_progress_notification(
                            0);
 }
 
-void NotificationManager::set_download_URL_progress(size_t id, float percentage) {
-    for (std::unique_ptr<PopNotification> &notification : m_pop_notifications) {
+void NotificationManager::set_download_URL_progress(size_t id, float percentage)
+{
+    for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
         if (notification->get_type() == NotificationType::URLDownload) {
-            URLDownloadNotification *ntf = dynamic_cast<URLDownloadNotification *>(notification.get());
+            URLDownloadNotification* ntf = dynamic_cast<URLDownloadNotification*>(notification.get());
             if (ntf->get_download_id() != id)
                 continue;
             // if this changes the percentage, it should be shown now

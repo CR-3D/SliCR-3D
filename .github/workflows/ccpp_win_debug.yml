@@ -8,7 +8,7 @@ on:
 jobs:
 
   build_dep:
-    runs-on: windows-2019
+    runs-on: windows-2022
 
     steps:
     - uses: actions/checkout@v3
@@ -113,13 +113,19 @@ jobs:
     - run: mkdir build
     - name: cmake
       working-directory: ./build
-      run: cmake .. -G "Visual Studio 16 2019" -A x64 -DCMAKE_PREFIX_PATH="d:\a\${{ github.event.repository.name }}\${{ github.event.repository.name }}\deps\build\destdir\usr\local"
+      run: cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="d:\a\${{ github.event.repository.name }}\${{ github.event.repository.name }}\deps\build\destdir\usr\local"
     - name: make
       working-directory: ./build
       run: msbuild /m /P:Configuration=Debug INSTALL.vcxproj
     - name: make .mo
       working-directory: ./build
       run: msbuild /m /P:Configuration=Debug gettext_po_to_mo.vcxproj
+    - name: create OCCT wrapper
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=Debug src\occt_wrapper\OCCTWrapper.vcxproj
+    - name: copy dll
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=Debug src\slic3rDllsCopy.vcxproj
     - name: create directory and copy into it
       working-directory: ./build
       run: ls
@@ -140,7 +146,6 @@ jobs:
       working-directory: ./build
       shell: cmd
       run: |
-        xcopy /RCYIE Slic3r_win_build\*.dll package\
         xcopy /RCYIE Slic3r_win_build\local-settings.bat package\${{ github.event.repository.name }}_local-settings.bat
         xcopy /RCYIE Slic3r_win_build\mesa package\
     - name: copy new resources

@@ -4521,7 +4521,7 @@ bool Tab::select_preset(std::string preset_name, bool delete_current /*=false*/,
     bool technology_changed = false;
     m_dependent_tabs.clear();
     if (current_dirty && ! may_discard_current_dirty_preset(nullptr, preset_name)) {
-        canceled = true;
+        canceled = false;
     } else if (print_tab) {
         // Before switching the print profile to a new one, verify, whether the currently active filament or SLA material
         // are compatible with the new print.

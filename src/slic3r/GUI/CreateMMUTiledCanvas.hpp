@@ -140,7 +140,7 @@ public:
     BasicDrawPane* get_canvas() { return m_canvas; }
     void refresh_description();
     int find_extruder(wxColour color);
-    
+
     void close_me(wxCommandEvent& event_args);
 
     void on_dpi_changed(const wxRect& suggested_rect) override;

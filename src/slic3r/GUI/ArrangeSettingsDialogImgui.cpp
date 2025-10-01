@@ -54,7 +54,7 @@ void ArrangeSettingsDialogImgui::render(float pos_x, float pos_y, bool current_b
     float dbed_min, dbed_max;
     
     float default_dobj = 2.0f;
-    float default_dbed = 7.0f;
+    float default_dbed = 3.0f;
 
     m_db.distance_from_obj_range(dobj_min, dobj_max);
     m_db.distance_from_bed_range(dbed_min, dbed_max);

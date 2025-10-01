@@ -207,7 +207,7 @@ bool OnlineArchiveRepository::get_file_inner(const std::string& url, const fs::p
     if (!add_authorization_header(http))
         return false;
     http
-		.timeout_max(30)
+		.timeout_max(8000)
 		.on_progress([](Http::Progress, bool& cancel) {
 			//if (cancel) { cancel = true; }
 		})
@@ -880,13 +880,13 @@ namespace {
 bool sync_inner(std::string& manifest, PresetUpdaterUIStatus* ui_status)
 {
 	bool ret = false;
-    const std::string url = "http://files.cr3d.de/updates/SliCR-3D/v1/repos/ArchiveRepositoryManifest.json";
+    const std::string url = "http://files.cr3d.de/updates/SliCR-3D_Internal/v1/repos/ArchiveRepositoryManifest.json";
 	//std::string url = Utils::ServiceConfig::instance().preset_repo_repos_url();
     auto http = Http::get(std::move(url));
     if (!add_authorization_header(http))
         return false;
     http
-		.timeout_max(30)
+		.timeout_max(50)
 		.on_error([&](std::string body, std::string error, unsigned http_status) {
 			BOOST_LOG_TRIVIAL(error) << "Failed to get online archive source manifests: "<< body << " ; " << error << " ; " << http_status;
             ui_status->set_error(error);

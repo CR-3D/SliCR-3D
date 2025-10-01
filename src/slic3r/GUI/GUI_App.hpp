@@ -381,7 +381,7 @@ public:
     MainFrame*      mainframe{ nullptr };
     Plater*         plater_{ nullptr };
 	PresetUpdaterWrapper*  get_preset_updater_wrapper() { return m_preset_updater_wrapper.get(); }
-
+    
     std::unique_ptr<PresetUpdater> preset_updater;
     Sidebar *sidebar_{nullptr};
     std::mutex not_modal_dialog_mutex;
@@ -395,7 +395,14 @@ public:
     int extruders_edited_cnt() const;
 
     std::vector<Tab *> tabs_list;
-
+    bool install_and_load_old_printers(const std::string& vendor_id,
+                                   const std::string& model_id,
+                                   const std::string& variant_name,
+                                   const std::vector<std::string>& default_materials,
+                                   bool alsoSelectDefaultMaterials = true);
+    void check_and_swap_vendor_bundle(const std::vector<std::pair<std::string, std::string>> &vendor_mappings,
+                                                                   const std::vector<std::string>& bundles_to_install);
+    
     RemovableDriveManager *removable_drive_manager() { return m_removable_drive_manager.get(); }
     OtherInstanceMessageHandler *other_instance_message_handler() { return m_other_instance_message_handler.get(); }
     wxSingleInstanceChecker *single_instance_checker() { return m_single_instance_checker.get(); }
@@ -417,6 +424,7 @@ public:
     bool run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage start_page = ConfigWizard::SP_WELCOME);
     void show_desktop_integration_dialog();
     void show_downloader_registration_dialog();
+    void check_and_upgrade_preset();
     
     bool show_3d_navigator() const { return app_config->get_bool("show_3d_navigator"); }
     void toggle_show_3d_navigator() const { app_config->set("show_3d_navigator", !show_3d_navigator() ? "1" : "0"); }

@@ -2162,8 +2162,20 @@ void ColourPicker::set_undef_value(wxColourPickerCtrl* field)
 
 void ColourPicker::set_internal_any_value(const boost::any &value, bool change_event)
 {
+    std::string str_value;
+    if (this->m_opt.type == coStrings && m_opt_key_idx.idx < 0) {
+        assert(false); // shouldn't happen. or need to be tested
+        auto vec_str = boost::any_cast<std::vector<std::string>>(value);
+        if (!vec_str.empty()) {
+            str_value = vec_str.front();
+        } else {
+            str_value = this->m_opt.get_default_value<ConfigOptionStrings>()->get_at(size_t(-1));
+        }
+    } else if (this->m_opt.type == coGraph || this->m_opt.type == coGraphs) {
+        str_value = boost::any_cast<std::string>(value);
+    }
     // can be ConfigOptionDef::GUIType::color
-    const wxString clr_str(boost::any_cast<std::string>(value));
+    const wxString clr_str(str_value);
     auto field = dynamic_cast<wxColourPickerCtrl*>(window);
 
     wxColour clr(clr_str);

@@ -447,6 +447,19 @@ SpinInputDouble::SpinInputDouble(wxWindow *     parent,
     Create(parent, text, label, pos, size, style, min, max, initial, inc);
 }
 
+SpinInputDouble::SpinInputDouble(wxWindow *     parent,
+                                 int       id,
+                                 wxString       label,
+                                 const wxPoint &pos,
+                                 const wxSize & size,
+                                 long           style,
+                                 double min, double max, double initial,
+                                 double         inc)
+    : SpinInputBase()
+{
+    Create(parent, label, label, pos, size, style, min, max, initial, inc);
+}
+
 void SpinInputDouble::Create(wxWindow *parent,
                              wxString       text,
                              wxString       label,
@@ -503,12 +516,14 @@ void SpinInputDouble::bind_inc_dec_button(Button *btn, ButtonId id)
         delta *= 8;
         timer.Start(100);
         sendSpinEvent();
+        sendSpinDoubleEvent();
         });
     btn->Bind(wxEVT_LEFT_DCLICK, [this, btn, id](auto& e) {
         delta = id == ButtonId::btnIncrease ? inc : -inc;
         btn->CaptureMouse();
         SetValue(val + delta);
         sendSpinEvent();
+        sendSpinDoubleEvent();
         });
     btn->Bind(wxEVT_LEFT_UP, [this, btn](auto& e) {
         btn->ReleaseMouse();
@@ -555,6 +570,11 @@ void SpinInputDouble::SetIncrement(double inc_in)
     inc = inc_in;
 }
 
+double SpinInputDouble::GetIncrement() const
+{
+    return inc;
+}
+
 void SpinInputDouble::SetDigits(unsigned digits_in)
 {
     digits = int(digits_in);
@@ -567,6 +587,7 @@ void SpinInputDouble::onTimer(wxTimerEvent &evnet) {
     }
     SetValue(val + delta);
     sendSpinEvent();
+    sendSpinDoubleEvent();
 }
 
 void SpinInputDouble::onTextLostFocus(wxEvent &event)
@@ -592,7 +613,9 @@ void SpinInputDouble::onTextEnter(wxCommandEvent &event)
 
     if (!Slic3r::is_approx(value, val)) {
         SetValue(value);
+
         sendSpinEvent();
+        sendSpinDoubleEvent();
     }
     event.SetId(GetId());
     ProcessEventLocally(event);
@@ -603,6 +626,7 @@ void SpinInputDouble::mouseWheelMoved(wxMouseEvent &event)
     auto delta = ((event.GetWheelRotation() < 0) == event.IsWheelInverted()) ? inc : -inc;
     SetValue(val + delta);
     sendSpinEvent();
+    sendSpinDoubleEvent();
     text_ctrl->SetFocus();
 }
 
@@ -623,11 +647,19 @@ void SpinInputDouble::keyPressed(wxKeyEvent &event)
         if (!Slic3r::is_approx(value, val)) {
             SetValue(value);
             sendSpinEvent();
+            sendSpinDoubleEvent();
         }
         break;
     default: event.Skip(); break;
     }
 }
 
+
+void SpinInputDouble::sendSpinDoubleEvent()
+{
+    wxSpinDoubleEvent event(wxEVT_SPINCTRLDOUBLE, GetId(), GetValue());
+    event.SetEventObject(this);
+    GetEventHandler()->ProcessEvent(event); 
+}
 
 

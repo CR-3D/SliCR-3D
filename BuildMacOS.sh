@@ -13,6 +13,7 @@
 
 export ROOT=`pwd`
 export NCORES=`sysctl -n hw.ncpu`
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
 
 OS_FOUND=$( command -v uname)
 
@@ -219,14 +220,14 @@ echo "done"
 
 if [[ -n "$VERSION_DATE" ]]
 then
-	echo -n "[2/8] Changing date in version ... "
+    echo -n "[2/8] Changing date in version ... "
     # change date in version
     sed "s/+UNKNOWN/-$(date '+%F')/" version.inc > version.date.inc
-	echo "done"
+    echo "done"
 else
-	echo -n "[2/8] Changing date in version: remove UNKNOWN ... "
+    echo -n "[2/8] Changing date in version: remove UNKNOWN ... "
     sed "s/+UNKNOWN//" version.inc > version.date.inc
-	echo "done"
+    echo "done"
 fi
 
 if [[ -n "$BUILD_DEPS" ]]
@@ -252,15 +253,14 @@ then
     then
         BUILD_ARGS="${BUILD_ARGS} -DCMAKE_BUILD_TYPE=Debug"
     fi
+    pushd deps/build > /dev/null
     # cmake deps
     if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
     then
         echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
-        pushd deps/build > /dev/null
         cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
     else
         echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
-        pushd deps/build > /dev/null
         cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
     fi
     if [ $? -eq 0 ]
@@ -270,8 +270,57 @@ then
         echo -e "\n ... fail\n"
         exit 1 # terminate and indicate error
     fi
-
+    
     echo -e "[4/8] Building dependencies ...\n"
+    if [[ "$BUILD_ARCH" == "$BUILD_ARCH_x86" ]]
+    then
+        # build each dep separatly, seems like it fails less to compile this way.
+        ls .
+        echo -e "[4/8] Building dep_OCCT ...\n"
+        make dep_OCCT -j$NCORES
+        echo -e "[4/8] Building dep_CGAL ...\n"
+        make dep_CGAL -j$NCORES
+        echo -e "[4/8] Building dep_GLEW ...\n"
+        make dep_GLEW -j$NCORES
+        echo -e "[4/8] Building dep_OpenCSG ...\n"
+        make dep_OpenCSG -j$NCORES
+        echo -e "[4/8] Building dep_Cereal ...\n"
+        make dep_Cereal -j$NCORES
+        echo -e "[4/8] Building dep_NLopt ...\n"
+        make dep_NLopt -j$NCORES
+        echo -e "[4/8] Building dep_TBB ...\n"
+        make dep_TBB -j$NCORES
+        echo -e "[4/8] Building dep_OpenEXR ...\n"
+        make dep_OpenEXR -j$NCORES
+        echo -e "[4/8] Building dep_Qhull ...\n"
+        make dep_Qhull -j$NCORES
+        echo -e "[4/8] Building dep_wxWidgets ...\n"
+        make dep_wxWidgets -j$NCORES
+        echo -e "[4/8] Building dep_EXPAT ...\n"
+        make dep_EXPAT -j$NCORES
+        echo -e "[4/8] Building dep_PNG ...\n"
+        make dep_PNG -j$NCORES
+        echo -e "[4/8] Building dep_JPEG ...\n"
+        make dep_JPEG -j$NCORES
+        echo -e "[4/8] Building dep_NanoSVG ...\n"
+        make dep_NanoSVG -j$NCORES
+        echo -e "[4/8] Building dep_Boost ...\n"
+        make dep_Boost -j$NCORES
+        echo -e "[4/8] Building dep_Blosc ...\n"
+        make dep_Blosc -j$NCORES
+        echo -e "[4/8] Building dep_OpenVDB ...\n"
+        make dep_OpenVDB -j$NCORES
+        echo -e "[4/8] Building dep_heatshrink ...\n"
+        make dep_heatshrink -j$NCORES
+        echo -e "[4/8] Building dep_LibBGCode ...\n"
+        make dep_LibBGCode -j$NCORES
+        echo -e "[4/8] Building dep_GMP ...\n"
+        make dep_GMP -j$NCORES
+        echo -e "[4/8] Building dep_MPFR ...\n"
+        make dep_MPFR -j$NCORES
+        echo -e "[4/8] Building dep_Catch2 ...\n"
+        make dep_Catch2 -j$NCORES
+    fi
 
     # make deps
     make -j$NCORES

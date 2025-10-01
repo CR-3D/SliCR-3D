@@ -3129,7 +3129,7 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
             stream << " <" << METADATA_TAG << " name=\"ModificationDate\">" << date << "</" << METADATA_TAG << ">\n";
             stream << " <" << METADATA_TAG << " name=\"Application\">" << SLIC3R_APP_KEY << "-" << SLIC3R_VERSION << "</" << METADATA_TAG << ">\n";
             stream << " <" << METADATA_TAG << " name=\"ApplicationName\">" << SLIC3R_APP_KEY << "</" << METADATA_TAG << ">\n";
-            stream << " <" << METADATA_TAG << " name=\"ApplicationVersion\">" << SLIC3R_VERSION_FULL << "</" << METADATA_TAG << ">\n";
+            stream << " <" << METADATA_TAG << " name=\"ApplicationVersion\">" << SLIC3R_VERSION << "</" << METADATA_TAG << ">\n";
             stream << " <" << RESOURCES_TAG << ">\n";
             std::string buf = stream.str();
             if (! buf.empty() && ! mz_zip_writer_add_staged_data(&context, buf.data(), buf.size())) {

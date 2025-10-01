@@ -1263,6 +1263,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInts,                 bridge_internal_fan_speed))
     ((ConfigOptionInts,                 chamber_temperature))
     ((ConfigOptionBool,                 complete_objects))
+    ((ConfigOptionBool,                 ignore_extruder_clearance))
     ((ConfigOptionFloat,                parallel_objects_step))
     ((ConfigOptionBool,                 complete_objects_one_skirt))
     ((ConfigOptionBool,                 complete_objects_one_brim))

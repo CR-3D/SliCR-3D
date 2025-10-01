@@ -459,26 +459,20 @@ public:
 	// Set speed factor override percentage.
 	WipeTowerWriter& speed_override(int speed)
 	{
-        m_gcode += "M220 S" + std::to_string(speed) + "\n";
+        //m_gcode += "M220 S" + std::to_string(speed) + "\n";
 		return *this;
     }
 
 	// Let the firmware back up the active speed override value.
 	WipeTowerWriter& speed_override_backup()
     {
-        // This is only supported by Prusa at this point (https://github.com/prusa3d/PrusaSlicer/issues/3114)
-        if (m_gcode_flavor == gcfMarlinLegacy || m_gcode_flavor == gcfMarlinFirmware)
-            m_gcode += "M220 B\n";
+
 		return *this;
     }
 
 	// Let the firmware restore the active speed override value.
 	WipeTowerWriter& speed_override_restore()
 	{
-        if (m_gcode_flavor == gcfMarlinLegacy || m_gcode_flavor == gcfMarlinFirmware)
-            m_gcode += "M220 R\n";
-        else
-            m_gcode += "M220 S100\n";
 		return *this;
     }
 
@@ -497,7 +491,7 @@ public:
 
 	WipeTowerWriter& flush_planner_queue()
 	{ 
-		m_gcode += "G4 S0\n"; 
+	   // m_gcode += "G4 S0\n"; 
 		return *this;
 	}
 
@@ -724,7 +718,7 @@ void WipeTower::set_extruder(size_t idx)
     m_filpar.push_back(FilamentParameters());
 
     m_filpar[idx].material = m_config->filament_type.get_at(idx);
-    if (!m_config->wipe_tower_extruder.is_enabled()) {
+    if (m_config->wipe_tower_extruder == 0) {
         m_filpar[idx].is_soluble = m_config->filament_soluble.get_at(idx);
     } else {
         m_filpar[idx].is_soluble = (idx != size_t(m_config->wipe_tower_extruder - 1));

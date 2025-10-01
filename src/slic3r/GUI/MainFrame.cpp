@@ -85,7 +85,7 @@ enum class ERescaleTarget
     SettingsDialog
 };
 
-#if __APPLE__
+#ifdef __APPLE__
 class PrusaSlicerTaskBarIcon : public wxTaskBarIcon
 {
 public:
@@ -93,7 +93,7 @@ public:
     wxMenu *CreatePopupMenu() override {
         wxMenu *menu = new wxMenu;
         if(wxGetApp().app_config->get("single_instance") == "0") {
-            // Only allow opening a new Slic3r instance on OSX if "single_instance" is disabled,
+            // Only allow opening a new Slic3r instance on OSX if "single_instance" is disabled, 
             // as starting new instances would interfere with the locking mechanism of "single_instance" support.
             append_menu_item(menu, wxID_ANY, _L("Open new instance"), wxString::Format(_L("Open a new %s instance"), SLIC3R_APP_NAME),
             [](wxCommandEvent&) { start_new_slicer(); }, "", nullptr);
@@ -153,7 +153,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     // Fonts were created by the DPIFrame constructor for the monitor, on which the window opened.
     wxGetApp().update_fonts(this);
 /*
-#ifndef __WXOSX__ // Don't call SetFont under OSX to avoid name cutting in ObjectList
+#ifndef __WXOSX__ // Don't call SetFont under OSX to avoid name cutting in ObjectList 
     this->SetFont(this->normal_font());
 #endif
     // Font is already set in DPIFrame constructor
@@ -177,7 +177,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     // Load the icon either from the exe, or from the ico file.
     SetIcon(main_frame_icon(wxGetApp().get_app_mode()));
 
-    // initialize status bar
+	// initialize status bar
 //    m_statusbar = std::make_shared<ProgressStatusBar>(this);
 //    m_statusbar->set_font(GUI::wxGetApp().normal_font());
 //    if (wxGetApp().is_editor())
@@ -223,10 +223,15 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
     sizer->SetSizeHints(this);
     Fit();
 
-    const wxSize min_size = wxSize(85 * em_unit(), 50 * em_unit());
+    const wxSize min_size = wxGetApp().get_min_size(this);
+#if __APPLE__
+    // Using SetMinSize() on Mac messes up the window position in some cases
+    // cf. https://groups.google.com/forum/#!topic/wx-users/yUKPBBfXWO0
+    SetSize(min_size/*wxSize(760, 490)*/);
+#else
     SetMinSize(min_size/*wxSize(760, 490)*/);
     SetSize(GetMinSize());
-
+#endif
     Layout();
 
     update_title();
@@ -310,7 +315,6 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxDEFAULT_FRAME_S
 
     bind_diff_dialog();
 }
-
 void MainFrame::bind_diff_dialog()
 {
     auto get_tab = [](Preset::Type type) {
@@ -1005,6 +1009,7 @@ void MainFrame::update_title()
         title += (" " + _L(SLIC3R_BASED_ON));
 
     SetTitle(title);
+    //SetBackgroundColour(wxColour(255, 13, 13, 90));
 }
 
 void MainFrame::init_tabpanel()
@@ -1106,15 +1111,14 @@ void MainFrame::init_tabpanel()
             if (bt_idx_sel == 0) {
                 this->m_plater->select_view_3D("3D");
                 this->m_webViewPanel->Hide();
-                this->m_webViewPanel->Lower();
-                this->m_webViewPanel->Disable();
+
                 this->m_plater->Show();
                 this->m_plater->Raise();
                 this->m_plater->SetFocus();
                 
             } else if (bt_idx_sel == 1) {
-                this->m_webViewPanel->Hide();
                 this->m_plater->Show();
+                this->m_webViewPanel->Hide();
 
                 if (this->m_plater->get_force_preview() != Preview::ForceState::ForceGcode) {
                     this->m_plater->set_force_preview(Preview::ForceState::ForceGcode);
@@ -1129,7 +1133,6 @@ void MainFrame::init_tabpanel()
             } else if (bt_idx_sel == 2) {
                 this->m_webViewPanel->m_webView->Show();
                 this->m_webViewPanel->m_combo_printer->update();
-                
                 this->m_plater->Hide();
                 DynamicPrintConfig *selected_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
                 
@@ -1198,6 +1201,7 @@ void MainFrame::load_printer_url(wxString url) {
     }
                      
 void MainFrame::add_printer_webview_tab(const wxString &url) {
+
     if (m_printer_webview_added) {
             return;
     }
@@ -2335,8 +2339,8 @@ bool MainFrame::load_config_file(const std::string &path, bool from_prusa)
 {
     try {
         ConfigSubstitutions config_substitutions = wxGetApp().preset_bundle->load_config_file(path, ForwardCompatibilitySubstitutionRule::Enable, from_prusa);
-        if (!config_substitutions.empty())
-            show_substitutions_info(config_substitutions, path);
+       // if (!config_substitutions.empty())
+            //show_substitutions_info(config_substitutions, path);
     } catch (const std::exception &ex) {
         show_error(this, ex.what());
         return false;
@@ -2409,8 +2413,8 @@ void MainFrame::load_configbundle(wxString file/* = wxEmptyString*/, bool from_p
         return;
     }
 
-    if (! config_substitutions.empty())
-        show_substitutions_info(config_substitutions);
+   // if (! config_substitutions.empty())
+        //show_substitutions_info(config_substitutions);
 
     // Load the currently selected preset into the GUI, update the preset selection box.
     wxGetApp().load_current_presets();

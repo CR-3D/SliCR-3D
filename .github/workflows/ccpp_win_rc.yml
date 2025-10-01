@@ -1,15 +1,15 @@
-name: C/C++ Release candidate windows x64
+name: C/C++ Release Candidate windows x64
 
 on:
   push:
     branches:
       - master_27
-      - master_27_dev
+      - master_27
 
 jobs:
   build_dep:
     runs-on: windows-2022
-
+    
     steps:
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
@@ -27,6 +27,7 @@ jobs:
       run: |
         cmake .. -G "Visual Studio 17 2022" -A x64
         msbuild /m ALL_BUILD.vcxproj
+
   build:
     runs-on: windows-2022
     needs: build_dep
@@ -34,62 +35,85 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
-    - name: update submodule profiles
-      working-directory: ./resources/profiles
-      run: git submodule update --init
+
+    - name: Update all submodules recursively and pull latest
+      run: git submodule update --init --recursive --remote
+
     - name: change date in version
       shell: powershell
       run: |
         copy version.inc version.date.inc
-        (Get-Content version.date.inc) | Foreach-Object {$_ -replace "\+UNKNOWN", ("")} | Set-Content version.date.inc
+        (Get-Content version.date.inc) | Foreach-Object {$_ -replace "\+UNKNOWN", ("-" + [datetime]::Today.ToString("yyyy-MM-dd"))} | Set-Content version.date.inc
+
     - name: dep cache
       id: cache-action
       uses: actions/cache@v3
       with:
         key: win_2.7
         path: deps/build/destdir
+
     - run: dir deps
     - run: dir deps/build
     - run: dir deps/build/destdir
     - run: dir deps/build/destdir/usr
     - run: mkdir msgfmt_bin
+
     - name: copy gettext
       working-directory: ./msgfmt_bin
       shell: powershell
       run: '(new-object System.Net.WebClient).DownloadFile("https://github.com/supermerill/SuperSlicer_deps/releases/download/gettext/gettext-tools-static-0.18.1.1.zip", "gettext.zip")'
-    - name: unzip
+
+    - name: unzip gettext
       working-directory: ./msgfmt_bin
       shell: cmd
       run: '"C:/Program Files/7-Zip/7z.exe" x gettext.zip'
+
     - name: add msgfmt to path
       shell: powershell
       working-directory: msgfmt_bin
       run: echo "$pwd;" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
     - run: mkdir build
+
     - name: cmake
       working-directory: ./build
       run: cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="d:\a\${{ github.event.repository.name }}\${{ github.event.repository.name }}\deps\build\destdir\usr\local"
+
     - name: make
       working-directory: ./build
-      run: msbuild /m /P:Configuration=Release INSTALL.vcxproj
+      run: msbuild /m /P:Configuration=RelWithDebInfo INSTALL.vcxproj
+
     - name: make .mo
       working-directory: ./build
-      run: msbuild /m /P:Configuration=Release gettext_po_to_mo.vcxproj
+      run: msbuild /m /P:Configuration=RelWithDebInfo gettext_po_to_mo.vcxproj
+
     - name: make .pot
       working-directory: ./build
-      run: msbuild /m /P:Configuration=Release gettext_make_pot.vcxproj
+      run: msbuild /m /P:Configuration=RelWithDebInfo gettext_make_pot.vcxproj
+    - name: create OCCT wrapper
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\occt_wrapper\OCCTWrapper.vcxproj
+    - name: copy dll
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\slic3rDllsCopy.vcxproj
     - name: create directory and copy into it
       working-directory: ./build
-      run: ls
-    - name: create directory and copy into it
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\occt_wrapper\OCCTWrapper.vcxproj
+
+    - name: copy dll
+      working-directory: ./build
+      run: msbuild /m /P:Configuration=RelWithDebInfo src\slic3rDllsCopy.vcxproj
+
+    - name: create package directory
       working-directory: ./build
       shell: powershell
-        #todo: add the opengl folder
       run: mkdir package
+
     - name: copy from release
       working-directory: ./build
       shell: powershell
       run: '(new-object System.Net.WebClient).DownloadFile("https://github.com/supermerill/SuperSlicer_deps/releases/download/1.8/Slic3r_win_build.zip", "Slic3r_win_build.zip")'
+
     - name: unzip
       working-directory: ./build
       shell: cmd
@@ -98,27 +122,56 @@ jobs:
       working-directory: ./build
       shell: cmd
       run: |
-        xcopy /RCYIE Slic3r_win_build\*.dll package\
         xcopy /RCYIE Slic3r_win_build\local-settings.bat package\${{ github.event.repository.name }}_local-settings.bat
         xcopy /RCYIE Slic3r_win_build\mesa package\
-    - name: copy new resources
+
+    - name: list build folder
       working-directory: ./build
-      shell: cmd
+      shell: powershell
+      run: Get-ChildItem -Recurse -Force
+
+    - name: Clean & copy updated resources (auto-detect)
+      working-directory: ./build
+      shell: powershell
       run: |
-        xcopy /RCYIE ..\resources package\resources
-        del /S /Q package\resources\localization\*.so
+        # Find resources folder (search up to 3 levels up)
+        $resourcesPath = Get-ChildItem -Path .. -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Name -eq 'resources' } |
+                        Select-Object -First 1 -ExpandProperty FullName
+
+        if (-not $resourcesPath) {
+          Write-Host " Could not find 'resources' directory."
+          exit 1
+        }
+
+        $dest = "package/resources"
+
+        if (Test-Path $dest) {
+          Write-Host "🧹 Removing existing $dest"
+          Remove-Item -Recurse -Force $dest
+        }
+
+        New-Item -ItemType Directory -Path $dest | Out-Null
+
+        Copy-Item -Recurse -Force -Path "$resourcesPath/*" -Destination $dest
+
+        Write-Host "Copied resources to $dest"
     - name: copy dll & exe
       working-directory: ./build
       shell: cmd
       run: |
-        xcopy /RCYIE src\release\*.dll package\
-        xcopy /RCYIE src\release\*.exe package\
+        xcopy /RCYIE src\RelWithDebInfo\*.dll package\
+        xcopy /RCYIE src\RelWithDebInfo\*.exe package\
         xcopy /RCYIE c:\windows\system32\VCRUNTIME140* package\
+        xcopy /RCYIE c:\windows\system32\msvcp140* package\
         del package\opengl32.dll
-#    - name: create zip
-#      working-directory: ./build
-#      shell: cmd
-#      run: '"C:/Program Files/7-Zip/7z.exe" a -tzip nightly.zip *'
+
+    # Optional ZIP step:
+    # - name: create zip
+    #   working-directory: ./build
+    #   shell: cmd
+    #   run: '"C:/Program Files/7-Zip/7z.exe" a -tzip nightly.zip *'
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:

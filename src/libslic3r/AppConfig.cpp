@@ -40,6 +40,7 @@
 
 #define L(s) Slic3r::I18N::translate(s)
 
+
 namespace Slic3r {
 
 static const std::string VENDOR_PREFIX = "vendor:";
@@ -59,9 +60,9 @@ static const std::string INDEX_ARCHIVE_URL= "https://files.prusa3d.com/wp-conten
 static const std::string PROFILE_FOLDER_URL = "https://files.prusa3d.com/wp-content/uploads/repository/PrusaSlicer-settings-master/live/";
 */
 
-static const std::string PROFILE_FOLDER_URL = "http://files.cr3d.de/updates/SliCR-3D/profiles/";
-static const std::string INDEX_ARCHIVE_URL= "http://files.cr3d.de/updates/SliCR-3D/vendor_indices.zip";
-static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/SliCR-3D/SliCR-3D.version";
+static const std::string PROFILE_FOLDER_URL = "http://files.cr3d.de/updates/SliCR-3D_Interal/profiles/";
+static const std::string INDEX_ARCHIVE_URL= "http://files.cr3d.de/updates/SliCR-3D_Internal/vendor_indices.zip";
+static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/SliCR-3D_Internal/SliCR-3D.version";
 
 const std::string AppConfig::SECTION_FILAMENTS = "filaments";
 const std::string AppConfig::SECTION_MATERIALS = "sla_materials";
@@ -191,7 +192,7 @@ void AppConfig::set_defaults()
             set("side_panel_width", "42");
 
         if (get("gcodeviewer_decimals").empty())
-            set("gcodeviewer_decimals", "2");
+            set("gcodeviewer_decimals", "0");
 
         //get default color from the ini file
 
@@ -317,7 +318,11 @@ void AppConfig::set_defaults()
             set("use_binary_gcode_when_supported", "1");
  
        if (get("notify_release").empty())
-           set("notify_release", "all"); // or "none" or "release"
+#if INTERNAL_VERSION
+           set("notify_release", "internal");
+#else
+           set("notify_release", "release"); // or "none" or "release"
+#endif
 
         if (get("auto_switch_preview").empty())
             set("auto_switch_preview", "platter");
@@ -526,6 +531,14 @@ void AppConfig::set_defaults()
     }
 
 
+    if (get("show_step_import_parameters").empty())
+        set("show_step_import_parameters", "1");
+
+    if (get("linear_precision").empty())
+        set("linear_precision", "0.005");
+
+    if (get("angle_precision").empty())
+        set("angle_precision", "1.");
 
     // Remove legacy window positions/sizes
     erase("", "main_frame_maximized");
@@ -896,15 +909,32 @@ void AppConfig::save()
 }
 
 bool AppConfig::erase(const std::string &section, const std::string &key)
-{       
+{
     if (auto it_storage = m_storage.find(section); it_storage != m_storage.end()) {
-        auto &section = it_storage->second;
-        auto it = section.find(key);
-        if (it != section.end()) {
-            section.erase(it);
+        auto &section_map = it_storage->second;  // clearer name
+        auto it = section_map.find(key);
+        if (it != section_map.end()) {
+            section_map.erase(it);
             m_dirty = true;
+
+            // Optional: erase the whole section if it's now empty
+            if (section_map.empty()) {
+                m_storage.erase(it_storage);
+            }
+
             return true;
         }
+    }
+    return false;
+}
+
+bool AppConfig::erase_section(const std::string &section_name)
+{
+    auto it = m_vendors.find(section_name);
+    if (it != m_vendors.end()) {
+        m_vendors.erase(it);  // removes the section and all its keys
+        m_dirty = true;       // mark config as changed
+        return true;
     }
     return false;
 }

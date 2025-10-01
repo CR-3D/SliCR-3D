@@ -111,6 +111,8 @@ FillConcentricWGapFill::fill_surface_extrusion(
     ExtrusionEntitiesPtr out_to_check;
 
     double min_gapfill_area = double(params.flow.scaled_width()) * double(params.flow.scaled_width());
+    if (params.config != nullptr)
+        min_gapfill_area = scale_d(1.0 * params.flow.width()) * double(params.flow.scaled_width());
     // Perform offset. //FIXME: can miss gapfill outside of this first perimeter
     Slic3r::ExPolygons expp = offset_ex(surface->expolygon, double(scale_(0 - 0.5 * this->get_spacing())));
     // Create the infills for each of the regions.
@@ -309,8 +311,17 @@ FillConcentricWGapFill::fill_surface_extrusion(
                 //be sure we don't gapfill where the perimeters are already touching each other (negative spacing).
                 min = std::max(min, double(Flow::new_from_spacing((float)EPSILON, (float)params.flow.nozzle_diameter(), (float)params.flow.height(), (float)params.flow.spacing_ratio(), false).scaled_width()));
                 coordf_t real_max = 2.5 * distance;
+                const coordf_t minwidth  = scale_d(0.0);
+                const coordf_t maxwidth  = scale_d(0.0);
+                const coord_t  minlength = scale_t(0.0);
+                if (minwidth > 0) {
+                    min = std::max(min, minwidth);
+                }
                 coordf_t max = real_max;
-
+                if (maxwidth > 0) {
+                    max = std::min(max, maxwidth);
+                }
+                const coord_t gapfill_extension = scale_t(0.0);     
                 // collapse 
                 ExPolygons gaps_ex = diff_ex(
                     offset2_ex(bunch_2_gaps[idx_bunch], -min / 2, +min / 2),
@@ -322,6 +333,12 @@ FillConcentricWGapFill::fill_surface_extrusion(
                     //ie one that are smaller than an extrusion with width of min and a length of max.
                     if (ex.area() > min_gapfill_area) {
                         Geometry::MedialAxis md{ ex, coord_t(real_max), coord_t(min), scale_t(params.flow.height()) };
+                        if (minlength > 0) {
+                            md.set_min_length(minlength);
+                        }
+                        if (gapfill_extension > 0) {
+                            md.set_extension_length(gapfill_extension);
+                        }
                         md.set_biggest_width(max);
                         md.build(polylines);
                     }
@@ -365,7 +382,8 @@ FillConcentricWGapFill::fill_surface_extrusion(
     gapfill_areas = union_safety_offset_ex(gapfill_areas);
     if (gapfill_areas.size() > 0 && no_overlap_expolygons.size() > 0) {
         double minarea = double(params.flow.scaled_width()) * double(params.flow.scaled_width());
-        //if (params.config != nullptr) minarea = scale_d(params.config->gap_fill_min_area.get_abs_value(params.flow.width())) * double(params.flow.scaled_width());
+        if (params.config != nullptr) 
+            minarea = scale_d(1.0 * params.flow.width()) * double(params.flow.scaled_width());
         for (int i = 0; i < gapfill_areas.size(); i++) {
             if (gapfill_areas[i].area() < minarea) {
                 gapfill_areas.erase(gapfill_areas.begin() + i);

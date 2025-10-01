@@ -232,8 +232,8 @@ bool ExtrusionLoop::split_at_vertex(const Point &point, const double scaled_epsi
                     this->paths = std::move(new_paths);
                 } else {
                     // last point
-                    assert((path)->last_point().coincides_with_epsilon(point));
-                    assert((path + 1)->first_point().coincides_with_epsilon(point));
+                    assert((path)->last_point().distance_to(point) <= scaled_epsilon);
+                    assert((path + 1)->first_point().distance_to(point) <= scaled_epsilon);
                     ExtrusionPaths new_paths;
                     new_paths.reserve(this->paths.size());
                     // then we add all paths until the end of current path list

@@ -98,9 +98,9 @@ private:
     int legend_side;
     wxString m_x_legend;
     wxString m_y_legend;
-    float m_x_legend_incr = 0.1f;
+    double m_x_legend_incr = 0.1f;
     int m_x_precision = 0;
-    float m_y_legend_incr = 1.f;
+    double m_y_legend_incr = 1.f;
     int m_y_precision = 0;
     wxString m_no_point_legend;
     bool m_manual_points_manipulation = false;
@@ -124,7 +124,8 @@ private:
             if (m_chart->m_x_precision <= 0) {
                 m_pos.m_x = int(m_pos.m_x);
             } else if (m_chart->m_x_precision < 10){
-                m_pos.m_x = int(m_pos.m_x * pow10[m_chart->m_x_precision]) / double(pow10[m_chart->m_x_precision]);
+                //m_pos.m_x = int(m_pos.m_x * pow10[m_chart->m_x_precision]) / double(pow10[m_chart->m_x_precision]);
+                m_pos.m_x = std::round(m_pos.m_x / m_chart->m_x_legend_incr) * m_chart->m_x_legend_incr;
             }
             if (m_chart->m_y_precision <= 0) {
                 m_pos.m_y = int(m_pos.m_y);

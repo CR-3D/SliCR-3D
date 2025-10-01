@@ -166,6 +166,38 @@ ModelWipeTower& Model::wipe_tower(const int bed_index)
     return wipe_tower_vector[bed_index];
 }
 
+void Model::set_center_pos(const DynamicPrintConfig& config, const DynamicPrintConfig& print_config) {
+
+      BoundingBoxf bed_bb;
+      for (const auto &p : config.option<ConfigOptionPoints>("bed_shape")->get_values())
+       bed_bb.merge(Vec2d(p.x(), p.y()));
+
+      // Get wipe tower width from config (for clamping)
+      double width = print_config.option("wipe_tower_width")->get_float();
+      const double margin = 1.0;
+
+      double x_offset = 30.0; // mm to move left
+      double x_aim = 0.5 * (bed_bb.min.x() + bed_bb.max.x()) - x_offset;
+
+      // Keep your original front-positioning logic for Y
+      double y_aim = bed_bb.min.y() + margin + 0.5;
+
+      // Clamp if necessary (so it stays fully on the bed)
+      double x_min = bed_bb.min.x() + 0.5 * width + margin;
+      double x_max = bed_bb.max.x() - 0.5 * width - margin;
+      double y_min = bed_bb.min.y() + 0.5 * width + margin;
+      double y_max = bed_bb.max.y() - 0.5 * width - margin;
+
+      Vec2d pos{
+       std::clamp(x_aim, x_min, x_max),  // centered X
+       std::clamp(y_aim, y_min, y_max)   // near-front Y (unchanged)
+      };
+
+      wipe_tower().position = pos;
+    
+    //return wipe_tower
+}
+
 CustomGCode::Info& Model::custom_gcode_per_print_z()
 {
     return const_cast<CustomGCode::Info&>(const_cast<const Model*>(this)->custom_gcode_per_print_z());
@@ -178,7 +210,11 @@ const CustomGCode::Info& Model::custom_gcode_per_print_z() const
 
 
 // Loading model from a file, it may be a simple geometry file as STL or OBJ, however it may be a project file as well.
-Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
+Model Model::read_from_file(const std::string& input_file,
+                            DynamicPrintConfig* config,
+                            ConfigSubstitutionContext* config_substitutions,
+                            LoadAttributes options,
+                            std::optional<std::pair<double, double>> step_deflections)
 {
     Model model;
 
@@ -195,7 +231,7 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
     else if (boost::algorithm::iends_with(input_file, ".obj"))
         result = load_obj(input_file.c_str(), &model);
     else if (boost::algorithm::iends_with(input_file, ".step") || boost::algorithm::iends_with(input_file, ".stp"))
-        result = load_step(input_file.c_str(), &model);
+        result = load_step(input_file.c_str(), &model, step_deflections);
     else if (boost::algorithm::iends_with(input_file, ".amf") || boost::algorithm::iends_with(input_file, ".amf.xml"))
         result = load_amf(input_file.c_str(), config, config_substitutions, &model, options & LoadAttribute::CheckVersion);
     else if (boost::algorithm::iends_with(input_file, ".3mf") || boost::algorithm::iends_with(input_file, ".zip"))
@@ -229,7 +265,11 @@ Model Model::read_from_file(const std::string& input_file, DynamicPrintConfig* c
 }
 
 // Loading model from a file (3MF or AMF), not from a simple geometry file (STL or OBJ).
-Model Model::read_from_archive(const std::string& input_file, DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions, LoadAttributes options)
+Model Model::read_from_archive(const std::string& input_file,
+                               DynamicPrintConfig* config,
+                               ConfigSubstitutionContext* config_substitutions,
+                               LoadAttributes options
+                               )
 {
     assert(config != nullptr);
     assert(config_substitutions != nullptr);

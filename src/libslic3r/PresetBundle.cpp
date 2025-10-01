@@ -43,7 +43,7 @@ static std::vector<std::string> s_project_options {
     "wiping_volumes_matrix"
 };
 
-const char *PresetBundle::PRUSA_BUNDLE = "CR3D";
+const char *PresetBundle::CR3D_BUNDLE = "CR-3D";
 
 PresetBundle::PresetBundle() :
     fff_prints(Preset::TYPE_FFF_PRINT, Preset::print_options(), static_cast<const PrintRegionConfig&>(FullPrintConfig::defaults())),
@@ -331,54 +331,41 @@ PresetsConfigSubstitutions PresetBundle::load_presets(AppConfig &config, Forward
 std::pair<PresetsConfigSubstitutions, std::string> PresetBundle::load_system_presets(ForwardCompatibilitySubstitutionRule compatibility_rule)
 {
     if (compatibility_rule == ForwardCompatibilitySubstitutionRule::EnableSystemSilent)
-        // Loading system presets, don't log substitutions.
         compatibility_rule = ForwardCompatibilitySubstitutionRule::EnableSilent;
     else if (compatibility_rule == ForwardCompatibilitySubstitutionRule::EnableSilentDisableSystem)
-        // Loading system presets, throw on unknown option value.
         compatibility_rule = ForwardCompatibilitySubstitutionRule::Disable;
 
-    // Here the vendor specific read only Config Bundles are stored.
-    boost::filesystem::path     dir = (boost::filesystem::path(data_dir()) / "vendor").make_preferred();
-    PresetsConfigSubstitutions  substitutions;
-    std::string                 errors_cummulative;
-    bool                        first = true;
-    for (auto &dir_entry : boost::filesystem::directory_iterator(dir))
+    boost::filesystem::path dir = (boost::filesystem::path(data_dir()) / "vendor").make_preferred();
+    PresetsConfigSubstitutions substitutions;
+    std::string errors_cummulative;
+    bool first = true;
+
+    for (auto &dir_entry : boost::filesystem::directory_iterator(dir)) {
         if (Slic3r::is_ini_file(dir_entry)) {
-            std::string name = dir_entry.path().filename().string();
-            // Remove the .ini suffix.
-            name.erase(name.size() - 4);
             try {
-                // Load the config bundle, flatten it.
                 if (first) {
-                    // Reset this PresetBundle and load the first vendor config.
                     append(substitutions, this->load_configbundle(dir_entry.path().string(), PresetBundle::LoadSystem, compatibility_rule).first);
                     first = false;
                 } else {
-                    // Load the other vendor configs, merge them with this PresetBundle.
-                    // Report duplicate profiles.
                     PresetBundle other;
                     append(substitutions, other.load_configbundle(dir_entry.path().string(), PresetBundle::LoadSystem, compatibility_rule).first);
-                    std::vector<std::string> duplicates = this->merge_presets(std::move(other));
-                    if (! duplicates.empty()) {
-                        errors_cummulative += "Vendor configuration file " + name + " contains the following presets with names used by other vendors: ";
-                        for (size_t i = 0; i < duplicates.size(); ++ i) {
-                            if (i > 0)
-                                errors_cummulative += ", ";
-                            errors_cummulative += duplicates[i];
-                        }
-                    }
+
+                    // Disable duplicate error reporting:
+                    this->merge_presets(std::move(other));
+                    // (no collection of duplicates)
                 }
             } catch (const std::runtime_error &err) {
-                errors_cummulative += err.what();
-                errors_cummulative += "\n";
+                // Optionally suppress runtime errors as well:
+                // errors_cummulative += err.what();
+                // errors_cummulative += "\n";
             }
         }
-    if (first) {
-		// No config bundle loaded, reset.
-		this->reset(false);
-	}
+    }
 
-	this->update_system_maps();
+    if (first)
+        this->reset(false);
+
+    this->update_system_maps();
     return std::make_pair(std::move(substitutions), errors_cummulative);
 }
 

@@ -1,4 +1,4 @@
-name: C/C++ Release candidate macos
+name: C/C++ Release candidate macos Internal
 
 on:
   push:

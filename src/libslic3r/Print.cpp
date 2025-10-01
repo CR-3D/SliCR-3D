@@ -142,7 +142,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "filament_spool_weight",
         "filament_unload_time",
         "filament_wipe_advanced_pigment",
-        "flexible_material",
         "first_layer_bed_temperature",
         "full_fan_speed_layer",
         "gap_fill_fan_speed",
@@ -372,7 +371,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "min_layer_height"
             || opt_key == "max_layer_height"
             || opt_key == "filament_max_overlap"
-            || opt_key == "wall_sequence"
             || opt_key == "gcode_min_resolution") {
             osteps.emplace_back(posPerimeters);
             osteps.emplace_back(posInfill);
@@ -413,7 +411,6 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             invalidated |= object->invalidate_step(ostep);
     if(invalidated)
         m_timestamp_last_change = std::time(0);
-        
     return invalidated;
 }
 
@@ -494,8 +491,8 @@ std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
                 }
             }
             if (has_support) {
-                assert(object->config().support_material_extruder > 0);
-                if (!object->config().support_material_extruder.is_enabled())
+                assert(object->config().support_material_extruder >= 0);
+                if (object->config().support_material_extruder == 0)
                     support_uses_current_extruder = true;
                 else {
                     uint16_t i = (uint16_t) object->config().support_material_extruder - 1;
@@ -503,8 +500,8 @@ std::set<uint16_t> Print::support_material_extruders(float z /*= -1*/) const
                 }
             }
             if (has_support && has_support_interface) {
-                assert(object->config().support_material_interface_extruder > 0);
-                if (!object->config().support_material_interface_extruder.is_enabled())
+                assert(object->config().support_material_interface_extruder >= 0);
+                if (object->config().support_material_interface_extruder == 0)
                     support_uses_current_extruder = true;
                 else {
                     uint16_t i = (uint16_t)object->config().support_material_interface_extruder - 1;
@@ -530,9 +527,9 @@ std::set<uint16_t> Print::extruders(float z /*= -1*/) const
     if (z < 0) {
         // The wipe tower extruder can also be set. When the wipe tower is enabled and it will be generated,
         // append its extruder into the list too.
-        if (has_wipe_tower() && config().wipe_tower_extruder.is_enabled() && extruders.size() > 1) {
-            assert(config().wipe_tower_extruder.is_enabled() &&
-                   config().wipe_tower_extruder <= int(config().nozzle_diameter.size()));
+        if (has_wipe_tower() && config().wipe_tower_extruder != 0 && extruders.size() > 1) {
+            assert(config().wipe_tower_extruder > 0 &&
+                   config().wipe_tower_extruder < int(config().nozzle_diameter.size()));
             extruders.insert(uint16_t(config().wipe_tower_extruder.value - 1)); // the config value is 1-based
         }
     }
@@ -733,7 +730,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
     if (extruders.empty())
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
-    if (m_config.complete_objects /*|| m_config.parallel_objects_step > 0*/) {
+    if (m_config.complete_objects && !m_config.ignore_extruder_clearance /*|| m_config.parallel_objects_step > 0*/) {
     	if (! sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
             return { PrintBase::PrintValidationError::pveWrongPosition, _u8L("Some objects are too close; your extruder will collide with them.") };
         if (m_config.complete_objects && ! sequential_print_vertical_clearance_valid(*this))
@@ -813,7 +810,6 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         // EPSILON comparison is used for nozzles and 10 % tolerance is used for filaments
         double first_nozzle_diam = m_config.nozzle_diameter.get_at(*extruders.begin());
         double first_filament_diam = m_config.filament_diameter.get_at(*extruders.begin());
-        /*
         for (const uint16_t& extruder_idx : extruders) {
             double nozzle_diam = m_config.nozzle_diameter.get_at(extruder_idx);
             double filament_diam = m_config.filament_diameter.get_at(extruder_idx);
@@ -822,7 +818,6 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                 return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The wipe tower is only supported if all extruders have the same nozzle diameter "
                          "and use filaments of the same diameter.") };
         }
-*/
 
         if (m_config.gcode_flavor != gcfRepRap 
             && m_config.gcode_flavor != gcfSprinter
@@ -913,12 +908,12 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         const double print_first_layer_height = get_min_first_layer_height();
         for (PrintObject *object : m_objects) {
             if (object->has_support_material()) {
-                if ((!object->config().support_material_extruder.is_enabled() || !object->config().support_material_interface_extruder.is_enabled()) && max_nozzle_diameter - min_nozzle_diameter > EPSILON) {
+                if ((object->config().support_material_extruder == 0 || object->config().support_material_interface_extruder == 0) && max_nozzle_diameter - min_nozzle_diameter > EPSILON) {
                     // The object has some form of support and either support_material_extruder or support_material_interface_extruder
                     // will be printed with the current tool without a forced tool change. Play safe, assert that all object nozzles
                     // are of the same diameter.
                     return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Printing with multiple extruders of differing nozzle diameters. "
-                           "If support is to be printed with the current extruder (support_material_extruder is disabled or support_material_interface_extruder is disabled), "
+                           "If support is to be printed with the current extruder (support_material_extruder == 0 or support_material_interface_extruder == 0), "
                            "all nozzles have to be of the same diameter.") };
                 }
                 if (this->has_wipe_tower() && object->config().support_material_style != smsOrganic) {
@@ -928,9 +923,9 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("For the Wipe Tower to work with the soluble supports, the support layers need to be synchronized with the object layers.") };
                     } else {
                         // Non-soluble interface
-                        if (object->config().support_material_extruder.is_enabled() || object->config().support_material_interface_extruder.is_enabled())
+                        if (object->config().support_material_extruder != 0 || object->config().support_material_interface_extruder != 0)
                             return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower currently supports the non-soluble supports only if they are printed with the current extruder without triggering a tool change. "
-                                     "(both support_material_extruder and support_material_interface_extruder need to be disabled).") };
+                                     "(both support_material_extruder and support_material_interface_extruder need to be set to 0).") };
                     }
                 }
                 if (object->config().support_material_style.value == smsOrganic) {
@@ -1295,7 +1290,7 @@ void Print::process()
     if (this->has_wipe_tower()) {
         // These values have to be updated here, not during wipe tower generation.
         // When the wipe tower is moved/rotated, it is not regenerated.
-        m_wipe_tower_data.position = model().wipe_tower().position;
+      //  m_wipe_tower_data.position = { m_config.wipe_tower_x, m_config.wipe_tower_y };
         m_wipe_tower_data.rotation_angle = m_config.wipe_tower_rotation_angle;
     }
     auto conflictRes = ConflictChecker::find_inter_of_lines_in_diff_objs(objects(), m_wipe_tower_data);
@@ -1336,32 +1331,63 @@ void Print::process()
         }
         //also simplify object skirt & brim
         if (enable_arc_fitting && (!this->m_skirt.empty() || !this->m_brim.empty())) {
-            coordf_t scaled_resolution = scale_d(config().arc_fitting_resolution.get_abs_value(config().resolution.value));
-            if (scaled_resolution == 0) scaled_resolution = SCALED_EPSILON * 2 ;
-            const ConfigOptionFloatOrPercent& arc_fitting_tolerance = config().arc_fitting_tolerance;
+            coordf_t scaled_resolution = scale_d(
+                config().arc_fitting_resolution.get_abs_value(config().resolution.value));
+            if (scaled_resolution == 0)
+                scaled_resolution = SCALED_EPSILON * 2;
+            const ConfigOptionFloatOrPercent &arc_fitting_tolerance = config().arc_fitting_tolerance;
 
-            this->set_status(0, L("Optimizing skirt & brim %s%%"), { std::to_string(0) }, PrintBase::SlicingStatus::SECONDARY_STATE);
-            std::atomic<int> atomic_count{ 0 };
-            GetPathsVisitor visitor;
-            this->m_skirt.visit(visitor);
-            this->m_brim.visit(visitor);
+            this->set_status(0, L("Optimizing skirt & brim %s%%"), {std::to_string(0)},
+                             PrintBase::SlicingStatus::SECONDARY_STATE);
 
-            tbb::parallel_for(
-                tbb::blocked_range<size_t>(0, visitor.paths.size() + visitor.paths3D.size()),
-                [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count](const tbb::blocked_range<size_t>& range) {
-                    size_t path_idx = range.begin();
-                    for (; path_idx < range.end() && path_idx < visitor.paths.size(); ++path_idx) {
-                        visitor.paths[path_idx]->simplify(scaled_resolution, config().arc_fitting.value, scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width())));
-                        int nb_items_done = (++atomic_count);
-                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())), L("Optimizing skirt & brim %s%%"), { std::to_string(int(100*nb_items_done / double(visitor.paths.size() + visitor.paths3D.size()))) }, PrintBase::SlicingStatus::SECONDARY_STATE);
-                    }
-                    for (; path_idx < range.end() && path_idx - visitor.paths.size() < visitor.paths3D.size(); ++path_idx) {
-                        visitor.paths3D[path_idx - visitor.paths.size()]->simplify(scaled_resolution, config().arc_fitting.value, scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width())));
-                        int nb_items_done = (++atomic_count);
-                        this->set_status(int((nb_items_done * 100) / (visitor.paths.size() + visitor.paths3D.size())), L("Optimizing skirt & brim %s%%"), { std::to_string(int(100*nb_items_done / double(visitor.paths.size() + visitor.paths3D.size()))) }, PrintBase::SlicingStatus::SECONDARY_STATE);
-                    }
+        std::atomic<int> atomic_count{0};
+        GetPathsVisitor visitor;
+        this->m_skirt.visit(visitor);
+        this->m_brim.visit(visitor);
+
+        #if _DEBUG
+        this->m_skirt.visit(get_loops);
+        for (auto loop : get_loops.loops)
+            assert(loop->is_counter_clockwise());
+        #endif
+
+        const size_t total_paths = visitor.paths.size() + visitor.paths3D.size();
+
+        // initial status
+        {
+            boost::format fmt(L("Optimizing skirt & brim %1%%%"));
+            std::string msg = (fmt % 0).str();
+            this->set_status(0, msg, PrintBase::SlicingStatus::SECONDARY_STATE);
+        }
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, total_paths),
+            [this, &visitor, scaled_resolution, &arc_fitting_tolerance, &atomic_count, total_paths](const tbb::blocked_range<size_t>& range) {
+                size_t path_idx = range.begin();
+                for (; path_idx < range.end() && path_idx < visitor.paths.size(); ++path_idx) {
+                    visitor.paths[path_idx]->simplify(
+                        scaled_resolution,
+                        config().arc_fitting.value,
+                        scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width()))
+                    );
+                    int nb_items_done = ++atomic_count;
+                    boost::format fmt(L("Optimizing skirt & brim %1%%%"));
+                    std::string msg = (fmt % int(100 * nb_items_done / double(total_paths))).str();
+                    this->set_status((nb_items_done * 100) / total_paths, msg, PrintBase::SlicingStatus::SECONDARY_STATE);
                 }
-            );
+                for (; path_idx < range.end() && path_idx - visitor.paths.size() < visitor.paths3D.size(); ++path_idx) {
+                    visitor.paths3D[path_idx - visitor.paths.size()]->simplify(
+                        scaled_resolution,
+                        config().arc_fitting.value,
+                        scale_d(arc_fitting_tolerance.get_abs_value(visitor.paths[path_idx]->width()))
+                    );
+                    int nb_items_done = ++atomic_count;
+                    boost::format fmt(L("Optimizing skirt & brim %1%%%"));
+                    std::string msg = (fmt % int(100 * nb_items_done / double(total_paths))).str();
+                    this->set_status((nb_items_done * 100) / total_paths, msg, PrintBase::SlicingStatus::SECONDARY_STATE);
+                }
+            }
+        );
 #if _DEBUG
             get_loops.loops.clear();
             this->m_skirt.visit(get_loops);
@@ -1927,7 +1953,7 @@ Points Print::first_layer_wipe_tower_corners() const
 
         for (Vec2d& pt : pts) {
             pt = Eigen::Rotation2Dd(Geometry::deg2rad(m_config.wipe_tower_rotation_angle.value)) * pt;
-            pt += model().wipe_tower().position;
+            //pt += Vec2d(m_config.wipe_tower_x.value, m_config.wipe_tower_y.value);
             pts_scaled.emplace_back(Point(scale_(pt.x()), scale_(pt.y())));
         }
     }
@@ -2139,16 +2165,18 @@ const WipeTowerData& Print::wipe_tower_data(const ConfigBase* config, double noz
         if (first_layer_height > 0 && first_layer_height < layer_height) {
             layer_height = first_layer_height;
         }
-        
+
         const_cast<Print *>(this)->m_wipe_tower_data.position = model().wipe_tower().position;
-        const_cast<Print*>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
-        const_cast<Print*>(this)->m_wipe_tower_data.rotation_angle = float(config->option("wipe_tower_rotation_angle")->get_float());
-        const_cast<Print*>(this)->m_wipe_tower_data.depth = (maximum/layer_height)/this->m_wipe_tower_data.width;
-        const_cast<Print*>(this)->m_wipe_tower_data.brim_width = unscaled_brim_width;
-        const_cast<Print*>(this)->m_wipe_tower_data.cone_angle = float(config->option("wipe_tower_cone_angle")->get_float());
-        const_cast<Print*>(this)->m_wipe_tower_data.first_layer_height = first_layer_height;
-        const_cast<Print*>(this)->m_wipe_tower_data.height = -1.f; // unknown yet
-        const_cast<Print*>(this)->m_wipe_tower_data.z_and_depth_pairs.clear(); // unknown yet
+        const_cast<Print *>(this)->m_wipe_tower_data.width = float(config->option("wipe_tower_width")->get_float());
+        const_cast<Print *>(this)->m_wipe_tower_data.rotation_angle = float(
+            config->option("wipe_tower_rotation_angle")->get_float());
+        const_cast<Print *>(this)->m_wipe_tower_data.depth = (maximum / layer_height) / this->m_wipe_tower_data.width;
+        const_cast<Print *>(this)->m_wipe_tower_data.brim_width = unscaled_brim_width;
+        const_cast<Print *>(this)->m_wipe_tower_data.cone_angle = float(
+            config->option("wipe_tower_cone_angle")->get_float());
+        const_cast<Print *>(this)->m_wipe_tower_data.first_layer_height = first_layer_height;
+        const_cast<Print *>(this)->m_wipe_tower_data.height = -1.f;             // unknown yet
+        const_cast<Print *>(this)->m_wipe_tower_data.z_and_depth_pairs.clear(); // unknown yet
     }
 
     return this->m_wipe_tower_data;
@@ -2206,12 +2234,8 @@ void Print::_make_wipe_tower()
     this->throw_if_canceled();
 
     // Initialize the wipe tower.
-    WipeTower wipe_tower(model().wipe_tower().position.cast<float>(), 
-                         m_config, 
-                         m_default_object_config,
-                         m_default_region_config, 
-                         wipe_volumes, 
-                         m_wipe_tower_data.tool_ordering.first_extruder());
+    WipeTower wipe_tower(model().wipe_tower().position.cast<float>(), m_config, m_default_object_config,
+                         m_default_region_config, wipe_volumes, m_wipe_tower_data.tool_ordering.first_extruder());
 
     // Set the extruder & material properties at the wipe tower object.
     for (size_t i = 0; i < m_config.nozzle_diameter.size(); ++ i)

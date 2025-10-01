@@ -41,6 +41,9 @@
 #include "DesktopIntegrationDialog.hpp"
 #endif //__linux__
 
+
+//#define INTERNAL_VERSION 1
+
 namespace Slic3r {
 
     static t_config_enum_names enum_names_from_keys_map(const t_config_enum_values& enum_keys_map)
@@ -64,11 +67,17 @@ namespace Slic3r {
     enum NotifyReleaseMode {
         NotifyReleaseAll,
         NotifyReleaseOnly,
+#ifdef INTERNAL_VERSION
+        NotifyInternalOnly,
+#endif
         NotifyReleaseNone
     };
     static const t_config_enum_values s_keys_map_NotifyReleaseMode = {
         {"all",     NotifyReleaseAll},
         {"release", NotifyReleaseOnly},
+#ifdef INTERNAL_VERSION
+        {"internal", NotifyInternalOnly},
+#endif
         {"none",    NotifyReleaseNone},
     };
     CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NotifyReleaseMode)
@@ -234,7 +243,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
             m_optkey_to_optgroup[opt_key]->set_value(OptionKeyIdx::scalar(opt_key), app_config->get_bool(opt_key), true, false);
 
         for (const std::string opt_key : {"default_action_on_close_application", "default_action_on_new_project",
-                                          "default_action_on_select_preset"})
+                                          "default_action_on_select_preset", "show_step_import_parameters"})
             m_optkey_to_optgroup[opt_key]->set_value(OptionKeyIdx::scalar(opt_key), app_config->get(opt_key) == "none", true, false);
         m_optkey_to_optgroup["default_action_on_dirty_project"]
             ->set_value(OptionKeyIdx::scalar("default_action_on_dirty_project"),
@@ -699,14 +708,14 @@ void PreferencesDialog::build()
 		append_bool_option(m_tabid_2_optgroups.back().back(), "default_action_on_dirty_project",
 			L("Ask for unsaved changes in project"),
 			L("Always ask for unsaved changes in project, when: \n"
-						"- Closing Slic3r,\n"
+						"- Closing SliCR-3D,\n"
 						"- Loading or creating a new project"),
 			app_config->get("default_action_on_dirty_project").empty());
 
 		append_bool_option(m_tabid_2_optgroups.back().back(), "default_action_on_close_application",
 			L("Ask to save unsaved changes in presets when closing the application or when loading a new project"),
 			L("Always ask for unsaved changes in presets, when: \n"
-						"- Closing Slic3r while some presets are modified,\n"
+						"- Closing SliCR-3D while some presets are modified,\n"
 						"- Loading a new project while some presets are modified"),
 			app_config->get("default_action_on_close_application") == "none");
 
@@ -910,6 +919,11 @@ void PreferencesDialog::build()
 			L("Allow automatically color change"),
 			L("If enabled, related notification will be shown, when sliced object looks like a logo or a sign."),
 			app_config->get_bool("allow_auto_color_change"));
+   
+		append_bool_option(m_tabid_2_optgroups.back().back(), "show_step_import_parameters",
+			L("Show STEP file import parameters"),
+			L("If enabled, SliCR-3D will show dialog with quality selection when importing STEP file."),
+			app_config->get_bool("show_step_import_parameters"));
 
 
 		// FIXME separator don't work anymore
@@ -939,6 +953,9 @@ void PreferencesDialog::build()
             new ConfigOptionEnum<NotifyReleaseMode>(static_cast<NotifyReleaseMode>(s_keys_map_NotifyReleaseMode.at(notify_release_value))),
             { { "all", L("All") },
               { "release", L("Release only") },
+#ifdef INTERNAL_VERSION
+              {  "internal", L("Internal Only")},
+#endif
               { "none", L("None") }
             });
 

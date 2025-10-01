@@ -178,6 +178,7 @@ public:
 		{ auto it = m_storage.find(section); assert(it != m_storage.end()); return it->second; }
 	bool 				set_section(const std::string &section, std::map<std::string, std::string> data);
 	bool 				clear_section(const std::string &section);
+    bool                erase_section(const std::string &section_name);
 
 	typedef std::map<std::string, std::map<std::string, std::set<std::string>>> VendorMap;
 	bool                get_variant(const std::string &vendor, const std::string &model, const std::string &variant) const;

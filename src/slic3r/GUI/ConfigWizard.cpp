@@ -91,11 +91,11 @@ bool Bundle::load(fs::path source_path, BundleLocation location, bool ais_prusa_
     this->preset_bundle = std::make_unique<PresetBundle>();
     this->location = location;
     this->is_prusa_bundle = ais_prusa_bundle;
-
+    
     std::string path_string = source_path.string();
     // Throw when parsing invalid configuration. Only valid configuration is supposed to be provided over the air.
-    auto [config_substitutions, presets_loaded] = preset_bundle->load_configbundle(
-        path_string, PresetBundle::LoadConfigBundleAttribute::LoadSystem, ForwardCompatibilitySubstitutionRule::Disable);
+    auto [config_substitutions, presets_loaded] = preset_bundle->load_configbundle(path_string, PresetBundle::LoadConfigBundleAttribute::LoadSystem, ForwardCompatibilitySubstitutionRule::Disable);
+    
     UNUSED(config_substitutions);
     // No substitutions shall be reported when loading a system config bundle, no substitutions are allowed.
     assert(config_substitutions.empty());
@@ -107,8 +107,8 @@ bool Bundle::load(fs::path source_path, BundleLocation location, bool ais_prusa_
     if (presets_loaded == 0) {
         BOOST_LOG_TRIVIAL(error) << boost::format("Vendor bundle: `%1%`: No profile loaded.") % path_string;
         return false;
-    } 
-
+    }
+    
     BOOST_LOG_TRIVIAL(trace) << boost::format("Vendor bundle: `%1%`: %2% profiles loaded.") % path_string % presets_loaded;
     this->vendor_profile = &first_vendor->second;
     return true;
@@ -116,10 +116,10 @@ bool Bundle::load(fs::path source_path, BundleLocation location, bool ais_prusa_
 
 // Configuration data structures extensions needed for the wizard
 Bundle::Bundle(Bundle &&other)
-    : preset_bundle(std::move(other.preset_bundle))
-    , vendor_profile(other.vendor_profile)
-    , location(other.location)
-    , is_prusa_bundle(other.is_prusa_bundle)
+: preset_bundle(std::move(other.preset_bundle))
+, vendor_profile(other.vendor_profile)
+, location(other.location)
+, is_prusa_bundle(other.is_prusa_bundle)
 {
     other.vendor_profile = nullptr;
 }
@@ -127,29 +127,29 @@ Bundle::Bundle(Bundle &&other)
 BundleMap BundleMap::load()
 {
     BundleMap res;
-
+    
     const Slic3r::PresetUpdaterWrapper* preset_updater_wrapper = wxGetApp().get_preset_updater_wrapper();
     const auto vendor_dir = (boost::filesystem::path(Slic3r::data_dir()) / "vendor").make_preferred();
     const auto archive_dir = (boost::filesystem::path(Slic3r::data_dir()) / "cache" / "vendor").make_preferred();
     const auto rsrc_vendor_dir = (boost::filesystem::path(resources_dir()) / "profiles").make_preferred();
     const auto cache_dir = boost::filesystem::path(Slic3r::data_dir()) / "cache"; // for Index
     // Load Prusa bundle from the datadir/vendor directory or from datadir/cache/vendor (archive) or from resources/profiles.
-    auto prusa_bundle_path = (vendor_dir / PresetBundle::PRUSA_BUNDLE).replace_extension(".ini");
+    auto prusa_bundle_path = (vendor_dir / PresetBundle::CR3D_BUNDLE).replace_extension(".ini");
     BundleLocation prusa_bundle_loc = BundleLocation::IN_VENDOR;
     if (! boost::filesystem::exists(prusa_bundle_path)) {
-        prusa_bundle_path = (archive_dir / PresetBundle::PRUSA_BUNDLE).replace_extension(".ini");
+        prusa_bundle_path = (archive_dir / PresetBundle::CR3D_BUNDLE).replace_extension(".ini");
         prusa_bundle_loc = BundleLocation::IN_ARCHIVE;
     }
     if (!boost::filesystem::exists(prusa_bundle_path)) {
-        prusa_bundle_path = (rsrc_vendor_dir / PresetBundle::PRUSA_BUNDLE).replace_extension(".ini");
+        prusa_bundle_path = (rsrc_vendor_dir / PresetBundle::CR3D_BUNDLE).replace_extension(".ini");
         prusa_bundle_loc = BundleLocation::IN_RESOURCES;
     }
     {
         Bundle prusa_bundle;
         if (prusa_bundle.load(std::move(prusa_bundle_path), prusa_bundle_loc, true))
-            res.emplace(PresetBundle::PRUSA_BUNDLE, std::move(prusa_bundle)); 
+            res.emplace(PresetBundle::CR3D_BUNDLE, std::move(prusa_bundle));
     }
-
+    
     // Load the other bundles in the datadir/vendor directory
     // and then additionally from datadir/cache/vendor (archive) and resources/profiles.
     // Should we concider case where archive has older profiles than resources (shouldnt happen)? -> YES, it happens during re-configuration when running older PS after newer version
@@ -161,11 +161,11 @@ BundleMap BundleMap::load()
         for (const auto &dir_entry : boost::filesystem::directory_iterator(dir.first)) {
             if (Slic3r::is_ini_file(dir_entry)) {
                 std::string id = dir_entry.path().stem().string();  // stem() = filename() without the trailing ".ini" part
-
+                
                 // Don't load this bundle if we've already loaded it.
                 if (res.find(id) != res.end()) { continue; }
-
-                // Fresh index should be in archive_dir, otherwise look for it in cache 
+                
+                // Fresh index should be in archive_dir, otherwise look for it in cache
                 // Then if not in archive or cache - it could be 3rd party profile that user just copied to vendor folder (both ini and cache)
                 
                 fs::path idx_path (archive_dir / (id + ".idx"));
@@ -181,7 +181,7 @@ BundleMap BundleMap::load()
                     BOOST_LOG_TRIVIAL(error) << format("Could not load bundle %1% due to missing index %2%.", id, idx_path.string());
                     continue;
                 }
-
+                
                 Slic3r::GUI::Config::Index index;
                 try {
                     index.load(idx_path);
@@ -225,17 +225,17 @@ BundleMap BundleMap::load()
             }
         }
     }
-
+    
     return res;
 }
 
 Bundle& BundleMap::prusa_bundle()
 {
-    auto it = find(PresetBundle::PRUSA_BUNDLE);
+    auto it = find(PresetBundle::CR3D_BUNDLE);
     if (it == end()) {
         throw Slic3r::RuntimeError("ConfigWizard: Internal error in BundleMap: PRUSA_BUNDLE not loaded");
     }
-
+    
     return it->second;
 }
 
@@ -253,15 +253,15 @@ struct PrinterPickerEvent : public wxEvent
     std::string model_id;
     std::string variant_name;
     bool enable;
-
+    
     PrinterPickerEvent(wxEventType eventType, int winid, std::string vendor_id, std::string model_id, std::string variant_name, bool enable)
-        : wxEvent(winid, eventType)
-        , vendor_id(std::move(vendor_id))
-        , model_id(std::move(model_id))
-        , variant_name(std::move(variant_name))
-        , enable(enable)
+    : wxEvent(winid, eventType)
+    , vendor_id(std::move(vendor_id))
+    , model_id(std::move(model_id))
+    , variant_name(std::move(variant_name))
+    , enable(enable)
     {}
-
+    
     virtual wxEvent *Clone() const
     {
         return new PrinterPickerEvent(*this);
@@ -273,38 +273,38 @@ wxDEFINE_EVENT(EVT_PRINTER_PICK, PrinterPickerEvent);
 const std::string PrinterPicker::PRINTER_PLACEHOLDER = "printer_placeholder.png";
 
 PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxString title, size_t max_cols, const AppConfig &appconfig, const ModelFilter &filter)
-    : wxPanel(parent)
-    , vendor_id(vendor.id)
-    , vendor_repo_id(vendor.repo_id)
-    , width(0)
+: wxPanel(parent)
+, vendor_id(vendor.id)
+, vendor_repo_id(vendor.repo_id)
+, width(0)
 {
     wxGetApp().UpdateDarkUI(this);
     const auto &models = vendor.models;
-
+    
     auto *sizer = new wxBoxSizer(wxVERTICAL);
-
+    
     const auto font_title = GetFont().MakeBold().Scaled(1.3f);
     const auto font_name = GetFont().MakeBold();
     const auto font_alt_nozzle = GetFont().Scaled(0.9f);
-
+    
     // wxGrid appends widgets by rows, but we need to construct them in columns.
     // These vectors are used to hold the elements so that they can be appended in the right order.
     std::vector<wxStaticText*> titles;
     std::vector<wxStaticBitmap*> bitmaps;
     std::vector<wxPanel*> variants_panels;
-
+    
     int max_row_width = 0;
     int current_row_width = 0;
-
+    
     bool is_variants = false;
-
+    
     const fs::path vendor_dir_path = (fs::path(Slic3r::data_dir()) / "vendor").make_preferred();
     const fs::path cache_dir_path = (fs::path(Slic3r::data_dir()) / "cache").make_preferred();
     const fs::path rsrc_dir_path = (fs::path(resources_dir()) / "profiles").make_preferred();
-
+    
     for (const auto &model : models) {
         if (! filter(model)) { continue; }
-
+        
         wxBitmap bitmap;
         int bitmap_width = 0;
         auto load_bitmap = [](const wxString& bitmap_file, wxBitmap& bitmap, int& bitmap_width) {
@@ -314,8 +314,8 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
         
         bool found = false;
         for (const fs::path& res : { rsrc_dir_path   / vendor.id / model.thumbnail
-                                   , vendor_dir_path / vendor.id / model.thumbnail
-                                   , cache_dir_path  / vendor.id / model.thumbnail })
+            , vendor_dir_path / vendor.id / model.thumbnail
+            , cache_dir_path  / vendor.id / model.thumbnail })
         {
             if (!fs::exists(res))
                 continue;
@@ -326,9 +326,9 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
         
         if (!found) {
             BOOST_LOG_TRIVIAL(warning) << boost::format("Can't find bitmap file `%1%` for vendor `%2%`, printer `%3%`, using placeholder icon instead")
-                % model.thumbnail
-                % vendor.id
-                % model.id;
+            % model.thumbnail
+            % vendor.id
+            % model.id;
             load_bitmap(Slic3r::var(PRINTER_PLACEHOLDER), bitmap, bitmap_width);
         }
         
@@ -336,70 +336,70 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
         title->SetFont(font_name);
         const int wrap_width = std::max((int)MODEL_MIN_WRAP, bitmap_width);
         title->Wrap(wrap_width);
-
+        
         current_row_width += wrap_width;
         if (titles.size() % max_cols == max_cols - 1) {
             max_row_width = std::max(max_row_width, current_row_width);
             current_row_width = 0;
         }
-
+        
         titles.push_back(title);
-
+        
         wxStaticBitmap* bitmap_widget = new wxStaticBitmap(this, wxID_ANY, bitmap);
         bitmaps.push_back(bitmap_widget);
-
+        
         auto *variants_panel = new wxPanel(this);
         wxGetApp().UpdateDarkUI(variants_panel);
         auto *variants_sizer = new wxBoxSizer(wxVERTICAL);
         variants_panel->SetSizer(variants_sizer);
         const auto model_id = model.id;
-
+        
         for (size_t i = 0; i < model.variants.size(); i++) {
             const auto &variant = model.variants[i];
-
+            
             const auto label = model.technology == ptFFF
-                ? format_wxstr("%1% %2%", variant.name, _L("mm"))
-                : from_u8(model.name);
-
-        
+            ? format_wxstr("%1%", variant.name)
+            : from_u8(model.name);
+            
+            
             if (i == 1) {
-                auto *alt_label = new wxStaticText(variants_panel, wxID_ANY, _L("Alternate nozzles:"));
+                auto *alt_label = new wxStaticText(variants_panel, wxID_ANY, _L("Alternate Tools:"));
                 alt_label->SetFont(font_alt_nozzle);
                 variants_sizer->Add(alt_label, 0, wxBOTTOM, 3);
                 is_variants = true;
             }
-
+            
             Checkbox* cbox = new Checkbox(variants_panel, label, model_id, variant.name);
             i == 0 ? cboxes.push_back(cbox) : cboxes_alt.push_back(cbox);
-
+            
             const bool enabled = appconfig.get_variant(vendor.id, model_id, variant.name);
             cbox->SetValue(enabled);
-
+            
             variants_sizer->Add(cbox, 0, wxBOTTOM, 3);
-
+            
             cbox->Bind(wxEVT_CHECKBOX, [this, cbox](wxCommandEvent &event) {
                 on_checkbox(cbox, event.IsChecked());
             });
         }
-
+        
         variants_panels.push_back(variants_panel);
     }
-
+    
     width = std::max(max_row_width, current_row_width);
-
+    
     const size_t cols = std::min(max_cols, titles.size());
-
+    
     auto *printer_grid = new wxFlexGridSizer(cols, 0, 20);
     printer_grid->SetFlexibleDirection(wxVERTICAL | wxHORIZONTAL);
-
+    
     if (titles.size() > 0) {
         const size_t odd_items = titles.size() % cols;
-
+        
         for (size_t i = 0; i < titles.size() - odd_items; i += cols) {
             for (size_t j = i; j < i + cols; j++) { printer_grid->Add(bitmaps[j], 0, wxBOTTOM, 20); }
             for (size_t j = i; j < i + cols; j++) { printer_grid->Add(titles[j], 0, wxBOTTOM, 3); }
             for (size_t j = i; j < i + cols; j++) { printer_grid->Add(variants_panels[j]); }
-
+            
             // Add separator space to multiliners
             if (titles.size() > cols) {
                 for (size_t j = i; j < i + cols; j++) { printer_grid->Add(1, 30); }
@@ -407,7 +407,7 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
         }
         if (odd_items > 0) {
             const size_t rem = titles.size() - odd_items;
-
+            
             for (size_t i = rem; i < titles.size(); i++) { printer_grid->Add(bitmaps[i], 0, wxBOTTOM, 20); }
             for (size_t i = 0; i < cols - odd_items; i++) { printer_grid->AddSpacer(1); }
             for (size_t i = rem; i < titles.size(); i++) { printer_grid->Add(titles[i], 0, wxBOTTOM, 3); }
@@ -415,7 +415,7 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
             for (size_t i = rem; i < titles.size(); i++) { printer_grid->Add(variants_panels[i]); }
         }
     }
-
+    
     auto *title_sizer = new wxBoxSizer(wxHORIZONTAL);
     if (! title.IsEmpty()) {
         auto *title_widget = new wxStaticText(this, wxID_ANY, title);
@@ -423,30 +423,30 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
         title_sizer->Add(title_widget);
     }
     title_sizer->AddStretchSpacer();
-
+    
     if (titles.size() > 1 || is_variants) {
         // It only makes sense to add the All / None buttons if there's multiple printers
         // All Standard button is added when there are more variants for at least one printer
         auto *sel_all_std = new wxButton(this, wxID_ANY, titles.size() > 1 ? _L("All standard") : _L("Standard"));
         auto *sel_all = new wxButton(this, wxID_ANY, _L("All"));
         auto *sel_none = new wxButton(this, wxID_ANY, _L("None"));
-        if (is_variants) 
+        if (is_variants)
             sel_all_std->Bind(wxEVT_BUTTON, [this](const wxCommandEvent& event) { this->select_all(true, false); });
         sel_all->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &event) { this->select_all(true, true); });
         sel_none->Bind(wxEVT_BUTTON, [this](const wxCommandEvent &event) { this->select_all(false); });
-        if (is_variants) 
+        if (is_variants)
             title_sizer->Add(sel_all_std, 0, wxRIGHT, BTN_SPACING);
         title_sizer->Add(sel_all, 0, wxRIGHT, BTN_SPACING);
         title_sizer->Add(sel_none);
-
+        
         wxGetApp().SetWindowVariantForButton(sel_all_std);
         wxGetApp().SetWindowVariantForButton(sel_all);
         wxGetApp().SetWindowVariantForButton(sel_none);
-
+        
         wxGetApp().UpdateDarkUI(sel_all_std);
         wxGetApp().UpdateDarkUI(sel_all);
         wxGetApp().UpdateDarkUI(sel_none);
-
+        
         // fill button indexes used later for buttons rescaling
         if (is_variants)
             m_button_indexes = { sel_all_std->GetId(), sel_all->GetId(), sel_none->GetId() };
@@ -455,15 +455,15 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
             m_button_indexes = { sel_all->GetId(), sel_none->GetId() };
         }
     }
-
+    
     sizer->Add(title_sizer, 0, wxEXPAND | wxBOTTOM, BTN_SPACING);
     sizer->Add(printer_grid);
-
+    
     SetSizer(sizer);
 }
 
 PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxString title, size_t max_cols, const AppConfig &appconfig)
-    : PrinterPicker(parent, vendor, std::move(title), max_cols, appconfig, [](const VendorProfile::PrinterModel&) { return true; })
+: PrinterPicker(parent, vendor, std::move(title), max_cols, appconfig, [](const VendorProfile::PrinterModel&) { return true; })
 {}
 
 void PrinterPicker::select_all(bool select, bool alternates)
@@ -474,9 +474,9 @@ void PrinterPicker::select_all(bool select, bool alternates)
             on_checkbox(cb, select);
         }
     }
-
+    
     if (! select) { alternates = false; }
-
+    
     for (const auto &cb : cboxes_alt) {
         if (cb->GetValue() != alternates) {
             cb->SetValue(alternates);
@@ -498,26 +498,26 @@ bool PrinterPicker::any_selected() const
     for (const auto &cb : cboxes) {
         if (cb->GetValue()) { return true; }
     }
-
+    
     for (const auto &cb : cboxes_alt) {
         if (cb->GetValue()) { return true; }
     }
-
+    
     return false;
 }
 
-std::set<std::string> PrinterPicker::get_selected_models() const 
+std::set<std::string> PrinterPicker::get_selected_models() const
 {
     std::set<std::string> ret_set;
-
+    
     for (const auto& cb : cboxes)
         if (cb->GetValue())
             ret_set.emplace(cb->model);
-
+    
     for (const auto& cb : cboxes_alt)
         if (cb->GetValue())
             ret_set.emplace(cb->model);
-
+    
     return ret_set;
 }
 
@@ -531,36 +531,36 @@ void PrinterPicker::on_checkbox(const Checkbox *cbox, bool checked)
 // Wizard page base
 
 ConfigWizardPage::ConfigWizardPage(ConfigWizard *parent, wxString title, wxString shortname, unsigned indent)
-    : wxPanel(parent->p->hscroll)
-    , parent(parent)
-    , shortname(std::move(shortname))
-    , indent(indent)
+: wxPanel(parent->p->hscroll)
+, parent(parent)
+, shortname(std::move(shortname))
+, indent(indent)
 {
     wxGetApp().UpdateDarkUI(this);
-
+    
     auto *sizer = new wxBoxSizer(wxVERTICAL);
-
+    
     auto *text = new wxStaticText(this, wxID_ANY, std::move(title), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
     const auto font = GetFont().MakeBold().Scaled(1.5);
     text->SetFont(font);
     sizer->Add(text, 0, wxALIGN_LEFT, 0);
     sizer->AddSpacer(10);
-
+    
     content = new wxBoxSizer(wxVERTICAL);
     sizer->Add(content, 1, wxEXPAND);
-
+    
     SetSizer(sizer);
-
+    
     /* ysFIXME - delete after testing and release
-    // Update!!! -> it looks like this workaround is no need any more after update of the wxWidgets to 3.2.0
-
-    // There is strange layout on Linux with GTK3, 
-    // see https://github.com/prusa3d/PrusaSlicer/issues/5103 and https://github.com/prusa3d/PrusaSlicer/issues/4861
-    // So, non-active pages will be hidden later, on wxEVT_SHOW, after completed Layout() for all pages 
-    if (!wxLinux_gtk3)
-    */
-        this->Hide();
-
+     // Update!!! -> it looks like this workaround is no need any more after update of the wxWidgets to 3.2.0
+     
+     // There is strange layout on Linux with GTK3,
+     // see https://github.com/prusa3d/PrusaSlicer/issues/5103 and https://github.com/prusa3d/PrusaSlicer/issues/4861
+     // So, non-active pages will be hidden later, on wxEVT_SHOW, after completed Layout() for all pages
+     if (!wxLinux_gtk3)
+     */
+    this->Hide();
+    
     Bind(wxEVT_SIZE, [this](wxSizeEvent &event) {
         this->Layout();
         event.Skip();
@@ -587,34 +587,111 @@ void ConfigWizardPage::append_spacer(int space)
 // Wizard pages
 
 PageWelcome::PageWelcome(ConfigWizard *parent)
-    : ConfigWizardPage(parent, format_wxstr(
-#ifdef __APPLE__
-            _L("Welcome to the %s Configuration Assistant")
-#else
-            _L("Welcome to the %s Configuration Wizard")
-#endif
-            , SLIC3R_APP_NAME), _L("Welcome"))
-    , welcome_text(append_text(format_wxstr(
-        _L("Hello, welcome to %s! This %s helps you with the initial configuration; just a few settings and you will be ready to print.")
-        , SLIC3R_APP_NAME
-        , _(ConfigWizard::name()))
-    ))
-    , cbox_reset(append(
-        new wxCheckBox(this, wxID_ANY, _L("Remove user profiles (a snapshot will be taken beforehand)"))
-    ))
-    , cbox_integrate(append(
-        new wxCheckBox(this, wxID_ANY, _L("Perform desktop integration (Sets this binary to be searchable by the system)."))
-    ))
+    : ConfigWizardPage(parent, format_wxstr(_L("Willkommen bei CR-3D!")), _L("Welcome"))
 {
-    welcome_text->Hide();
-    cbox_reset->Hide();
-    cbox_integrate->Hide();
+    wxInitAllImageHandlers();
+
+    // ---------- Controls ----------
+    auto* headline = new wxStaticText(this, wxID_ANY,
+        format_wxstr(_L("Dieser Assistent hilft Ihnen bei der "
+                        "Erstkonfiguration; nur ein paar Einstellungen und Sie sind bereit zum Drucken.")));
+    { wxFont f = headline->GetFont(); f.MakeBold(); f.SetPointSize(f.GetPointSize() + 6); headline->SetFont(f); }
+
+    auto* quote = new wxStaticText(this, wxID_ANY,
+        _L("\"CR-3D entwickelt und produziert 3D-Drucker, Filamente und den eigenen Slicer "
+           "SliCR-3D – 100% Made in Germany.\""));
+    { wxFont f = quote->GetFont(); f.MakeItalic(); quote->SetFont(f); }
+
+    auto* body = new wxStaticText(this, wxID_ANY,
+        _L("Wir bauen keine einfachen Drucker – wir entwickeln Werkzeuge für die digitale Fertigung:\n"
+           "Maschinen, Materialien, Software, Prozesse – alles unter einem Dach."));
+    auto* tagline = new wxStaticText(this, wxID_ANY,
+        _L("Inhouse. Hochwertig. Made in Cham, Bayern."));
+    { wxFont f = tagline->GetFont(); f.MakeBold(); tagline->SetFont(f); }
+
+   this->cbox_reset = new wxCheckBox(this, wxID_ANY,
+        _L("Benutzerprofile entfernen (eine Momentaufnahme wird vorab erstellt)"));
+   this->cbox_integrate = new wxCheckBox(this, wxID_ANY,
+        _L("Desktop-Integration durchführen (macht diese Anwendung systemweit auffindbar)."));
+
+    // --- Banner as bundle (SVG preferred by your get_bmp_bundle) ---
+    auto* banner = new wxStaticBitmap(this, wxID_ANY, *get_bmp_bundle("cr3d_welcome_image", 300, 300));
+    // Make it look clickable
+    banner->SetCursor(wxCursor(wxCURSOR_HAND));
+
+    // Bind left click event to open a link
+    banner->Bind(wxEVT_LEFT_DOWN, [=](wxMouseEvent&){
+        wxLaunchDefaultBrowser("https://cr3d.de");
+    });
+    
+    // Helper to center & wrap text
+    auto center_wrap = [&](wxStaticText* t, int width) {
+        long st = t->GetWindowStyleFlag();
+        st &= ~(wxALIGN_LEFT | wxALIGN_RIGHT);
+        st |= wxALIGN_LEFT | wxST_NO_AUTORESIZE;
+        t->SetWindowStyleFlag(st);
+        t->Wrap(width);
+        t->SetMinSize(wxSize(width, t->GetBestSize().y));
+    };
+
+    // ---------- Layout ----------
+    auto* root = new wxBoxSizer(wxVERTICAL);
+    root->AddSpacer(FromDIP(60, this));
+
+    auto* row = new wxBoxSizer(wxHORIZONTAL);
+    auto* content = new wxBoxSizer(wxVERTICAL);
+    row->AddStretchSpacer(5);
+    row->Add(content, 0, wxEXPAND);
+    row->AddStretchSpacer(3);
+    root->Add(row, 1, wxEXPAND | wxLEFT | wxRIGHT, FromDIP(8, this));
+    //root->AddSpacer(FromDIP(12, this));
+
+    // initial width
+    int wrapWidth = std::max(FromDIP(560, this),
+                      std::min(FromDIP(1000, this), GetClientSize().x - FromDIP(64, this)));
+    center_wrap(headline, wrapWidth);
+    center_wrap(quote,    wrapWidth);
+    center_wrap(body,     wrapWidth);
+    center_wrap(tagline,  wrapWidth);
+
+    int usable = wrapWidth; // same as used for center_wrap
+    cbox_reset->SetMinSize(wxSize(usable, -1));
+    cbox_integrate->SetMinSize(wxSize(usable, -1));
+    
+    content->Add(headline, 0, wxALIGN_LEFT | wxTOP, FromDIP(8, this));
+    content->AddSpacer(FromDIP(6, this));
+    content->Add(quote,    0, wxALIGN_LEFT | wxBOTTOM, FromDIP(8, this));
+    content->Add(body,     0, wxALIGN_LEFT | wxBOTTOM, FromDIP(10, this));
+    content->Add(tagline, 0, wxALIGN_LEFT | wxBOTTOM, FromDIP(16, this));
+    content->Add(banner,  0, wxALIGN_LEFT | wxBOTTOM, FromDIP(8, this)); // only bottom gap
+    content->Add(cbox_reset,     0, wxALIGN_LEFT | wxBOTTOM, FromDIP(8, this));
+    content->Add(cbox_integrate, 0, wxALIGN_LEFT | wxBOTTOM, FromDIP(8, this));
+    SetSizer(root);
+
+    // ---------- Responsive reflow ----------
+    auto reflow = [=]() {
+        const int outerMargin = FromDIP(24, this);
+        const int maxWidth    = FromDIP(1000, this);
+        const int minWidth    = FromDIP(560, this);
+        const int usable      = std::max(minWidth,
+                                std::min(maxWidth, GetClientSize().x - 2*outerMargin));
+
+        center_wrap(headline, usable);
+        center_wrap(quote,    usable);
+        center_wrap(body,     usable);
+        center_wrap(tagline,  usable);
+
+        Layout();
+    };
+
+    Bind(wxEVT_SIZE, [=](wxSizeEvent& e){ reflow(); e.Skip(); });
+    reflow();
 }
 
 void PageWelcome::set_run_reason(ConfigWizard::RunReason run_reason)
 {
     const bool data_empty = run_reason == ConfigWizard::RR_DATA_EMPTY;
-    welcome_text->Show(data_empty);
+   // welcome_text->Show(data_empty);
     cbox_reset->Show(!data_empty);
 #if defined(__linux__) && defined(SLIC3R_DESKTOP_INTEGRATION)
     if (!DesktopIntegrationDialog::is_integrated())
@@ -819,8 +896,8 @@ void PagePrinters::set_run_reason(ConfigWizard::RunReason run_reason)
     if (is_primary_printer_page
         && (run_reason == ConfigWizard::RR_DATA_EMPTY || run_reason == ConfigWizard::RR_DATA_LEGACY)
         && printer_pickers.size() > 0 
-        && printer_pickers[0]->vendor_id == PresetBundle::PRUSA_BUNDLE) {
-        printer_pickers[0]->select_one(0, true);
+        && printer_pickers[0]->vendor_id == PresetBundle::CR3D_BUNDLE) {
+        //printer_pickers[0]->select_one(0, true);
     }
 }
 
@@ -1653,13 +1730,6 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
         const auto bgr_clr_str = wxGetApp().get_html_bg_color(parent);
         const auto text_clr_str = encode_color(ColorRGB(text_clr.Red(), text_clr.Green(), text_clr.Blue()));
 
-        const wxString link = format_wxstr("<a href = \"%1%\">%1%</a>", "printables.com");
-
-        // TRN ConfigWizard : Downloader : %1% = "printables.com", %2% = "PrusaSlicer"
-        const wxString main_text = format_wxstr(_L("If enabled, you will be able to open models from the %1% "
-                                                   "online database with a single click (using a %2% logo button)."
-        ), link, SLIC3R_APP_NAME);
-
         const wxFont& font = this->GetFont();
         const int fs = font.GetPointSize();
         int size[] = { fs,fs,fs,fs,fs,fs,fs };
@@ -1667,11 +1737,10 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
 
         html_window->SetPage(format_wxstr(
             "<html><body bgcolor=%1% link=%2%>"
-            "<font color=%2% size=\"3\">%3%</font>"
+            "<font color=%2% size=\"3\"></font>"
             "</body></html>"
             , bgr_clr_str
             , text_clr_str
-            , main_text
         ));
     }
 
@@ -1815,8 +1884,8 @@ PageReloadFromDisk::PageReloadFromDisk(ConfigWizard* parent)
 PageFilesAssociation::PageFilesAssociation(ConfigWizard* parent)
     : ConfigWizardPage(parent, _L("Files association"), _L("Files association"))
 {
-    cb_3mf = new wxCheckBox(this, wxID_ANY, _L("Associate .3mf files to PrusaSlicer"));
-    cb_stl = new wxCheckBox(this, wxID_ANY, _L("Associate .stl files to PrusaSlicer"));
+    cb_3mf = new wxCheckBox(this, wxID_ANY, _L("Associate .3mf files to SliCR-3D"));
+    cb_stl = new wxCheckBox(this, wxID_ANY, _L("Associate .stl files to SliCR-3D"));
 //    cb_gcode = new wxCheckBox(this, wxID_ANY, _L("Associate .gcode files to PrusaSlicer G-code Viewer"));
 
     append(cb_3mf);
@@ -2693,7 +2762,7 @@ void ConfigWizard::priv::load_vendors()
 
                 const auto &model = needle->second.first;
                 const auto &variant = needle->second.second;
-                appconfig_new.set_variant("CR3D", model, variant, true);
+                appconfig_new.set_variant("CR-3D", model, variant, true);
             }
     }
 
@@ -3339,7 +3408,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
         return ptAny;
     };
     // Prusa printers are considered first, then 3rd party.
-    if (preferred_pt = get_preferred_printer_technology("CR3D", bundles.prusa_bundle());
+    if (preferred_pt = get_preferred_printer_technology("CR-3D", bundles.prusa_bundle());
         preferred_pt == ptAny || (preferred_pt == ptSLA && suppress_sla_printer)) {
         for (const auto& bundle : bundles) {
             if (bundle.second.is_prusa_bundle) { continue; }
@@ -3480,7 +3549,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
         return std::string();
     };
     // Prusa printers are considered first, then 3rd party.
-    if (preferred_model = get_preferred_printer_model("CR3D", bundles.prusa_bundle(), preferred_variant);
+    if (preferred_model = get_preferred_printer_model("CR-3D", bundles.prusa_bundle(), preferred_variant);
         preferred_model.empty()) {
         for (const auto& bundle : bundles) {
             if (bundle.second.is_prusa_bundle) { continue; }

@@ -87,6 +87,7 @@ int s_support_fff_get(string &out get_val)
 	return 3;
 }
 
+
 void s_support_fff_set(string &in new_val, int idx)
 {
 	if(idx == 0) { // None

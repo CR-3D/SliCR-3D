@@ -159,10 +159,15 @@ void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type ty
     {
         std::string grp_key = get_group_key(opt_key, type, idx);
 
-        assert(this->groups_and_categories.find(grp_key) == this->groups_and_categories.end()
-            || !this->groups_and_categories[grp_key].empty());
+        auto it = this->groups_and_categories.find(grp_key);
+        assert(it == this->groups_and_categories.end()
+            || !it->second.empty());
+        if (it == this->groups_and_categories.end()) {
+            //ignore
+            return;
+        }
 
-        for (const GroupAndCategory& gc : this->groups_and_categories[grp_key]) {
+        for (const GroupAndCategory& gc : it->second) {
             if (gc.group.IsEmpty() || gc.category.IsEmpty())
                 return;
 
@@ -172,60 +177,17 @@ void OptionsSearcher::append_options(DynamicPrintConfig* config, Preset::Type ty
                 this->options.push_back(std::move(option));
                 this->sorted = false;
             }
-
-            //wxString suffix;
-            //wxString suffix_local;
-            //if (gc.category == "Machine limits") {
-            //    suffix = id == '1' ? L("Stealth") : L("Normal");
-            //    suffix_local = " " + _(suffix);
-            //    suffix = " " + suffix;
-            //}
-            //else if (gc.group == "Dynamic overhang speed" && id >= 0) {
-            //    suffix = " " + std::to_string(id+1);
-            //    suffix_local = suffix;
-            //}
-
-            //const ConfigOptionDef& opt = gc.gui_opt;
-            //if (opt.opt_key == "complete_objects")
-            //    std::cout << "ok";
-
-            //std::string label = opt.full_label;
-            //if (label.find(opt.label) == std::string::npos)
-            //    label = opt.label;
-
-            //if (!label.empty())
-            //    options.emplace_back(SearchOption{ boost::nowide::widen(opt.opt_key), type, opt.mode,
-            //                                (wxString(label) + suffix).ToStdWstring(), (_(label) + suffix_local).ToStdWstring(),
-            //                                gc.group.ToStdWstring(), _(gc.group).ToStdWstring(),
-            //                                gc.category.ToStdWstring(), GUI::Tab::translate_category(gc.category, type).ToStdWstring() ,
-            //                                wxString(opt.tooltip).ToStdWstring(), (_(opt.tooltip)).ToStdWstring() });
         }
     };
 
     for (const t_config_option_key &opt_key : config->keys())
     {
         const ConfigOptionDef& opt = *config->option_def(opt_key);
-        //if (opt.mode != comNone && (opt.mode & current_tags) == 0)
-        //    continue;
 
-        int32_t cnt = 0;
-
-        if ((type == Preset::TYPE_SLA_MATERIAL || type == Preset::TYPE_FFF_FILAMENT || type == Preset::TYPE_PRINTER ||
-             opt.is_vector_extruder) &&
-            opt_key != "bed_shape") {
-            cnt = config->option(opt_key)->size();
-        }
-
-        //wxString label = opt.full_label.empty() ? opt.label : opt.full_label;
-        //if (label_override.find(opt.opt_key) != label_override.end()) {
-        //    label = label_override[opt.opt_key][1].empty() ? label_override[opt.opt_key][0] : label_override[opt.opt_key][1];
-        //}
-
-        if (cnt == 0)
-            emplace_option(opt_key, type, -1);
-        else
-            for (int i = 0; i < cnt; ++i)
-                emplace_option(opt_key, type, i);
+        // try with all idx, only the right ones will be added
+        emplace_option(opt_key, type, -1);
+        for (int i = 0; i < config->option(opt_key)->size(); ++i)
+            emplace_option(opt_key, type, i);
     }
 }
 
@@ -535,7 +497,6 @@ void OptionsSearcher::check_and_update(PrinterTechnology pt_in, ConfigOptionMode
         if (Preset::get_tech(opt.type))
             options.insert(options.end(), opt);
     }
-    
 
     options.insert(options.end(), preferences_options.begin(), preferences_options.end());
 

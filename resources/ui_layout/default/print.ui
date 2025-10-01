@@ -209,6 +209,8 @@ group:Layer height
 	setting:layer_height
 	setting:first_layer_height
 group:Filtering
+	setting:resolution
+	setting:resolution_internal
 	setting:model_precision
 	setting:slice_closing_radius
 	setting:bridge_precision
@@ -327,7 +329,6 @@ group:Infill
 
 group:Reducing Printing Time
 	setting:infill_every_layers
-	setting:infill_only_where_needed
 	line:Supporting dense layer
 		setting:tags$Advanced$Expert$SuSi:sidetext_width$0:label$_:infill_dense
 		setting:width$20:infill_dense_algo
@@ -391,11 +392,6 @@ group:Advanced Infill Options
 		setting:label$_:fill_smooth_width
 	end_line
 
-	line:Small Area Infill Flow Compensation (beta)
-		setting:label$_:sidetext_width$0:small_area_infill_flow_compensation
-		setting:label$_:small_area_infill_flow_compensation_model
-	end_line
-
 group:title_width$19:Ironing post-process (This will go on top of infills and perimeters)
 	line:Enable ironing post-process
 		setting:label$_:sidetext_width$0:ironing
@@ -415,9 +411,6 @@ group:title_width$19:Ironing post-process (This will go on top of infills and pe
 page:Skirt & Brim:skirt+brim
 group:Skirt
 	setting:tags$Advanced$Expert$Prusa:skirts
-	line:Skirt Distance
-		setting:label$_skirt_distance
-	end_line
 	line:Skirt Distance From Brim
 		setting:label$From Brim:skirt_distance_from_brim
 		setting:label$From Object:skirt_distance
@@ -609,8 +602,6 @@ group:Gap Fill Speed
 	line:Gap Fill Speed
 		setting:label$_:label$_:gap_fill_speed
 	end_line
-	line:Gap Fill Flow Match Perimeter
-		setting:label$_:sidetext$% of perimeter flow:sidetext_width$20:gap_fill_flow_match_perimeter
 
 group:Other Speed
 	line:Wipe Tower Speed
@@ -797,9 +788,6 @@ group:Overlap
 	line:Perimeter Overlap
 		setting:label$_:perimeter_overlap
 	end_line
-	line:Gap Fill Overlap
-		setting:label$_:gap_fill_overlap
-	end_line
 
     line:Solid Infill Overlap
         setting:label$_:solid_infill_overlap
@@ -848,10 +836,6 @@ group:Ooze prevention
 
 group:Wipe tower
 	setting:wipe_tower
-	line:Wipe Tower Position
-		setting:label_width$3:width$5:sidetext$mm:wipe_tower_x
-		setting:label_width$3:width$5:sidetext$mm:wipe_tower_y
-	end_line
 
 	line:Wipe Tower Width
 		setting:label$_:wipe_tower_width
@@ -896,6 +880,7 @@ group:Platter
 	setting:duplicate_distance
 group:Sequential printing
 	setting:tags$Advanced$Expert$Prusa:complete_objects
+	setting:ignore_extruder_clearance
 	setting:parallel_objects_step
 	setting:complete_objects_one_skirt
 	setting:complete_objects_sort

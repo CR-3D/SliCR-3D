@@ -1,20 +1,10 @@
 [
   {
-    "name": "CR3D",
-    "description": "CR3D printers",
+    "name": "CR-3D",
+    "description": "CR-3D printers",
     "visibility": "",
     "id": "cr3d-fff",
-    "url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/",
-    "index_url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/cr3d-fff/vendor_indices.zip"
-  },
-  {
-	"name": "Other FFF",
-	"description": "FFF Printers by other vendors",
-	"visibility": "",
-	"id": "non-prusa-fff",
-	"url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/non-prusa-fff/",
-	"index_url": "http://files.cr3d.de/updates/SliCR-3D/v1/repos/non-prusa-fff/vendor_indices.zip",
-	"selected": 1
+    "url": "http://files.cr3d.de/updates/SliCR-3D_Internal/v1/repos/cr3d-fff/",
+    "index_url": "http://files.cr3d.de/updates/SliCR-3D_Internal/v1/repos/cr3d-fff/vendor_indices.zip"
   }
 ]
-

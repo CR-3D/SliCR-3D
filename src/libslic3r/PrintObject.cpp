@@ -467,6 +467,9 @@ void PrintObject::prepare_infill()
         }
     }
 #endif
+    EnsureVerticalShellThickness ensure_vertical_shell_thickness = this->default_region_config(this->print()->default_region_config())
+            .option<ConfigOptionEnum<EnsureVerticalShellThickness>>("ensure_vertical_shell_thickness")->value;
+
 
     // Add solid fills to ensure the shell vertical thickness.
     if (m_print->objects().size() == 1) {
@@ -523,6 +526,7 @@ void PrintObject::prepare_infill()
     }
 #endif
 
+    if (ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Partial || ensure_vertical_shell_thickness == EnsureVerticalShellThickness::Enabled) {
         // this will detect bridges and reverse bridges
         // and rearrange top/bottom/internal surfaces
         // It produces enlarged overlapping bridging areas.
@@ -574,7 +578,7 @@ void PrintObject::prepare_infill()
         } // for each layer
     } // for each region
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
-
+}
     // Debugging output.
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
@@ -1018,11 +1022,7 @@ void PrintObject::generate_support_spots()
                 PrintBase::SlicingStatus::SECONDARY_STATE
             );
         } else {
-            m_print->set_status(
-                0,
-                "",
-                PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE
-            );
+            m_print->set_status(0, "", PrintBase::SlicingStatus::DEFAULT | PrintBase::SlicingStatus::SECONDARY_STATE);
         }
         if (!this->shared_regions()->generated_support_points.has_value()) {
             PrintTryCancel                cancel_func = m_print->make_try_cancel();
@@ -1159,9 +1159,9 @@ void PrintObject::simplify_extrusion_path()
                 // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment() + 1;
                  boost::format fmt(L("Optimizing layer %1% / %2%"));
-                 m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
+                m_print->set_status(int((nb_layers_done * 100) / m_print->secondary_status_counter_get_max()),
                                    (fmt % nb_layers_done % m_print->secondary_status_counter_get_max()).str(),
-                                   PrintBase::SlicingStatus::SECONDARY_STATE);
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
             }
         );
         //also simplify object skirt & brim
@@ -1197,7 +1197,7 @@ void PrintObject::simplify_extrusion_path()
                 m_print->throw_if_canceled();
                 m_support_layers[layer_idx]->simplify_support_extrusion_path();
 
-                 // updating progress
+                // updating progress
                 int32_t nb_layers_done = m_print->secondary_status_counter_increment() + 1;
                 boost::format fmt(L("Optimizing layer %1% / %2%"));
                 std::string msg = (fmt
@@ -1215,7 +1215,7 @@ void PrintObject::simplify_extrusion_path()
                 m_print->set_status(
                     progress,
                     msg,
-                    PrintBase::SlicingStatus::SECONDARY_STATE);
+                                PrintBase::SlicingStatus::SECONDARY_STATE);
             }
         );
         m_print->throw_if_canceled();
@@ -4415,45 +4415,52 @@ PrintObjectConfig PrintObject::object_config_from_model_object(const PrintObject
 }
 
 const std::string                                                    key_extruder { "extruder" };
-static const std::vector<std::string> keys_extruders { "infill_extruder", "solid_infill_extruder", "perimeter_extruder" };
+static constexpr const std::initializer_list<const std::string_view> keys_extruders { "infill_extruder"sv, "solid_infill_extruder"sv, "perimeter_extruder"sv };
 
 static void apply_to_print_region_config(PrintRegionConfig &out, const DynamicPrintConfig &in)
 {
-    const ConfigOptionInt *opt_main_extruder = in.opt<ConfigOptionInt>(key_extruder);
+    auto *opt_extruder = in.opt<ConfigOptionInt>(key_extruder);
 
-    for (const std::string &key : keys_extruders) {
-        ConfigOptionInt *out_role_extruder = out.opt<ConfigOptionInt>(key);
+    for (const auto &key : keys_extruders) {
+        std::optional<int> role_value;
 
-        // use main extruder if still default
-        if (opt_main_extruder && opt_main_extruder->value != 0 && !out_role_extruder->is_enabled()) {
-            out_role_extruder->value = opt_main_extruder->value;
-            // let out_role_extruder be disbaled -> new main extruder cna still override
+        // Check if the role is explicitly set
+        if (auto opt_role = in.opt<ConfigOptionInt>(std::string(key)); opt_role) {
+            role_value = opt_role->value; // Use explicitly set value, even if 1
+        }
+        // If not explicitly set, fall back to extruder if it's non-zero
+        else if (opt_extruder && (opt_extruder->value != 0 && opt_extruder->value != 1)) {
+            role_value = opt_extruder->value;
         }
 
-        const ConfigOptionInt *in_role_extruder = in.opt<ConfigOptionInt>(key);
-        // if in_role_extruder is enabled, then it override
-        if (in_role_extruder && in_role_extruder->is_enabled()) {
-            // copy back the 'in' config's value
-            out_role_extruder->value = in_role_extruder->value;
-            // set out_role_extruder to enabled -> other main extruder can't override
-            out_role_extruder->set_enabled(true);
+        // If we have a value to assign, apply it
+        if (role_value) {
+            int key_id = -1;
+            if (key == "infill_extruder")         key_id = 0;
+            else if (key == "solid_infill_extruder") key_id = 1;
+            else if (key == "perimeter_extruder")    key_id = 2;
+
+            switch (key_id) {
+                case 0: out.infill_extruder.value       = *role_value; break;
+                case 1: out.solid_infill_extruder.value = *role_value; break;
+                case 2: out.perimeter_extruder.value    = *role_value; break;
+                default: assert(false); break;
+            }
         }
     }
+
+    for (auto it = in.cbegin(); it != in.cend(); ++ it)
+        if (it->first != key_extruder)
+            if (ConfigOption* my_opt = out.option(it->first, false); my_opt != nullptr) {
+                    my_opt->set(*it->second);
+            }
+
 }
 
-PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &default_or_parent_region_config,
-                                                  const DynamicPrintConfig *layer_range_config,
-                                                  const ModelVolume &volume,
-                                                  size_t num_extruders)
+PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &default_or_parent_region_config, const DynamicPrintConfig *layer_range_config, const ModelVolume &volume, size_t num_extruders)
 {
     PrintRegionConfig config = default_or_parent_region_config;
-    //set default if disabled
-    for (const std::string &key : keys_extruders) {
-        ConfigOptionInt *out_role_extruder = config.opt<ConfigOptionInt>(key);
-        if (!out_role_extruder->is_enabled()) {
-            out_role_extruder->value = 1;
-        }
-    }
+
     // apply by increasing priority
     if (volume.is_model_part()) {
         // default_or_parent_region_config contains the Print's PrintRegionConfig.
@@ -4482,13 +4489,9 @@ PrintRegionConfig region_config_from_model_volume(const PrintRegionConfig &defau
         config.fill_density.value = std::min(config.fill_density.value, 100.);
     if (config.fuzzy_skin.value != FuzzySkinType::None && (config.fuzzy_skin_point_dist.value < 0.01 || config.fuzzy_skin_thickness.value < 0.001))
         config.fuzzy_skin.value = FuzzySkinType::None;
-
-    // not really useful, but good practice.
-    for (const std::string &key : keys_extruders) {
-        config.opt<ConfigOptionInt>(key)->set_enabled(true);
-    }
     return config;
 }
+
 
 void PrintObject::update_slicing_parameters()
 {

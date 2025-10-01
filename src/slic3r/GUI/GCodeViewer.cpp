@@ -226,10 +226,7 @@ void GCodeViewer::COG::render()
         const double inv_zoom = camera.get_inv_zoom();
         model_matrix = model_matrix * Geometry::scale_transform(inv_zoom);
     }
-    
-    Transform3d view_matrix = camera.get_view_matrix();
-    view_matrix.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
-    
+    const Transform3d& view_matrix = camera.get_view_matrix();
     shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
     shader->set_uniform("projection_matrix", camera.get_projection_matrix());
     const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
@@ -769,7 +766,7 @@ GCodeViewer::Extrusions::Ranges::Ranges(uint8_t max_decimals) :
             // Color mapping by volumetric extrusion rate.
             volumetric_rate(max_decimals),
             // Color mapping by volumetric extrusion mm3/mm.
-            volumetric_flow(max_decimals),
+            volumetric_flow(1),
             // Color mapping by extrusion temperature.
             temperature(0),
             // Color mapping by layer time.
@@ -1418,11 +1415,14 @@ void GCodeViewer::init()
     m_gl_data_initialized = true;
 }
 
+bool GCodeViewer::is_loaded(const GCodeProcessorResult& gcode_result) {
+    return (m_last_result_id == gcode_result.id);
+}
+
 void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& print)
 {
-
-    m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
-
+    if (!m_gcode_result.has_value())
+        m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
     assert(&m_gcode_result->get() == &gcode_result);
     if (!m_print.has_value())
         m_print = print;
@@ -1433,7 +1433,8 @@ void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& pr
 
     // avoid processing if called with the same gcode_result
     // unless you changed the path merge mode
-    if (m_last_result_id == gcode_result.id && ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
+    if (m_last_result_id == gcode_result.id && (m_current_mode == m_last_mode) &&
+        ! s_beds_switched_since_last_gcode_load && wxGetApp().is_editor() && ! s_reload_preview_after_switching_beds) {
         return;
     }
 
@@ -1519,7 +1520,11 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
 #if ENABLE_GCODE_VIEWER_STATISTICS
     auto start_time = std::chrono::high_resolution_clock::now();
 #endif // ENABLE_GCODE_VIEWER_STATISTICS
-
+    // gcode_result may be provided before the toolpaths are fully loaded.
+    // Use the result size directly to initialize m_moves_count so that
+    // range computations (volumetric rate / flow etc.) work on the first
+    // refresh as well.
+    m_moves_count = gcode_result.moves.size();
     if (m_moves_count == 0)
         return;
 
@@ -1590,7 +1595,7 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
                 m_extrusions.ranges.volumetric_flow.update_from(curr.mm3_per_mm);
                 for (size_t i = 0; i < gcode_result.print_statistics.modes.size(); ++i) {
                     // only the first & the last are usefull
-               //     m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
+                    m_extrusions.ranges.elapsed_time[i].update_from(curr.move_time);
                 }
             }
             [[fallthrough]];
@@ -2330,6 +2335,7 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
     m_cog.reset();
 
     m_sequential_view.gcode_ids.clear();
+    m_sequential_view.gcode_ids.reserve(gcode_result.moves.size());
     for (size_t i = 0; i < gcode_result.moves.size(); ++i) {
         const GCodeProcessorResult::MoveVertex& move = gcode_result.moves[i];
         if (move.type != EMoveType::Seam)
@@ -4075,9 +4081,9 @@ void GCodeViewer::render_shells()
     shader->start_using();
     shader->set_uniform("emission_factor", 0.1f);
     const Camera& camera = wxGetApp().plater()->get_camera();
-
     Transform3d tr = camera.get_view_matrix();
     tr.translate(s_multiple_beds.get_bed_translation(s_multiple_beds.get_active_bed()));
+    m_shells.volumes.render(GLVolumeCollection::ERenderType::Transparent, true, camera.get_view_matrix(), camera.get_projection_matrix());
 
     shader->set_uniform("emission_factor", 0.0f);
     shader->stop_using();
