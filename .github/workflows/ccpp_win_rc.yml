@@ -27,7 +27,7 @@ jobs:
       name: build deps if new cache
       working-directory: ./deps/build
       run: |
-        cmake -G "Visual Studio 17 2022" -DCMAKE_GENERATOR_PLATFORM=x64 ..
+        cmake -G "Visual Studio 17 2022" -A x64 -T host=x64 ..        
         msbuild build\ALL_BUILD.vcxproj /m /p:Configuration=Release /p:Platform=x64
         
   build:
