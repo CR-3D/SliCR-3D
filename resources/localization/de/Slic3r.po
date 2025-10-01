@@ -12,6 +12,24 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 3.4.2\n"
 
+msgid "Select requested quality of the mesh after import: "
+msgstr "Wählen Sie die gewünschte Qualität des Meshs nach dem Import aus: "
+
+msgid "Lower quality" 
+msgstr "Niedrigere Qualität"
+
+msgid "Higher quality"
+msgstr "Höhere Qualität"
+
+msgid "Linear precision"
+msgstr "Lineargenauigkeit"
+
+msgid "Angle precision"
+msgstr "Winkelpräzision"
+
+msgid "STEP import quality (%1%)"
+msgstr "STEP Import Qualität (%1%)"
+
 #: src/slic3r/GUI/Tab.cpp:4772
 #, boost-format
 msgid ""
