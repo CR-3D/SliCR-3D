@@ -3,7 +3,7 @@ name: C/C++ Release candidate arm macos
 on:
   push:
     branches:
-      - master_27
+      - rc
     
     #  - master_27_dev
 

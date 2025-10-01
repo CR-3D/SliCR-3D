@@ -1,4 +1,4 @@
-name: C/C++ Release candidate arm macos
+name: C/C++ Release arm macos
 
 on:
   push:
