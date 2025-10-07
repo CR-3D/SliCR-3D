@@ -13,6 +13,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
     - name: mkdir in deps
       run: mkdir deps/build
     - name: dep cache
@@ -21,13 +23,17 @@ jobs:
       with:
         key: win_2.7
         path: deps/build/destdir
+    - name: Force amd64 MSBuild
+      run: |
+        echo "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            
     - if: steps.cache-action.outputs.cache-hit != 'true'
       name: build deps if new cache
       working-directory: ./deps/build
       run: |
-        cmake .. -G "Visual Studio 17 2022" -A x64
-        msbuild /m ALL_BUILD.vcxproj
-
+        cmake -G "Visual Studio 17 2022" -A x64 -T host=x64 ^ -DCMAKE_MAKE_PROGRAM="C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\amd64\MSBuild.exe" ..       
+        msbuild build\ALL_BUILD.vcxproj /m /p:Configuration=Release /p:Platform=x64
+        
   build:
     runs-on: [self-hosted, windows, x64]
     needs: build_dep
@@ -35,6 +41,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
 
     - name: Update all submodules recursively and pull latest
       run: git submodule update --init --recursive --remote
