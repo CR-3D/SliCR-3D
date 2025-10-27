@@ -806,18 +806,6 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         }
 
     if (this->has_wipe_tower() && ! m_objects.empty()) {
-        // Make sure all extruders use same diameter filament and have the same nozzle diameter
-        // EPSILON comparison is used for nozzles and 10 % tolerance is used for filaments
-        double first_nozzle_diam = m_config.nozzle_diameter.get_at(*extruders.begin());
-        double first_filament_diam = m_config.filament_diameter.get_at(*extruders.begin());
-        for (const uint16_t& extruder_idx : extruders) {
-            double nozzle_diam = m_config.nozzle_diameter.get_at(extruder_idx);
-            double filament_diam = m_config.filament_diameter.get_at(extruder_idx);
-            if (nozzle_diam - EPSILON > first_nozzle_diam || nozzle_diam + EPSILON < first_nozzle_diam
-             || std::abs((filament_diam-first_filament_diam)/first_filament_diam) > 0.1)
-                return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The wipe tower is only supported if all extruders have the same nozzle diameter "
-                         "and use filaments of the same diameter.") };
-        }
 
         if (m_config.gcode_flavor != gcfRepRap 
             && m_config.gcode_flavor != gcfSprinter
@@ -852,8 +840,6 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                     || slicing_params0.gap_object_support != slicing_params.gap_object_support
                     || slicing_params0.gap_support_object != slicing_params.gap_support_object)
                     return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is only supported for multiple objects if they are printed with the same support_material_contact_distance") };
-                if (! equal_layering(slicing_params, slicing_params0))
-                    return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is only supported for multiple objects if they are sliced equally.") };
                 if (has_custom_layering) {
                     auto &lh         = layer_height_profile(i);
                     auto &lh_tallest = layer_height_profile(tallest_object_idx);
