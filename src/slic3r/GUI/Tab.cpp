@@ -1273,6 +1273,33 @@ void Tab::reload_config()
                 if (field) {
                     field->toggle_widget_enable(nozzle_diameters_count == 2);
                 }
+                
+                if (auto* layer_field = og_freq_chng_params->get_field(OptionKeyIdx::scalar("layer_height"))) {
+                    if (auto* print_tab = static_cast<TabPrint*>(this)) {
+                        if (auto* print_config = print_tab->get_config()) {
+
+                            // Make a copy of the current configuration
+                            DynamicPrintConfig new_config = *print_config;
+
+                            // Ensure both keys exist before accessing
+                            if (new_config.has("layer_height") && new_config.has("first_layer_height") && new_config.has("link_layer_heights")) {
+                                const bool link_layers = new_config.option<ConfigOptionBool>("link_layer_heights")->value;
+
+                                const float layer_height = new_config.option("layer_height")->get_float();
+                                const float first_layer_height = new_config.option("first_layer_height")->get_float();
+
+                                // If linked, but not yet synchronized — update first layer height
+                                if (link_layers && first_layer_height != layer_height) {
+                                    new_config.set_key_value("first_layer_height",
+                                        new ConfigOptionFloatOrPercent(layer_height, 0));
+
+                                    // Apply the updated configuration
+                                    print_tab->load_config(new_config);
+                                }
+                            }
+                        }
+                    }
+                }
 
                 for (auto group : page->m_optgroups) {
                     // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
