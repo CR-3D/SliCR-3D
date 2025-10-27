@@ -2778,7 +2778,7 @@ msgid "This is the DEFAULT extrusion width. It's ONLY used to REPLACE 0-width fi
 msgstr "Standard-Extrusionsbreite. Wird nur verwendet, wenn andere Breiten auf 0 gesetzt sind. Hat keinen Effekt, wenn alle anderen Breiten einen Wert besitzen.\nNicht-null-Wert = manuelle Extrusionsbreite. Null = automatische Berechnung aus Düsendurchmesser (siehe Tooltips für Perimeter-, Infill-Extrusionsbreite etc.). Prozentangaben werden relativ zum Düsendurchmesser berechnet.\nEs kann entweder der 'Abstand' oder die 'Breite' festgelegt werden, der andere Wert wird automatisch berechnet (unter Berücksichtigung der Perimeter-Überlappung und der Standard-Schichthöhe)."
 
 msgid "Complete individual objects"
-msgstr "Einzelne Objekte vollständig drucken"
+msgstr "Objekte nacheinander drucken"
 
 msgid "When printing multiple objects or copies, this feature will complete each object before moving onto next one (and starting it from its bottom layer). This feature is useful to avoid the risk of ruined prints. Slic3r should warn and prevent you from extruder collisions, but beware."
 msgstr "Beim Drucken mehrerer Objekte oder Kopien wird mit dieser Option jedes Objekt vollständig gedruckt, bevor mit dem nächsten begonnen wird (wieder von der ersten Schicht). Diese Funktion reduziert das Risiko, dass ein defektes Objekt den gesamten Druck ruiniert. Slic3r warnt vor möglichen Extruderkollisionen, dennoch Vorsicht!"
@@ -2787,13 +2787,13 @@ msgid "Parallel printing step"
 msgstr "Paralleldruck-Schrittweite"
 
 msgid "When multiple objects are present, instead of jumping form one to another at each layer the printer will continue to print the current object layers up to this height before moving to the next object. (first layers will be still printed one by one).\nThis feature also use the same extruder clearance radius field as 'complete individual objects' (complete_objects), but you can modify them to instead reflect the clerance of the nozzle, if this field reflect the z-clearance of it.\nThis field is exclusive with 'complete individual objects' (complete_objects). Set to 0 to deactivate."
-msgstr "Wenn mehrere Objekte vorhanden sind, druckt der Drucker nicht auf jeder Schicht abwechselnd alle Objekte, sondern beendet das aktuelle Objekt bis zur angegebenen Höhe, bevor er zum nächsten wechselt. (Die ersten Schichten werden weiterhin einzeln nacheinander gedruckt.)\nDiese Option nutzt denselben Extruderfreiraum wie die Einstellung „Einzelne Objekte vollständig drucken“, kann jedoch angepasst werden, um stattdessen den Düsenfreiraum widerzuspiegeln.\nKann nicht gleichzeitig mit „Einzelne Objekte vollständig drucken“ verwendet werden. Mit 0 deaktivieren."
+msgstr "Wenn mehrere Objekte vorhanden sind, druckt der Drucker nicht auf jeder Schicht abwechselnd alle Objekte, sondern beendet das aktuelle Objekt bis zur angegebenen Höhe, bevor er zum nächsten wechselt. (Die ersten Schichten werden weiterhin einzeln nacheinander gedruckt.)\nDiese Option nutzt denselben Extruderfreiraum wie die Einstellung „Objekte nacheinander drucken“, kann jedoch angepasst werden, um stattdessen den Düsenfreiraum widerzuspiegeln.\nKann nicht gleichzeitig mit „Objekte nacheinander drucken“ verwendet werden. Mit 0 deaktivieren."
 
 msgid "Allow only one skirt loop"
 msgstr "Nur eine Skirt-Schleife erlauben"
 
 msgid "When using 'Complete individual objects', the default behavior is to draw the skirt around each object. if you prefer to have only one skirt for the whole platter, use this option."
-msgstr "Bei aktivierter Option „Einzelne Objekte vollständig drucken“ wird standardmäßig um jedes Objekt ein eigener Skirt gezeichnet. Mit dieser Option wird nur ein einziger Skirt für alle Objekte erzeugt."
+msgstr "Bei aktivierter Option „Objekte nacheinander drucken“ wird standardmäßig um jedes Objekt ein eigener Skirt gezeichnet. Mit dieser Option wird nur ein einziger Skirt für alle Objekte erzeugt."
 
 msgid "Object sort"
 msgstr "Objekt-Sortierreihenfolge"
