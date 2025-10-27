@@ -953,54 +953,82 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                     if (max_layer_height < EPSILON || !config().max_layer_height.is_enabled()) max_layer_height = nozzle_diameter * 0.75;
                     if (min_layer_height > max_layer_height) return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Min layer height can't be greater than Max layer height") };
                     //if (max_layer_height > nozzle_diameter) return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Max layer height can't be greater than nozzle diameter") };
-                    double skirt_width = Flow::new_from_config_width(frPerimeter,
-                        *Flow::extrusion_width_option("skirt", m_default_region_config),
-                        *Flow::extrusion_spacing_option("skirt", m_default_region_config),
-                        (float)m_config.nozzle_diameter.get_at(extruder_id), 
-                        print_first_layer_height,
-                        1,0 //don't care, all i want if width from width
-                    ).width();
-                    //check first layer layer_ranges
                     
+                    double skirt_width = 0.0;
+                    bool skirt_enabled = config().skirts > 0;
+
+                    if (skirt_enabled) {
+                        skirt_width = Flow::new_from_config_width(
+                                          frPerimeter,
+                                          *Flow::extrusion_width_option("skirt", m_default_region_config),
+                                          *Flow::extrusion_spacing_option("skirt", m_default_region_config),
+                                          static_cast<float>(m_config.nozzle_diameter.get_at(extruder_id)),
+                                          print_first_layer_height,
+                                          1, 0 // only interested in width
+                                      ).width();
+                    }
+
                     if (object->shared_regions()->layer_ranges.front().layer_height_range.first < object_first_layer_height) {
                         if (object_first_layer_height + EPSILON < min_layer_height)
-                            return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("First layer height can't be lower than %s"), "min layer height") };
-                        for (auto tuple : std::vector<std::pair<double, const char*>>{
-                                {nozzle_diameter, "nozzle diameter"},
-                                {max_layer_height, "max layer height"},
-                                {skirt_width, "skirt extrusion width"},
-                                {object->config().support_material ? region.width(FlowRole::frSupportMaterial, true, *object) : object_first_layer_height, "support material extrusion width"},
-                                {region.width(FlowRole::frPerimeter, true, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frExternalPerimeter, true, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frInfill, true, *object), "infill extrusion width"},
-                                {region.width(FlowRole::frSolidInfill, true, *object), "solid infill extrusion width"},
-                                {region.width(FlowRole::frTopSolidInfill, true, *object), "top solid infill extrusion width"},
-                            })
-                            if (object_first_layer_height > tuple.first + EPSILON)
-                                return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("First layer height can't be greater than %s"), tuple.second) };
+                            return { PrintBase::PrintValidationError::pveWrongSettings,
+                                     format(_u8L("First layer height can't be lower than %s"), "min layer height") };
 
+                        std::vector<std::pair<double, const char*>> checks = {
+                            { nozzle_diameter, "nozzle diameter" },
+                            { max_layer_height, "max layer height" },
+                            { region.width(FlowRole::frPerimeter, true, *object), "perimeter extrusion width" },
+                            { region.width(FlowRole::frExternalPerimeter, true, *object), "external perimeter extrusion width" },
+                            { region.width(FlowRole::frInfill, true, *object), "infill extrusion width" },
+                            { region.width(FlowRole::frSolidInfill, true, *object), "solid infill extrusion width" },
+                            { region.width(FlowRole::frTopSolidInfill, true, *object), "top solid infill extrusion width" },
+                            { object->config().support_material
+                                ? region.width(FlowRole::frSupportMaterial, true, *object)
+                                : object_first_layer_height,
+                              "support material extrusion width" }
+                        };
+
+                        // Add skirt width check only if enabled
+                        if (skirt_enabled)
+                            checks.emplace_back(skirt_width, "skirt extrusion width");
+
+                        for (const auto& [limit, name] : checks) {
+                            if (object_first_layer_height > limit + EPSILON)
+                                return { PrintBase::PrintValidationError::pveWrongSettings,
+                                         format(_u8L("First layer height can't be greater than %s"), name) };
+                        }
                     }
+                    
                     //check not-first layer
                     if (object->shared_regions()->layer_ranges.front().layer_height_range.second > layer_height) {
                         if (layer_height + EPSILON < min_layer_height)
                             return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("Layer height can't be lower than %s"), "min layer height") };
-                        for (auto tuple : std::vector<std::pair<double, const char*>>{
-                                {nozzle_diameter, "nozzle diameter"},
-                                {max_layer_height, "max layer height"},
-                                {skirt_width, "skirt extrusion width"},
-                                {object->config().support_material ? region.width(FlowRole::frSupportMaterial, false, *object) : layer_height, "support material extrusion width"},
-                                {region.width(FlowRole::frPerimeter, false, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frExternalPerimeter, false, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frInfill, false, *object), "infill extrusion width"},
-                                {region.width(FlowRole::frSolidInfill, false, *object), "solid infill extrusion width"},
-                                {region.width(FlowRole::frTopSolidInfill, false, *object), "top solid infill extrusion width"},
-                            })
-                            if (layer_height > tuple.first + EPSILON)
-                                return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("Layer height can't be greater than %s"), tuple.second) };
+                        
+                        std::vector<std::pair<double, const char*>> checks = {
+                            { nozzle_diameter, "nozzle diameter" },
+                            { max_layer_height, "max layer height" },
+                            { region.width(FlowRole::frPerimeter, true, *object), "perimeter extrusion width" },
+                            { region.width(FlowRole::frExternalPerimeter, true, *object), "external perimeter extrusion width" },
+                            { region.width(FlowRole::frInfill, true, *object), "infill extrusion width" },
+                            { region.width(FlowRole::frSolidInfill, true, *object), "solid infill extrusion width" },
+                            { region.width(FlowRole::frTopSolidInfill, true, *object), "top solid infill extrusion width" },
+                            { object->config().support_material
+                                ? region.width(FlowRole::frSupportMaterial, true, *object)
+                                : object_first_layer_height,
+                              "support material extrusion width" }
+                        };
+
+                        // Add skirt width check only if enabled
+                        if (skirt_enabled)
+                            checks.emplace_back(skirt_width, "skirt extrusion width");
+
+                        for (const auto& [limit, name] : checks) {
+                            if (object_first_layer_height > limit + EPSILON)
+                                return { PrintBase::PrintValidationError::pveWrongSettings,
+                                         format(_u8L("Layer height can't be greater than %s"), name) };
+                        }
                     }
                 }
             }
-
         }
     }
     {
