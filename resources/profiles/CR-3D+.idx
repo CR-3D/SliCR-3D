@@ -4,3 +4,4 @@
 0.0.4 output_filename back to stable name
 0.0.5 changed PETG max_volumetric speed to 50 with toolhead 3+
 0.0.6 Changed bed temperature for 'SoftPLA ToolHead 3+'
+0.0.7 Changed skirt_extrusion_width to 125% and all remaining filament_max_volumetric_speed's to 40mm/3 max
