@@ -3655,13 +3655,20 @@ void Plater::priv::selection_changed()
 
 void Plater::priv::object_list_changed()
 {
+    if (!wxGetApp().plater())
+        return;
     const bool export_in_progress = this->background_process.is_export_scheduled(); // || ! send_gcode_file.empty());
                                                                                     //
     if (printer_technology == ptFFF) {
         for (std::size_t bed_index{}; bed_index < s_multiple_beds.get_number_of_beds(); ++bed_index) {
-            if (
-                wxGetApp().plater()->get_fff_prints()[bed_index]->empty()) {
+            if ( wxGetApp().plater()->get_fff_prints()[bed_index]->empty()) {
                 s_print_statuses[bed_index] = PrintStatus::empty;
+            } else if (
+                wxGetApp().plater()->get_fff_prints()[bed_index]->finished()
+                && is_sliceable(s_print_statuses[bed_index])
+                && s_print_statuses[bed_index] != PrintStatus::toolpath_outside
+            ) {
+                s_print_statuses[bed_index] = PrintStatus::finished;
             }
             for (const ModelObject *object : wxGetApp().model().objects) {
                 for (const ModelInstance *instance : object->instances) {
@@ -3859,8 +3866,10 @@ void Plater::priv::split_object()
         
         // load all model objects at once, otherwise the plate would be rearranged after each one
         // causing original positions not to be kept
+        s_multiple_beds.set_loading_project_flag(true);
         std::vector<size_t> idxs = load_model_objects(new_objects);
-        
+        s_multiple_beds.set_loading_project_flag(false);
+
         // clear previosli selection
         get_selection().clear();
         // select newly added objects
@@ -8447,6 +8456,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
     if (!optional_default_output_file) {
         return;
     }
+
     const fs::path &default_output_file{*optional_default_output_file};
     const std::string start_dir{get_output_start_dir(prefer_removable, default_output_file)};
     const auto optional_output_dir{get_multiple_output_dir(start_dir)};
@@ -8454,6 +8464,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         return;
     }
     const fs_path &output_dir{*optional_output_dir};
+
 
     std::map<int, PrintToExport> prints_to_export;
     std::vector<std::pair< int, std::optional<fs::path> >> paths;
@@ -8465,11 +8476,26 @@ void Plater::export_all_gcodes(bool prefer_removable) {
             continue;
         }
 
+        fs::path default_filename{default_output_file.filename()};
+        this->with_mocked_fff_background_process(
+            *print,
+            this->p->gcode_results[print_index],
+            print_index,
+            [&](){
+                const auto optional_file{this->get_default_output_file()};
+                if (!optional_file) {
+                    return;
+                }
+                const fs::path &default_file{*optional_file};
+                default_filename = default_file.filename();
+            }
+        );
+
         const fs::path filename{
-            default_output_file.stem().string()
+            default_filename.stem().string()
             + "_bed"
             + std::to_string(print_index + 1)
-            + default_output_file.extension().string()
+            + default_filename.extension().string()
         };
         const fs::path output_file{output_dir / filename};
         prints_to_export.insert({
@@ -8479,7 +8505,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         paths.emplace_back(print_index, output_file);
     }
 
-    BulkExportDialog dialog{paths};
+    BulkExportDialog dialog{paths, _L("Export beds"),  "<>[]:/\\|?*\""};
     if (dialog.ShowModal() != wxID_OK) {
         return;
     }
@@ -8513,7 +8539,7 @@ void Plater::export_all_gcodes(bool prefer_removable) {
         );
     }
 
- //   p->notification_manager->push_bulk_exporting_finished_notification(output_dir.string(), path_on_removable_media);
+   // p->notification_manager->push_bulk_exporting_finished_notification(output_dir.string(), path_on_removable_media);
 }
 
 void Plater::export_stl_obj(std::string path_u8, bool extended, bool selection_only)
@@ -8904,28 +8930,28 @@ void Plater::reslice()
     // There is "invalid data" button instead "slice now"
     if (!is_sliceable(s_print_statuses[s_multiple_beds.get_active_bed()]))
         return;
-    
+
     // In case SLA gizmo is in editing mode, refuse to continue
     // and notify user that he should leave it first.
     if (canvas3D()->get_gizmos_manager().is_in_editing_mode(true))
         return;
-    
+
     // Stop the running (and queued) UI jobs and only proceed if they actually
     // get stopped.
     unsigned timeout_ms = 10000;
     if (!stop_queue(this->get_ui_job_worker(), timeout_ms)) {
         BOOST_LOG_TRIVIAL(error) << "Could not stop UI job within "
-        << timeout_ms << " milliseconds timeout!";
+                                 << timeout_ms << " milliseconds timeout!";
         return;
     }
-    
+
     if (printer_technology() == ptSLA) {
-        for (auto &object : model().objects)
+        for (auto& object : model().objects)
             if (object->sla_points_status == sla::PointsStatus::NoPoints)
                 object->sla_points_status = sla::PointsStatus::Generating;
     }
-    
-    // FIXME Don't reslice if export of G-code or sending to OctoPrint is running.
+
+    //FIXME Don't reslice if export of G-code or sending to OctoPrint is running.
     // bitmask of UpdateBackgroundProcessReturnState
     unsigned int state = this->p->update_background_process(true);
     if (state & priv::UPDATE_BACKGROUND_PROCESS_REFRESH_SCENE)
@@ -8934,28 +8960,30 @@ void Plater::reslice()
     this->p->background_process.set_task(PrintBase::TaskParams());
     // Only restarts if the state is valid.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
-    
+
     if ((state & priv::UPDATE_BACKGROUND_PROCESS_INVALID) != 0)
         return;
-    
+
     bool clean_gcode_toolpaths = true;
     if (p->background_process.running())
     {
-        if (wxGetApp().get_mode() == comSimple && !get_app_config()->get_bool("objects_always_expert"))
+        if (wxGetApp().get_mode() == comSimple)
             p->sidebar->set_btn_label(ActionButtonType::abReslice, _L("Slicing") + dots);
-        else {
+        else
+        {
             p->sidebar->set_btn_label(ActionButtonType::abReslice, _L("Slice now"));
             p->show_action_buttons(false);
         }
-    } else if (!p->background_process.empty() && !p->background_process.idle())
+    }
+    else if (!p->background_process.empty() && !p->background_process.idle())
         p->show_action_buttons(true);
     else
         clean_gcode_toolpaths = false;
-    
+
     if (clean_gcode_toolpaths)
         reset_gcode_toolpaths();
-    
-    p->preview->reload_print(!clean_gcode_toolpaths);
+
+    p->preview->reload_print();
 }
 
 void Plater::reslice_until_step_inner(int step, const ModelObject &object, bool postpone_error_messages)
