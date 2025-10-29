@@ -1773,19 +1773,24 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionBool(false));
 
     def = this->add("external_perimeters_vase", coBool);
-    def->label = L("In vase mode (no seam)");
+    def->label = L("In vase mode (scarf seam)");
     def->full_label = L("External perimeters in vase mode");
     def->category = OptionCategory::perimeter;
-    def->tooltip = L("Print contour perimeters in two circles, in a continuous way, like for a vase mode. It needs "
-                     "the external_perimeters_first parameter to work."
-                     " \nDoesn't work for the first layer, as it may damage the bed overwise."
-                     " \nNote that it will use min_layer_height from your hardware setting as the base height (it "
-                     "doesn't start at 0)"
-                     ", so be sure to put here the lowest value your printer can handle."
-                     " if it's not lower than two times the current layer height, it falls back to the normal "
-                     "algorithm, as there is not enough room to do two loops.");
+    def->tooltip = L("Print contour perimeters in two circles, in a continuous way, like for a vase mode. It needs the external_perimeters_first parameter to work."
+        "\nDoesn't work for the first layer, as it may damage the bed overwise."
+        "\nIt does two loop instead of one, the first one growing and the second one shrinking the height.");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("external_perimeters_vase_min_height", coFloatOrPercent);
+    def->label = L("Minimum extrusion height");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("When using the 'external_perimeters_vase' (scarf seam) setting, it will use this setting to compute the base height (it doesn't start at 0)"
+        ", so be sure to put here the lowest value your extruder can handle whithout clogging (or 0 if it works)."
+        "\nCan't be more than a third of the current layer height."
+        "\nCan be a percentage of the current nozzle diameter.");
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent(5, true));
 
     def = this->add("external_perimeters_nothole", coBool);
     def->label = L("Only for contours");
@@ -10273,6 +10278,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "external_perimeters_hole",
 "external_perimeters_nothole",
 "external_perimeters_vase",
+"external_perimeters_vase_min_height",
 "extra_perimeters_odd_layers",
 "extruder_extrusion_multiplier_speed",
 "extruder_fan_offset",

@@ -179,8 +179,11 @@ group:External perimeter first
 		setting:external_perimeters_nothole
 		setting:external_perimeters_hole
 	end_line
-	setting:external_perimeters_vase
-	setting:perimeter_bonding
+	
+	line:In vase Mode (no seam)
+		setting:label$_:external_perimeters_vase
+		setting:external_perimeters_vase_min_height
+	end_line	setting:perimeter_bonding
 
 group:Arachne perimeter generator (variable width)
 	line:Wall Transition Angle

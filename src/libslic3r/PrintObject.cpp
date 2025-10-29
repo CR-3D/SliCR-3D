@@ -1537,6 +1537,7 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "external_perimeter_extrusion_spacing"
             || opt_key == "external_perimeter_extrusion_width"
             || opt_key == "external_perimeters_vase"
+            || opt_key == "external_perimeters_vase_min_height"
             || opt_key == "min_width_top_surface"
             || opt_key == "only_one_perimeter_first_layer"
             || opt_key == "only_one_perimeter_top"

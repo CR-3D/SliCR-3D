@@ -4081,276 +4081,334 @@ std::string GCodeGenerator::change_layer(double print_z) {
 
 //TODO: rework: just change the core path extrusion to change z, and add extra loops in the middle.
 //like extrude_loop but with varying z and two full round
-std::string GCodeGenerator::extrude_loop_vase(const ExtrusionLoop &original_loop, const std::string_view description, double speed)
+std::string GCodeGenerator::extrude_loop_vase(const ExtrusionPaths &normal_loop_paths, const ExtrusionLoop &original_loop, const std::string_view description, double speed)
 {
-    //don't keep the speed
-    speed = -1;
-    // get a copy; don't modify the orientation of the original loop object otherwise
-    // next copies (if any) would not detect the correct orientation
-    ExtrusionLoop loop_to_seam = original_loop;
-    bool save_flipped = this->visitor_flipped;
-    if (this->visitor_flipped) {
-        assert(loop_to_seam.can_reverse());
-        loop_to_seam.reverse();
+    double saved_z_mm = writer().get_unlifted_position().z();
+
+    // will use first half of normal_loop_paths, then use a loop of original_loop and then the last half of normal_loop_paths
+    // will start at external_perimeters_vase_min_height z, and reach layer->printz - external_perimeters_vase_min_height
+    // (growing height) in a full loop, and then extrude the second loop until it's finished.
+
+    distf_t modified_loop_length = 0;
+    for (const ExtrusionPath &path : normal_loop_paths) {
+        modified_loop_length += path.length();
     }
-    this->visitor_flipped = false;
+    distf_t original_loop_length = original_loop.length();
 
-    // extrude all loops ccw
-    //no! this was decided in perimeter_generator
-    bool is_hole_loop = (loop_to_seam.loop_role() & ExtrusionLoopRole::elrHole) != 0;// loop.make_counter_clockwise();
-    bool reverse_turn = loop_to_seam.polygon().is_clockwise() ^ is_hole_loop;
+    std::vector<ExtrusionPath> first_loop;
+    std::vector<ExtrusionPath> second_loop;
+    std::vector<ExtrusionPath> second_loop_next;
 
-    split_at_seam_pos(loop_to_seam, reverse_turn);
-    const coordf_t full_loop_length = loop_to_seam.length();
-
-    // don't clip the path ?
-    ExtrusionPaths &paths = loop_to_seam.paths;
-    if (false && m_enable_loop_clipping && m_writer.tool_is_extruder()) {
-        coordf_t clip_length = scale_(m_config.seam_gap.get_abs_value(m_writer.tool()->id(), EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)));
-        if (original_loop.role().is_external_perimeter()) {
-            coordf_t clip_length_external = scale_(m_config.seam_gap_external.get_abs_value(m_writer.tool()->id(), unscaled(clip_length)));
-            if (clip_length_external > 0) {
-                clip_length = clip_length_external;
+    ArcPolyline before_split, after_split;
+    distf_t loop_length = 0;
+    Point pt_to_search_for;
+    bool pt_split = false;
+    for (const ExtrusionPath &path : normal_loop_paths) {
+        distf_t path_length = path.length();
+        if (loop_length + path_length < modified_loop_length / 2) {
+            first_loop.emplace_back(path);
+            loop_length += path_length;
+        } else if(loop_length < modified_loop_length / 2) {
+            // found a middle point
+            distf_t dist_to_keep = modified_loop_length / 2 - loop_length;
+            distf_t dist_too_much = path_length - dist_to_keep;
+            first_loop.emplace_back(path);
+            second_loop_next.emplace_back(path);
+            path.polyline.split_at(dist_to_keep, before_split, after_split);
+            first_loop.back().polyline = before_split;
+            second_loop_next.front().polyline = after_split;
+            // check length
+            if (first_loop.back().length() < SCALED_EPSILON) {
+                first_loop.pop_back();
+                before_split.clear();
+                second_loop_next.front().polyline = path.polyline;
+                pt_to_search_for = after_split.front();
+                pt_split = false;
+            } else if (second_loop_next.back().length() < SCALED_EPSILON) {
+                second_loop_next.pop_back();
+                after_split.clear();
+                first_loop.back().polyline = path.polyline;
+                pt_to_search_for = before_split.back();
+                pt_split = false;
+            } else {
+                pt_to_search_for = before_split.get_point(before_split.size() - 2);
+                pt_split = true;
             }
-        }
-        coordf_t min_clip_length = scale_(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)) * 0.15;
-
-        // get paths
-        ExtrusionPaths clipped;
-        if (clip_length > min_clip_length) {
-            clipped = clip_end(paths, clip_length);
-            clip_end(clipped, min_clip_length);
-            for (ExtrusionPath& ep : clipped)
-                ep.attributes_mutable().mm3_per_mm = 0;
-            append(paths, clipped);
         } else {
-            clip_end(paths, clip_length);
+            second_loop_next.emplace_back(path);
         }
     }
-
-    if (paths.empty()) return "";
-
-    // apply the small/external? perimeter speed
-    if (speed == -1 && paths.front().role().is_perimeter() && this->m_config.small_perimeter_speed.value > 0 && paths.front().role() != ExtrusionRole::ThinWall){
-        coordf_t min_length = scale_d(this->m_config.small_perimeter_min_length.get_abs_value(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)));
-        coordf_t max_length = scale_d(this->m_config.small_perimeter_max_length.get_abs_value(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)));
-        max_length = std::max(min_length, max_length);
-        if (full_loop_length < max_length) {
-            if (full_loop_length <= min_length) {
-                speed = SMALL_PERIMETER_SPEED_RATIO_OFFSET;
-            } else if (max_length > min_length) {
-                //use a negative speed: it will be use as a ratio when computing the real speed
-                speed = SMALL_PERIMETER_SPEED_RATIO_OFFSET - (full_loop_length - min_length) / (max_length - min_length);
+    //add original loop
+    // find point
+    std::vector<ExtrusionPath> orig_p1;
+    std::vector<ExtrusionPath> orig_p2;
+    bool found_point = false;
+    for (const ExtrusionPath &path : original_loop.paths) {
+        int index = path.polyline.find_point(pt_to_search_for, SCALED_EPSILON);
+        if (index < 0) {
+            if (!found_point) {
+                orig_p2.push_back(path);
+            } else {
+                orig_p1.push_back(path);
             }
-        }
-    }
-
-    //get extrusion length
-    coordf_t length = 0;
-    for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
-        //path->simplify(std::max(coord_t(SCALED_EPSILON), scale_t(m_config.resolution.value)), false, 0); //not useful, this should have been done before.
-        length += path->length() * SCALING_FACTOR;
-    }
-
-    //all in unscaled coordinates (hence why it's coordf_t and not coord_t)
-    const coordf_t min_height = m_config.min_layer_height.get_abs_value(m_writer.tool()->id(), m_config.nozzle_diameter.get_at(m_writer.tool()->id()));
-    const coordf_t bot_init_z = - this->m_layer->height;
-    //const coordf_t bot_last_z = bot_init_z + this->m_layer->height - m_config.min_layer_height.get_abs_value(m_writer.tool()->id(), m_config.nozzle_diameter.get_at(m_writer.tool()->id()));
-    const coordf_t init_z = bot_init_z + min_height;
-    //const coordf_t last_z = bot_init_z + this->m_layer->height;
-
-    Point inward_point;
-    //move the seam point inward a little bit
-    if (EXTRUDER_CONFIG_WITH_DEFAULT(wipe_inside_end, true) && paths.back().role().is_external_perimeter() && m_layer != NULL &&
-        m_config.perimeters.value > 1 && paths.front().size() >= 2 && paths.back().polyline.size() >= 3) {
-        // detect angle between last and first segment
-        // the side depends on the original winding order of the polygon (left for contours, right for holes)
-        //FIXME improve the algorithm in case the loop is tiny.
-        //FIXME improve the algorithm in case the loop is split into segments with a low number of points (see the Point b query).
-        Point a = paths.front().polyline.get_point(1);  // second point
-        Point b = paths.back().polyline.get_point(paths.back().polyline.size() - 2);       // second to last point
-        if (reverse_turn) {
-            // swap points
-            Point c = a; a = b; b = c;
-        }
-#ifdef _DEBUG
-        assert(ccw_angle_old_test(paths.front().first_point(), a, b) ==
-               abs_angle(angle_ccw( a - paths.front().first_point(),b - paths.front().first_point())));
-#endif
-        double angle = abs_angle(angle_ccw(a-paths.front().first_point(),b-paths.front().first_point())) * 2 / 3;
-
-        // turn left if contour, turn right if hole
-        if (reverse_turn) angle *= -1;
-
-        // create the destination point along the first segment and rotate it
-        // we make sure we don't exceed the segment length because we don't know
-        // the rotation of the second segment so we might cross the object boundary
-        Vec2d  p1 = paths.front().polyline.front().cast<double>();
-        Vec2d  p2 = paths.front().polyline.get_point(1).cast<double>();
-        Vec2d  v = p2 - p1;
-        double nd = scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, paths.front().width()));
-        double l2 = v.squaredNorm();
-        // Shift by no more than a nozzle diameter.
-        //FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        inward_point = (/*(nd * nd >= l2) ? p2 : */Point::round(p1 + v * (nd / sqrt(l2))));
-        inward_point.rotate(angle, paths.front().polyline.front());
-    }
-
-    coordf_t current_pos_in_length = 0;
-    coordf_t current_z = 0; // over init_z
-    coordf_t current_height = min_height;
-    coordf_t starting_height = min_height;
-    enum Step {
-        INCR = 0,
-        FLAT = 1
-    };
-    std::string gcode;
-    for (int step = 0; step < 2; step++) {
-        current_pos_in_length = 0;
-        current_z = 0;
-        const coordf_t z_per_length = (step == Step::INCR) ? ((this->m_layer->height - (min_height + min_height)) / length) : 0;
-        const coordf_t height_per_length = (step == Step::INCR) ? ((this->m_layer->height- (min_height + min_height)) / length) : ((-this->m_layer->height + (min_height + min_height)) / length);
-        if (step == Step::FLAT) {
-            current_height = this->m_layer->height - min_height;
-            starting_height = this->m_layer->height - min_height;
-        }
-        Vec3d previous;
-        for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
-            if (path == paths.begin() ){
-                if (step == Step::INCR) {
-                    if (paths.back().role() == ExtrusionRole::ExternalPerimeter && m_layer != NULL && m_config.perimeters.value > 1 && paths.front().size() >= 2 && paths.back().polyline.size() >= 3) {
-                        paths[0].polyline.append_before(inward_point);
-                    }
-                    this->m_writer.travel_to_z(this->m_layer->print_z + init_z);
+        } else {
+            found_point = true;
+            assert(path.polyline.get_point(index) == pt_to_search_for);
+            if (pt_split || index > 0) {
+                // create end of orig_p2
+                orig_p2.push_back(path);
+                orig_p2.back().polyline.clear();
+                orig_p2.back().polyline.append(path.polyline.front());
+                for (size_t i = 1; i < index + 1; i++) {
+                    orig_p2.back().polyline.append(path.polyline.get_arc(i));
+                }
+                assert(orig_p2.back().last_point() == pt_to_search_for);
+                assert(before_split.size() > 1 || !pt_split);
+                if (pt_split && before_split.size() > 1) {
+                    orig_p2.back().polyline.append(before_split.get_arc(before_split.size() - 1));
+                }
+            }
+            if (pt_split || index < path.size() - 1) {
+                size_t start_index = index + 1;
+                // create start of orig_p1
+                orig_p1.push_back(path);
+                orig_p1.back().polyline.clear();
+                assert(after_split.size() > 1 || !pt_split);
+                if (pt_split && after_split.size() > 1) {
+                    orig_p1.back().polyline.append(after_split.get_point(0));
+                    orig_p1.back().polyline.append(after_split.get_arc(1));
+                    start_index++;
                 } else {
-                    //ensure we're at the right height
-                    this->m_writer.travel_to_z(this->m_layer->print_z);
+                    orig_p1.back().polyline.append(pt_to_search_for);
+                }
+                assert(orig_p2.empty() || orig_p2.back().last_point() == orig_p1.front().first_point());
+                assert(start_index >= path.size() || orig_p1.back().last_point() == path.polyline.get_point(start_index - 1));
+                for (size_t i = start_index; i < path.size(); i++) {
+                    assert(orig_p1.back().last_point() != path.polyline.get_point(i));
+                    orig_p1.back().polyline.append(path.polyline.get_arc(i));
                 }
             }
-            gcode += this->_before_extrude(*path, description, speed);
-            if (path == paths.begin() && step == Step::INCR){
-                if (paths.back().role() == ExtrusionRole::ExternalPerimeter && m_layer != NULL && m_config.perimeters.value > 1 && paths.front().size() >= 2 && paths.back().polyline.size() >= 3) {
-                    assert(! paths.empty() && paths.front().polyline.size() > 1 && !paths.front().polyline.get_arc(1).linear());
-                    paths[0].polyline.pop_front();
-                    gcode += m_writer.extrude_to_xy(this->point_to_gcode(paths[0].polyline.front()), 0);
-                }
-            }
+        }
+    }
+    if (!found_point) {
+        assert(false);
+        //error, point not found, revert to normal extrusion
+        std::string gcode;
+        for (const ExtrusionPath &path : normal_loop_paths) {
+            assert(!path.can_reverse());
+            if (path.polyline.size() > 1)
+                gcode += extrude_path(path, description, speed);
+        }
+        return gcode;
+    }
+    assert(orig_p1.empty() || orig_p2.empty() || orig_p1.back().last_point() == orig_p2.front().first_point());
+    append(orig_p1, std::move(orig_p2));
+    assert(first_loop.back().last_point() == orig_p1.front().first_point());
+    assert(orig_p1.back().last_point() == second_loop_next.front().first_point());
 
-            // calculate extrusion length per distance unit
-            double e_per_mm_per_height = _compute_e_per_mm(*path);
-            //extrude
-            {
-                std::string_view comment = config().gcode_comments ? description : ""sv;
-                Polyline poly = path->polyline.to_polyline();
-                for (const Line &line : poly.lines()) {
-                    const coordf_t line_length = line.length() * SCALING_FACTOR;
-                    //don't go (much) more than a nozzle_size without a refresh of the z & extrusion rate
-                    const int nb_sections = std::max(1,int(line_length / EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, path->width())));
-                    const coordf_t height_increment = height_per_length * line_length / nb_sections;
-                    Vec3d last_point{ this->point_to_gcode(line.a).x(), this->point_to_gcode(line.a).y(), current_z };
-                    const Vec3d pos_increment{ (this->point_to_gcode(line.b).x() - last_point.x()) / nb_sections,
-                        (this->point_to_gcode(line.b).y() - last_point.y()) / nb_sections,
-                        z_per_length * line_length / nb_sections };
-                    coordf_t current_height_internal = current_height + height_increment / 2;
-                    //ensure you go to the good xyz
-                    if( (last_point - previous).norm() > EPSILON)
-                        gcode += m_writer.extrude_to_xyz(last_point, 0, description);
-                    //extrusions
-                    for (int i = 0; i < nb_sections - 1; i++) {
-                        Vec3d new_point = last_point + pos_increment;
-                        gcode += m_writer.extrude_to_xyz(new_point,
-                            e_per_mm_per_height * (line_length / nb_sections) * current_height_internal,
-                            description);
-                        current_height_internal += height_increment;
-                        last_point = new_point;
+    // now split orig_p1 in the middle, put them in first_loop & second_loop
+    loop_length = 0;
+    for (const ExtrusionPath &path : orig_p1) {
+        distf_t path_length = path.length();
+        if (loop_length + path_length < original_loop_length / 2) {
+            first_loop.emplace_back(path);
+        } else if(loop_length < original_loop_length / 2) {
+            // found a middle point
+            distf_t dist_to_keep = original_loop_length / 2 - loop_length;
+            distf_t dist_too_much = path_length - dist_to_keep;
+            first_loop.emplace_back(path);
+            second_loop.emplace_back(path);
+            first_loop.back().polyline.clear();
+            second_loop.back().polyline.clear();
+            path.polyline.split_at(dist_to_keep, first_loop.back().polyline, second_loop.front().polyline);
+            // check length
+            if (first_loop.back().length() < SCALED_EPSILON) {
+                first_loop.pop_back();
+                second_loop.front().polyline = path.polyline;
+                pt_to_search_for = after_split.front();
+            } else if (second_loop.back().length() < SCALED_EPSILON) {
+                second_loop.pop_back();
+                first_loop.back().polyline = path.polyline;
+                pt_to_search_for = before_split.back();
+            } else {
+                pt_to_search_for = before_split.get_point(before_split.size() - 2);
+            }
+        } else {
+            second_loop.emplace_back(path);
+        }
+        loop_length += path_length;
+    }
+    // merge second loop
+    assert(second_loop.back().last_point() == second_loop_next.front().first_point());
+    append(second_loop, std::move(second_loop_next));
+    second_loop_next.clear();
+
+    // update length
+    distf_t first_loop_length = 0;
+    for (const ExtrusionPath &path : first_loop) {
+        first_loop_length += path.length();
+    }
+    distf_t second_loop_length = 0;
+    for (const ExtrusionPath &path : second_loop) {
+        second_loop_length += path.length();
+    }
+
+    assert(std::abs(first_loop_length - second_loop_length) < first_loop_length / 4);
+
+    //compute z offset
+    const double layer_height_mm = (normal_loop_paths.front().height());
+    double min_layer_height_mm = (config().external_perimeters_vase_min_height.get_abs_value(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)));
+    min_layer_height_mm = std::min(min_layer_height_mm, layer_height_mm/3);
+
+    const double start_first_loop_offset_mm = min_layer_height_mm - layer_height_mm;
+    const double end_first_loop_offset_mm = -min_layer_height_mm;
+    const double start_first_loop_layer_height = min_layer_height_mm;
+    const double end_first_loop_layer_height = layer_height_mm - min_layer_height_mm;
+    const double end_second_loop_layer_height = min_layer_height_mm;
+
+    const distf_t max_path3d_length = std::max(original_loop_length / 100,
+                                         scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, 0)) / 2);
+    
+    std::vector<ExtrusionPath3D> first_section;
+    //first_section.emplace_back(first_loop.front());
+    //first_section.back().polyline.clear();
+    //first_section.back().polyline.append(first_loop.front().first_point());
+    //first_section.back().z_offsets.push_back(start_first_loop_offset_mm);
+    ////TODO: better flow computation than just a rectangle
+    //first_section.back().attributes_mutable().mm3_per_mm = first_section.back().mm3_per_mm() * start_first_loop_layer_height / first_section.back().height();
+    //first_section.back().attributes_mutable().height = start_first_loop_layer_height;
+
+    // create offsets
+    double current_length = 0;
+    double current_length_segment = 0;
+    for (const ExtrusionPath &path : first_loop) {
+        for (size_t i = 1; i < path.polyline.size(); i++) {
+            distf_t new_length = Geometry::ArcWelder::segment_length<coordf_t>(path.polyline.get_arc(i - 1), path.polyline.get_arc(i));
+            if (current_length_segment == 0 || current_length_segment + new_length > max_path3d_length) {
+                // create new segment(s)
+                size_t nb_new_seg = std::max(size_t(1), size_t(0.5 + new_length / max_path3d_length));
+                Point last_point = first_section.empty() ? first_loop.front().first_point() :
+                                                           first_section.back().last_point();
+                coord_t last_z = first_section.empty() ? scale_t(start_first_loop_offset_mm) :
+                                                           first_section.back().z_offsets.back();
+                distf_t little_seg_length = new_length / nb_new_seg;
+                current_length_segment = 0;
+                for (size_t idx_split = 0; idx_split < nb_new_seg; ++idx_split) {
+                    current_length_segment += little_seg_length;
+                    first_section.emplace_back(path);
+                    first_section.back().polyline.clear();
+                    first_section.back().polyline.append(last_point);
+                    first_section.back().polyline.append(path.polyline.get_arc(i));
+                    distf_t mid_dist = current_length;
+                    if (idx_split < nb_new_seg - 1) {
+                        first_section.back().polyline.clip_end(new_length - current_length_segment);
+                        mid_dist += little_seg_length / 2;
+                    } else {
+                        mid_dist += max_path3d_length / 2;
                     }
-                    //last bit will go to the exact last pos
-                    last_point.x() = this->point_to_gcode(line.b).x();
-                    last_point.y() = this->point_to_gcode(line.b).y();
-                    last_point.z() = current_z + z_per_length * line_length;
-                    gcode += m_writer.extrude_to_xyz(
-                        last_point,
-                        e_per_mm_per_height * (line_length / nb_sections) * current_height_internal,
-                        comment);
-                    previous = last_point;
-
-                    //update vars for next line
-                    current_pos_in_length += line_length;
-                    current_z = current_pos_in_length * z_per_length;//last_point.z();
-                    current_height = starting_height + current_pos_in_length * height_per_length;
+                    last_point = first_section.back().polyline.back();
+                    first_section.back().z_offsets.push_back(last_z);
+                    current_length += little_seg_length;
+                    last_z = scale_t(start_first_loop_offset_mm * (1 - current_length / first_loop_length) +
+                                     end_first_loop_offset_mm * (current_length / first_loop_length));
+                    first_section.back().z_offsets.push_back(last_z);
+                    double current_layer_height_mm = start_first_loop_layer_height *
+                            (1 - mid_dist / first_loop_length) +
+                        end_first_loop_layer_height * (mid_dist / first_loop_length);
+                    // TODO: better flow computation than just a rectangle
+                    first_section.back().attributes_mutable().mm3_per_mm = first_section.back().mm3_per_mm() *
+                        current_layer_height_mm / first_section.back().height();
+                    first_section.back().attributes_mutable().height = current_layer_height_mm;
                 }
+                current_length_segment = little_seg_length;
+            } else {
+                current_length += new_length;
+                current_length_segment += new_length;
+                // add new point
+                first_section.back().polyline.append(path.polyline.get_arc(i));
+                first_section.back().z_offsets.push_back(scale_t(
+                    start_first_loop_offset_mm * (1 - current_length / first_loop_length) +
+                    end_first_loop_offset_mm * (current_length / first_loop_length)));
             }
-            gcode += this->_after_extrude(*path);
+        }
+        assert(first_section.back().z_offsets.size() == first_section.back().polyline.size());
+    }
+    // not a brutal z jump
+    //TODO: ensure the dist is fixed.
+    //first_section.back().z_offsets.back() = 0;
+
+    current_length = 0;
+    current_length_segment = 0;
+    std::vector<ExtrusionPath> second_section;
+    //second_section.emplace_back(second_loop.front());
+    //second_section.back().polyline.clear();
+    //second_section.back().polyline.append(second_loop.front().first_point());
+    ////TODO: better flow computation than just a rectangle
+    //second_section.back().attributes_mutable().mm3_per_mm = second_section.back().mm3_per_mm() * end_first_loop_layer_height / second_section.back().height();
+    //second_section.back().attributes_mutable().height = end_first_loop_layer_height;
+    for (const ExtrusionPath &path : second_loop) {
+        for (size_t i = 1; i < path.polyline.size(); i++) {
+            distf_t new_length = Geometry::ArcWelder::segment_length<coordf_t>(path.polyline.get_arc(i - 1), path.polyline.get_arc(i));
+            if (current_length_segment == 0 || current_length_segment + new_length > max_path3d_length) {
+                // create new segment(s)
+                size_t nb_new_seg = std::max(size_t(1), size_t(0.5 + new_length / max_path3d_length));
+                Point last_point = second_section.empty() ? second_loop.front().first_point() :
+                                                            second_section.back().last_point();
+                distf_t little_seg_length = new_length / nb_new_seg;
+                current_length_segment = 0;
+                for (size_t idx_split = 0; idx_split < nb_new_seg; ++idx_split) {
+                    current_length_segment += little_seg_length;
+                    second_section.emplace_back(path);
+                    second_section.back().polyline.clear();
+                    second_section.back().polyline.append(last_point);
+                    second_section.back().polyline.append(path.polyline.get_arc(i));
+                    distf_t mid_dist = current_length;
+                    if (idx_split < nb_new_seg - 1) {
+                        second_section.back().polyline.clip_end(new_length - current_length_segment);
+                        mid_dist += little_seg_length / 2;
+                    } else {
+                        mid_dist += max_path3d_length / 2;
+                    }
+                    last_point = second_section.back().polyline.back();
+                    current_length += little_seg_length;
+                    double current_layer_height_mm = 
+                        end_first_loop_layer_height * (1 - mid_dist / first_loop_length) +
+                        end_second_loop_layer_height * (mid_dist / first_loop_length);
+                    // TODO: better flow computation than just a rectangle
+                    second_section.back().attributes_mutable().mm3_per_mm = second_section.back().mm3_per_mm() *
+                        current_layer_height_mm / second_section.back().height();
+                    second_section.back().attributes_mutable().height = current_layer_height_mm;
+                }
+                current_length_segment = little_seg_length;
+            } else {
+                current_length += new_length;
+                current_length_segment += new_length;
+                // add new point
+                second_section.back().polyline.append(path.polyline.get_arc(i));
+            }
         }
     }
 
-    // reset acceleration
-    m_writer.set_acceleration((uint16_t)floor(get_default_acceleration(m_config) + 0.5));
-
-    //don't wipe here
-    //if (m_wipe.is_enabled())
-    //    m_wipe.path = paths.front().polyline;  // TODO: don't limit wipe to last path
-
-    //just continue on the perimeter a bit while retracting
-    //FIXME this doesn't work work, hence why it's commented
-    //coordf_t travel_length = std::min(length, EXTRUDER_CONFIG(nozzle_diameter) * 10);
-    //for (auto & path : paths){
-    //    for (const Line &line : path.polyline.lines()) {
-    //        if (unscaled(line.length()) > travel_length) {
-    //            // generate the travel move
-    //            gcode += m_writer.travel_to_xy(this->point_to_gcode(line.b), 0.0, "move inwards before travel");
-    //            travel_length -= unscaled(line.length());
-    //        }
-    //        else
-    //        {
-    //            gcode += m_writer.travel_to_xy(this->point_to_gcode(line.a) + (this->point_to_gcode(line.b) - this->point_to_gcode(line.a)) * (travel_length / unscaled(line.length())), 0.0, "move before travel");
-    //            travel_length = 0;
-    //            //double break;
-    //            goto FINISH_MOVE;
-    //        }
-    //    }
-    //}
-    //FINISH_MOVE:
-
-    // make a little move inwards before leaving loop
-    if (paths.back().role().is_external_perimeter() && m_layer != NULL && m_config.perimeters.value > 1 && paths.front().size() >= 2 && paths.back().polyline.size() >= 3) {
-        // detect angle between last and first segment
-        // the side depends on the original winding order of the polygon (left for contours, right for holes)
-        //FIXME improve the algorithm in case the loop is tiny.
-        //FIXME improve the algorithm in case the loop is split into segments with a low number of points (see the Point b query).
-        Point a = paths.front().polyline.get_point(1);  // second point
-        Point b = paths.back().polyline.get_point(paths.back().polyline.size()-2);       // second to last point
-        if (reverse_turn) {
-            // swap points
-            Point c = a; a = b; b = c;
-        }
-#ifdef _DEBUG
-        assert(ccw_angle_old_test(paths.front().first_point(), a, b) == abs_angle(angle_ccw( a - paths.front().first_point(),b - paths.front().first_point())));
+    //extrude
+    std::string gcode;
+    
+#ifdef _DEBUGINFO
+    m_loop_vase_mode = true;
 #endif
-        double angle = abs_angle(angle_ccw( a - paths.front().first_point(),b - paths.front().first_point())) / 3;
-
-        // turn left if contour, turn right if hole
-        if (reverse_turn) angle *= -1;
-
-        // create the destination point along the first segment and rotate it
-        // we make sure we don't exceed the segment length because we don't know
-        // the rotation of the second segment so we might cross the object boundary
-        Vec2d  p1 = paths.front().polyline.front().cast<double>();
-        Vec2d  p2 = paths.front().polyline.get_point(1).cast<double>();
-        Vec2d  v = p2 - p1;
-        coordf_t nd = scale_d(EXTRUDER_CONFIG_WITH_DEFAULT(nozzle_diameter, paths.front().width()));
-        double l2 = v.squaredNorm();
-        // Shift by no more than a nozzle diameter.
-        //FIXME Hiding the seams will not work nicely for very densely discretized contours!
-        inward_point = (/*(nd * nd >= l2) ? p2 : */Point::round(p1 + v * (nd / sqrt(l2))));
-        inward_point.rotate(angle, paths.front().polyline.front());
-        
-        // generate the travel move
-        gcode += m_writer.travel_to_xy(this->point_to_gcode(inward_point), 0.0, "move inwards before travel");
+    gcode += _travel_before_extrude(first_section.front(), description, -1);
+    gcode += m_writer.travel_to_z(saved_z_mm + unscaled(first_section.front().z_offsets.front()));
+    for (const ExtrusionPath3D &path3D : first_section) {
+        assert (path3D.polyline.size() > 1);
+        gcode += extrude_path_3D(path3D, description, speed);
     }
-
-    assert(!this->visitor_flipped);
-    this->visitor_flipped = save_flipped;
+    gcode += m_writer.travel_to_z(saved_z_mm, description);
+#ifdef _DEBUGINFO
+    m_loop_vase_mode = false;
+#endif
+    for (const ExtrusionPath &path : second_section) {
+        assert (path.polyline.size() > 1);
+        gcode += extrude_path(path, description, speed);
+    }
     return gcode;
 }
 
@@ -4835,15 +4893,6 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
 
     bool has_spiral_vase = m_spiral_vase_layer > 0;
 
-    //no-seam code path redirect
-    if (original_loop.role() == ExtrusionRole::ExternalPerimeter && (original_loop.loop_role() & elrVase) != 0 && !has_spiral_vase
-        //but not for the first layer
-        && this->m_layer->id() > 0
-        //exclude if min_layer_height * 2 > layer_height (increase from 2 to 3 because it's working but uses in-between)
-        && this->m_layer->height >= m_config.min_layer_height.get_abs_value(m_writer.tool()->id(), nozzle_diam) * 2 - EPSILON) {
-        return extrude_loop_vase(original_loop, description, speed);
-    }
-
     ExtrusionLoop loop_to_seam = original_loop;
     for (const ExtrusionPath &path : loop_to_seam.paths)
         for (int i = 1; i < path.polyline.size(); ++i)
@@ -5060,11 +5109,27 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &original_loop, con
     }
     // extrude along the path
     //FIXME: we can have one-point paths in the loop that don't move : it's useless! and can create problems!
-    for (const ExtrusionPath& path : paths) {
-        assert(!path.can_reverse());
-        if(path.polyline.size() > 1)
-            gcode += extrude_path(path, description, speed);
+    //no-seam code path redirect
+    bool noseam_perimeter = false;
+    if ((original_loop.loop_role() & elrVase) != 0) {
+        noseam_perimeter = true;
+        noseam_perimeter = noseam_perimeter && original_loop.role() == ExtrusionRole::ExternalPerimeter;
+        noseam_perimeter = noseam_perimeter && !has_spiral_vase;
+        noseam_perimeter = noseam_perimeter &&  this->m_layer_index > 0;
+        noseam_perimeter = noseam_perimeter && original_loop.role() == ExtrusionRole::ExternalPerimeter;
     }
+    if (noseam_perimeter) {
+         gcode += extrude_loop_vase(paths, original_loop, description, speed);
+    } else {
+        // normal codepath
+        // FIXME: we can have one-point paths in the loop that don't move : it's useless! and can create problems!
+        for (const ExtrusionPath &path : paths) {
+            assert(!path.can_reverse());
+            if (path.polyline.size() > 1)
+                gcode += extrude_path(path, description, speed);
+        }
+    }
+
     //extrusion notch end if any
     for (const ExtrusionPath& path : notch_extrusion_end) {
         assert(!path.can_reverse());
@@ -5756,7 +5821,8 @@ std::string GCodeGenerator::extrude_path_3D(const ExtrusionPath3D &path, const s
         simplifed_path.reverse();
     }
 
-    std::string gcode = this->_before_extrude(simplifed_path, description, speed);
+    std::string gcode;
+    gcode += this->_before_extrude(simplifed_path, description, speed);
 
     // calculate extrusion length per distance unit
     double e_per_mm = _compute_e_per_mm(simplifed_path);
@@ -5777,8 +5843,8 @@ std::string GCodeGenerator::extrude_path_3D(const ExtrusionPath3D &path, const s
     }
     gcode += this->_after_extrude(simplifed_path);
     // ensure z is reset
-    if (!is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON)) {
-        assert(m_writer.get_position().z() > m_layer->print_z);
+    if (!is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON) && m_writer.get_position().z() > m_layer->print_z) {
+        //assert(m_writer.get_position().z() > m_layer->print_z);
         m_writer.set_lift(m_writer.get_position().z() - m_layer->print_z);
     }
 
@@ -7037,7 +7103,7 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
     // compensate retraction
     if (m_delayed_layer_change.empty()) {
         gcode += m_writer.unlift();//this->unretract();
-        assert(is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON));
+        assert(is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON) || m_loop_vase_mode);
     } else {
         //check if an unlift happens
         std::string unlift = m_writer.unlift();
@@ -7596,7 +7662,7 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
         this->writer().set_lift(this->writer().get_position().z() - *m_new_z_target);
         m_new_z_target.reset();
     }
-    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON) || comment == "Travel to a Wipe Tower");
+    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON) || comment == "Travel to a Wipe Tower" || m_loop_vase_mode);
 }
 
 // generate a travel in xyz

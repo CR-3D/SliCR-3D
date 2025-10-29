@@ -315,8 +315,11 @@ public:
     ArcPolyline &operator=(const ArcPolyline &) = default;
     ArcPolyline &operator=(ArcPolyline &&) = default;
 
-    void append(const Point &point) { m_path.emplace_back(Geometry::ArcWelder::Segment{point, 0.f, Geometry::ArcWelder::Orientation::Unknown}); }
+    void append(const Point &point) { m_path.emplace_back(/*Geometry::ArcWelder::Segment{*/point, 0.f, Geometry::ArcWelder::Orientation::Unknown/*}*/); }
     void append_before(const Point &point) { m_path.insert(m_path.begin(), Geometry::ArcWelder::Segment{point, 0.f, Geometry::ArcWelder::Orientation::Unknown}); }
+    // Only use this append if and only if you're sure that the previous point is the same as one from another good ArcPolyline. First point need to be added via append(Point).
+    void append(const Geometry::ArcWelder::Segment &to_copy_arc) { m_path.push_back(to_copy_arc); assert(is_valid());}
+    
     void append(const Points &src);
     void append(Points &&src);
     void append(const Points::const_iterator &begin, const Points::const_iterator &end);

@@ -562,6 +562,7 @@ static std::vector<std::string> s_Preset_print_options {
         "external_perimeters_first",
         "external_perimeters_first_force",
         "external_perimeters_vase",
+        "external_perimeters_vase_min_height",
         "external_perimeters_nothole",
         "external_perimeters_hole",
         // fill pattern
