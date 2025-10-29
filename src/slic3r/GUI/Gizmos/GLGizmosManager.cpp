@@ -193,9 +193,10 @@ bool GLGizmosManager::open_gizmo(EType type) {
     if (m_current == type)
         type = Undefined;
 
-    if (m_gizmos[idx]->is_actionable()) {
+    if (m_gizmos[idx]->is_actionable() && m_gizmos[idx]->is_activable()) {
         m_gizmos[idx]->trigger_action();
         // remove update data into gizmo itself
+        activate_gizmo(type);
         update_data();
         return true;
     }
@@ -259,6 +260,7 @@ bool GLGizmosManager::handle_shortcut(int key)
     if (GLGizmoBase* gizmo_emboss = m_gizmos[Emboss].get();
         is_key(gizmo_emboss->get_shortcut_key())) {
         dynamic_cast<GLGizmoEmboss *>(gizmo_emboss)->on_shortcut_key();
+        dynamic_cast<GLGizmoEmboss*>(gizmo_emboss)->m_should_trigger_action = false;
         return true;
     }
 
@@ -274,6 +276,8 @@ bool GLGizmosManager::handle_shortcut(int key)
         return false;
 
     EType gizmo_type = EType(it - m_gizmos.begin());
+
+
     return open_gizmo(gizmo_type);
 }
 
