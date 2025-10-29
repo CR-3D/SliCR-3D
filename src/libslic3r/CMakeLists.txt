@@ -39,6 +39,8 @@ set(SLIC3R_SOURCES
     AABBTreeLines.hpp
     AABBMesh.hpp
     AABBMesh.cpp
+    Algorithm/LineSegmentation/LineSegmentation.cpp
+    Algorithm/LineSegmentation/LineSegmentation.hpp
     Algorithm/PathSorting.hpp
     Algorithm/RegionExpansion.hpp
     Algorithm/RegionExpansion.cpp
@@ -92,6 +94,8 @@ set(SLIC3R_SOURCES
     ExtrusionSimulator.cpp
     ExtrusionSimulator.hpp
     FileParserError.hpp
+    Feature/FuzzySkin/FuzzySkin.cpp
+    Feature/FuzzySkin/FuzzySkin.hpp
     Fill/Fill.cpp
     Fill/Fill3DHoneycomb.cpp
     Fill/Fill3DHoneycomb.hpp
@@ -514,7 +518,7 @@ set(SLIC3R_SOURCES
     Arachne/BeadingStrategy/WideningBeadingStrategy.hpp
     Arachne/BeadingStrategy/WideningBeadingStrategy.cpp
     Arachne/utils/ExtrusionJunction.hpp
-    Arachne/utils/ExtrusionJunction.cpp
+    #Arachne/utils/ExtrusionJunction.cpp
     Arachne/utils/ExtrusionLine.hpp
     Arachne/utils/ExtrusionLine.cpp
     Arachne/utils/HalfEdge.hpp

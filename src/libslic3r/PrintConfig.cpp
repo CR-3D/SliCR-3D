@@ -148,10 +148,11 @@ static const t_config_enum_values s_keys_map_BridgeType{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(BridgeType)
 
-static const t_config_enum_values s_keys_map_FuzzySkinType{{"none", int(FuzzySkinType::None)},
-                                                           {"external", int(FuzzySkinType::External)},
-                                                           {"shell", int(FuzzySkinType::Shell)},
-                                                           {"all", int(FuzzySkinType::All)}};
+static const t_config_enum_values s_keys_map_FuzzySkinType {
+    { "none",           int(FuzzySkinType::None) },
+    { "external",       int(FuzzySkinType::External) },
+    { "all",            int(FuzzySkinType::All) }
+};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(FuzzySkinType)
 
 static const t_config_enum_values s_keys_map_InfillPattern {
@@ -3114,7 +3115,6 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Fuzzy skin type.");
     def->set_enum<FuzzySkinType>({{"none", L("None")},
                                   {"external", L("Outside walls")},
-                                  {"shell", L("External walls")},
                                   {"all", L("All walls")}});
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionEnum<FuzzySkinType>(FuzzySkinType::None));

@@ -31,6 +31,9 @@ using LayerRegionPtrs = std::vector<LayerRegion*>;
 class PrintRegion;
 class PrintObject;
 
+struct PerimeterRegion;
+using PerimeterRegions = std::vector<PerimeterRegion>;
+
 namespace FillAdaptive {
     struct Octree;
 }
@@ -168,6 +171,8 @@ public:
         const SurfaceCollection                                &slices,
         // Ranges of perimeter extrusions and gap fill extrusions per suface, referencing
         // newly created extrusions stored at this LayerRegion.
+        const PerimeterRegions                                 &perimeter_regions,
+
         std::vector<std::pair<ExtrusionRange, ExtrusionRange>> &perimeter_and_gapfill_ranges,
         // All fill areas produced for all input slices above.
         ExPolygons                                             &fill_expolygons,

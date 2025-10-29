@@ -16,10 +16,38 @@
 #include "Polygon.hpp"
 #include "PrintConfig.hpp"
 #include "SurfaceCollection.hpp"
+#include "libslic3r/Print.hpp"
 
 namespace Slic3r::Arachne {
 struct ExtrusionLine;
 }
+
+namespace Slic3r {
+class ExtrusionEntityCollection;
+class LayerRegion;
+class Surface;
+class PrintRegion;
+struct ThickPolyline;
+
+struct PerimeterRegion
+{
+    const PrintRegion *region;
+    ExPolygons         expolygons;
+    BoundingBox        bbox;
+
+    explicit PerimeterRegion(const LayerRegion &layer_region);
+
+    // If there is any incompatibility, we don't need to create separate LayerRegions.
+    // Because it is enough to split perimeters by PerimeterRegions.
+    static bool has_compatible_perimeter_regions(const PrintRegionConfig &config, const PrintRegionConfig &other_config);
+
+    static void merge_compatible_perimeter_regions(std::vector<PerimeterRegion> &perimeter_regions);
+};
+
+using PerimeterRegions = std::vector<PerimeterRegion>;
+
+} // namespace Slic3r
+
 namespace Slic3r::PerimeterGenerator {
 
 struct Parameters
@@ -34,6 +62,7 @@ struct Parameters
     const PrintObjectConfig &object_config;
     const PrintConfig &      print_config;
     const bool               spiral_vase;
+    const PerimeterRegions   &perimeter_regions;
     const bool               use_arachne;
 
     // computed parameters (from config)
@@ -83,6 +112,7 @@ struct Parameters
                const PrintObjectConfig &object_config,
                const PrintConfig &      print_config,
                const bool               spiral_vase,
+                const PerimeterRegions   &perimeter_regions,
                const bool               arachne)
         : layer(layer)
         , perimeter_flow(perimeter_flow)
@@ -93,6 +123,7 @@ struct Parameters
         , object_config(object_config)
         , print_config(print_config)
         , spiral_vase(spiral_vase)
+        , perimeter_regions(perimeter_regions)
         , use_arachne(arachne)
         ,
         // other perimeters
@@ -161,12 +192,11 @@ public:
     // Depth in the hierarchy. External perimeter has depth = 0. An external perimeter could be both a contour and a hole.
     unsigned short depth;
     // Should this contur be fuzzyfied on path generation?
-    bool fuzzify;
     // Children contour, may be both CCW and CW oriented (outer contours or holes).
     std::vector<PerimeterGeneratorLoop> children;
 
-    PerimeterGeneratorLoop(const Polygon &polygon, unsigned short depth, bool is_contour, bool steep_overhangs, bool fuzzify)
-        : polygon(polygon), is_contour(is_contour), is_steep_overhang(steep_overhangs), depth(depth), fuzzify(fuzzify)
+    PerimeterGeneratorLoop(const Polygon &polygon, unsigned short depth, bool is_contour, bool steep_overhangs)
+        : polygon(polygon), is_contour(is_contour), is_steep_overhang(steep_overhangs), depth(depth)
     {}
     // External perimeter. It may be CCW or CW oriented (outer contour or hole contour).
     bool is_external() const { return this->depth == 0; }
