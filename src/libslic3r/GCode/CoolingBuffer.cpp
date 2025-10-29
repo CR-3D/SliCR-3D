@@ -1262,22 +1262,44 @@ std::string CoolingBuffer::apply_layer_cooldown(
             }
             // Process the rest of the line.
             if (end < line_end) {
-                if (line->type & (CoolingLine::TYPE_ADJUSTABLE | CoolingLine::TYPE_ADJUSTABLE_EMPTY | CoolingLine::TYPE_ADJUSTABLE_MAYBE | CoolingLine::TYPE_WIPE)) {
+                if (line->type &
+                    (CoolingLine::TYPE_ADJUSTABLE | CoolingLine::TYPE_ADJUSTABLE_EMPTY |
+                     CoolingLine::TYPE_ADJUSTABLE_MAYBE | CoolingLine::TYPE_WIPE)) {
                     // Process comments, remove ";_EXTRUDE_SET_SPEED", ";_EXTRUDE_SET_SPEED_MAYBE", ";_WIPE"
                     std::string comment(end, line_end);
                     if (line->type & (CoolingLine::TYPE_ADJUSTABLE_MAYBE)) {
-                        boost::replace_all(comment, ";_EXTRUDE_SET_SPEED_MAYBE", "");
+                        if (comment == ";_EXTRUDE_SET_SPEED_MAYBE") {
+                            comment.clear();
+                        } else {
+                            boost::replace_all(comment, "_EXTRUDE_SET_SPEED_MAYBE", "");
+                        }
+                    } else if (line->type & (CoolingLine::TYPE_ADJUSTABLE_EMPTY)) {
+                        if (comment == ";_EXTRUDE_SET_SPEED_MAYBE") {
+                            comment.clear();
+                        } else {
+                            boost::replace_all(comment, "_EXTRUDE_SET_SPEED_MAYBE", "");
+                            boost::replace_all(comment, "_EXTRUDE_SET_SPEED", "");
+                        }
                     } else {
-                        boost::replace_all(comment, ";_EXTRUDE_SET_SPEED", "");
+                        if (comment == ";_EXTRUDE_SET_SPEED") {
+                            comment.clear();
+                        } else {
+                            boost::replace_all(comment, "_EXTRUDE_SET_SPEED", "");
+                        }
                     }
-                    if (line->type & CoolingLine::TYPE_WIPE)
-                        boost::replace_all(comment, ";_WIPE", "");
+                    if (line->type & CoolingLine::TYPE_WIPE) {
+                        if (comment == ";_WIPE") {
+                            comment.clear();
+                        } else {
+                            boost::replace_all(comment, "_WIPE", "");
+                        }
+                    }
                     assert((comment.empty() && new_gcode.back() == '\n') ||
                            (!comment.empty() && comment.back() == '\n' && new_gcode.back() != '\n'));
                     new_gcode += comment;
                 } else {
                     assert((new_gcode.back() == '\n' && line_end == end) ||
-                           (new_gcode.back() != '\n' && (*(line_end-1)) == '\n'));
+                           (new_gcode.back() != '\n' && (*(line_end - 1)) == '\n'));
                     // Just attach the rest of the source line.
                     new_gcode.append(end, line_end - end);
                 }
