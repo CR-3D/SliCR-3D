@@ -3014,20 +3014,7 @@ static wxString extruder2str(int extruder)
 
 static bool can_add_volumes_to_object(const ModelObject* object)
 {
-    bool can = object->volumes.size() > 1;
-
-    if (can && object->is_cut()) {
-        int no_connectors_cnt = 0;
-        for (const ModelVolume* v : object->volumes)
-            if (!v->is_cut_connector()) {
-                if (!v->is_model_part())
-                    return true;
-                no_connectors_cnt++;
-            }
-        can = no_connectors_cnt > 1;
-    }
-
-    return can;
+    return true;
 }
 
 wxDataViewItemArray ObjectList::add_volumes_to_object_in_list(size_t obj_idx, std::function<bool(const ModelVolume*)> add_to_selection/* = nullptr*/)

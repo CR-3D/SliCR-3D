@@ -730,11 +730,11 @@ void MenuFactory::append_menu_items_add_volume(MenuType menu_type)
         wxMenu* sub_menu_negative = new wxMenu;
         append_submenu_add_generic(sub_menu_add, sub_menu_negative, ModelVolumeType::NEGATIVE_VOLUME);
         append_submenu(sub_menu_add, sub_menu_negative, wxID_ANY, _L("Negative volume"), "", item_negative.second,
-            []() { return !obj_list()->is_selected_object_cut() && obj_list()->is_instance_or_object_selected(); }, m_parent);
+            []() { return true; }, m_parent);
         sub_menu_add->AppendSeparator();
         append_submenu_add_generic(menu, sub_menu_add, ModelVolumeType::MODEL_PART);
         append_submenu(menu, sub_menu_add, wxID_ANY, _(item_add.first), "", item_add.second,
-            []() { return !obj_list()->is_selected_object_cut() && obj_list()->is_instance_or_object_selected(); }, m_parent);
+            []() { return true; }, m_parent);
     }
     
     auto selected_func = []() { return obj_list()->is_instance_or_object_selected(); };
