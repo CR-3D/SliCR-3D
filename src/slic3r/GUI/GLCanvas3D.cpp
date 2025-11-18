@@ -1905,7 +1905,8 @@ void GLCanvas3D::toggle_model_objects_visibility(bool visible, const ModelObject
                     auto gizmo_type = gm.get_current_type();
                     if (  (gizmo_type == GLGizmosManager::FdmSupports
                         || gizmo_type == GLGizmosManager::Seam
-                        || gizmo_type == GLGizmosManager::Cut)
+                        || gizmo_type == GLGizmosManager::Cut
+                        || gizmo_type == GLGizmosManager::FuzzySkin)
                         && !vol->is_modifier) {
                         vol->force_neutral_color = true;
                     }
@@ -4414,7 +4415,8 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                     m_gizmos.get_current_type() != GLGizmosManager::Seam &&
                     m_gizmos.get_current_type() != GLGizmosManager::Cut &&
                     m_gizmos.get_current_type() != GLGizmosManager::Measure &&
-                    m_gizmos.get_current_type() != GLGizmosManager::MmuSegmentation) {
+                    m_gizmos.get_current_type() != GLGizmosManager::MmuSegmentation &&
+                    m_gizmos.get_current_type() != GLGizmosManager::FuzzySkin) {
                     m_rectangle_selection.start_dragging(m_mouse.position, evt.ShiftDown() ? GLSelectionRectangle::EState::Select : GLSelectionRectangle::EState::Deselect);
                     m_dirty = true;
                 }
@@ -7133,7 +7135,8 @@ void GLCanvas3D::_render_bed(const Transform3d& view_matrix, const Transform3d& 
           && m_gizmos.get_current_type() != GLGizmosManager::SlaSupports
           && m_gizmos.get_current_type() != GLGizmosManager::Hollow
           && m_gizmos.get_current_type() != GLGizmosManager::Seam
-          && m_gizmos.get_current_type() != GLGizmosManager::MmuSegmentation);
+          && m_gizmos.get_current_type() != GLGizmosManager::MmuSegmentation
+          && m_gizmos.get_current_type() != GLGizmosManager::FuzzySkin);
 
     m_bed.render(*this, view_matrix, projection_matrix, bottom, scale_factor, show_texture);
 }

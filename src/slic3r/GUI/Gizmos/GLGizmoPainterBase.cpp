@@ -140,9 +140,9 @@ void GLGizmoPainterBase::render_cursor()
         return;
 
     if (m_tool_type == ToolType::BRUSH) {
-        if (m_cursor_type == TriangleSelector::SPHERE)
+        if (m_cursor_type == TriangleSelector::CursorType::SPHERE)
             render_cursor_sphere(trafo_matrices[m_rr.mesh_id]);
-        else if (m_cursor_type == TriangleSelector::CIRCLE)
+        else if (m_cursor_type == TriangleSelector::CursorType::CIRCLE)
             render_cursor_circle();
     }
 }
@@ -492,7 +492,7 @@ bool GLGizmoPainterBase::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
         if (m_triangle_selectors.empty())
             return false;
 
-        EnforcerBlockerType new_state = EnforcerBlockerType::NONE;
+        TriangleStateType new_state = TriangleStateType::NONE;
         if (! shift_down) {
             if (action == SLAGizmoEventType::Dragging)
                 new_state = m_button_down == Button::Left ? this->get_left_button_state_type() : this->get_right_button_state_type();
@@ -549,15 +549,18 @@ bool GLGizmoPainterBase::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                     assert(projected_mouse_position.mesh_idx == mesh_idx);
                     const Vec3f mesh_hit = projected_mouse_position.mesh_hit;
                     const int facet_idx = int(projected_mouse_position.facet_idx);
+                    
                     m_triangle_selectors[mesh_idx]->seed_fill_apply_on_triangles(new_state);
-                    if (m_tool_type == ToolType::SMART_FILL)
-                        m_triangle_selectors[mesh_idx]->seed_fill_select_triangles(mesh_hit, facet_idx, trafo_matrix_not_translate, clp, m_smart_fill_angle,
-                                                                                       m_paint_on_overhangs_only ? m_highlight_by_angle_threshold_deg : 0.f, true);
-                    else if (m_tool_type == ToolType::BRUSH && m_cursor_type == TriangleSelector::CursorType::POINTER)
-                        m_triangle_selectors[mesh_idx]->bucket_fill_select_triangles(mesh_hit, facet_idx, clp, false, true);
-                    else if (m_tool_type == ToolType::BUCKET_FILL)
-                        m_triangle_selectors[mesh_idx]->bucket_fill_select_triangles(mesh_hit, facet_idx, clp, true, true);
-
+                    
+                    if (m_tool_type == ToolType::SMART_FILL) {
+                        m_triangle_selectors[mesh_idx]->seed_fill_select_triangles(mesh_hit, facet_idx, trafo_matrix_not_translate, clp, m_smart_fill_angle, SmartFillGapArea,
+                                                                                   (m_paint_on_overhangs_only ? m_highlight_by_angle_threshold_deg : 0.f), TriangleSelector::ForceReselection::YES);
+                    } else if (m_tool_type == ToolType::BRUSH && m_cursor_type == TriangleSelector::CursorType::POINTER) {
+                        m_triangle_selectors[mesh_idx]->bucket_fill_select_triangles(mesh_hit, facet_idx, clp, m_bucket_fill_angle, BucketFillGapArea, TriangleSelector::BucketFillPropagate::NO, TriangleSelector::ForceReselection::YES);
+                    } else if (m_tool_type == ToolType::BUCKET_FILL) {
+                        m_triangle_selectors[mesh_idx]->bucket_fill_select_triangles(mesh_hit, facet_idx, clp, m_bucket_fill_angle, BucketFillGapArea, TriangleSelector::BucketFillPropagate::YES, TriangleSelector::ForceReselection::YES);
+                    }
+                    
                     m_seed_fill_last_mesh_id = -1;
                 }
             } else if (m_tool_type == ToolType::BRUSH) {
@@ -635,12 +638,12 @@ bool GLGizmoPainterBase::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
         assert(m_rr.mesh_id < int(m_triangle_selectors.size()));
         const TriangleSelector::ClippingPlane &clp = this->get_clipping_plane_in_volume_coordinates(trafo_matrix);
         if (m_tool_type == ToolType::SMART_FILL)
-            m_triangle_selectors[m_rr.mesh_id]->seed_fill_select_triangles(m_rr.hit, int(m_rr.facet), trafo_matrix_not_translate, clp, m_smart_fill_angle,
+            m_triangle_selectors[m_rr.mesh_id]->seed_fill_select_triangles(m_rr.hit, int(m_rr.facet), trafo_matrix_not_translate, clp, m_smart_fill_angle, SmartFillGapArea,
                                                                            m_paint_on_overhangs_only ? m_highlight_by_angle_threshold_deg : 0.f);
         else if (m_tool_type == ToolType::BRUSH && m_cursor_type == TriangleSelector::CursorType::POINTER)
-            m_triangle_selectors[m_rr.mesh_id]->bucket_fill_select_triangles(m_rr.hit, int(m_rr.facet), clp, false);
+            m_triangle_selectors[m_rr.mesh_id]->bucket_fill_select_triangles(m_rr.hit, int(m_rr.facet), clp, m_bucket_fill_angle, BucketFillGapArea, TriangleSelector::BucketFillPropagate::NO);
         else if (m_tool_type == ToolType::BUCKET_FILL)
-            m_triangle_selectors[m_rr.mesh_id]->bucket_fill_select_triangles(m_rr.hit, int(m_rr.facet), clp, true);
+            m_triangle_selectors[m_rr.mesh_id]->bucket_fill_select_triangles(m_rr.hit, int(m_rr.facet), clp, m_bucket_fill_angle, BucketFillGapArea, TriangleSelector::BucketFillPropagate::YES);
         m_triangle_selectors[m_rr.mesh_id]->request_update_render_data();
         m_seed_fill_last_mesh_id = m_rr.mesh_id;
         return true;
@@ -927,15 +930,15 @@ void TriangleSelectorGUI::update_render_data()
     static const float offset = 0.001f;
 
     for (const Triangle &tr : m_triangles) {
-        if (!tr.valid() || tr.is_split() || (tr.get_state() == EnforcerBlockerType::NONE && !tr.is_selected_by_seed_fill()))
+        if (!tr.valid() || tr.is_split() || (tr.get_state() == TriangleStateType::NONE && !tr.is_selected_by_seed_fill()))
             continue;
 
         int tr_state = int(tr.get_state());
         GLModel::Geometry &iva = tr.is_selected_by_seed_fill()                   ? iva_seed_fills_data[tr_state] :
-                                 tr.get_state() == EnforcerBlockerType::ENFORCER ? iva_enforcers_data :
+                                 tr.get_state() == TriangleStateType::ENFORCER ? iva_enforcers_data :
                                                                                    iva_blockers_data;
         int                  &cnt = tr.is_selected_by_seed_fill()                   ? seed_fill_cnt[tr_state] :
-                                    tr.get_state() == EnforcerBlockerType::ENFORCER ? enf_cnt :
+                                    tr.get_state() == TriangleStateType::ENFORCER ? enf_cnt :
                                                                                       blc_cnt;
         const Vec3f          &v0  = m_vertices[tr.verts_idxs[0]].v;
         const Vec3f          &v1  = m_vertices[tr.verts_idxs[1]].v;

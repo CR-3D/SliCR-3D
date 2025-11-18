@@ -871,6 +871,13 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                xy_size_compensation))
     ((ConfigOptionFloat,                xy_inner_size_compensation))
     ((ConfigOptionBool,                 wipe_into_objects))
+
+    ((ConfigOptionBool,                interlocking_beam))
+    ((ConfigOptionFloat,               interlocking_beam_width))
+    ((ConfigOptionFloat,               interlocking_orientation))
+    ((ConfigOptionInt,                 interlocking_beam_layer_count))
+    ((ConfigOptionInt,                 interlocking_depth))
+    ((ConfigOptionInt,                 interlocking_boundary_avoidance))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(

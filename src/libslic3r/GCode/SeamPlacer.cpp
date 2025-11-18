@@ -925,11 +925,11 @@ void gather_enforcers_blockers(GlobalModelInfo &result, const PrintObject *po) {
         if (mv->is_seam_painted()) {
             auto model_transformation = obj_transform * mv->get_matrix();
 
-            indexed_triangle_set enforcers = mv->seam_facets.get_facets(*mv, EnforcerBlockerType::ENFORCER);
+            indexed_triangle_set enforcers = mv->seam_facets.get_facets(*mv, TriangleStateType::ENFORCER);
             its_transform(enforcers, model_transformation);
             its_merge(result.enforcers, enforcers);
 
-            indexed_triangle_set blockers = mv->seam_facets.get_facets(*mv, EnforcerBlockerType::BLOCKER);
+            indexed_triangle_set blockers = mv->seam_facets.get_facets(*mv, TriangleStateType::BLOCKER);
             its_transform(blockers, model_transformation);
             its_merge(result.blockers, blockers);
         }

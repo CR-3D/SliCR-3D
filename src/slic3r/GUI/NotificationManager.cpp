@@ -1721,6 +1721,12 @@ void NotificationManager::UpdatedItemsInfoNotification::add_type(InfoItemType ty
                            (*it).second) +
                 "\n";
             break;
+        case InfoItemType::FuzzySkin:
+            text += format(_L_PLURAL("%1$d object was loaded with fuzzy skin.",
+                                     "%1$d objects were loaded with fuzzy skin.", (*it).second),
+                           (*it).second) +
+                "\n";
+            break;
         case InfoItemType::VariableLayerHeight:
             text += format(_L_PLURAL("%1$d object was loaded with variable layer height.",
                                      "%1$d objects were loaded with variable layer height.", (*it).second),

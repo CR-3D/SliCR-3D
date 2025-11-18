@@ -428,9 +428,6 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     // gap fill  can appear in infill
     toggle_field("gap_fill_speed", have_perimeters && config->opt_bool("gap_fill_enabled"));
 
-    for (auto el : { "fuzzy_skin_thickness", "fuzzy_skin_point_dist" })
-        toggle_field(el, config->option<ConfigOptionEnum<FuzzySkinType>>("fuzzy_skin")->value != FuzzySkinType::None);
-
     bool have_infill = config->option<ConfigOptionPercent>("fill_density")->value > 0;
     // infill_extruder uses the same logic as in Print::extruders()
     for (auto el : { "fill_aligned_z", "fill_pattern", "infill_connection", "infill_every_layers", "infill_only_where_needed",
@@ -666,6 +663,13 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
         config->option<ConfigOptionFloatOrPercent>("bridge_speed")->percent || 
         config->option<ConfigOptionFloatOrPercent>("support_material_speed")->percent);
     toggle_field("max_print_speed", config->opt_float("max_volumetric_speed") != 0);
+
+    bool use_beam_interlocking = config->opt_bool("interlocking_beam");
+    toggle_field("interlocking_beam_width", use_beam_interlocking);
+    toggle_field("interlocking_orientation", use_beam_interlocking);
+    toggle_field("interlocking_beam_layer_count", use_beam_interlocking);
+    toggle_field("interlocking_depth", use_beam_interlocking);
+    toggle_field("interlocking_boundary_avoidance", use_beam_interlocking);
 }
 
 

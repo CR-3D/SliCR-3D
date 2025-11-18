@@ -363,9 +363,36 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             }
         }
         
-        // detect overhanging/bridging perimeters
         ExtrusionPaths paths;
+
+        fuzzified = loop.polygon;
+        fuzzified = apply_fuzzy_skin(
+            fuzzified,
+            params.config,
+            params.perimeter_regions,
+            params.layer->id(),
+            loop.depth,
+            loop.is_contour
+        );
+
+        // Use only ONE perimeter path
         
+        /*
+        paths.emplace_back(
+            fuzzified.split_at_first_point(),
+            ExtrusionAttributes{
+                ExtrusionRole::ExternalPerimeter,
+                ExtrusionFlow{
+                    is_external ? params.ext_mm3_per_mm() : params.mm3_per_mm(),
+                    is_external ? params.ext_perimeter_flow.width() : params.perimeter_flow.width(),
+                    float(params.layer->height)
+                }
+            },
+            false
+        );
+         */
+        
+        // detect overhanging/bridging perimeters
         bool can_overhang = (params.config.overhangs_width_speed.is_enabled() ||
                              params.config.overhangs_width.is_enabled()) &&
         params.layer->id() > 0 && params.layer->id() >= params.object_config.raft_layers;
@@ -373,30 +400,37 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             params.object_config.support_material_contact_distance_type.value == zdNone) {
             can_overhang = false;
         }
-        if (can_overhang) {
-            paths = this->create_overhangs_classic(params, loop.polygon.split_at_first_point(), role, is_external);
-        } else {
-            for (size_t idx = 1; idx < loop.polygon.size(); ++idx)
-                assert(!loop.polygon.points[idx - 1].coincides_with_epsilon(loop.polygon.points[idx]));
-            paths.emplace_back(loop.polygon.split_at_first_point(),
-                               ExtrusionAttributes{role,
-                ExtrusionFlow{is_external ? params.ext_mm3_per_mm() :
-                    params.mm3_per_mm(),
-                    is_external ? params.ext_perimeter_flow.width() :
-                    params.perimeter_flow.width(),
-                    float(params.layer->height)}},
-                               false);
-            assert(paths.back().mm3_per_mm() == paths.back().mm3_per_mm());
-            assert(paths.back().width() == paths.back().width());
-            assert(paths.back().height() == paths.back().height());
-        }
         
-        const bool    fuzzify  = should_fuzzify(params.config, params.layer->id(), loop.depth, loop.is_contour);
-        const Polygon &polygon = fuzzify ? fuzzified : loop.polygon;
-        if (fuzzify) {
-            fuzzified = loop.polygon;
-            fuzzy_polygon(fuzzified, scaled<float>(params.config.fuzzy_skin_thickness.value), scaled<float>(params.config.fuzzy_skin_point_dist.value));
+        Polygon base_poly = loop.polygon;
+        Polygon final_poly;
+
+        if (can_overhang) {
+            // Overhangs use the CLEAN polygon
+            ExtrusionPaths base_paths =
+                this->create_overhangs_classic(params, base_poly.split_at_first_point(), role, is_external);
+
+            // Fuzzify AFTER overhang extrusion is created
+            final_poly = apply_fuzzy_skin(base_poly, params.config, params.perimeter_regions,
+                                          params.layer->id(), loop.depth, loop.is_contour);
+        } else {
+            // No overhangs → fuzzify the original polygon
+            final_poly = apply_fuzzy_skin(base_poly, params.config, params.perimeter_regions,
+                                          params.layer->id(), loop.depth, loop.is_contour);
         }
+
+        paths.emplace_back(
+            final_poly.split_at_first_point(),
+                           ExtrusionAttributes{
+                               role,
+                               ExtrusionFlow{
+                                   is_external ? params.ext_mm3_per_mm() : params.mm3_per_mm(),
+                                   is_external ? params.ext_perimeter_flow.width() : params.perimeter_flow.width(),
+                                   float(params.layer->height)
+                               }
+                           },
+            false
+        );
+        
         
         coll.push_back(new ExtrusionLoop(paths, loop_role));
     }
@@ -1370,6 +1404,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
 {
    
     using namespace Slic3r::Feature::FuzzySkin;
+    
     const bool CCW_contour = params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CW ||  params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CCW;
     const bool CCW_hole = params.config.perimeter_direction.value == PerimeterDirection::pdCW_CCW ||  params.config.perimeter_direction.value == PerimeterDirection::pdCCW_CCW;
     
@@ -1379,20 +1414,20 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
         biggest_inset_idx = std::max(biggest_inset_idx, pg_extrusion.extrusion->inset_idx);
     }
     for (PerimeterGeneratorArachneExtrusion& pg_extrusion : pg_extrusions) {
-        Arachne::ExtrusionLine* extrusion = pg_extrusion.extrusion;
-        if (extrusion->is_zero_length()) {
+        Arachne::ExtrusionLine extrusion = *pg_extrusion.extrusion;
+        if (extrusion.is_zero_length()) {
             continue;
         }
         // possible, i guess a kind of gap fill ?
-        if (!extrusion->is_closed && extrusion->junctions.front().p == extrusion->junctions.back().p) {
+        if (!extrusion.is_closed && extrusion.junctions.front().p == extrusion.junctions.back().p) {
             //transform to loop
-            extrusion->is_closed = true;
+            extrusion.is_closed = true;
         }
         
-        const bool    is_external = extrusion->inset_idx == 0;
+        const bool    is_external = extrusion.inset_idx == 0;
         ExtrusionLoopRole loop_role = ExtrusionLoopRole::elrDefault;
         ExtrusionRole role = is_external ? ExtrusionRole::ExternalPerimeter : ExtrusionRole::Perimeter;
-        if (biggest_inset_idx == extrusion->inset_idx) {
+        if (biggest_inset_idx == extrusion.inset_idx) {
             // Note that we set loop role to ContourInternalPerimeter
             // also when loop is both internal and external (i.e.
             // there's only one contour loop).
@@ -1407,10 +1442,10 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
             }
         }
         
-        const bool fuzzify = should_fuzzify(params.config, params.layer->id(), pg_extrusion.extrusion->inset_idx, !pg_extrusion.extrusion->is_closed || pg_extrusion.is_contour);
-        if (fuzzify)
-            fuzzy_extrusion_line(*extrusion, scaled<float>(params.config.fuzzy_skin_thickness.value), scaled<float>(params.config.fuzzy_skin_point_dist.value));
+        
+        extrusion = apply_fuzzy_skin(extrusion, params.config, params.perimeter_regions, params.layer->id(), pg_extrusion.extrusion->inset_idx, !pg_extrusion.extrusion->is_closed || pg_extrusion.is_contour);
 
+        
         ExtrusionPaths paths;
         // detect overhanging/bridging perimeters
         if ( (params.config.overhangs_width_speed.is_enabled() || params.config.overhangs_width.is_enabled())
@@ -1419,9 +1454,9 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
                  params.object_config.support_material_contact_distance.value == 0)) {
             
             ClipperLib_Z::Path extrusion_path;
-            extrusion_path.reserve(extrusion->size());
+            extrusion_path.reserve(extrusion.size());
             BoundingBox extrusion_path_bbox;
-            for (const Arachne::ExtrusionJunction& ej : extrusion->junctions) {
+            for (const Arachne::ExtrusionJunction& ej : extrusion.junctions) {
                 //remove duplicate points from arachne
                 if (extrusion_path.empty() ||
                     (std::abs(ej.p.x() - extrusion_path.back().x()) > SCALED_EPSILON || std::abs(ej.p.y() - extrusion_path.back().y()) > SCALED_EPSILON)) {
@@ -1430,11 +1465,11 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
                 extrusion_path_bbox.merge(Point{ej.p.x(), ej.p.y()});
             }
             extrusion_path_bbox.offset(SCALED_EPSILON);
-            if (extrusion->is_closed) {
+            if (extrusion.is_closed) {
                 assert((extrusion_path.front() - extrusion_path.back()).norm() <= SCALED_EPSILON);
                 assert(Point(extrusion_path.front().x(),extrusion_path.front().y()).coincides_with_epsilon(Point(extrusion_path.back().x(), extrusion_path.back().y())));
             } else if ((extrusion_path.front() - extrusion_path.back()).norm() <= SCALED_EPSILON) {
-                extrusion->is_closed = true; // fix error (yes, this happen and sohould be fixed beforehand)
+                extrusion.is_closed = true; // fix error (yes, this happen and sohould be fixed beforehand)
             }
             paths = this->create_overhangs_arachne(params, extrusion_path, extrusion_path_bbox, role, is_external);
             
@@ -1443,7 +1478,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
             // Arachne sometimes creates extrusion with zero-length (just two same endpoints);
             if (!paths.empty()) {
                 Point start_point = paths.front().first_point();
-                if (!extrusion->is_closed) {
+                if (!extrusion.is_closed) {
                     // Especially for open extrusion, we need to select a starting point that is at the start
                     // or the end of the extrusions to make one continuous line. Also, we prefer a non-overhang
                     // starting point.
@@ -1475,14 +1510,14 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
                 
                 chain_and_reorder_extrusion_paths(paths, &start_point);
                 for(size_t i = 1; i< paths.size(); ++i) assert(paths[i-1].last_point().coincides_with_epsilon(paths[i].first_point()));
-                if (extrusion->is_closed) {
+                if (extrusion.is_closed) {
                     assert(paths.back().last_point().coincides_with_epsilon(paths.front().first_point()));
                 } else {
                     assert(!paths.back().last_point().coincides_with_epsilon(paths.front().first_point()));
                 }
             }
         } else {
-            append(paths, Geometry::unsafe_variable_width(Arachne::to_thick_polyline(*extrusion),
+            append(paths, Geometry::unsafe_variable_width(Arachne::to_thick_polyline(extrusion),
                                                           role,
                                                           is_external ? params.ext_perimeter_flow : params.perimeter_flow,
                                                           std::max(params.ext_perimeter_flow.scaled_width() / 4, scale_t(params.print_config.resolution)),
@@ -1532,7 +1567,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_extrusions(const Paramet
                     assert(!paths[idx_path].polyline.get_point(idx_pt - 1).coincides_with_epsilon(paths[idx_path].polyline.get_point(idx_pt)));
                 }
             }
-            if (extrusion->is_closed) {
+            if (extrusion.is_closed) {
                 assert(paths.back().last_point().coincides_with_epsilon(paths.front().first_point()));
                 ExtrusionLoop extrusion_loop(std::move(paths), loop_role);
                 // Restore the orientation of the extrusion loop.
@@ -3341,7 +3376,7 @@ ProcessSurfaceResult PerimeterGenerator::process_arachne(const Parameters &param
         }
         
         Arachne::ExtrusionLine* best_path = all_extrusions[best_candidate];
-        ordered_extrusions.push_back({ best_path, best_path->is_contour(), false });
+        ordered_extrusions.push_back({ best_path, best_path->is_contour() });
         processed[best_candidate] = true;
         for (size_t unlocked_idx : blocking[best_candidate])
             blocked[unlocked_idx]--;
@@ -4920,8 +4955,6 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &param
         assert_check_loops(contours);
         assert_check_loops(holes);
         
-        // fuzzify
-        const bool fuzzify_gapfill = params.config.fuzzy_skin == FuzzySkinType::All && params.layer->id() > 0;
         // check for extracting extra perimeters from gapfill
         if (!gaps.empty()) {
             // if needed, add it to the first empty contour list

@@ -3822,6 +3822,56 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionFloat(0.));
 
+    def           = this->add("interlocking_beam", coBool);
+    def->label    = L("Use beam interlocking");
+    def->tooltip  = L("Generate interlocking beam structure at the locations where different filaments touch. This improves the adhesion between filaments, especially models printed in different materials.");
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def           = this->add("interlocking_beam_width", coFloat);
+    def->label    = L("Interlocking beam width");
+    def->tooltip  = L("The width of the interlocking structure beams.");
+    def->sidetext = L("mm");
+    def->min      = 0.1f;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0.8));
+
+    def           = this->add("interlocking_orientation", coFloat);
+    def->label    = L("Interlocking direction");
+    def->tooltip  = L("Orientation of interlocking beams.");
+    def->sidetext = L("°");
+    def->min      = 0;
+    def->max      = 360;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(22.5));
+
+    def           = this->add("interlocking_beam_layer_count", coInt);
+    def->label    = L("Interlocking beam layers");
+    def->tooltip  = L("The height of the beams of the interlocking structure, measured in number of layers. Less layers is stronger, but more prone to defects.");
+    def->min      = 1;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(2));
+
+    def           = this->add("interlocking_depth", coInt);
+    def->label    = L("Interlocking depth");
+    def->tooltip  = L("The distance from the boundary between filaments to generate interlocking structure, measured in cells. Too few cells will result in poor adhesion.");
+    def->min      = 1;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(2));
+
+    def           = this->add("interlocking_boundary_avoidance", coInt);
+    def->label    = L("Interlocking boundary avoidance");
+    def->tooltip  = L("The distance from the outside of a model where interlocking structures will not be generated, measured in cells.");
+    def->min      = 0;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(2));
+
     def = this->add("ironing", coBool);
     def->label = L("Enable ironing");
     def->tooltip = L("Enable ironing of the top layers with the hot print head for smooth surface");

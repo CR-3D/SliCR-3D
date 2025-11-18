@@ -96,6 +96,10 @@ set(SLIC3R_SOURCES
     FileParserError.hpp
     Feature/FuzzySkin/FuzzySkin.cpp
     Feature/FuzzySkin/FuzzySkin.hpp
+    Feature/Interlocking/InterlockingGenerator.cpp
+    Feature/Interlocking/InterlockingGenerator.hpp
+    Feature/Interlocking/VoxelUtils.cpp
+    Feature/Interlocking/VoxelUtils.hpp
     Fill/Fill.cpp
     Fill/Fill3DHoneycomb.cpp
     Fill/Fill3DHoneycomb.hpp
