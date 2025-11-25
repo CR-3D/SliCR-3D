@@ -196,6 +196,10 @@ template<class L> bool intersection(const L &l1, const L &l2, Vec<Dim<L>, Scalar
     return false; // not intersecting
 }
 
+inline Point midpoint(const Point &a, const Point &b) {
+    return (a + b) / 2;
+}
+
 } // namespace line_alg
 
 class Line

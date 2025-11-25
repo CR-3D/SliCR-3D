@@ -374,7 +374,7 @@ void GLGizmoFdmSupports::select_facets_by_angle(float threshold_deg, bool block)
         const indexed_triangle_set &its = mv->mesh().its;
         for (const stl_triangle_vertex_indices &face : its.indices) {
             if (its_face_normal(its, face).dot(down) > dot_limit) {
-                m_triangle_selectors[mesh_id]->set_facet(idx, block ? EnforcerBlockerType::BLOCKER : EnforcerBlockerType::ENFORCER);
+                m_triangle_selectors[mesh_id]->set_facet(idx, block ? TriangleStateType::BLOCKER : TriangleStateType::ENFORCER);
                 m_triangle_selectors.back()->request_update_render_data();
             }
             ++ idx;

@@ -824,6 +824,9 @@ static std::vector<std::string> s_Preset_print_options {
         //Arachne
         "perimeter_generator", "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle",
         "wall_distribution_count", "min_feature_size", "min_bead_width",
+        "interlocking_beam", "interlocking_orientation", "interlocking_beam_layer_count", "interlocking_depth", "interlocking_boundary_avoidance", "interlocking_beam_width",
+
+
 };
 
 static std::vector<std::string> s_Preset_filament_options {

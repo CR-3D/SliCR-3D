@@ -546,48 +546,6 @@ void ensure_valid(ExPolygons &expolygons, coord_t resolution /*= SCALED_EPSILON*
     expolygons_simplify(expolygons, resolution);
 }
 
-void expolygons_simplify(ExPolygons &expolygons, coord_t resolution)
-{
-    for (ExPolygon &poly : expolygons) for(auto &hole :poly.holes) assert(hole.is_clockwise());
-    bool need_union = false;
-    for (size_t i = 0; i < expolygons.size(); ++i) {
-        assert(expolygons[i].contour.size() < 3 || expolygons[i].contour.is_counter_clockwise());
-        for(auto &hole :expolygons[i].holes) assert(hole.is_clockwise());
-        expolygons[i].contour.douglas_peucker(resolution);
-        for(auto &hole :expolygons[i].holes) assert(hole.is_clockwise());
-        if (expolygons[i].contour.size() < 3) {
-            expolygons.erase(expolygons.begin() + i);   
-            --i;
-        } else {
-            if (!expolygons[i].contour.is_counter_clockwise()) {
-                expolygons[i].contour.reverse();
-                need_union = true;
-            }
-            for(auto &hole :expolygons[i].holes) assert(hole.is_clockwise());
-            for (size_t i_hole = 0; i_hole < expolygons[i].holes.size(); ++i_hole) {
-                assert(expolygons[i].holes[i_hole].size() < 3 || expolygons[i].holes[i_hole].is_clockwise());
-                expolygons[i].holes[i_hole].douglas_peucker(resolution);
-                if (expolygons[i].holes[i_hole].size() < 3) {
-                    expolygons[i].holes.erase(expolygons[i].holes.begin() + i_hole);
-                    --i_hole;
-                } else {
-                    if (!expolygons[i].holes[i_hole].is_clockwise()) {
-                        expolygons[i].holes[i_hole].reverse();
-                        need_union = true;
-                    }
-                }
-            }
-        }
-        // do we need to do an union_ex() here? -> it's possible that the new holes cut into the new perimeter, so yes... even if unlikely
-    }
-    assert_valid(expolygons);
-    if (need_union) {
-        expolygons = union_ex(expolygons);
-        ensure_valid(expolygons, resolution);
-    }
-    assert_valid(expolygons);
-}
-
 ExPolygons ensure_valid(ExPolygons &&expolygons, coord_t resolution /*= SCALED_EPSILON*/)
 {
     ensure_valid(expolygons, resolution);

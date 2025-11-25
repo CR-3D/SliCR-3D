@@ -26,6 +26,7 @@
 #include "CustomGCode.hpp"
 #include "TextConfiguration.hpp"
 #include "EmbossShape.hpp"
+#include "TriangleSelector.hpp"
 
 #include <map>
 #include <memory>
@@ -406,6 +407,8 @@ public:
     bool                    is_seam_painted() const;
     // Checks if any of object volume is painted using the multi-material painting gizmo.
     bool                    is_mm_painted() const;
+    
+    bool                    is_fuzzy_skin_painted() const;
     // Checks if object contains just one volume and it's a text
     bool                    is_text() const;
     // This object may have a varying layer height by painting or by a table.
@@ -671,29 +674,6 @@ private:
     void update_min_max_z();
 };
 
-enum class EnforcerBlockerType : int8_t {
-    // Maximum is 3. The value is serialized in TriangleSelector into 2 bits.
-    NONE      = 0,
-    ENFORCER  = 1,
-    BLOCKER   = 2,
-    // Maximum is 15. The value is serialized in TriangleSelector into 6 bits using a 2 bit prefix code.
-    Extruder1 = ENFORCER,
-    Extruder2 = BLOCKER,
-    Extruder3,
-    Extruder4,
-    Extruder5,
-    Extruder6,
-    Extruder7,
-    Extruder8,
-    Extruder9,
-    Extruder10,
-    Extruder11,
-    Extruder12,
-    Extruder13,
-    Extruder14,
-    Extruder15,
-};
-
 enum class ConversionType : int {
     CONV_TO_INCH,
     CONV_FROM_INCH,
@@ -704,15 +684,16 @@ enum class ConversionType : int {
 class FacetsAnnotation final : public ObjectWithTimestamp {
 public:
     // Assign the content if the timestamp differs, don't assign an ObjectID.
-    void assign(const FacetsAnnotation& rhs) { if (! this->timestamp_matches(rhs)) { m_data = rhs.m_data; this->copy_timestamp(rhs); } }
-    void assign(FacetsAnnotation&& rhs) { if (! this->timestamp_matches(rhs)) { m_data = std::move(rhs.m_data); this->copy_timestamp(rhs); } }
-    const std::pair<std::vector<std::pair<int, int>>, std::vector<bool>>& get_data() const throw() { return m_data; }
-    bool set(const TriangleSelector& selector);
-    indexed_triangle_set get_facets(const ModelVolume& mv, EnforcerBlockerType type) const;
-    void set_facets_selector(TriangleSelector& selector) const;
-    indexed_triangle_set get_facets_strict(const ModelVolume& mv, EnforcerBlockerType type) const;
-    bool has_facets(const ModelVolume& mv, EnforcerBlockerType type) const;
-    bool empty() const { return m_data.first.empty(); }
+    void assign(const FacetsAnnotation &rhs) { if (! this->timestamp_matches(rhs)) { m_data = rhs.m_data; this->copy_timestamp(rhs); } }
+    void assign(FacetsAnnotation &&rhs) { if (! this->timestamp_matches(rhs)) { m_data = std::move(rhs.m_data); this->copy_timestamp(rhs); } }
+    const TriangleSelector::TriangleSplittingData &get_data() const noexcept { return m_data; }
+    bool set(const TriangleSelector &selector);
+    indexed_triangle_set get_facets(const ModelVolume &mv, TriangleStateType type) const;
+    indexed_triangle_set get_facets_strict(const ModelVolume &mv, TriangleStateType type) const;
+    indexed_triangle_set_with_color get_all_facets_with_colors(const ModelVolume &mv) const;
+    indexed_triangle_set_with_color get_all_facets_strict_with_colors(const ModelVolume &mv) const;
+    bool has_facets(const ModelVolume &mv, TriangleStateType type) const;
+    bool empty() const { return m_data.triangles_to_split.empty(); }
 
     // Following method clears the config and increases its timestamp, so the deleted
     // state is considered changed from perspective of the undo/redo stack.
@@ -722,11 +703,11 @@ public:
     std::string get_triangle_as_string(int i) const;
 
     // Before deserialization, reserve space for n_triangles.
-    void reserve(int n_triangles) { m_data.first.reserve(n_triangles); }
+    void reserve(int n_triangles) { m_data.triangles_to_split.reserve(n_triangles); }
     // Deserialize triangles one by one, with strictly increasing triangle_id.
     void set_triangle_from_string(int triangle_id, const std::string& str);
     // After deserializing the last triangle, shrink data to fit.
-    void shrink_to_fit() { m_data.first.shrink_to_fit(); m_data.second.shrink_to_fit(); }
+    void shrink_to_fit() { m_data.triangles_to_split.shrink_to_fit(); m_data.bitstream.shrink_to_fit(); }
 
 private:
     // Constructors to be only called by derived classes.
@@ -736,9 +717,9 @@ private:
     // by an existing ID copied from elsewhere.
     explicit FacetsAnnotation(int) : ObjectWithTimestamp(-1) {}
     // Copy constructor copies the ID.
-    explicit FacetsAnnotation(const FacetsAnnotation &rhs) = default;
+    FacetsAnnotation(const FacetsAnnotation &rhs) = default;
     // Move constructor copies the ID.
-    explicit FacetsAnnotation(FacetsAnnotation &&rhs) = default;
+    FacetsAnnotation(FacetsAnnotation &&rhs) = default;
 
     // called by ModelVolume::assign_copy()
     FacetsAnnotation& operator=(const FacetsAnnotation &rhs) = default;
@@ -747,12 +728,9 @@ private:
     friend class cereal::access;
     friend class UndoRedo::StackImpl;
 
-    template<class Archive> void serialize(Archive &ar)
-    {
-        ar(cereal::base_class<ObjectWithTimestamp>(this), m_data);
-    }
+    template<class Archive> void serialize(Archive &ar) { ar(cereal::base_class<ObjectWithTimestamp>(this), m_data); }
 
-    std::pair<std::vector<std::pair<int, int>>, std::vector<bool>> m_data;
+    TriangleSelector::TriangleSplittingData m_data;
 
     // To access set_new_unique_id() when copy / pasting a ModelVolume.
     friend class ModelVolume;
@@ -843,6 +821,9 @@ public:
 
     // List of mesh facets painted for MM segmentation.
     FacetsAnnotation    mm_segmentation_facets;
+
+    // List of mesh facets painted for Fuzzy skin.
+    FacetsAnnotation    fuzzy_skin_facets;
 
     // Is set only when volume is Embossed Text type
     // Contain information how to re-create volume
@@ -952,11 +933,13 @@ public:
         this->supported_facets.set_new_unique_id();
         this->seam_facets.set_new_unique_id();
         this->mm_segmentation_facets.set_new_unique_id();
+        this->fuzzy_skin_facets.set_new_unique_id();
     }
 
     bool is_fdm_support_painted() const { return !this->supported_facets.empty(); }
     bool is_seam_painted() const { return !this->seam_facets.empty(); }
     bool is_mm_painted() const { return !this->mm_segmentation_facets.empty(); }
+    bool is_fuzzy_skin_painted() const { return !this->fuzzy_skin_facets.empty(); }
 
     bool operator!=(const ModelVolume& mm) const;
 
@@ -998,10 +981,12 @@ private:
         assert(this->supported_facets.id().valid());
         assert(this->seam_facets.id().valid());
         assert(this->mm_segmentation_facets.id().valid());
+        assert(this->fuzzy_skin_facets.id().valid());
         assert(this->id() != this->config.id());
         assert(this->id() != this->supported_facets.id());
         assert(this->id() != this->seam_facets.id());
         assert(this->id() != this->mm_segmentation_facets.id());
+        assert(this->id() != this->fuzzy_skin_facets.id());
         return true;
     }
 
@@ -1028,6 +1013,7 @@ private:
         name(other.name), source(other.source), m_mesh(other.m_mesh), m_convex_hull(other.m_convex_hull),
         config(other.config), m_type(other.m_type), object(object), m_transformation(other.m_transformation),
         supported_facets(other.supported_facets), seam_facets(other.seam_facets), mm_segmentation_facets(other.mm_segmentation_facets),
+        fuzzy_skin_facets(other.fuzzy_skin_facets),
         cut_info(other.cut_info), text_configuration(other.text_configuration), emboss_shape(other.emboss_shape)
     {
 		assert(this->id().valid()); 
@@ -1035,15 +1021,18 @@ private:
         assert(this->supported_facets.id().valid());
         assert(this->seam_facets.id().valid());
         assert(this->mm_segmentation_facets.id().valid());
+        assert(this->fuzzy_skin_facets.id().valid());
         assert(this->id() != this->config.id());
         assert(this->id() != this->supported_facets.id());
         assert(this->id() != this->seam_facets.id());
         assert(this->id() != this->mm_segmentation_facets.id());
+        assert(this->id() != this->fuzzy_skin_facets.id());
 		assert(this->id() == other.id());
         assert(this->config.id() == other.config.id());
         assert(this->supported_facets.id() == other.supported_facets.id());
         assert(this->seam_facets.id() == other.seam_facets.id());
         assert(this->mm_segmentation_facets.id() == other.mm_segmentation_facets.id());
+        assert(this->fuzzy_skin_facets.id() == other.fuzzy_skin_facets.id());
         this->set_material_id(other.material_id());
     }
     // Providing a new mesh, therefore this volume will get a new unique ID assigned.
@@ -1056,10 +1045,12 @@ private:
         assert(this->supported_facets.id().valid());
         assert(this->seam_facets.id().valid());
         assert(this->mm_segmentation_facets.id().valid());
+        assert(this->fuzzy_skin_facets.id().valid());
         assert(this->id() != this->config.id());
         assert(this->id() != this->supported_facets.id());
         assert(this->id() != this->seam_facets.id());
         assert(this->id() != this->mm_segmentation_facets.id());
+        assert(this->id() != this->fuzzy_skin_facets.id());
 		assert(this->id() != other.id());
         assert(this->config.id() == other.config.id());
         this->set_material_id(other.material_id());
@@ -1071,10 +1062,12 @@ private:
         assert(this->supported_facets.id() != other.supported_facets.id());
         assert(this->seam_facets.id() != other.seam_facets.id());
         assert(this->mm_segmentation_facets.id() != other.mm_segmentation_facets.id());
+        assert(this->fuzzy_skin_facets.id() != other.fuzzy_skin_facets.id());
         assert(this->id() != this->config.id());
         assert(this->supported_facets.empty());
         assert(this->seam_facets.empty());
         assert(this->mm_segmentation_facets.empty());
+        assert(this->fuzzy_skin_facets.empty());
     }
 
     ModelVolume& operator=(ModelVolume &rhs) = delete;
@@ -1082,12 +1075,13 @@ private:
 	friend class cereal::access;
 	friend class UndoRedo::StackImpl;
 	// Used for deserialization, therefore no IDs are allocated.
-	ModelVolume() : ObjectBase(-1), config(-1), supported_facets(-1), seam_facets(-1), mm_segmentation_facets(-1), object(nullptr) {
+	ModelVolume() : ObjectBase(-1), config(-1), supported_facets(-1), seam_facets(-1), mm_segmentation_facets(-1), fuzzy_skin_facets(-1), object(nullptr) {
 		assert(this->id().invalid());
         assert(this->config.id().invalid());
         assert(this->supported_facets.id().invalid());
         assert(this->seam_facets.id().invalid());
         assert(this->mm_segmentation_facets.id().invalid());
+        assert(this->fuzzy_skin_facets.id().invalid());
 	}
 	template<class Archive> void load(Archive &ar) {
 		bool has_convex_hull;
@@ -1095,6 +1089,7 @@ private:
         cereal::load_by_value(ar, supported_facets);
         cereal::load_by_value(ar, seam_facets);
         cereal::load_by_value(ar, mm_segmentation_facets);
+        cereal::load_by_value(ar, fuzzy_skin_facets);
         cereal::load_by_value(ar, config);
         cereal::load(ar, text_configuration);
         cereal::load(ar, emboss_shape);
@@ -1113,6 +1108,7 @@ private:
         cereal::save_by_value(ar, supported_facets);
         cereal::save_by_value(ar, seam_facets);
         cereal::save_by_value(ar, mm_segmentation_facets);
+        cereal::save_by_value(ar, fuzzy_skin_facets);
         cereal::save_by_value(ar, config);
         cereal::save(ar, text_configuration);
         cereal::save(ar, emboss_shape);
@@ -1391,6 +1387,8 @@ public:
     // Checks if any of objects is painted using the multi-material painting gizmo.
     bool          is_mm_painted() const;
 
+    bool                    is_fuzzy_skin_painted() const;
+
 private:
     explicit Model(int) : ObjectBase(-1) { assert(this->id().invalid()); }
 	void assign_new_unique_ids_recursive();
@@ -1432,6 +1430,10 @@ bool model_custom_seam_data_changed(const ModelObject& mo, const ModelObject& mo
 // Test whether the now ModelObject has newer MMU segmentation data than the old one.
 // The function assumes that volumes list is synchronized.
 extern bool model_mmu_segmentation_data_changed(const ModelObject& mo, const ModelObject& mo_new);
+
+// Test whether the now ModelObject has newer fuzzy skin data than the old one.
+// The function assumes that volumes list is synchronized.
+extern bool model_fuzzy_skin_data_changed(const ModelObject &mo, const ModelObject &mo_new);
 
 // If the model has object(s) which contains a modofoer, then it is currently not supported by the SLA mode.
 // Either the model cannot be loaded, or a SLA printer has to be activated.

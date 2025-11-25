@@ -112,8 +112,8 @@ protected:
     ColorRGBA get_cursor_sphere_left_button_color() const override;
     ColorRGBA get_cursor_sphere_right_button_color() const override;
 
-    EnforcerBlockerType get_left_button_state_type() const override { return EnforcerBlockerType(m_first_selected_extruder_idx + 1); }
-    EnforcerBlockerType get_right_button_state_type() const override { return EnforcerBlockerType(m_second_selected_extruder_idx + 1); }
+    TriangleStateType get_left_button_state_type() const override { return TriangleStateType(m_first_selected_extruder_idx + 1); }
+    TriangleStateType get_right_button_state_type() const override { return TriangleStateType(m_second_selected_extruder_idx + 1); }
 
     void on_render_input_window(float x, float y, float bottom_limit) override;
     std::string on_get_name() const override;

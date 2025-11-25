@@ -219,8 +219,8 @@ ExPolygons to_expolys(Polygons polys) {
     const int                support_enforce_layers = config.support_material_enforce_layers.value;
     std::vector<ExPolygons>  enforcers_layers{ print_object.slice_support_enforcers() };
     std::vector<ExPolygons>  blockers_layers{ print_object.slice_support_blockers() };
-    const std::vector<Polygons>    enforcers_custom_facets = print_object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER);
-    const std::vector<Polygons>    blockers_custom_facets = print_object.project_and_append_custom_facets(false, EnforcerBlockerType::BLOCKER);
+    const std::vector<Polygons>    enforcers_custom_facets = print_object.project_and_append_custom_facets(false, TriangleStateType::ENFORCER);
+    const std::vector<Polygons>    blockers_custom_facets = print_object.project_and_append_custom_facets(false, TriangleStateType::BLOCKER);
     const int                support_threshold      = config.support_material_threshold.value;
     const bool               support_threshold_auto = support_threshold == 0;
     // +1 makes the threshold inclusive

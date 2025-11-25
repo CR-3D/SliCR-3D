@@ -1607,6 +1607,12 @@ bool PrintObject::invalidate_state_by_config_options(
                 || opt_key == "min_bead_width"
                 || opt_key == "min_feature_size"
                 || opt_key == "mmu_segmented_region_max_width"
+                || opt_key == "interlocking_beam"
+                || opt_key == "interlocking_orientation"
+                || opt_key == "interlocking_beam_layer_count"
+                || opt_key == "interlocking_depth"
+                || opt_key == "interlocking_boundary_avoidance"
+                || opt_key == "interlocking_beam_width"
                 || opt_key == "model_precision"
                 || opt_key == "overhangs_max_slope"
                 || opt_key == "overhangs_bridge_threshold"
@@ -5274,7 +5280,7 @@ static void project_triangles_to_slabs(SpanOfConstPtrs<Layer> layers, const inde
 }
 
 std::vector<Polygons> PrintObject::project_and_append_custom_facets(
-        bool seam, EnforcerBlockerType type) const
+        bool seam, TriangleStateType type) const
 {
     std::vector<Polygons> out;
     for (const ModelVolume* mv : this->model_object()->volumes) {

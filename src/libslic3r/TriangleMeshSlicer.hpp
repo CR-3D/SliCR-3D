@@ -5,12 +5,22 @@
 #ifndef slic3r_TriangleMeshSlicer_hpp_
 #define slic3r_TriangleMeshSlicer_hpp_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <functional>
 #include <vector>
+#include <cinttypes>
+#include <cstddef>
+
 #include "Polygon.hpp"
 #include "ExPolygon.hpp"
+#include "libslic3r/Point.hpp"
+
+struct indexed_triangle_set;
 
 namespace Slic3r {
+
+struct indexed_triangle_set_with_color;
 
 struct MeshSlicingParams
 {
@@ -28,6 +38,9 @@ struct MeshSlicingParams
         // This mode is useful for slicing complex objects in vase mode.
         PositiveLargestContour,
     };
+
+    MeshSlicingParams() = default;
+    explicit MeshSlicingParams(const Transform3d &trafo) : trafo(trafo) {}
 
     SlicingMode   mode { SlicingMode::Regular };
     // For vase mode: below this layer a different slicing mode will be used to produce a single contour.
@@ -53,13 +66,13 @@ struct MeshSlicingParamsEx : public MeshSlicingParams
 };
 
 // All the following slicing functions shall produce consistent results with the same mesh, same transformation matrix and slicing parameters.
-// Namely, slice_mesh_slabs() shall produce consistent results with slice_mesh() and slice_mesh_ex() in the sense, that projections made by 
+// Namely, slice_mesh_slabs() shall produce consistent results with slice_mesh() and slice_mesh_ex() in the sense, that projections made by
 // slice_mesh_slabs() shall fall onto slicing planes produced by slice_mesh().
 //
 // If a slicing plane slices a horizontal face of a mesh exactly,
 // an upward facing horizontal face is is considered on slicing plane,
 // while a downward facing horizontal face is considered not on slicing plane.
-// 
+//
 // slice_mesh_slabs() thus projects an upward facing horizontal slice to the slicing plane,
 // while slice_mesh_slabs() projects a downward facing horizontal slice to the slicing plane above if it exists.
 
@@ -69,11 +82,22 @@ std::vector<Polygons>           slice_mesh(
     const MeshSlicingParams          &params,
     std::function<void()>             throw_on_cancel = []{});
 
+std::vector<ColorPolygons>      slice_mesh(
+    const indexed_triangle_set_with_color &mesh,
+    const std::vector<float>              &zs,
+    const MeshSlicingParams               &params,
+    std::function<void()>                  throw_on_cancel = []{});
+
 // Specialized version for a single slicing plane only, running on a single thread.
 Polygons                        slice_mesh(
     const indexed_triangle_set       &mesh,
-    const float                       plane_z,
+    float                             plane_z,
     const MeshSlicingParams          &params);
+
+ColorPolygons                   slice_mesh(
+    const indexed_triangle_set_with_color &mesh,
+    float                                  plane_z,
+    const MeshSlicingParams               &params);
 
 std::vector<ExPolygons>         slice_mesh_ex(
     const indexed_triangle_set       &mesh,
@@ -101,7 +125,7 @@ inline std::vector<ExPolygons>  slice_mesh_ex(
 }
 
 // Slice a triangle set with a set of Z slabs (thick layers).
-// The effect is similar to producing the usual top / bottom layers from a sliced mesh by 
+// The effect is similar to producing the usual top / bottom layers from a sliced mesh by
 // subtracting layer[i] from layer[i - 1] for the top surfaces resp.
 // subtracting layer[i] from layer[i + 1] for the bottom surfaces,
 // with the exception that the triangle set this function processes may not cover the whole top resp. bottom surface.

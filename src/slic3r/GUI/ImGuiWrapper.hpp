@@ -262,6 +262,7 @@ public:
 
     static const ImVec4 COL_GREY_DARK;
     static const ImVec4 COL_GREY_LIGHT;
+    static const ImVec4 COL_TURQUOISE_LIGHT;
     //static const ImVec4 get_COL_DARK;
     //static const ImVec4 get_COL_LIGHT;
     //static const ImVec4 COL_BLUE_DARK;

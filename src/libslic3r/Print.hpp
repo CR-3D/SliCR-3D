@@ -276,6 +276,22 @@ public:
         // Pointer to PrintObjectRegions::all_regions.
         PrintRegion *region{nullptr};
     };
+    
+    struct LayerRangeRegions;
+
+    struct FuzzySkinPaintedRegion
+    {
+        enum class ParentType { VolumeRegion, PaintedRegion };
+
+        ParentType   parent_type { ParentType::VolumeRegion };
+        // Index of a parent VolumeRegion or PaintedRegion.
+        int          parent { -1 };
+        // Pointer to PrintObjectRegions::all_regions.
+        PrintRegion *region { nullptr };
+
+        PrintRegion *parent_print_object_region(const LayerRangeRegions &layer_range) const;
+        int          parent_print_object_region_id(const LayerRangeRegions &layer_range) const;
+    };
 
     // One slice over the PrintObject (possibly the whole PrintObject) and a list of ModelVolumes and their bounding
     // boxes possibly clipped by the layer_height_range.
@@ -292,6 +308,8 @@ public:
         // overrides etc.
         std::vector<VolumeRegion> volume_regions;
         std::vector<PaintedRegion> painted_regions;
+        std::vector<FuzzySkinPaintedRegion> fuzzy_skin_painted_regions;
+
 
         bool has_volume(const ObjectID id) const {
             auto it = lower_bound_by_predicate(this->volumes.begin(), this->volumes.end(),
@@ -444,6 +462,7 @@ public:
     bool has_support_material() const { return this->has_support() || this->has_raft(); }
     // Checks if the model object is painted using the multi-material painting gizmo.
     bool is_mm_painted() const { return this->model_object()->is_mm_painted(); }
+    bool                        is_fuzzy_skin_painted() const { return this->model_object()->is_fuzzy_skin_painted(); }
 
     // returns 0-based indices of extruders used to print the object (without brim, support and other helper extrusions)
     std::set<uint16_t> object_extruders() const;
@@ -462,7 +481,7 @@ public:
     }
 
     // Helpers to project custom facets on slices
-    std::vector<Polygons> project_and_append_custom_facets(bool seam, EnforcerBlockerType type) const;
+    std::vector<Polygons> project_and_append_custom_facets(bool seam, TriangleStateType type) const;
 
     /// skirts if done per copy and not per platter
     const std::optional<ExtrusionEntityCollection> &skirt_first_layer() const { return m_skirt_first_layer; }

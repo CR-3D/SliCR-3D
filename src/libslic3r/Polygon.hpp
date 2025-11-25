@@ -382,6 +382,35 @@ template<class I> IntegerOnly<I, Polygons> reserve_polygons(I cap)
     return reserve_vector<Polygon, I, typename Polygons::allocator_type>(cap);
 }
 
+class ColorPolygon : public Polygon
+{
+public:
+    using Color  = uint8_t;
+    using Colors = std::vector<Color>;
+
+    Colors colors;
+
+    ColorPolygon() = default;
+    explicit ColorPolygon(const Points &points, const Colors &colors) : Polygon(points), colors(colors) {}
+    ColorPolygon(std::initializer_list<Point> points, std::initializer_list<Color> colors) : Polygon(points), colors(colors) {}
+    ColorPolygon(const ColorPolygon &other) : ColorPolygon(other.points, other.colors) {}
+    ColorPolygon(ColorPolygon &&other) noexcept : ColorPolygon(std::move(other.points), std::move(other.colors)) {}
+    ColorPolygon(Points &&points, Colors &&colors) : Polygon(std::move(points)), colors(std::move(colors)) {}
+
+    void reverse() override {
+        Polygon::reverse();
+        std::reverse(this->colors.begin(), this->colors.end());
+    }
+
+    ColorPolygon &operator=(const ColorPolygon &other) {
+        this->points = other.points;
+        this->colors = other.colors;
+        return *this;
+    }
+};
+
+using ColorPolygons = std::vector<ColorPolygon>;
+
 } // Slic3r
 
 // start Boost

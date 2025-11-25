@@ -24,6 +24,21 @@ template<typename PT> struct SegmentCellRange
     bool is_valid() const { return edge_begin && edge_end && edge_begin != edge_end; }
 };
 
+// Represent trapezoid Voronoi cell around point.
+template<typename PT> struct PointCellRange
+{
+    const PT             source_point;  // The source point of this cell.
+    const VD::edge_type *edge_begin = nullptr; // The edge of the Voronoi diagram where the loop around the cell starts.
+    const VD::edge_type *edge_end   = nullptr; // The edge of the Voronoi diagram where the loop around the cell ends.
+
+    PointCellRange() = delete;
+    explicit PointCellRange(const PT &source_point) : source_point(source_point) {}
+    PointCellRange(const PT &source_point, const VD::edge_type *edge_begin, const VD::edge_type *edge_end)
+        : source_point(source_point), edge_begin(edge_begin), edge_end(edge_end) {}
+
+    bool is_valid() const { return edge_begin && edge_end && edge_begin != edge_end; }
+};
+
 class VoronoiUtils
 {
 public:

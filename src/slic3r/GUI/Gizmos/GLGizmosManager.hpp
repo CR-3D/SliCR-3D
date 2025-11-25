@@ -81,6 +81,7 @@ public:
         SlaSupports,
         FdmSupports,
         Seam,
+        FuzzySkin,
         MmuSegmentation,
         Measure,
         Svg,
