@@ -67,8 +67,6 @@ Sure! You can do the following to find things that are available to help with:
 Before sending patches and pull requests contact me (preferably through opening a GitHub issue or commenting on an existing, related, issue) to discuss your proposed
 changes. This way we can ensure that nobody wastes their time and no conflicts arise in development.
 
-## License and attribution
-
 ## Licensing and attribution
 
 Slic3r is licensed under the _GNU Affero General Public License, version 3_.

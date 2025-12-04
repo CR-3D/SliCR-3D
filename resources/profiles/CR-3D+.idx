@@ -2,3 +2,4 @@
 0.0.2 Changed Print Profiles to exclude the "ToolHead"
 0.0.3 output_filename updated to 'alpha3'
 0.0.4 output_filename back to stable name
+0.0.5 changed PETG max_volumetric speed to 50 with toolhead 3+
