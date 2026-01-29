@@ -381,23 +381,50 @@ bool OpenGLManager::init_gl()
         if (!valid_version) {
             // Complain about the OpenGL version.
             wxString message = format_wxstr(
-#if ENABLE_OPENGL_ES
-                _L("%1% requires OpenGL %2% capable graphics driver to run correctly, \n"
-                   "while OpenGL version %2%, render  %3%, vendor %4% was detected."), SLIC3R_APP_NAME, "ES 2.0", s_gl_info.get_version_string(), s_gl_info.get_renderer(), s_gl_info.get_vendor());
-#elif ENABLE_GL_CORE_PROFILE
-                _L("%1% requires OpenGL %2% capable graphics driver to run correctly, \n"
-                   "while OpenGL version %2%, render  %3%, vendor %4% was detected."), SLIC3R_APP_NAME, (s_gl_info.is_core_profile() ? "3.3" : "2.0"), s_gl_info.get_version_string(), s_gl_info.get_renderer(), s_gl_info.get_vendor());
-#else
-                _L("%1% requires OpenGL %2% capable graphics driver to run correctly, \n"
-                   "while OpenGL version %2%, render  %3%, vendor %4% was detected."), SLIC3R_APP_NAME, "2.0", s_gl_info.get_version_string(), s_gl_info.get_renderer(), s_gl_info.get_vendor());
-#endif // ENABLE_OPENGL_ES
+        #if ENABLE_OPENGL_ES
+                _L("%1% requires OpenGL %2% capable graphics driver to run correctly,\n"
+                   "while OpenGL version %3%, renderer %4%, vendor %5% were detected."),
+                SLIC3R_APP_NAME,
+                "ES 2.0",
+                s_gl_info.get_version_string(),
+                s_gl_info.get_renderer(),
+                s_gl_info.get_vendor()
+        #elif ENABLE_GL_CORE_PROFILE
+                _L("%1% requires OpenGL %2% capable graphics driver to run correctly,\n"
+                   "while OpenGL version %3%, renderer %4%, vendor %5% were detected."),
+                SLIC3R_APP_NAME,
+                (s_gl_info.is_core_profile() ? "3.3" : "2.0"),
+                s_gl_info.get_version_string(),
+                s_gl_info.get_renderer(),
+                s_gl_info.get_vendor()
+        #else
+                _L("%1% requires OpenGL %2% capable graphics driver to run correctly,\n"
+                   "while OpenGL version %3%, renderer %4%, vendor %5% were detected."),
+                SLIC3R_APP_NAME,
+                "2.0",
+                s_gl_info.get_version_string(),
+                s_gl_info.get_renderer(),
+                s_gl_info.get_vendor()
+        #endif
+            );
+
             message += "\n";
-          	message += _L("You may need to update your graphics card driver.");
-#ifdef _WIN32
+            message += _L("You may need to update your graphics card driver.");
+
+        #ifdef _WIN32
             message += "\n";
-            message += wxString::Format(_L("As a workaround, you may run %1% with a software rendered 3D graphics by running %2%.exe with the --sw-renderer parameter."), SLIC3R_APP_NAME, SLIC3R_APP_CMD);
-#endif
-            wxMessageBox(message, wxString(SLIC3R_APP_NAME " - ") + _L("Unsupported OpenGL version"), wxOK | wxICON_ERROR);
+            message += wxString::Format(
+                _L("As a workaround, you may run %1% with software-rendered 3D graphics "
+                   "by running %2%.exe with the --sw-renderer parameter."),
+                SLIC3R_APP_NAME, SLIC3R_APP_CMD
+            );
+        #endif
+
+            wxMessageBox(
+                message,
+                wxString(SLIC3R_APP_NAME " - ") + _L("Unsupported OpenGL version"),
+                wxOK | wxICON_ERROR
+            );
         }
 
         if (valid_version) {

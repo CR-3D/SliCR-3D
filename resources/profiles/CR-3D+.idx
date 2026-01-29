@@ -5,3 +5,6 @@
 0.0.5 changed PETG max_volumetric speed to 50 with toolhead 3+
 0.0.6 Changed bed temperature for 'SoftPLA ToolHead 3+'
 0.0.7 Changed skirt_extrusion_width to 125% and all remaining filament_max_volumetric_speed's to 40mm/3 max
+0.0.8 Added PPS CF10 as filament
+0.0.9 'Support VXL111' added
+0.0.10 Added Support VXL111 to default materials
