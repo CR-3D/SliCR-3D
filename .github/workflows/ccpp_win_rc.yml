@@ -19,7 +19,7 @@ jobs:
       id: cache-action
       uses: actions/cache@v3
       with:
-        key: win_2.7
+        key: win_2.8
         path: deps/build/destdir
     - name: Force amd64 MSBuild
       run: |
