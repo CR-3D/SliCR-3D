@@ -34,6 +34,9 @@ if (SLIC3R_ENABLE_FORMAT_STEP)
     add_subdirectory(occt_wrapper)
 endif ()
 
+add_subdirectory(slic3r-arrange)
+add_subdirectory(slic3r-arrange-wrapper)
+
 
 if (SLIC3R_GUI)
 set(CMAKE_CXX_STANDARD 17)
@@ -155,7 +158,7 @@ if (NOT WIN32)
     set_target_properties(Slic3r PROPERTIES OUTPUT_NAME "${SLIC3R_APP_CMD}")
 endif ()
 
-target_link_libraries(Slic3r libslic3r libcereal)
+target_link_libraries(Slic3r libslic3r libcereal slic3r-arrange-wrapper)
 
 if (APPLE)
 #    add_compile_options(-stdlib=libc++)

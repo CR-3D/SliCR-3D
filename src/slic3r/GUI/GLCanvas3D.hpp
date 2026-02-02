@@ -26,7 +26,7 @@
 #include "SceneRaycaster.hpp"
 #include "GUI_Utils.hpp"
 
-#include "libslic3r/Arrange/ArrangeSettingsDb_AppCfg.hpp"
+#include <arrange-wrapper/ArrangeSettingsDb_AppCfg.hpp>
 #include "ArrangeSettingsDialogImgui.hpp"
 
 

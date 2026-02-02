@@ -16,7 +16,6 @@
 #include "BuildVolume.hpp"
 #include "Exception.hpp"
 #include "Model.hpp"
-#include "ModelArrange.hpp"
 #include "Geometry/ConvexHull.hpp"
 #include "Polygon.hpp"
 #include "ClipperUtils.hpp"
