@@ -18,6 +18,7 @@ set_target_properties(OCCTWrapper
 include(GenerateExportHeader)
 
 generate_export_header(OCCTWrapper)
+set(OpenCASCADE_DIR "${CMAKE_BINARY_DIR}/_deps/OCCT/lib/cmake/opencascade") 
 
 find_package(OpenCASCADE 7.6.1 REQUIRED)
 
