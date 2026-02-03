@@ -1,8 +1,31 @@
 cmake_minimum_required(VERSION 3.13)
 project(OCCTWrapper)
 
+# --- 1. Add OCCT 7.6.1 first ---
+add_cmake_project(OCCT
+    URL https://github.com/Open-Cascade-SAS/OCCT/archive/refs/tags/V7_6_1.zip
+    URL_HASH SHA256=b7cf65430d6f099adc9df1749473235de7941120b5b5dd356067d12d0909b1d3
+    CMAKE_ARGS
+        -DINSTALL_DIR_LAYOUT=Unix
+        -DBUILD_LIBRARY_TYPE=Static
+        -DUSE_TK=OFF
+        -DUSE_TBB=OFF
+        -DUSE_FREETYPE=OFF
+        -DUSE_FFMPEG=OFF
+        -DUSE_VTK=OFF
+)
+
+# --- 2. Point to the exact install folder ---
+set(OpenCASCADE_DIR "${CMAKE_BINARY_DIR}/_deps/OCCT/lib/cmake/opencascade")
+
+# Optional: ignore system-installed OCCT
+set(CMAKE_IGNORE_PATH "D:/a/SliCR-3D_Internal/SliCR-3D_Internal/deps/build/destdir/usr/local/lib/cmake/opencascade")
+
+# --- 3. Find OCCT 7.6.1 ---
+find_package(OpenCASCADE 7.6.1 REQUIRED)
+
+# --- 4. Your wrapper library ---
 if (APPLE)
-    # TODO: we need to fix notarization with the separate shared library
     add_library(OCCTWrapper STATIC OCCTWrapper.cpp)
 else ()
     add_library(OCCTWrapper MODULE OCCTWrapper.cpp)
@@ -16,13 +39,7 @@ set_target_properties(OCCTWrapper
 )
 
 include(GenerateExportHeader)
-
 generate_export_header(OCCTWrapper)
-set(OpenCASCADE_DIR "${CMAKE_BINARY_DIR}/_deps/OCCT/lib/cmake/opencascade") 
-
-find_package(OpenCASCADE 7.6.1 REQUIRED)
-
-
 if (OpenCASCADE_VERSION VERSION_LESS 7.8.0)
     message(STATUS "OpenCASCADE_VERSION version < 7.8.0")
     set(OCCT_LIBS
