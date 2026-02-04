@@ -4944,8 +4944,14 @@ void Plater::priv::set_current_panel(wxTitledPanel *panel)
     }
 }
 
-const std::vector<std::string> support_material_filaments = {"CR-3D Support VXL90",
-                                                             "CR-3D+ Support VXL90"};
+const std::vector<std::string> support_material_filaments = {
+    "CR-3D Support VXL90",
+    "CR-3D+ Support VXL90 @ToolHead 2+",
+    "CR-3D+ Support VXL90 @ToolHead 3+",
+    "CR-3D Support VXL111",
+    "CR-3D+ Support VXL111 @ToolHead 2+",
+    "CR-3D+ Support VXL111 @ToolHead 3+"
+};
 
 void Plater::priv::on_support_material_selected(std::string filament_name, int idx_selected) {
     
@@ -4957,21 +4963,21 @@ void Plater::priv::on_support_material_selected(std::string filament_name, int i
     Tab* tab_print = wxGetApp().get_tab(Preset::TYPE_FFF_PRINT);
     DynamicPrintConfig* new_conf = tab_print->get_config();
     
-        // Set specific values in the new configuration
-     new_conf->set_key_value("wipe_tower", new ConfigOptionBool(true));
-        new_conf->set_key_value("support_material", new ConfigOptionBool(true));
-        new_conf->set_key_value("support_material_contact_distance_type",
-                                new ConfigOptionEnum<SupportZDistanceType>(zdNone));
-        new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
-     new_conf->set_key_value("support_material_bottom_interface_layers", new ConfigOptionInt(3));
-        new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
-        new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
+    // Set specific values in the new configuration
+    new_conf->set_key_value("wipe_tower", new ConfigOptionBool(true));
+    new_conf->set_key_value("support_material", new ConfigOptionBool(true));
+    new_conf->set_key_value("support_material_contact_distance_type",
+                            new ConfigOptionEnum<SupportZDistanceType>(zdNone));
+    new_conf->set_key_value("support_material_interface_layers", new ConfigOptionInt(3));
+    new_conf->set_key_value("support_material_bottom_interface_layers", new ConfigOptionInt(3));
+    new_conf->set_key_value("support_material_interface_spacing", new ConfigOptionFloat(0));
+    new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
+    new_conf->set_key_value("support_material_contact_distance", new ConfigOptionFloatOrPercent(0, false));
 
-
-        tab_print->load_config(*new_conf);
-        tab_print->update_dirty();
-        tab_print->reload_config();
-        return;
+    tab_print->load_config(*new_conf);
+    tab_print->update_dirty();
+    tab_print->reload_config();
+    return;
 }
 
 void Plater::priv::on_select_preset(wxCommandEvent &evt)
