@@ -1949,7 +1949,7 @@ Points Print::first_layer_wipe_tower_corners() const
     if (has_wipe_tower() && ! m_wipe_tower_data.tool_changes.empty()) {
         double width = m_config.wipe_tower_width + 2*m_wipe_tower_data.brim_width;
         double depth = m_wipe_tower_data.depth + 2*m_wipe_tower_data.brim_width;
-        Vec2d pt0(-m_wipe_tower_data.brim_width, -m_wipe_tower_data.brim_width);
+        Vec2d pt0(m_model.get_wipe_tower_vector()[0].position.x(), m_model.get_wipe_tower_vector()[0].position.y());
         
         // First the corners.
         std::vector<Vec2d> pts = { pt0,
