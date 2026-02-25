@@ -3128,7 +3128,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloatOrPercent(150, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0.3, false));
 
     def = this->add("fuzzy_skin_point_dist", coFloatOrPercent);
     def->label = L("Fuzzy skin point distance");
@@ -3140,7 +3140,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0.8, false));
 
     def = this->add("gap_fill_enabled", coBool);
     def->label = L("Gap fill");
