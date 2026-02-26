@@ -1098,11 +1098,26 @@ static void chain_lines_by_triangle_connectivity(IntersectionLines              
                     (first_line->a_id      != -1 && first_line->a_id      == last_line->b_id)) {
                     // The current loop is complete. Add it to the output.
                     assert(first_line->a == last_line->b);
+                    while (loop_pts.size() > 2 && loop_pts.front().coincides_with(loop_pts.back())) {
+                        loop_pts.pop_back();
+                        if constexpr (mesh_info == AdditionalMeshInfo::Color) {
+                            loop_colors.pop_back();
+                        }
+                    }
+                    while (loop_pts.size() > 2 && loop_pts.front().coincides_with_epsilon(loop_pts.back())) {
+                        loop_pts.pop_back();
+                        if constexpr (mesh_info == AdditionalMeshInfo::Color) {
+                            loop_colors.pop_back();
+                        }
+                    }
 
-                    if constexpr (mesh_info == AdditionalMeshInfo::Color) {
-                        loops.emplace_back(std::move(loop_pts), std::move(loop_colors));
-                    } else {
-                        loops.emplace_back(std::move(loop_pts));
+                    if (loop_pts.size() > 2) {
+                        if constexpr (mesh_info == AdditionalMeshInfo::Color) {
+                            assert(loop_pts.size() == loop_colors.size());
+                            loops.emplace_back(std::move(loop_pts), std::move(loop_colors));
+                        } else {
+                            loops.emplace_back(std::move(loop_pts));
+                        }
                     }
 
                     #ifdef SLIC3R_TRIANGLEMESH_DEBUG
@@ -1803,7 +1818,7 @@ static ExPolygons make_expolygons_simple(IntersectionLines &lines)
     return slices;
 }
 
-static void make_expolygons(const Polygons &loops, const float closing_radius, const float extra_offset, ClipperLib::PolyFillType fill_type, ExPolygons* slices)
+static void make_expolygons(const Polygons &loops, const coord_t closing_radius, const coord_t model_precision, const coord_t extra_offset, ClipperLib::PolyFillType fill_type, ExPolygons* slices)
 {
     /*
         Input loops are not suitable for evenodd nor nonzero fill types, as we might get
@@ -1854,6 +1869,14 @@ static void make_expolygons(const Polygons &loops, const float closing_radius, c
     //        p_slices = diff(p_slices, *loop);
     //}
 
+    //remove point in the same plane (have to do that before the safety offset to avoid working on a distored polygon)
+    Polygons filered_polys = loops;
+    if (model_precision > 0) {
+        for (Polygon& poly : filered_polys) {
+            poly.remove_collinear(model_precision);
+        }
+    }
+
     // Perform a safety offset to merge very close facets (TODO: find test case for this)
     // 0.0499 comes from https://github.com/slic3r/Slic3r/issues/959
 //    double safety_offset = scale_(0.0499);
@@ -1864,10 +1887,10 @@ static void make_expolygons(const Polygons &loops, const float closing_radius, c
     double offset_out;
     double offset_in;
     if (closing_radius >= extra_offset) {
-        offset_out = + scale_(closing_radius);
-        offset_in  = - scale_(closing_radius - extra_offset);
+        offset_out = + (closing_radius);
+        offset_in  = - (closing_radius - extra_offset);
     } else {
-        offset_out = + scale_(extra_offset);
+        offset_out = + (extra_offset);
         offset_in  = 0.;
     }
 
@@ -1885,10 +1908,10 @@ static void make_expolygons(const Polygons &loops, const float closing_radius, c
     
     // append to the supplied collection
     expolygons_append(*slices,
-        offset_out > 0 && offset_in < 0 ? offset2_ex(union_ex(loops, fill_type), offset_out, offset_in) :
-        offset_out > 0 ? offset_ex(union_ex(loops, fill_type), offset_out) :
-        offset_in  < 0 ? offset_ex(union_ex(loops, fill_type), offset_in) :
-        union_ex(loops, fill_type));
+        offset_out > 0 && offset_in < 0 ? offset2_ex(union_ex(filered_polys, fill_type), offset_out, offset_in) :
+        offset_out > 0 ? offset_ex(union_ex(filered_polys, fill_type), offset_out) :
+        offset_in  < 0 ? offset_ex(union_ex(filered_polys, fill_type), offset_in) :
+        union_ex(filered_polys, fill_type));
 }
 
 // Make a trafo for transforming the vertices. Scale up in XY, not in Z.
@@ -2141,6 +2164,7 @@ std::vector<ExPolygons> slice_mesh_ex(
         if (params.mode_below == MeshSlicingParams::SlicingMode::PositiveLargestContour)
             slicing_params.mode_below = MeshSlicingParams::SlicingMode::Positive;
         layers_p = slice_mesh(mesh, zs, slicing_params, throw_on_cancel);
+        for(Polygons &polys : layers_p) ensure_valid(polys);
     }
     
 //    BOOST_LOG_TRIVIAL(debug) << "slice_mesh make_expolygons in parallel - start";
@@ -2149,13 +2173,13 @@ std::vector<ExPolygons> slice_mesh_ex(
         tbb::blocked_range<size_t>(0, layers_p.size()),
         [&layers_p, &params, &layers, throw_on_cancel]
         (const tbb::blocked_range<size_t>& range) {
-            auto resolution = scaled<float>(params.resolution);
+            coord_t resolution = scale_t(params.resolution);
             for (size_t layer_id = range.begin(); layer_id < range.end(); ++ layer_id) {
                 throw_on_cancel();
                 ExPolygons &expolygons = layers[layer_id];
                 const auto this_mode = layer_id < params.slicing_mode_normal_below_layer ? params.mode_below : params.mode;
                 Slic3r::make_expolygons(
-                    layers_p[layer_id], params.closing_radius, params.extra_offset,
+                    layers_p[layer_id], scale_t(params.closing_radius), scale_t(params.model_resolution), scale_t(params.extra_offset),
                     this_mode == MeshSlicingParams::SlicingMode::EvenOdd ? ClipperLib::pftEvenOdd :
                     this_mode == MeshSlicingParams::SlicingMode::PositiveLargestContour ? ClipperLib::pftPositive : ClipperLib::pftNonZero,
                     &expolygons);
@@ -2179,16 +2203,17 @@ std::vector<ExPolygons> slice_mesh_ex(
                 }
                 assert(!has_duplicate_points(expolygons));
 #endif // NDEBUG
-                //FIXME simplify
+                // simplify
                 if (this_mode == MeshSlicingParams::SlicingMode::PositiveLargestContour)
                     keep_largest_contour_only(expolygons);
                 if (resolution != 0.) {
-                    ExPolygons simplified;
-                    simplified.reserve(expolygons.size());
-                    for (const ExPolygon &ex : expolygons)
-                        append(simplified, ex.simplify(resolution));
-                    expolygons = std::move(simplified);
+                    expolygons = union_safety_offset_ex(expolygons);
+                    //for (expolygons) ex.simplify(resolution));
+                    ensure_valid(expolygons, resolution);
+                } else {
+                    ensure_valid(expolygons);
                 }
+                assert_valid(expolygons);
 #if 0
 //#ifndef NDEBUG
                 for (const ExPolygon &ex : expolygons) {
