@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - master_27
-    
+      - master_27_dev
 jobs:
   build_dep:
     runs-on: windows-2022
