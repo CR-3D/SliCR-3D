@@ -151,7 +151,7 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
     }
     for (size_t i = 0; i < 5; i++) {
         translate_from_rotation(i, Vec3d{ 10 * xyScale, 0, zscale/2 - z_origin });
-        add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "O.amf").string(), Vec3d{ 0,0, zscale }, Vec3d{xyScale , xyScale, layer_height / 0.2}); // base: 0.2mm height
+      //  add_part(model.objects[objs_idx[i]], (boost::filesystem::path(Slic3r::resources_dir()) / "calibration" / "filament_flow" / "O.amf").string(), Vec3d{ 0,0, zscale }, Vec3d{xyScale , xyScale, layer_height / 0.2}); // base: 0.2mm height
     }
 
     
@@ -185,7 +185,7 @@ void CalibrationFlowDialog::create_geometry(float start, float delta) {
         model.objects[objs_idx[i]]->config.set_key_value("first_layer_height", new ConfigOptionFloatOrPercent(first_layer_height, false));
         model.objects[objs_idx[i]]->config.set_key_value("external_infill_margin", new ConfigOptionFloatOrPercent(100, true));
         model.objects[objs_idx[i]]->config.set_key_value("solid_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill));
-        model.objects[objs_idx[i]]->config.set_key_value("top_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipSmooth));
+        model.objects[objs_idx[i]]->config.set_key_value("top_fill_pattern", new ConfigOptionEnum<InfillPattern>(ipMonotonicWGapFill));
         //disable ironing post-process
         model.objects[objs_idx[i]]->config.set_key_value("ironing", new ConfigOptionBool(false));
         //set extrusion mult: 80 90 100 110 120
