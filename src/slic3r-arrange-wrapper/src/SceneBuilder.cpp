@@ -10,6 +10,7 @@
 #include <numeric>
 #include <cstdlib>
 #include <iterator>
+#include <sstream>
 
 #include <libslic3r/Model.hpp>
 #include <libslic3r/MultipleBeds.hpp>
@@ -30,6 +31,80 @@
 #include <arrange-wrapper/Scene.hpp>
 
 namespace Slic3r { namespace arr2 {
+
+static std::pair<bool, bool> parse_points(const std::vector<std::string> &str_vec,
+                                          double min, double max, std::vector<Vec2d> &out_values)
+{
+    bool invalid_val = false;
+    bool out_of_range_val = false;
+
+    for (const std::string &str : str_vec) {
+        std::stringstream points_stream(str);
+        std::string token;
+        while (std::getline(points_stream, token, ',')) {
+            std::stringstream point_stream(token);
+            std::string x_str, y_str;
+            if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+                try {
+                    const double x = std::stod(x_str);
+                    const double y = std::stod(y_str);
+                    if (min <= x && x <= max && min <= y && y <= max)
+                        out_values.emplace_back(x, y);
+                    else
+                        out_of_range_val = true;
+                } catch (const std::invalid_argument &) {
+                    invalid_val = true;
+                } catch (const std::out_of_range &) {
+                    invalid_val = true;
+                }
+            } else {
+                invalid_val = true;
+            }
+
+            if (invalid_val || out_of_range_val)
+                return { invalid_val, out_of_range_val };
+        }
+    }
+
+    return { invalid_val, out_of_range_val };
+}
+
+template<class Cfg>
+static std::vector<Polygons> parse_bed_exclude_areas(const Cfg &cfg)
+{
+    std::vector<Polygons> out;
+    const ConfigOptionStrings *bed_exclude_area_opt = cfg.template option<ConfigOptionStrings>("bed_exclude_area");
+    if (bed_exclude_area_opt == nullptr)
+        return out;
+
+    const std::vector<std::string> bed_exclude_area = bed_exclude_area_opt->get_values();
+    out.reserve(bed_exclude_area.size());
+
+    for (const std::string &area_str : bed_exclude_area) {
+        std::vector<Vec2d> points;
+        auto [invalid, out_of_range] = parse_points(std::vector<std::string>{ area_str }, 0, 1000, points);
+        (void)invalid;
+        (void)out_of_range;
+
+        Polygons area_polys;
+        if (points.size() >= 4 && points.size() % 4 == 0) {
+            area_polys.reserve(points.size() / 4);
+            for (size_t i = 0; i + 3 < points.size(); i += 4) {
+                Polygon poly;
+                poly.points.emplace_back(scale_(points[i + 0].x()), scale_(points[i + 0].y()));
+                poly.points.emplace_back(scale_(points[i + 1].x()), scale_(points[i + 1].y()));
+                poly.points.emplace_back(scale_(points[i + 2].x()), scale_(points[i + 2].y()));
+                poly.points.emplace_back(scale_(points[i + 3].x()), scale_(points[i + 3].y()));
+                poly.make_counter_clockwise();
+                if (!poly.empty() && std::abs(poly.area()) > 0.)
+                    area_polys.emplace_back(std::move(poly));
+            }
+        }
+        out.emplace_back(std::move(area_polys));
+    }
+
+    return out;
+}
 
 coord_t get_skirt_inset(const Print &fffprint)
 {
@@ -464,6 +539,7 @@ SceneBuilder &&SceneBuilder::set_bed(const DynamicPrintConfig &cfg, const Vec2cr
     }
 
     m_bed = arr2::to_arrange_bed(bedpts, gap);
+    m_bed_exclude_areas = parse_bed_exclude_areas(cfg);
 
     return std::move(*this);
 }
@@ -477,6 +553,7 @@ SceneBuilder &&SceneBuilder::set_bed(const Print &print, const Vec2crd &gap)
     } else {
         m_bed = arr2::to_arrange_bed(bedpts, gap);
     }
+    m_bed_exclude_areas = parse_bed_exclude_areas(print.config());
 
     set_brim_and_skirt();
 

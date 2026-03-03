@@ -2308,9 +2308,6 @@ struct Plater::priv
     int get_selected_volume_idx() const;
     void selection_changed();
     void object_list_changed();
-    std::set<uint16_t> m_previous_extruders;
-    std::set<uint16_t> m_extruders_used;
-    
     void render_sliders(GLCanvas3D& canvas);
     void select_all();
     void deselect_all();
@@ -4265,19 +4262,9 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
             show_action_buttons(true);
     }
     
-    // Set Bed Shape based on Extruders Used
-    // TODO: Fix set_bed_shape if an extruder has changed overall
-   std::set<uint16_t> extruders = q->active_fff_print().extruders();
-   size_t nozzle_size = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values().size();
+    // Bed shape is kept stable. It is refreshed by config changes (bed shape / bed_exclude_area),
+    // not by dynamic extruder usage changes during slicing updates.
 
-    if (extruders != m_previous_extruders) {
-       if (nozzle_size == 2) {
-           m_extruders_used = extruders;
-           //q->set_bed_shape();
-           //m_previous_extruders = extruders;
-       }
-    }
-    
     // update tab if needed
     // auto_switch_preview == 0 means "no force tab change"
     if (wxGetApp().is_editor() && invalidated != Print::ApplyStatus::APPLY_STATUS_UNCHANGED && get_app_config()->get("auto_switch_preview") != "0")
@@ -5944,45 +5931,41 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
                                  const std::string &custom_model,
                                  bool              force_as_custom)
 {
-    // Check the nozzle size; if it's 1 or less, skip setting the exclude areas
-    size_t nozzle_size = config->option<ConfigOptionFloats>("nozzle_diameter")->get_values().size();
-    if (nozzle_size <= 1) {
-        bool new_shape = bed.set_shape(shape, {}, max_print_height, custom_texture, custom_model, force_as_custom);
-    }
-
-
     std::vector<std::vector<Vec2d>> exclude_areas;
+    exclude_areas.reserve(bed_exclude_area.size());
+    // Keep bed exclude areas stable: use all configured polygons, not runtime-used extruders.
+    for (const std::string &exclude_area_str : bed_exclude_area) {
+        std::vector<Vec2d> points;
+        auto [invalid, out_of_range] = get_string_points(exclude_area_str, 0, 1000, points);
+        if (invalid || out_of_range || points.size() < 4)
+            continue;
+        if (points.size() > 4)
+            points.resize(4);
 
-    // Loop through each extruder in use and dynamically add its associated exclusion area if enabled
-    for (uint16_t extruder_id : m_extruders_used) {
-        if (extruder_id < bed_exclude_area.size()) {
-            std::vector<Vec2d> points;
-            get_string_points(bed_exclude_area[extruder_id], 0, 1000, points);
-
-            if (points.size() > 4) {
-                points.resize(4);
-            }
-
-            exclude_areas.push_back(points);
+        // Skip degenerate quads.
+        double min_x = points.front().x();
+        double max_x = min_x;
+        double min_y = points.front().y();
+        double max_y = min_y;
+        for (const Vec2d &pt : points) {
+            min_x = std::min(min_x, pt.x());
+            max_x = std::max(max_x, pt.x());
+            min_y = std::min(min_y, pt.y());
+            max_y = std::max(max_y, pt.y());
         }
+        if (min_x >= max_x || min_y >= max_y)
+            continue;
+
+        exclude_areas.emplace_back(std::move(points));
     }
 
 
-    bool new_shape = bed.set_shape(shape,
-                                   exclude_areas,
-                                   max_print_height,
-                                   custom_texture,
-                                   custom_model,
-                                   force_as_custom);
-
-    std::vector<Pointfs> prev_exclude_areas = bed.get_exclude_areas();
-
-    for (const auto& area : exclude_areas) {
-        if (std::find(prev_exclude_areas.begin(), prev_exclude_areas.end(), area) == prev_exclude_areas.end()) {
-            new_shape = true;
-            break;
-        }
-    }
+    bed.set_shape(shape,
+                  exclude_areas,
+                  max_print_height,
+                  custom_texture,
+                  custom_model,
+                  force_as_custom);
 
     if (view3D)
         view3D->bed_shape_changed();

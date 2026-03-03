@@ -113,7 +113,7 @@ auto area(const SegmentedRectangleBed<Args...> &bed)
 template<class...Args>
 ExPolygons to_expolygons(const SegmentedRectangleBed<Args...> &bed)
 {
-    return to_expolygons(RectangleBed{bed.bb});
+    return to_expolygons(RectangleBed{bed.bb, bed.gap});
 }
 
 template<class SegB>

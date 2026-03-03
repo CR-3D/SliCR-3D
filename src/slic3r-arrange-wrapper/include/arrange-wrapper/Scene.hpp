@@ -221,6 +221,7 @@ protected:
     AnyPtr<const ArrangeSettingsView> m_settings;
 
     ExtendedBed m_bed = arr2::InfiniteBed{};
+    std::vector<Polygons> m_bed_exclude_areas;
 
     coord_t m_brims_offs = 0;
     coord_t m_skirt_offs = 0;
@@ -253,18 +254,21 @@ public:
     Subclass &&set_bed(const Points &pts, const Vec2crd &gap)
     {
         m_bed = arr2::to_arrange_bed(pts, gap);
+        m_bed_exclude_areas.clear();
         return std::move(static_cast<Subclass&>(*this));
     }
 
     Subclass && set_bed(const arr2::ArrangeBed &bed)
     {
         m_bed = bed;
+        m_bed_exclude_areas.clear();
         return std::move(static_cast<Subclass&>(*this));
     }
 
     Subclass &&set_bed(const XLBed &bed)
     {
         m_bed = bed;
+        m_bed_exclude_areas.clear();
         return std::move(static_cast<Subclass&>(*this));
     }
 
@@ -291,6 +295,7 @@ class Scene
     AnyPtr<ArrangeableModel>                m_amodel;
     AnyPtr<const ArrangeSettingsView>       m_settings;
     ExtendedBed m_bed;
+    std::vector<Polygons> m_bed_exclude_areas;
 
 public:
     // Scene can only be built from an rvalue SceneBuilder whose content will
@@ -312,6 +317,7 @@ public:
     }
 
     const ExtendedBed & bed() const { return m_bed; }
+    const std::vector<Polygons> &bed_exclude_areas() const { return m_bed_exclude_areas; }
 
     std::vector<ObjectID> selected_ids() const;
 };
@@ -358,6 +364,7 @@ void SceneBuilderBase<Subclass>::build_scene(Scene &sc) &&
     sc.m_settings = std::move(m_settings);
     sc.m_amodel = std::move(m_arrangeable_model);
     sc.m_bed = std::move(m_bed);
+    sc.m_bed_exclude_areas = std::move(m_bed_exclude_areas);
 }
 
 // Arrange tasks produce an object implementing this interface. The arrange

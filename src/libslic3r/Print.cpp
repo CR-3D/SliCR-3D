@@ -44,6 +44,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
@@ -705,6 +706,54 @@ double Print::get_min_first_layer_height() const
     return min_layer_height;
 }
 
+std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str_vec, double min, double max, std::vector<Vec2d> &out_values)
+{
+    bool invalid_val = false;
+    bool out_of_range_val = false;
+
+    // Iterate over each string in the input vector
+    for (const std::string &str : str_vec) {
+        std::stringstream points_stream(str);
+        std::string token;
+
+        // Split input string by commas to get individual point tokens
+        while (std::getline(points_stream, token, ',')) {
+            std::stringstream point_stream(token);
+            std::string x_str, y_str;
+
+            // Split each point by 'x' to separate x and y values
+            if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+                try {
+                    double x = std::stod(x_str);
+                    double y = std::stod(y_str);
+
+                    // Check if values are within specified range
+                    if (min <= x && x <= max && min <= y && y <= max) {
+                        out_values.emplace_back(x, y);
+                    } else {
+                        out_of_range_val = true;
+                    }
+                } catch (const std::invalid_argument&) {
+                    invalid_val = true;
+                } catch (const std::out_of_range&) {
+                    invalid_val = true;
+                }
+            } else {
+                invalid_val = true;
+            }
+
+            // If either an invalid or out-of-range value was found, stop processing
+            if (invalid_val || out_of_range_val) {
+                return {invalid_val, out_of_range_val};
+            }
+        }
+    }
+
+    return {invalid_val, out_of_range_val};
+}
+
+
+
 // Matches "G92 E0" with various forms of writing the zero and with an optional comment.
 boost::regex regex_g92e0 { "^[ \\t]*[gG]92[ \\t]*[eE](0(\\.0*)?|\\.0+)[ \\t]*(;.*)?$" };
 
@@ -730,6 +779,94 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
     if (extruders.empty())
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
+   
+    if (! m_config.bed_exclude_area.empty()) {
+        std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
+        std::vector<Polygons>      exclude_polys_by_extruder(bed_exclude_area.size());
+        std::vector<BoundingBoxes> exclude_bboxes_by_extruder(bed_exclude_area.size());
+
+        for (size_t area_id = 0; area_id < bed_exclude_area.size(); ++ area_id) {
+            const std::string &area_str = bed_exclude_area[area_id];
+            std::vector<Vec2d> points;
+            auto [invalid, out_of_range] = get_strings_points(std::vector<std::string> { area_str }, 0, 1000, points);
+            (void)invalid;
+            (void)out_of_range;
+
+            if (points.size() < 4 || points.size() % 4 != 0)
+                return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
+
+            Polygons      &exclude_polys  = exclude_polys_by_extruder[area_id];
+            BoundingBoxes &exclude_bboxes = exclude_bboxes_by_extruder[area_id];
+            exclude_polys.reserve(points.size() / 4);
+            exclude_bboxes.reserve(points.size() / 4);
+
+            for (size_t i = 0; i + 3 < points.size(); i += 4) {
+                Polygon exclude_poly;
+                exclude_poly.points.emplace_back(scale_(points[i + 0].x()), scale_(points[i + 0].y()));
+                exclude_poly.points.emplace_back(scale_(points[i + 1].x()), scale_(points[i + 1].y()));
+                exclude_poly.points.emplace_back(scale_(points[i + 2].x()), scale_(points[i + 2].y()));
+                exclude_poly.points.emplace_back(scale_(points[i + 3].x()), scale_(points[i + 3].y()));
+                exclude_poly.make_counter_clockwise();
+                exclude_bboxes.emplace_back(exclude_poly.bounding_box());
+                exclude_polys.emplace_back(std::move(exclude_poly));
+            }
+        }
+
+        for (const PrintObject *print_object : m_objects) {
+            Polygons      object_exclude_polys;
+            BoundingBoxes object_exclude_bboxes;
+            for (uint16_t extruder_id : print_object->object_extruders()) {
+                const size_t area_id = size_t(extruder_id);
+                if (area_id < exclude_polys_by_extruder.size()) {
+                    append(object_exclude_polys, exclude_polys_by_extruder[area_id]);
+                    const BoundingBoxes &src_bboxes = exclude_bboxes_by_extruder[area_id];
+                    object_exclude_bboxes.insert(object_exclude_bboxes.end(), src_bboxes.begin(), src_bboxes.end());
+                }
+            }
+            if (object_exclude_polys.empty())
+                continue;
+
+            auto overlaps_exclude_bbox = [&object_exclude_bboxes](const BoundingBox &bb) {
+                for (const BoundingBox &exclude_bb : object_exclude_bboxes)
+                    if (exclude_bb.overlap(bb))
+                        return true;
+                return false;
+            };
+
+            for (const PrintInstance &instance : print_object->instances()) {
+                ModelObject *model_object = instance.model_instance->object;
+
+                // Fast reject: if XY bbox of the full instance does not overlap any excluded area,
+                // avoid costly mesh projections.
+                const BoundingBoxf3 instance_bbox_f = model_object->instance_bounding_box(*instance.model_instance, false);
+                const BoundingBox   instance_bbox  { Point(scale_(instance_bbox_f.min.x()), scale_(instance_bbox_f.min.y())),
+                                                     Point(scale_(instance_bbox_f.max.x()), scale_(instance_bbox_f.max.y())) };
+                if (! overlaps_exclude_bbox(instance_bbox))
+                    continue;
+
+                // Second-stage reject: convex hull intersection is much cheaper than exact mesh projection.
+                const Polygon instance_hull = model_object->convex_hull_2d(instance.model_instance->get_matrix());
+                if (! instance_hull.empty() && (! overlaps_exclude_bbox(instance_hull.bounding_box()) ||
+                    intersection(object_exclude_polys, Polygons{ instance_hull }).empty()))
+                    continue;
+
+                // Exact check only for candidates that passed bbox/hull tests.
+                Polygons contours;
+                for (const ModelVolume *v : model_object->volumes) {
+                    Polygons vol_outline = project_mesh(v->mesh().its, instance.model_instance->get_matrix() * v->get_matrix(), [] {});
+                    append(contours, vol_outline);
+                }
+
+                if (! contours.empty() && ! intersection(object_exclude_polys, contours).empty()) {
+                    std::string name = instance.model_instance->get_object()->name;
+                    return { PrintBase::PrintValidationError::pveWrongPosition, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
+                }
+            }
+        }
+    }
+    
+    
+    
     if (m_config.complete_objects && !m_config.ignore_extruder_clearance /*|| m_config.parallel_objects_step > 0*/) {
     	if (! sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
             return { PrintBase::PrintValidationError::pveWrongPosition, _u8L("Some objects are too close; your extruder will collide with them.") };

@@ -33,6 +33,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <numeric>
+#include <set>
 
 static const float GROUND_Z = -0.02f;
 static const Slic3r::ColorRGBA DEFAULT_MODEL_COLOR             = Slic3r::ColorRGBA::DARK_GRAY();
@@ -387,10 +388,9 @@ void Bed3D::render_exclude_area(int area_id) {
     ColorRGBA select_color { 0.15f, 0.15f, 0.15f, 1.0f };
     glsafe(::glDepthMask(GL_FALSE));
     
-    // Set color for each area
-    for (size_t i = 0; i < m_exclude_triangles.size(); ++i) {
-        m_exclude_triangles[i].set_color(select_color);
-        m_exclude_triangles[i].render();
+    if (area_id >= 0 && size_t(area_id) < m_exclude_triangles.size()) {
+        m_exclude_triangles[size_t(area_id)].set_color(select_color);
+        m_exclude_triangles[size_t(area_id)].render();
     }
     glsafe(::glDepthMask(GL_TRUE));
     
@@ -779,7 +779,13 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas, const Transform3d& v
         shader_flat->set_uniform("projection_matrix", projection_matrix);
 
         if (!bottom && is_active) {
-            for (int i = 0; i < m_exclude_areas.size(); i++) {
+            std::set<uint16_t> active_extruders;
+            if (wxGetApp().is_editor() && wxGetApp().plater() != nullptr)
+                active_extruders = wxGetApp().plater()->active_fff_print().extruders();
+
+            for (int i = 0; i < int(m_exclude_areas.size()); ++i) {
+                if (!active_extruders.empty() && active_extruders.find(uint16_t(i)) == active_extruders.end())
+                    continue;
                 render_exclude_area(i);
             }
         }

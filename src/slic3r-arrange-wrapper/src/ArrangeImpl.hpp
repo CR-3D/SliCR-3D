@@ -8,6 +8,7 @@
 #include <random>
 #include <map>
 #include <algorithm>
+#include <limits>
 
 #include <libslic3r/Execution/ExecutionTBB.hpp>
 #include <libslic3r/Geometry/ConvexHull.hpp>
@@ -30,6 +31,70 @@
 #endif
 
 namespace Slic3r { namespace arr2 {
+
+inline constexpr int ExcludeObstaclePriority = std::numeric_limits<int>::min();
+
+template<class ArrItem>
+inline bool is_exclusion_obstacle(const ArrItem &itm)
+{
+    if (get_priority(itm) == ExcludeObstaclePriority)
+        return true;
+    if (const bool *flag = get_data<bool>(itm, "bed_exclude_obstacle"); flag != nullptr)
+        return *flag;
+    return false;
+}
+
+template<class It, class ConstIt>
+void recenter_rectangular_piles(const Range<It> &items,
+                                const Range<ConstIt> &fixed,
+                                const RectangleBed &bed)
+{
+    std::vector<int> bed_indices = get_bed_indices(items, fixed);
+    std::map<int, BoundingBox> pilebb;
+    std::map<int, bool> bed_occupied;
+
+    for (auto &itm : items) {
+        const int bedidx = get_bed_index(itm);
+        if (bedidx >= 0) {
+            pilebb[bedidx].merge(fixed_bounding_box(itm));
+            if (is_wipe_tower(itm))
+                bed_occupied[bedidx] = true;
+        }
+    }
+
+    for (auto &fxitm : fixed) {
+        const int bedidx = get_bed_index(fxitm);
+        if (bedidx >= 0 && !is_exclusion_obstacle(fxitm))
+            bed_occupied[bedidx] = true;
+    }
+
+    const BoundingBox bedbb = bounding_box(bed);
+    for (int bedidx : bed_indices) {
+        if (auto occup_it = bed_occupied.find(bedidx);
+            occup_it != bed_occupied.end() && occup_it->second)
+            continue;
+
+        auto pile_it = pilebb.find(bedidx);
+        if (pile_it == pilebb.end())
+            continue;
+
+        Vec2crd d = bedbb.center() - pile_it->second.center();
+
+        auto pilebb_shifted = pile_it->second;
+        pilebb_shifted.translate(d);
+
+        Point corr{0, 0};
+        corr.x() = -std::min(coord_t(0), pilebb_shifted.min.x() - bedbb.min.x())
+                   -std::max(coord_t(0), pilebb_shifted.max.x() - bedbb.max.x());
+        corr.y() = -std::min(coord_t(0), pilebb_shifted.min.y() - bedbb.min.y())
+                   -std::max(coord_t(0), pilebb_shifted.max.y() - bedbb.max.y());
+
+        d += corr;
+        for (auto &itm : items)
+            if (get_bed_index(itm) == bedidx && !is_wipe_tower(itm))
+                translate(itm, d);
+    }
+}
 
 // arrange overload for SegmentedRectangleBed which is exactly what is used
 // by XL printers.
@@ -63,7 +128,9 @@ void arrange(SelectionStrategy &&selstrategy,
 
     for (auto &fxitm : fixed) {
         auto bedidx = get_bed_index(fxitm);
-        if (bedidx >= 0)
+        // Exclusion obstacles are fixed by definition, but they should not
+        // disable the final segmented-bed centering/alignment pass.
+        if (bedidx >= 0 && ! is_exclusion_obstacle(fxitm))
             bed_occupied[bedidx] = true;
     }
 
@@ -338,6 +405,13 @@ class DefaultArranger: public Arranger<ArrItem> {
 
             arr2::arrange(sel, ps, items, fixed, bed);
         }
+
+        // Keep a deterministic centered placement on rectangular beds.
+        // This mirrors segmented-bed post-centering without changing packing.
+        if (m_settings.get_arrange_strategy() == ArrangeSettingsView::asPullToCenter) {
+            if constexpr (std::is_same_v<StripCVRef<Bed>, RectangleBed>)
+                recenter_rectangular_piles(items, fixed, bed);
+        }
     }
 
 public:
@@ -500,5 +574,3 @@ ArrangeableToItemConverter<ArrItem>::create(
 }} // namespace Slic3r::arr2
 
 #endif // ARRANGEIMPL_HPP
-
-

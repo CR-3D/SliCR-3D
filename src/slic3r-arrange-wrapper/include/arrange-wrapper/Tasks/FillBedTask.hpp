@@ -5,6 +5,8 @@
 #ifndef FILLBEDTASK_HPP
 #define FILLBEDTASK_HPP
 
+#include <set>
+
 #include <arrange-wrapper/Arrange.hpp>
 
 #include "MultiplySelectionTask.hpp"
@@ -26,6 +28,7 @@ struct FillBedTask: public ArrangeTaskBase
 
     ArrangeSettings settings;
     ExtendedBed bed;
+    std::set<uint16_t> prototype_extruders;
     size_t selected_existing_count = 0;
 
     std::unique_ptr<FillBedTaskResult> process_native(Ctl &ctl);

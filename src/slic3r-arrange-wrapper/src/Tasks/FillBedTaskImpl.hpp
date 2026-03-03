@@ -5,13 +5,54 @@
 #ifndef FILLBEDTASKIMPL_HPP
 #define FILLBEDTASKIMPL_HPP
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
 #include <boost/log/trivial.hpp>
+
+#include <libslic3r/ClipperUtils.hpp>
 
 #include <arrange/NFP/NFPArrangeItemTraits.hpp>
 
 #include <arrange-wrapper/Tasks/FillBedTask.hpp>
+#include <arrange-wrapper/SceneBuilder.hpp>
 
 namespace Slic3r { namespace arr2 {
+
+template<class ArrItem>
+static void collect_prototype_extruders(FillBedTask<ArrItem> &task,
+                                        const Scene &scene,
+                                        const ObjectID &prototype_geometry_id)
+{
+    task.prototype_extruders.clear();
+
+    auto slicer_model = dynamic_cast<const ArrangeableSlicerModel*>(&scene.model());
+    if (slicer_model == nullptr)
+        return;
+
+    const Model &model = slicer_model->get_model();
+    auto it = std::find_if(model.objects.begin(), model.objects.end(),
+                           [&prototype_geometry_id](const ModelObject *obj) {
+                               return obj != nullptr && obj->id() == prototype_geometry_id;
+                           });
+    if (it == model.objects.end() || *it == nullptr)
+        return;
+
+    for (const ModelVolume *mv : (*it)->volumes) {
+        if (mv == nullptr || !mv->is_model_part())
+            continue;
+        const int extruder_id = mv->extruder_id();
+        const int area_id = extruder_id > 0 ? extruder_id - 1 : 0;
+        if (area_id >= 0)
+            task.prototype_extruders.insert(uint16_t(area_id));
+    }
+
+    // If we cannot resolve the tool assignment, assume default tool 0.
+    // This keeps left-side placement available instead of blocking both sides.
+    if (task.prototype_extruders.empty())
+        task.prototype_extruders.insert(uint16_t(0));
+}
 
 template<class ArrItem>
 int calculate_items_needed_to_fill_bed(const ExtendedBed &bed,
@@ -61,6 +102,7 @@ void extract(FillBedTask<ArrItem> &task,
         return;
 
     ObjectID prototype_geometry_id = *(selected_objects.begin());
+    collect_prototype_extruders(task, scene, prototype_geometry_id);
 
     auto set_prototype_item = [&task, &itm_conv](const Arrangeable &arrbl) {
         if (arrbl.is_printable())
@@ -71,6 +113,8 @@ void extract(FillBedTask<ArrItem> &task,
 
     if (!task.prototype_item)
         return;
+    if (task.prototype_extruders.empty())
+        task.prototype_extruders.insert(uint16_t(0));
 
     // Workaround for missing items when arranging the same geometry only:
     // Injecting a number of items but with slightly shrinked shape, so that
@@ -128,6 +172,47 @@ void extract(FillBedTask<ArrItem> &task,
                 prototype_item_shrinked);
 }
 
+template<class ArrItem>
+static void apply_bed_exclude_areas(FillBedTask<ArrItem> &task, const Scene &scene)
+{
+    const std::vector<Polygons> &exclude_areas = scene.bed_exclude_areas();
+    if (exclude_areas.empty())
+        return;
+
+    if (task.prototype_extruders.empty())
+        task.prototype_extruders.insert(uint16_t(0));
+
+    Polygons blocked;
+    for (uint16_t extruder_id : task.prototype_extruders)
+        if (size_t(extruder_id) < exclude_areas.size())
+            append(blocked, exclude_areas[size_t(extruder_id)]);
+
+    if (blocked.empty())
+        return;
+
+    static constexpr double exclude_safety_margin_mm = 0.20;
+    const coord_t exclude_safety_margin = scale_(exclude_safety_margin_mm);
+    if (exclude_safety_margin > 0)
+        blocked = offset(blocked, exclude_safety_margin);
+
+    constexpr int exclude_obstacle_priority = std::numeric_limits<int>::min();
+    const int bed_idx = task.prototype_item && get_bed_constraint(*task.prototype_item).has_value() ?
+                        *get_bed_constraint(*task.prototype_item) : 0;
+
+    for (const Polygon &poly : blocked) {
+        if (poly.points.size() < 3 || std::abs(poly.area()) <= 0.)
+            continue;
+        ArrItem obstacle;
+        set_shape(obstacle, ExPolygons{ ExPolygon{ poly } });
+        // Mark as synthetic exclusion geometry so arrangement post-processing
+        // can treat it differently from real fixed objects.
+        set_priority(obstacle, exclude_obstacle_priority);
+        set_bed_index(obstacle, bed_idx);
+        set_bed_constraint(obstacle, bed_idx);
+        task.unselected.emplace_back(std::move(obstacle));
+    }
+}
+
 
 template<class ArrItem>
 std::unique_ptr<FillBedTask<ArrItem>> FillBedTask<ArrItem>::create(
@@ -140,6 +225,7 @@ std::unique_ptr<FillBedTask<ArrItem>> FillBedTask<ArrItem>::create(
     task->bed = get_corrected_bed(sc.bed(), converter);
 
     extract(*task, sc, converter);
+    apply_bed_exclude_areas(*task, sc);
 
     return task;
 }

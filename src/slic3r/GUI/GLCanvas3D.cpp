@@ -1758,10 +1758,67 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
 
     const Slic3r::BuildVolume& build_volume = m_bed.build_volume();
     const std::vector<Pointfs>& exclude_areas = m_bed.get_exclude_areas();
+
+    Polygons      exclude_polys;
+    BoundingBoxes exclude_bboxes;
+    exclude_polys.reserve(exclude_areas.size());
+    exclude_bboxes.reserve(exclude_areas.size());
+    for (const Pointfs &exclude_area : exclude_areas) {
+        if (exclude_area.size() < 3)
+            continue;
+        Polygon poly;
+        poly.points.reserve(exclude_area.size());
+        for (const auto &point : exclude_area)
+            poly.points.emplace_back(scale_(point.x()), scale_(point.y()));
+        poly.make_counter_clockwise();
+        exclude_bboxes.emplace_back(poly.bounding_box());
+        exclude_polys.emplace_back(std::move(poly));
+    }
+    auto volume_exclude_area_idx = [&exclude_polys](const GLVolume &volume) -> int {
+        if (volume.extruder_id < 0)
+            return -1;
+        // GLVolume::extruder_id is 1-based; value 0 means default extruder (tool 1).
+        const int idx = volume.extruder_id > 0 ? volume.extruder_id - 1 : 0;
+        return (idx >= 0 && size_t(idx) < exclude_polys.size()) ? idx : -1;
+    };
+
+    // Map each object to the exclude areas of its actually used extruders.
+    std::vector<std::vector<int>> object_exclude_area_idxs(m_model->objects.size());
+    if (wxGetApp().is_editor() && wxGetApp().plater() != nullptr) {
+        const Print &print = wxGetApp().plater()->active_fff_print();
+        const auto   print_objects = print.objects();
+        for (size_t obj_idx = 0; obj_idx < m_model->objects.size(); ++obj_idx) {
+            std::set<uint16_t> object_extruders;
+            if (obj_idx < print_objects.size())
+                object_extruders = print_objects[obj_idx]->object_extruders();
+
+            // Fallback for cases where print-object mapping is not available yet.
+            if (object_extruders.empty()) {
+                for (const ModelVolume *mv : m_model->objects[obj_idx]->volumes)
+                    if (mv->is_model_part()) {
+                        const int extruder_id = mv->extruder_id();
+                        const int area_idx = extruder_id > 0 ? extruder_id - 1 : 0;
+                        if (area_idx >= 0 && size_t(area_idx) < exclude_polys.size())
+                            object_extruders.insert(uint16_t(area_idx));
+                    }
+            }
+
+            auto &areas = object_exclude_area_idxs[obj_idx];
+            areas.reserve(object_extruders.size());
+            for (uint16_t extruder_id : object_extruders)
+                if (size_t(extruder_id) < exclude_polys.size())
+                    areas.emplace_back(int(extruder_id));
+        }
+    }
+    std::vector<std::vector<std::vector<int8_t>>> instance_excluded(m_model->objects.size());
+    for (size_t obj_idx = 0; obj_idx < m_model->objects.size(); ++obj_idx)
+        instance_excluded[obj_idx].assign(m_model->objects[obj_idx]->instances.size(),
+                                          std::vector<int8_t>(exclude_polys.size(), int8_t(-1)));
     
     const std::vector<unsigned int> volumes_idxs = volumes_to_process_idxs();
     for (unsigned int vol_idx : volumes_idxs) {
         const std::unique_ptr<GLVolume> & volume = volumes.volumes[vol_idx];
+        volume->is_excluded = false;
         if (!volume->is_modifier && (volume->shader_outside_printer_detection_enabled || (!volume->is_wipe_tower() && volume->composite_id.volume_id >= 0))) {
             BuildVolume::ObjectState state;
             int bed_idx = -1;
@@ -1789,47 +1846,64 @@ bool GLCanvas3D::check_volumes_outside_state(GLVolumeCollection& volumes, ModelI
                 assert(state != BuildVolume::ObjectState::Below);
             }
             
-           Polygons  exclude_polys;
-           Polygon   exclude_poly;
-           Polygons  contours;
+            if (volume->object_idx() >= 0 && volume->instance_idx() >= 0 &&
+                size_t(volume->object_idx()) < instance_excluded.size() &&
+                size_t(volume->instance_idx()) < instance_excluded[size_t(volume->object_idx())].size()) {
+                const size_t object_idx   = size_t(volume->object_idx());
+                const size_t instance_idx = size_t(volume->instance_idx());
 
-           for (size_t i = 0; i < exclude_areas.size(); i++) {
-               auto& pt = exclude_areas[i];
-               for (const auto& point : pt) {
-                exclude_poly.points.emplace_back(scale_(point.x()), scale_(point.y()));
-               }
-               
-               exclude_polys.push_back(exclude_poly);
-               exclude_poly.points.clear();
-           }
-           
-           for (Polygon& poly : exclude_polys) {
-              poly.make_counter_clockwise();
-           }
-           
-           // this is called 60 times per seconds. only do very very quick checks & changes.
-           // 'project_mesh' needs to be done in a separate thread, and the result in a cache (a synched variable)
-           // vol_outline needs to be stored in its simplified form.
-           // un-translate (x&y) the vol_outline, so you can still use the cached vol_outline if only the translation changed.
-           //for (const ModelObject* model_object : m_model->objects) {
-           //    for (const ModelInstance* instance : model_object->instances) {
-           //       for (const ModelVolume* v : instance->get_object()->volumes) {
-           //          Polygons vol_outline;
-           //          auto transl = Transform3d::Identity();
-           //          vol_outline = project_mesh(v->mesh().its, transl * instance->get_matrix() * v->get_matrix(), [] {});
-           //          append(contours, vol_outline);
-           //          
-           //          if (!contours.empty()) {
-           //             for (Polygon& contour : contours) {
-           //                 contour.make_counter_clockwise();
-           //             }
-           //             
-           //             volume->is_excluded = !intersection(exclude_polys, contours).empty();
-           //          }
-           //       }
-           //   }
-           //}
-           
+                const std::vector<int> *candidate_areas = nullptr;
+                std::vector<int> fallback_area;
+                if (object_idx < object_exclude_area_idxs.size() && !object_exclude_area_idxs[object_idx].empty()) {
+                    candidate_areas = &object_exclude_area_idxs[object_idx];
+                } else if (const int fallback_idx = volume_exclude_area_idx(*volume); fallback_idx >= 0) {
+                    fallback_area.emplace_back(fallback_idx);
+                    candidate_areas = &fallback_area;
+                }
+
+                if (candidate_areas != nullptr) {
+                    ModelObject   *model_object   = m_model->objects[object_idx];
+                    ModelInstance *model_instance = model_object->instances[instance_idx];
+                    BoundingBox    instance_bbox;
+                    bool           bbox_ready = false;
+                    Polygon        instance_hull;
+                    bool           hull_ready = false;
+
+                    for (int exclude_area_idx : *candidate_areas) {
+                        int8_t &cached_excluded = instance_excluded[object_idx][instance_idx][size_t(exclude_area_idx)];
+                        if (cached_excluded < 0) {
+                            cached_excluded = 0;
+
+                            if (!bbox_ready) {
+                                const BoundingBoxf3 instance_bbox_f = model_object->instance_bounding_box(*model_instance, false);
+                                instance_bbox = BoundingBox{
+                                    Point(scale_(instance_bbox_f.min.x()), scale_(instance_bbox_f.min.y())),
+                                    Point(scale_(instance_bbox_f.max.x()), scale_(instance_bbox_f.max.y()))
+                                };
+                                bbox_ready = true;
+                            }
+
+                            const BoundingBox &exclude_bbox = exclude_bboxes[size_t(exclude_area_idx)];
+                            if (instance_bbox.overlap(exclude_bbox)) {
+                                if (!hull_ready) {
+                                    instance_hull = model_object->convex_hull_2d(model_instance->get_matrix());
+                                    hull_ready = true;
+                                }
+
+                                if (!instance_hull.empty() && instance_hull.bounding_box().overlap(exclude_bbox) &&
+                                    !intersection(Polygons{ exclude_polys[size_t(exclude_area_idx)] }, Polygons{ instance_hull }).empty())
+                                    cached_excluded = 1;
+                            }
+                        }
+
+                        if (cached_excluded > 0) {
+                            volume->is_excluded = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
             volume->is_outside = state != BuildVolume::ObjectState::Inside;
             if (volume->printable) {
                 if (overall_state == ModelInstancePVS_Inside && volume->is_outside)
