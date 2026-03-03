@@ -1690,15 +1690,12 @@ void Tab::activate_option(const OptionKeyIdx& opt_key_idx, const wxString& categ
 {
     wxString page_title = translate_category(category, type());
 
-    auto cur_item = m_treectrl->GetFirstVisibleItem();
-    if (!cur_item)
-        return;
-
-    // We should to activate a tab with searched option, if it doesn't.
-    // And do it before finding of the cur_item to avoid a case when Tab isn't activated jet and all treeItems are invisible
+    // We should activate the tab first. Otherwise GetFirstVisibleItem() may be invalid
+    // for inactive tabs and the function could return before switching tabs.
     wxGetApp().mainframe->select_tab(this);
 
-    while (cur_item) {
+    auto cur_item = m_treectrl->GetFirstVisibleItem();
+    while (cur_item.IsOk()) {
         auto title = m_treectrl->GetItemText(cur_item);
         if (page_title != title) {
             cur_item = m_treectrl->GetNextVisible(cur_item);
