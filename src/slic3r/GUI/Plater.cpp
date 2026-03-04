@@ -5936,7 +5936,7 @@ void Plater::priv::set_bed_shape(const Pointfs&    shape,
     // Keep bed exclude areas stable: use all configured polygons, not runtime-used extruders.
     for (const std::string &exclude_area_str : bed_exclude_area) {
         std::vector<Vec2d> points;
-        auto [invalid, out_of_range] = get_string_points(exclude_area_str, 0, 1000, points);
+        auto [invalid, out_of_range] = get_string_points(exclude_area_str, 0, 1200, points);
         if (invalid || out_of_range || points.size() < 4)
             continue;
         if (points.size() > 4)
