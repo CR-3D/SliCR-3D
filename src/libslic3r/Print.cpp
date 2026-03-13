@@ -789,7 +789,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         for (size_t area_id = 0; area_id < bed_exclude_area.size(); ++ area_id) {
             const std::string &area_str = bed_exclude_area[area_id];
             std::vector<Vec2d> points;
-            auto [invalid, out_of_range] = get_strings_points(std::vector<std::string> { area_str }, 0, 1000, points);
+            auto [invalid, out_of_range] = get_strings_points(std::vector<std::string> { area_str }, 0, 1300, points);
             (void)invalid;
             (void)out_of_range;
 
