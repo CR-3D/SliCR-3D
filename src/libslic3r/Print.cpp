@@ -780,7 +780,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
    
-    if (! m_config.bed_exclude_area.empty()) {
+    if (! m_config.bed_exclude_area.empty() && m_config.nozzle_diameter.size() > 1) {
         std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
         std::vector<Polygons>      exclude_polys_by_extruder(bed_exclude_area.size());
         std::vector<BoundingBoxes> exclude_bboxes_by_extruder(bed_exclude_area.size());
