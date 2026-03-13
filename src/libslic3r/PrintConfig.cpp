@@ -1883,6 +1883,16 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->step_y = 0.0005;
     def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
 
+
+    def = this->add("filament_pressure_advance_value", coFloats);
+    def->label = L("Pressure Advance Value");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("This is the default pressure advance value used when the graph is disabled or when the nozzle size is not in the graph.");
+    def->is_vector_extruder = true;
+    def->mode = comExpert | comPrusa;
+    def->set_default_value(new ConfigOptionFloats{0.05});
+    
+
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
     def->label = L("Nozzle Type");

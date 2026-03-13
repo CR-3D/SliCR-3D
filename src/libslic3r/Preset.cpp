@@ -917,6 +917,7 @@ static std::vector<std::string> s_Preset_filament_options {
         "chamber_temperature",
         // SoftFever
         "filament_pressure_advance",
+        "filament_pressure_advance_value",
 };
 
 static std::vector<std::string> s_Preset_machine_limits_options {
