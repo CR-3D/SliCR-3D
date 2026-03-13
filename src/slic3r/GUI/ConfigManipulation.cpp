@@ -827,20 +827,7 @@ void ConfigManipulation::toggle_printer_fff_options(DynamicPrintConfig *config, 
 
 void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config, const DynamicPrintConfig &full_config) {
    
-   const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();
-    //for each extruder
-    for (size_t extruder_idx = 0; extruder_idx < nozzle_sizes.size(); ++extruder_idx) {
-   
-         // Adaptive PA
-         bool use_adaptive_pa = config->opt_bool("adaptive_pressure_advance", extruder_idx);
-         for (auto el : {
-            "adaptive_pressure_advance_overhangs",
-            "adaptive_pressure_advance_bridges",
-            "adaptive_pressure_advance_model"
-         })
-         toggle_field(el, use_adaptive_pa, extruder_idx);
-   }
-      
+   const std::vector<double> &nozzle_sizes = full_config.option<ConfigOptionFloats>("nozzle_diameter")->get_values();      
       
    toggle_field("min_print_speed",
                 config->opt_float("slowdown_below_layer_time", 0) > 0);
