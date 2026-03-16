@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Kalibrierung der Filamenttemperatur</title>
+  <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Kalibrierung der Filamenttemperatur</h1>
+</td>
+</tr>
+<tr>
+<td style="text-align: right;"><strong>
+	<table><tr><td>Benötigt:</td>
+        <td style="text-align: left;">Bettnivellierung</td>
+        <td style="text-align: left;">Fluss</td></tr>
+	</table>
+	</strong>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Du solltest die Bettnivellierung vor dieser Kalibrierung durchgeführt haben,</strong> und es ist außerdem empfehlenswert, bereits die Flusskalibrierung gemacht zu haben.
+Diese Kalibrierung hilft dir dabei, die richtige Temperatur in Bezug auf Haftung zwischen den Schichten, Überhänge und Oozing zu wählen.
+Beachte, dass dieser Test von der eingestellten Kühlung abhängt. Du kannst ihn mehrfach mit mehr oder weniger Kühlung drucken, um den idealen Bereich zu finden.</p>
+
+<p>Dieser Test druckt einen Turm, bei dem jede Etage mit einer anderen Temperatur gedruckt wird. Die mittlere Etage wird mit der aktuell in deiner Filamentkonfiguration eingestellten Temperatur gedruckt. Die unterste Etage, die die Druckplatte berührt, wird daher mit der höchsten Temperatur gedruckt und die oberste Etage mit der niedrigsten. Du kannst die Temperaturdifferenz zwischen den einzelnen Tests und die Anzahl der Tests wählen (wie viele Tests unterhalb der aktuellen Temperatur und wie viele oberhalb), aber du kannst die Werte zunächst auch unverändert lassen.</p>
+
+<h2>Ergebnisse / Beobachtung</h2>
+<p>Das Ziel ist, die höchstmögliche Temperatur zu wählen, die keine Artefakte erzeugt.</p>
+<p>Zuerst musst du den Turm analysieren. Auf jeder Etage steht die jeweilige Temperatur.</p>
+
+<table width="100%">
+<tbody>
+<tr>
+<td><img src="./temp_tower_180.jpg" width="400" height="100" /></td>
+<td>Zu kalt, das Material kann nicht richtig extrudiert werden</td>
+<td>
+</tr>
+<tr>
+<td><img src="./temp_tower_195.jpg" width="400" height="100" /></td>
+<td>Gut</td>
+</tr>
+<tr>
+<td><img src="./temp_tower_210.jpg" width="400" height="100" /></td>
+<td>Gut</td>
+</tr>
+<tr>
+<td><img src="./temp_tower_225.jpg" width="400" height="100" /></td>
+<td>Zu heiß, man erkennt Oozing</td>
+</tr>
+<tr>
+<td><img src="./temp_tower_240.jpg" width="400" height="100" /></td>
+<td>Zu heiß, man erkennt Oozing</td>
+</tr>
+</tbody>
+</table>
+
+<p>Hier kannst du sehen, dass die Etage mit 210 Grad Celsius die höchste Temperatur ist, bei der noch ohne Zerfallsprobleme gedruckt werden kann (bezogen auf die Hitze; die schlechte Qualität auf den Bildern ist auf hohe Druckgeschwindigkeit zurückzuführen). Außerdem konnte ich ein Stück der 195-Grad-Etage mit Mühe abbrechen, weil die Haftung zwischen den Schichten fehlte; sie wurde also mit zu niedriger Temperatur gedruckt. Ich empfehle, denselben Test ebenfalls zu machen.</p>
+
+<h2>Ergebnisse: Zerstörungstest</h2>
+<p>Am Ende solltest du den Turm auseinanderbrechen, um zu prüfen, ob die niedrigeren Temperaturen negative Auswirkungen auf die Haftung zwischen den Schichten haben. Es sollte nicht möglich sein, die Schichten mit bloßen Händen auseinanderzureißen. Wenn sich eine Etage leicht delaminieren lässt, ist diese Temperatur definitiv zu niedrig (oder du hattest zu viel Kühlung, weil der Lüfter zu stark geblasen hat). In diesem Fall solltest du eine höhere Temperatur wählen oder den Test mit weniger Kühlung wiederholen. Wenn du versuchst, eine Etage zu brechen, setze deine Hände nicht an die Enden des Turms, sondern an die getestete Etage und die direkt danebenliegende, sodass nur die Brückenlücken dazwischen verbleiben.</p>
+
+<h2>So stellst du deinen Drucker ein</h2>
+<p>Ändere die Temperatur in deinen Filamenteinstellungen (Extruder -> andere Schichten) und speichere sie anschließend. Die Temperatur der ersten Schicht ist oft 5 Grad höher, um die Haftung auf dem Druckbett zu verbessern, daher solltest du auch diesen Wert anpassen, besonders wenn er niedriger als der neue Wert ist.</p>
+
+<h2>Anmerkungen</h2>
+<p>Die meisten Kalibrierungen sollten in der <strong>richtigen</strong> Reihenfolge durchgeführt werden. Diese sollte an dritter Stelle kommen.</p>
+<p>Die Temperaturwerte werden nur zwischen 180 und 285 angezeigt. Höhere oder niedrigere Werte werden nicht dargestellt, aber der Test funktioniert trotzdem korrekt; du musst sie dir dann einfach merken.</p>
+<p>Dieser Turm basiert auf dem 3D-Modell <a href="https://www.thingiverse.com/thing:2729076">von gaaZolee</a> unter der Lizenz CC BY-SA 3.0.</p>
+
+</body>
+</html>

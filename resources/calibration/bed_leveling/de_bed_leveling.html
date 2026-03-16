@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Bett Leveling Kalibrierung</title>
+    <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Bett Leveling Kalibrierung</h1>
+</td>
+</tr>
+<tr>
+    <td style="text-align: right;">
+        <table><tr><td>Benötigt:</td>
+            <td style="text-align: left;">Nichts</td></tr>
+        </table>
+</tr>
+</tbody>
+</table>
+<p>Diese Kalibrierung ist die erste, die durchgeführt werden sollte, da sie notwendig ist, damit ein Druck gut auf dem Druckbett haftet.</p>
+<p>Diese Kalibrierung dient der Feinabstimmung. Bitte leveln Sie den Drucker vor dem Start grob und bewegen Sie die Düse auf 0,2 mm über das Druckbett. Ein Blatt Papier sollte sich zwischen Düse und Bett bewegen lassen, wobei Sie die Düse dabei leicht spüren sollten. Danach sollten Sie das Bett mit einer Genauigkeit von etwa 0,1 mm leveln können.</p>
+<h2>So funktioniert es</h2>
+<p>Wählen Sie zuerst Ihren Drucker und Ihr Standard Druckprofil mit dem Filamentprofil für das verwendete Filament aus. Beachten Sie, dass diese Kalibrierung bei mehreren Extrudern nur mit dem ersten Extruder funktioniert.</p>
+<p>Wenn Sie auf die Schaltfläche "Generieren" klicken, erstellt und sliced das Programm den Testdruck. Sie müssen ihn anschließend an Ihren Drucker senden und ausdrucken. Nach dem Druck vergleichen Sie die fünf Felder mit den Fotos unten. Falls nötig, müssen Sie Ihren Drucker oder die Firmware anpassen, um die Höhe zu korrigieren.</p>
+<p>Lesen Sie für weitere Informationen auch die Hinweise und Empfehlungen unten.</p>
+<h2>Ergebnisse</h2>
+<table width="100%">
+<tbody>
+<tr>
+<td><img src="./low_ll.jpg" width="100" height="200" /></td>
+<td><img src="./low_l.jpg" width="100" height="200" /></td>
+<td><img src="./low.jpg" width="100" height="200" /></td>
+<td><img src="./good.jpg" width="100" height="200" /></td>
+<td><img src="./high.jpg" width="100" height="200" /></td>
+<td><img src="./high_h.jpg" width="100" height="200" /></td>
+<td><img src="./high_hh.jpg" width="100" height="200" /></td>
+</tr>
+<tr>
+<td style="text-align: center;">Viel zu weit entfernt</td>
+<td style="text-align: center;">Zu weit entfernt</td>
+<td style="text-align: center;">Zu weit entfernt:<br />Es ist noch eine<br />kleine Lücke sichtbar</td>
+<td style="text-align: center;">Perfekt</td>
+<td style="text-align: center;">Zu nah</td>
+<td style="text-align: center;">Warnung!<br />Es ist zu nah:<br />Prüfen Sie die Stärke<br />mit den Fingern!</td>
+<td style="text-align: center;">Viel zu nah<br />Gefährlich<br />für das Bett</td>
+</tr>
+</table>
+<h2>So stellen Sie Ihren Drucker ein</h2>
+<p><strong>Wenn Ihr Drucker Bettschrauben hat</strong>, verwenden Sie diese, um das Bett an der Stelle des betreffenden Feldes anzuheben oder abzusenken. Vergessen Sie nicht, den Test nach der Anpassung erneut zu drucken, um die Korrektur zu prüfen. Seien Sie vorsichtig: Häufig entspricht bereits eine halbe Umdrehung etwa 0,2 mm Höhenänderung, was in etwa der Höhe der ersten Schicht entspricht. Wenn Sie das Bett anheben, drehen Sie nie mehr als das und meist höchstens eine Vierteldrehung.</p>
+<p><strong>Wenn Ihr Drucker keine Bettschrauben hat</strong>, müssen Sie die Software oder die Firmware Konfiguration verwenden. Beachten Sie dazu das Handbuch Ihres Druckers.</p>
+<h2>Empfehlungen</h2>
+<p>Wenn Ihr Filament schlecht auf dem Bett haftet, können Sie Folgendes versuchen:</p>
+<ul>
+<li>Erhöhen Sie die Breite der ersten Schicht. Das erhöht den Anpressdruck ohne Überextrusion. Sie können bis auf 200% der Düsenbreite gehen, meist reichen aber 150%. (Erweiterte Einstellung, Druck -> Breite)</li>
+<li>Verringern Sie die Druckgeschwindigkeit der ersten Schicht, damit das Material mehr Zeit zum Haften hat. (Erweiterte Einstellung, Druck -> Geschwindigkeit)</li>
+<li>Sie können Z Hop für die erste Schicht deaktivieren oder aktivieren, indem Sie "only lift z" -> "above Z" höher als die Höhe Ihrer ersten Schicht setzen. Aktiviert kann das Filament vom Bett abgezogen werden, deaktiviert kann die Düse das Bett berühren und das abgelegte Filament verschieben. Hier müssen Sie den optimalen Wert testen. (Erweiterte Einstellung, Drucker -> Extruder)</li>
+</ul>
+<h2>Hinweise</h2>
+<p>Dieser Test verwendet Ihre aktuelle Höhe der ersten Schicht. Falls Sie Ihr Bett zum ersten Mal leveln, sollten Sie den Wert vor dem Generieren eventuell auf bis zu 80% Ihrer Düsenhöhe erhöhen, um das Risiko eines Düsencrashs zu verringern.</p>
+<p>Wenn sich nach der Filamentfluss Kalibrierung zeigt, dass der Fluss stark falsch eingestellt war, sollten Sie diese Kalibrierung später eventuell erneut durchführen.</p>
+<p>Die meisten Kalibrierungen sollten in der richtigen Reihenfolge durchgeführt werden. Diese hier ist die erste. Wenn Sie gute Ergebnisse erzielen möchten, sollten Sie außerdem Ihren Extruder kalibrieren. Wenn Sie ihn zum Beispiel 100 mm Filament extrudieren lassen, sollte genau diese Länge auch wirklich in die Düse gefördert werden.</p>
+<p>Dieser Test setzt die Einstellung "Komplette einzelne Objekte" auf aktiv. Möglicherweise möchten Sie Ihre Druckeinstellungen danach wieder zurücksetzen.</p>
+<p>Lizenz für die in diesem Kalibrierungstest verwendeten Modelle: CC BY-SA 3.0</p>
+</body>
+</html>

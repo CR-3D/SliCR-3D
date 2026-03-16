@@ -1072,7 +1072,7 @@ msgstr ""
 #: src/slic3r/GUI/CalibrationCubeDialog.cpp:61
 #: src/slic3r/GUI/MainFrame.cpp:1966
 msgid "Calibration cube"
-msgstr ""
+msgstr "Kalibrierwürfel"
 
 
 #: src/libslic3r/PrintConfig.cpp:1901
@@ -1550,7 +1550,7 @@ msgstr ""
 
 #: src/slic3r/GUI/MainFrame.cpp:1956
 msgid "Create a test print to help you to set your filament temperature."
-msgstr ""
+msgstr "Erstellt einen Testdruck, mit dem Sie die optimale Temperatur Ihres Filaments einstellen können."
 
 
 #: src/slic3r/GUI/MainFrame.cpp:1963
@@ -1562,7 +1562,7 @@ msgstr ""
 
 #: src/slic3r/GUI/MainFrame.cpp:1958
 msgid "Create a test print to help you to set your retraction length."
-msgstr ""
+msgstr "Erstellt einen Testdruck, mit dem Sie die Rückzugslänge einstellen können."
 
 
 #: src/slic3r/GUI/MainFrame.cpp:1980
@@ -1800,12 +1800,12 @@ msgstr ""
 # 4    changes: Direction
 #  translation: Richtung
 msgid "Dimension:"
-msgstr ""
+msgstr "Abmessung:"
 
 
 #: src/slic3r/GUI/CalibrationCubeDialog.cpp:34
 msgid "Dimensional accuracy (default)"
-msgstr ""
+msgstr "Maßhaltigkeit (Standard)"
 
 
 #: src/libslic3r/PrintConfig.cpp:3218
@@ -1886,7 +1886,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:32
 msgid "Each militer add this value to the retraction value."
-msgstr ""
+msgstr "Jeder Millimeter addiert diesen Wert zum Rückzugswert hinzu."
 
 
 #: src/libslic3r/PrintConfig.cpp:894
@@ -2627,7 +2627,7 @@ msgstr ""
 # 9    changes: First layer volumetric
 #  translation: Volumenparameter der ersten Schicht
 msgid "First layer calibration"
-msgstr ""
+msgstr "Erste Schicht Kalibrierung"
 
 
 #: src/libslic3r/PrintConfig.cpp:1582
@@ -2704,7 +2704,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationFlowDialog.cpp:42
 msgid "Flow calibration"
-msgstr ""
+msgstr "Filamentfluss Kalibrierung"
 
 #: ../../ui_layout/default/print.ui
 #Similar to me: Flow ratio
@@ -2890,19 +2890,19 @@ msgstr ""
 # 3    changes: Generic
 #  translation: Generisch
 msgid "Generate"
-msgstr ""
+msgstr "Generieren"
 
 
 #: src/slic3r/GUI/CalibrationFlowDialog.cpp:30
 #, possible-c-format, possible-boost-format
 msgid "Generate 10% intervals around current value"
-msgstr ""
+msgstr "10% Intervalle um den aktuellen Wert generieren"
 
 
 #: src/slic3r/GUI/CalibrationFlowDialog.cpp:33
 #, possible-c-format, possible-boost-format
 msgid "Generate 2% intervals below current value"
-msgstr ""
+msgstr "2% Intervalle unterhalb des aktuellen Werts generieren"
 
 
 #: src/libslic3r/Print.cpp:1132
@@ -2948,7 +2948,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationCubeDialog.cpp:43
 msgid "Goal:"
-msgstr ""
+msgstr "Ziel:"
 
 
 #: src/slic3r/GUI/Tab.cpp:4744
@@ -4643,17 +4643,17 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationTempDialog.cpp:42
 msgid "Nb down:"
-msgstr ""
+msgstr "Anzahl nach unten:"
 
 
 #: src/slic3r/GUI/CalibrationBridgeDialog.cpp:42
 msgid "Nb tests:"
-msgstr ""
+msgstr "Anzahl Tests:"
 
 
 #: src/slic3r/GUI/CalibrationTempDialog.cpp:45
 msgid "Nb up:"
-msgstr ""
+msgstr "Anzahl nach oben:"
 
 
 #: src/slic3r/GUI/KBShortcutsDialog.cpp:77
@@ -4711,7 +4711,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:46
 msgid "Note that only Multiple of 5 can be engraved in the part"
-msgstr ""
+msgstr "Beachten Sie, dass nur Vielfache von 5 in das Teil eingeprägt werden können"
 
 
 #: src/slic3r/GUI/Tab.cpp:2324
@@ -4860,7 +4860,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:47
 msgid "one test"
-msgstr ""
+msgstr "ein Test"
 
 #: ../../ui_layout/default/print.ui
 #Similar to me: One-loop perimeters
@@ -5589,7 +5589,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:67
 msgid "Remove fil. slowdown"
-msgstr ""
+msgstr "Filament Verlangsamung entfernen"
 
 
 #: src/libslic3r/PrintConfig.cpp:3750
@@ -5614,7 +5614,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:105
 msgid "Retraction calibration"
-msgstr ""
+msgstr "Rückzug Kalibrierung"
 
 
 #: src/libslic3r/PrintConfig.cpp:4129
@@ -5798,7 +5798,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:36
 msgid "Select the number milimeters for the tower."
-msgstr ""
+msgstr "Wählen Sie die Anzahl der Millimeter für den Turm."
 
 
 #: src/slic3r/GUI/CalibrationBridgeDialog.cpp:36
@@ -5806,7 +5806,7 @@ msgstr ""
 # 10   changes: Select the new file
 #  translation: Neue Datei auswählen
 msgid "Select the number of tests"
-msgstr ""
+msgstr "Wählen Sie die Anzahl der Tests"
 
 
 #: src/slic3r/GUI/CalibrationTempDialog.cpp:39
@@ -5817,7 +5817,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationTempDialog.cpp:36
 msgid "Select the number of tests with lower temperature than the current one."
-msgstr ""
+msgstr "Wählen Sie die Anzahl der Tests mit niedrigerer Temperatur als der aktuellen."
 
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:49
@@ -6531,7 +6531,7 @@ msgstr ""
 # 5    changes: Standard
 #  translation: Standard
 msgid "Standard Cube"
-msgstr ""
+msgstr "Standard Würfel"
 
 
 #: src/slic3r/GUI/CalibrationCubeDialog.cpp:49
@@ -6543,7 +6543,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:60
 msgid "Start temp:"
-msgstr ""
+msgstr "Starttemperatur:"
 
 
 #: src/libslic3r/PrintConfig.cpp:1892
@@ -6559,12 +6559,12 @@ msgstr ""
 # 2    changes: Stop
 #  translation: Stopp
 msgid "Step:"
-msgstr ""
+msgstr "Schritt:"
 
 
 #: src/slic3r/GUI/CalibrationTempDialog.cpp:48
 msgid "Steps:"
-msgstr ""
+msgstr "Schritte:"
 
 #: ../../ui_layout/default/print.ui
 #Similar to me: Support & Other
@@ -6791,7 +6791,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationRetractionDialog.cpp:63
 msgid "Temp decr:"
-msgstr ""
+msgstr "Temperatur verringern:"
 
 
 #: src/slic3r/GUI/CalibrationTempDialog.cpp:60
@@ -6799,7 +6799,7 @@ msgstr ""
 # 4    changes: Temperature variation
 #  translation: Temperaturen
 msgid "Temperature calibration"
-msgstr ""
+msgstr "Temperatur Kalibrierung"
 
 #: ../../ui_layout/default/filament.ui
 #Similar to me: Temperature °C
@@ -6815,7 +6815,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationBridgeDialog.cpp:45
 msgid "Test Flow Ratio"
-msgstr ""
+msgstr "Flussverhältnis testen"
 
 
 #: src/slic3r/GUI/Preferences.cpp:804
@@ -8455,7 +8455,7 @@ msgstr ""
 
 #: src/slic3r/GUI/CalibrationCubeDialog.cpp:52
 msgid "Voron Cube"
-msgstr ""
+msgstr "Voron Würfel"
 
 
 #: src/slic3r/GUI/CalibrationCubeDialog.cpp:54
@@ -8950,3 +8950,174 @@ msgstr ""
 #  translation: Offset
 msgid "Z-offset"
 msgstr ""
+
+msgid "1. Filament Flow Calibration"
+msgstr "1. Filamentfluss Kalibrierung"
+msgid "Create a test print to help you to set your filament extrusion multiplier."
+msgstr "Erstellt einen Testdruck, mit dem Sie den Extrusionsmultiplikator Ihres Filaments einstellen können."
+msgid "2. Filament Temperature Calibration"
+msgstr "2. Filament Temperatur Kalibrierung"
+msgid "Filament Temperature Calibration"
+msgstr "Filament Temperatur Kalibrierung"
+msgid "3. Pressure Advance Calibration"
+msgstr "3. Pressure Advance Kalibrierung"
+msgid "Pressure Advance Calibration"
+msgstr "Pressure Advance Kalibrierung"
+msgid "Create a model for tuning Pressure Linear advance."
+msgstr "Erstellt ein Modell zur Abstimmung von Pressure Advance bzw. Linear Advance."
+msgid "4. Extruder Retraction Calibration"
+msgstr "4. Extruder Rückzug Kalibrierung"
+msgid "Extruder Retraction Calibration"
+msgstr "Extruder Rückzug Kalibrierung"
+msgid "Bridge Flow Calibration"
+msgstr "Bridge Flow Kalibrierung"
+msgid "Extruder Flow Calibration"
+msgstr "Extruderfluss Kalibrierung"
+msgid "Ironing Pattern Calibration"
+msgstr "Bügelmuster Kalibrierung"
+msgid "Bed/Extruder Leveling"
+msgstr "Druckbett-/Extrudernivellierung"
+msgid "Filament Flow Calibration"
+msgstr "Filamentfluss Kalibrierung"
+msgid "Pressure calibration"
+msgstr "Pressure Advance Kalibrierung"
+msgid "Select the number of tests to generate, max 6 is recommended due to bed size limits"
+msgstr "Wählen Sie die Anzahl der zu erzeugenden Tests. Maximal 6 werden aufgrund der Druckbettgröße empfohlen."
+msgid "Start value: "
+msgstr "Startwert: "
+msgid "End value: "
+msgstr "Endwert: "
+msgid "Increment by: "
+msgstr "Schrittweite: "
+msgid "Extrusion role: "
+msgstr "Extrusionsrolle: "
+msgid "Select the incremental value.\n (you can manually type in values!)"
+msgstr ""
+"Wählen Sie die Schrittweite.\n"
+" (Sie können Werte auch manuell eingeben!)"
+
+msgid "Select the extrusion role you want to generate a calibration for"
+msgstr "Wählen Sie die Extrusionsrolle aus, für die eine Kalibrierung erzeugt werden soll"
+msgid "Generate smooth time values"
+msgstr "Smooth Time Werte generieren"
+msgid "Smooth time: "
+msgstr "Smooth Time: "
+msgid "This parameter defines the duration over which extruder velocity changes are averaged, helping to smooth out rapid changes in extrusion pressure. Shorter times (e.g., 0.01 seconds) are beneficial for fast printing, while longer times (e.g., 0.4 seconds) are better for slower printing. The default value is 0.04 seconds."
+msgstr "Dieser Parameter definiert die Zeitspanne, über die Änderungen der Extrudergeschwindigkeit gemittelt werden. Dadurch werden schnelle Änderungen des Extrusionsdrucks geglättet. Kürzere Zeiten, zum Beispiel 0,01 Sekunden, sind für schnelles Drucken sinnvoll, während längere Zeiten, zum Beispiel 0,4 Sekunden, besser für langsameres Drucken geeignet sind. Der Standardwert beträgt 0,04 Sekunden."
+msgid "'Above the Bridges flow calibration"
+msgstr "'Above the Bridges Flow Kalibrierung"
+msgid "'Above the Bridges' flow calibration"
+msgstr "'Above the Bridges' Flow Kalibrierung"
+msgid "'Top Fill' flow calibration"
+msgstr "'Top Fill' Flow Kalibrierung"
+msgid "CR-3D Calibration cube"
+msgstr "CR-3D Kalibrierwürfel"
+msgid "CR-3D Dual Extruder calibration Cube"
+msgstr "CR-3D Dual Extruder Kalibrierwürfel"
+msgid "CR-3D IDEX Calibration"
+msgstr "CR-3D IDEX Kalibrierung"
+msgid "CR-3D Sample Box"
+msgstr "CR-3D Musterbox"
+msgid "CR-3D Sample Card"
+msgstr "CR-3D Musterkarte"
+msgid "CR-3D Single Extruder calibration Cube"
+msgstr "CR-3D Single Extruder Kalibrierwürfel"
+msgid "Card"
+msgstr "Karte"
+msgid "Choose the size of the patch to print (in gramme). A bigger weight allow to have more precision but it takes longer to print"
+msgstr "Wählen Sie die Größe des zu druckenden Feldes in Gramm. Ein höheres Gewicht ermöglicht mehr Genauigkeit, benötigt aber auch mehr Druckzeit."
+msgid "Dual Extruder Calibration Cube"
+msgstr "Dual Extruder Kalibrierwürfel"
+msgid "Extrusion multiplier:"
+msgstr "Extrusionsmultiplikator:"
+msgid "Firmware retraction enabled"
+msgstr "Firmware Rückzug aktiviert"
+msgid "Flow 10 percent calibration"
+msgstr "Filamentfluss Kalibrierung 10 Prozent"
+msgid "Flow 2 percent calibration"
+msgstr "Filamentfluss Kalibrierung 2 Prozent"
+msgid "Generate "
+msgstr "Generieren "
+msgid "Generate for multiple flows"
+msgstr "Für mehrere Flusswerte generieren"
+msgid "Generate for multiple overlaps"
+msgstr "Für mehrere Überlappungen generieren"
+msgid "Generate for multiple speeds"
+msgstr "Für mehrere Geschwindigkeiten generieren"
+msgid "Height:"
+msgstr "Höhe:"
+msgid "Maximum extrusion multiplier."
+msgstr "Maximaler Extrusionsmultiplikator."
+msgid "Minimum extrusion multiplier."
+msgstr "Minimaler Extrusionsmultiplikator."
+msgid "Patch weight:"
+msgstr "Feldgewicht:"
+msgid "Select a goal, this will change settings to increase the effects to search."
+msgstr "Wählen Sie ein Ziel aus. Dadurch werden Einstellungen geändert, um die gesuchten Effekte stärker hervorzuheben."
+msgid "Select the number of patches."
+msgstr "Wählen Sie die Anzahl der Felder."
+msgid "Select the number of tests with higher temperature than the current one."
+msgstr "Wählen Sie die Anzahl der Tests mit höherer Temperatur als der aktuellen."
+msgid "Select the number tower to print, and by how many degrees C to decrease each time."
+msgstr "Wählen Sie die Anzahl der zu druckenden Türme und um wie viele Grad C die Temperatur jeweils gesenkt werden soll."
+msgid "Select the step in % between two tests.\nNote that only multiple of 5 are engraved on the parts."
+msgstr ""
+"Wählen Sie die Schrittweite in % zwischen zwei Tests.\n"
+"Beachten Sie, dass nur Vielfache von 5 auf die Teile geprägt werden."
+
+msgid "Select the step in celcius between two tests.\nNote that only multiple of 5 are engraved on the part."
+msgstr ""
+"Wählen Sie die Schrittweite in Grad Celsius zwischen zwei Tests.\n"
+"Beachten Sie, dass nur Vielfache von 5 auf das Teil geprägt werden."
+
+msgid "Single Extruder Calibration Cube"
+msgstr "Single Extruder Kalibrierwürfel"
+msgid "Speed of the first patch."
+msgstr "Geschwindigkeit des ersten Feldes."
+msgid "Standard cubic xyz cube, with a flat top. Better for infill/perimeter overlap calibration."
+msgstr "Standard XYZ Würfel mit flacher Oberseite. Besser geeignet für die Kalibrierung von Infill und Perimeter Überlappungen."
+msgid "Test Overlap"
+msgstr "Überlappung testen"
+msgid "The current printer profile has the firmware retraction enabled. This calibration can't work with this setting enabled."
+msgstr "Im aktuellen Druckerprofil ist der Firmware Rückzug aktiviert. Diese Kalibrierung kann mit dieser aktivierten Einstellung nicht funktionieren."
+msgid "Top Fill flow calibration"
+msgstr "Top Fill Flow Kalibrierung"
+msgid "Voron cubic cube with many features inside, with a bearing slot on top. Better to check dimensional accuracy."
+msgstr "Voron Würfel mit vielen integrierten Merkmalen und einem Lagersitz auf der Oberseite. Besser geeignet zur Prüfung der Maßhaltigkeit."
+msgid "max overlap:"
+msgstr "max Überlappung:"
+msgid "max speed:"
+msgstr "max Geschwindigkeit:"
+msgid "max:"
+msgstr "max:"
+msgid "min overlap:"
+msgstr "min Überlappung:"
+msgid "min speed:"
+msgstr "min Geschwindigkeit:"
+msgid "min:"
+msgstr "min:"
+msgid "steps:"
+msgstr "Schritte:"
+
+#: src/libslic3r/PrintConfig.cpp:731 src/libslic3r/PrintConfig.cpp:1176
+
+msgid "Bed Leveling Calibration"
+msgstr "Bett Leveling Kalibrierung"
+
+msgid "Number of %s tests: "
+msgstr "Anzahl der %s Tests: "
+
+msgid "First Layers %s value: "
+msgstr "Wert für erste Schichten %s: "
+
+msgid "Select the %s value to be used for the first layer only.\n(this gets added to 'before_layer_gcode' area)"
+msgstr "Wählen Sie den %s Wert, der nur für die erste Schicht verwendet werden soll.\n(Dies wird zum Bereich 'before_layer_gcode' hinzugefügt)"
+
+msgid "Select the starting %s value to be used.\n (you can manually type in values!)"
+msgstr "Wählen Sie den zu verwendenden Startwert für %s.\n (Sie können Werte auch manuell eingeben!)"
+
+msgid "Select the ending %s value to be used.\n (you can manually type in values!)"
+msgstr "Wählen Sie den zu verwendenden Endwert für %s.\n (Sie können Werte auch manuell eingeben!)"
+
+msgid "unsupported firmware type"
+msgstr "nicht unterstützter Firmwaretyp"

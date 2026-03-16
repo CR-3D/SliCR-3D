@@ -148,12 +148,20 @@ void CalibrationAbstractDialog::add_part(ModelObject* model_object, std::string 
         exit(1);
     }
 
+    const bool part_is_stl = boost::filesystem::path(input_file).extension() == ".stl";
     for (ModelObject* object : model.objects) {
         Vec3d delta = Vec3d::Zero();
+        if (part_is_stl || model_object->origin_translation != Vec3d::Zero())
+            object->center_around_origin();
+
         if (model_object->origin_translation != Vec3d::Zero())
         {
-            object->center_around_origin();
             delta = model_object->origin_translation - object->origin_translation;
+            if (part_is_stl) {
+                // STL assets may carry absolute CAD XY coordinates, keep only Z compensation.
+                delta.x() = 0.0;
+                delta.y() = 0.0;
+            }
         }
         for (ModelVolume* volume : object->volumes) {
             volume->translate(delta + move);

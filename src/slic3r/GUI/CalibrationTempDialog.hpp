@@ -11,7 +11,7 @@ class CalibrationTempDialog : public CalibrationAbstractDialog
 {
 
 public:
-    CalibrationTempDialog(GUI_App* app, MainFrame* mainframe) : CalibrationAbstractDialog(app, mainframe, "Temperature calibration") { create(boost::filesystem::path("calibration") / "filament_temp", "filament_temp.html"); }
+    CalibrationTempDialog(GUI_App* app, MainFrame* mainframe) : CalibrationAbstractDialog(app, mainframe, "Filament Temperature Calibration") { create(boost::filesystem::path("calibration") / "filament_temp", "filament_temp.html"); }
     virtual ~CalibrationTempDialog(){ }
     
 protected:

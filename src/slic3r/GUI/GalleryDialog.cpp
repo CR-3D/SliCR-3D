@@ -4,6 +4,7 @@
 ///|/
 #include "GalleryDialog.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <vector>
 #include <string>
@@ -20,6 +21,7 @@
 #include <wx/wupdlock.h>
 #include <wx/notebook.h>
 #include <wx/listctrl.h>
+#include <wx/dirdlg.h>
 
 #include "GUI.hpp"
 #include "GUI_App.hpp"
@@ -91,12 +93,10 @@ GalleryDialog::GalleryDialog(wxWindow* parent) :
         select(event);
         this->EndModal(wxID_OK);
     });
-#ifdef _WIN32
     this->Bind(wxEVT_SIZE, [this](wxSizeEvent& event) {
         event.Skip();
-        m_list_ctrl->Arrange();
+        layout_items_grid();
     });
-#endif
 
     wxStdDialogButtonSizer* buttons = this->CreateStdDialogButtonSizer(wxOK | wxCLOSE);
     wxGetApp().SetWindowVariantForButton(buttons->GetCancelButton());
@@ -120,6 +120,7 @@ GalleryDialog::GalleryDialog(wxWindow* parent) :
 
     size_t btn_pos = 0;
     add_btn(btn_pos++, ID_BTN_ADD_CUSTOM_SHAPE,   _L("Add"),                _L("Add one or more custom shapes"),                                                &GalleryDialog::add_custom_shapes);
+    add_btn(btn_pos++, ID_BTN_ADD_CUSTOM_FOLDER,  _L("Add Folder"),         _L("Add all supported files from a folder"),                                        &GalleryDialog::add_custom_folder);
     add_btn(btn_pos++, ID_BTN_DEL_CUSTOM_SHAPE,   _L("Delete"),             _L("Delete one or more custom shape. You can't delete system shapes"),              &GalleryDialog::del_custom_shapes,  [this](){ return can_delete();           });
     //add_btn(btn_pos++, ID_BTN_REPLACE_CUSTOM_PNG, _L("Change thumbnail"),   _L("Replace PNG for custom shape. You can't raplace thimbnail for system shape"),   &GalleryDialog::change_thumbnail, [this](){ return can_change_thumbnail(); });
     buttons->InsertStretchSpacer(btn_pos, 2* BORDER_W);
@@ -154,6 +155,9 @@ int GalleryDialog::show(bool show_from_menu)
 {
     m_ok_btn->SetLabel(  show_from_menu ? _L("Add to bed")                       : _L("OK"));
     m_ok_btn->SetToolTip(show_from_menu ? _L("Add selected shape(s) to the bed") : "");
+    // Ensure final control sizes are known before placing grid items.
+    this->Layout();
+    layout_items_grid();
 
     return this->ShowModal();
 }
@@ -178,14 +182,52 @@ void GalleryDialog::on_dpi_changed(const wxRect& suggested_rect)
     update();
 
     const int& em = em_unit();
-    msw_buttons_rescale(this, em, { ID_BTN_ADD_CUSTOM_SHAPE, ID_BTN_DEL_CUSTOM_SHAPE, ID_BTN_REPLACE_CUSTOM_PNG, wxID_OK, wxID_CLOSE });
+    msw_buttons_rescale(this, em, { ID_BTN_ADD_CUSTOM_SHAPE, ID_BTN_ADD_CUSTOM_FOLDER, ID_BTN_DEL_CUSTOM_SHAPE, ID_BTN_REPLACE_CUSTOM_PNG, wxID_OK, wxID_CLOSE });
 
     wxSize size = wxSize(50 * em, 35 * em);
     m_list_ctrl->SetMinSize(size);
     m_list_ctrl->SetSize(size);
+    layout_items_grid();
 
     Fit();
     Refresh();
+}
+
+void GalleryDialog::layout_items_grid()
+{
+    if (m_list_ctrl == nullptr)
+        return;
+
+    const int item_count = m_list_ctrl->GetItemCount();
+    if (item_count <= 0)
+        return;
+
+    constexpr int columns = 3;
+    const int em = std::max(1, em_unit());
+    const int client_w = std::max(1, m_list_ctrl->GetClientSize().GetWidth());
+    const int cell_w = std::max(1, (client_w - 2 * em) / columns);
+    const int icon_h = m_image_list ? m_image_list->GetSize().GetHeight() : IMG_PX_CNT;
+    const int row_h = std::max(icon_h + 3 * em, 9 * em);
+
+    m_list_ctrl->Freeze();
+    for (int i = 0; i < item_count; ++i) {
+        const int col = i % columns;
+        const int row = i / columns;
+        m_list_ctrl->SetItemPosition(i, wxPoint(em + col * cell_w, em + row * row_h));
+    }
+    m_list_ctrl->Thaw();
+}
+
+static wxString compact_gallery_label(const std::string &label_utf8)
+{
+    wxString label = from_u8(label_utf8);
+    static constexpr int max_chars = 22;
+    if (int(label.length()) <= max_chars)
+        return label;
+    // Keep start and end for recognizability (filenames / suffixes).
+    const int left = 11;
+    const int right = max_chars - left - 3;
+    return label.Left(left) + "..." + label.Right(std::max(1, right));
 }
 
 static void add_lock(wxImage& image, wxWindow* parent_win) 
@@ -263,16 +305,6 @@ static fs::path get_dir(bool sys_dir)
     return fs::absolute(fs::path(sys_dir ? sys_shapes_dir() : custom_shapes_dir())).make_preferred();
 }
 
-static std::string get_dir_path(bool sys_dir) 
-{
-    fs::path dir = get_dir(sys_dir);
-#ifdef __WXMSW__
-    return dir.string() + "\\";
-#else
-    return dir.string() + "/";
-#endif
-}
-
 static void generate_thumbnail_from_model(const std::string& filename)
 {
     if (!boost::algorithm::iends_with(filename, ".stl") &&
@@ -333,38 +365,51 @@ static void generate_thumbnail_from_model(const std::string& filename)
 
 void GalleryDialog::load_label_icon_list()
 {
+    m_items.clear();
+
     // load names from files
-    auto add_files_from_gallery = [](std::vector<Item>& items, bool is_sys_dir, std::string& dir_path)
+    auto add_files_from_gallery = [](std::vector<Item> &items, bool is_sys_dir, fs::path &dir_path)
     {
         fs::path dir = get_dir(is_sys_dir);
         if (!fs::exists(dir))
             return;
 
-        dir_path = get_dir_path(is_sys_dir);
+        dir_path = dir;
 
-        std::vector<std::string> sorted_names;
-        for (auto& dir_entry : fs::directory_iterator(dir)) {
+        std::vector<Item> sorted_items;
+        for (auto &dir_entry : fs::recursive_directory_iterator(dir)) {
+            if (!fs::is_regular_file(dir_entry.path()))
+                continue;
             TriangleMesh mesh;
             if ((is_gallery_file(dir_entry, ".stl") && mesh.ReadSTLFile(dir_entry.path().string().c_str())) || 
-                (is_gallery_file(dir_entry, ".obj") && load_obj(dir_entry.path().string().c_str(), &mesh) )    )
-                sorted_names.push_back(dir_entry.path().filename().string());
+                (is_gallery_file(dir_entry, ".obj") && load_obj(dir_entry.path().string().c_str(), &mesh) )    ) {
+                const fs::path rel = fs::relative(dir_entry.path(), dir);
+                const fs::path parent = rel.parent_path();
+                const std::string folder = parent.empty() || parent == "." ? std::string{} : parent.generic_string();
+                const std::string name = rel.filename().string();
+                const std::string rel_path = rel.generic_string();
+                const std::string display_name = folder.empty() ? name : folder + " / " + name;
+                sorted_items.push_back(Item{ name, rel_path, folder, display_name, is_sys_dir });
+            }
         }
 
-        // sort the filename case insensitive
-        std::sort(sorted_names.begin(), sorted_names.end(), [](const std::string& a, const std::string& b)
-            { return boost::algorithm::to_lower_copy(a) < boost::algorithm::to_lower_copy(b); });
+        // sort folder + filename case insensitive
+        std::sort(sorted_items.begin(), sorted_items.end(), [](const Item &a, const Item &b) {
+            const std::string af = boost::algorithm::to_lower_copy(a.folder);
+            const std::string bf = boost::algorithm::to_lower_copy(b.folder);
+            if (af != bf)
+                return af < bf;
+            return boost::algorithm::to_lower_copy(a.name) < boost::algorithm::to_lower_copy(b.name);
+        });
 
-        for (const std::string& name : sorted_names)
-            items.push_back(Item{ name, is_sys_dir });
+        items.insert(items.end(), sorted_items.begin(), sorted_items.end());
     };
 
     wxBusyCursor busy;
 
-    std::string m_sys_dir_path, m_cust_dir_path;
-    std::vector<Item> list_items;
-    add_files_from_gallery(list_items, true, m_sys_dir_path);
-    this->m_sys_item_count = list_items.size();
-    add_files_from_gallery(list_items, false, m_cust_dir_path);
+    fs::path m_sys_dir_path, m_cust_dir_path;
+    add_files_from_gallery(m_items, true, m_sys_dir_path);
+    add_files_from_gallery(m_items, false, m_cust_dir_path);
 
     // Make an image list containing large icons
 
@@ -376,11 +421,12 @@ void GalleryDialog::load_label_icon_list()
     m_image_list = new wxImageList(px_cnt, px_cnt);
 #endif
 
-    for (const auto& item : list_items) {
-        fs::path model_path = fs::path((item.is_system ? m_sys_dir_path : m_cust_dir_path) + item.name);
+    for (const auto& item : m_items) {
+        const fs::path model_path = (item.is_system ? m_sys_dir_path : m_cust_dir_path) / fs::path(item.relative_path);
         std::string model_name = model_path.string();
-        model_path.replace_extension("png");
-        std::string img_name = model_path.string();
+        fs::path png_path = model_path;
+        png_path.replace_extension("png");
+        std::string img_name = png_path.string();
 
 #if 0 // use "1" just in DEBUG mode to the generation of the thumbnails for the sistem shapes
         bool can_generate_thumbnail = true;
@@ -420,15 +466,16 @@ void GalleryDialog::load_label_icon_list()
 
     int img_cnt = m_image_list->GetImageCount();
     for (int i = 0; i < img_cnt; i++) {
-        m_list_ctrl->InsertItem(i, from_u8(list_items[i].name), i);
-        m_list_ctrl->SetItemData(i, list_items[i].is_system ? 1 : 0);
+        m_list_ctrl->InsertItem(i, compact_gallery_label(m_items[size_t(i)].display_name), i);
+        m_list_ctrl->SetItemData(i, m_items[size_t(i)].is_system ? 1 : 0);
     }
+    layout_items_grid();
 }
 
 void GalleryDialog::get_input_files(wxArrayString& input_files)
 {
     for (const Item& item : m_selected_items)
-        input_files.Add(from_u8(get_dir_path(item.is_system) + item.name));
+        input_files.Add(from_u8((get_dir(item.is_system) / fs::path(item.relative_path)).string()));
 }
 
 void GalleryDialog::add_custom_shapes(wxEvent& event)
@@ -447,6 +494,20 @@ void GalleryDialog::add_custom_shapes(wxEvent& event)
     load_files(input_files);
 }
 
+void GalleryDialog::add_custom_folder(wxEvent& event)
+{
+    wxDirDialog dialog(this, _L("Choose a folder with shapes (STL, OBJ):"),
+        from_u8(wxGetApp().app_config->get_last_dir()),
+        wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+
+    if (dialog.ShowModal() != wxID_OK)
+        return;
+
+    wxArrayString input_paths;
+    input_paths.Add(dialog.GetPath());
+    load_files(input_paths);
+}
+
 void GalleryDialog::del_custom_shapes()
 {
     auto custom_dir = get_dir(false);
@@ -463,10 +524,10 @@ void GalleryDialog::del_custom_shapes()
     };
 
     for (const Item& item : m_selected_items) {
-        remove_file(item.name);
-        fs::path path = fs::path(item.name);
+        remove_file(item.relative_path);
+        fs::path path = fs::path(item.relative_path);
         path.replace_extension("png");
-        remove_file(path.string());
+        remove_file(path.generic_string());
     }
 
     update();
@@ -503,7 +564,7 @@ void GalleryDialog::change_thumbnail()
     }
 
     try {
-        fs::path png_path = fs::path(get_dir(false) / m_selected_items[0].name);
+        fs::path png_path = fs::path(get_dir(false) / m_selected_items[0].relative_path);
         png_path.replace_extension("png");
 
         fs::path current = fs::path(into_u8(input_files.Item(0)));
@@ -522,9 +583,13 @@ void GalleryDialog::change_thumbnail()
 void GalleryDialog::select(wxListEvent& event)
 {
     int idx = event.GetIndex();
-    Item item { into_u8(m_list_ctrl->GetItemText(idx)), idx < m_sys_item_count };
-
-    m_selected_items.push_back(item);
+    if (idx < 0 || size_t(idx) >= m_items.size())
+        return;
+    const Item &item = m_items[size_t(idx)];
+    auto it = std::find_if(m_selected_items.begin(), m_selected_items.end(),
+                           [&item](const Item &sel) { return sel.is_system == item.is_system && sel.relative_path == item.relative_path; });
+    if (it == m_selected_items.end())
+        m_selected_items.push_back(item);
 }
 
 void GalleryDialog::deselect(wxListEvent& event)
@@ -534,8 +599,15 @@ void GalleryDialog::deselect(wxListEvent& event)
         return;
     }
 
-    std::string name = into_u8(m_list_ctrl->GetItemText(event.GetIndex()));
-    m_selected_items.erase(std::remove_if(m_selected_items.begin(), m_selected_items.end(), [name](Item item) { return item.name == name; }));
+    const int idx = event.GetIndex();
+    if (idx < 0 || size_t(idx) >= m_items.size())
+        return;
+    const Item &item = m_items[size_t(idx)];
+    m_selected_items.erase(std::remove_if(m_selected_items.begin(), m_selected_items.end(),
+                                          [&item](const Item &sel) {
+                                              return sel.is_system == item.is_system && sel.relative_path == item.relative_path;
+                                          }),
+                           m_selected_items.end());
 }
 
 void GalleryDialog::show_context_menu(wxListEvent& event)
@@ -565,6 +637,11 @@ void GalleryDialog::update()
 
 bool GalleryDialog::load_files(const wxArrayString& input_files)
 {
+    struct ImportEntry {
+        fs::path source_file;
+        fs::path root_folder;
+    };
+
     auto dest_dir = get_dir(false);
 
     try {
@@ -579,9 +656,35 @@ bool GalleryDialog::load_files(const wxArrayString& input_files)
         return false;
     }
 
-    // Iterate through the input files
+    std::vector<ImportEntry> files_to_import;
+    files_to_import.reserve(input_files.size());
+
     for (size_t i = 0; i < input_files.size(); ++i) {
-        std::string input_file = into_u8(input_files.Item(i));
+        fs::path input_path = fs::path(into_u8(input_files.Item(i)));
+        if (!fs::exists(input_path))
+            continue;
+
+        if (fs::is_directory(input_path)) {
+            for (auto& dir_entry : fs::recursive_directory_iterator(input_path)) {
+                if (!fs::is_regular_file(dir_entry.path()))
+                    continue;
+                std::string file = dir_entry.path().string();
+                if (is_gallery_file(file, ".stl") || is_gallery_file(file, ".obj"))
+                    files_to_import.push_back(ImportEntry{ dir_entry.path(), input_path });
+            }
+        } else {
+            std::string file = input_path.string();
+            if (is_gallery_file(file, ".stl") || is_gallery_file(file, ".obj"))
+                files_to_import.push_back(ImportEntry{ input_path, fs::path{} });
+        }
+    }
+
+    if (files_to_import.empty())
+        return false;
+
+    // Iterate through the input files
+    for (const ImportEntry& entry : files_to_import) {
+        const std::string input_file = entry.source_file.string();
 
         TriangleMesh mesh; 
         if (is_gallery_file(input_file, ".stl") && !mesh.ReadSTLFile(input_file.c_str())) {
@@ -595,38 +698,26 @@ bool GalleryDialog::load_files(const wxArrayString& input_files)
         }
 
         try {
-            fs::path current = fs::path(input_file);
-            if (!fs::exists(dest_dir / current.filename())) {
-                std::string error_msg;
-                if (copy_file_inner(current, dest_dir / current.filename(), error_msg))
-                    throw FileIOError(error_msg);
-            } else {
-                std::string filename = current.stem().string();
+            fs::path rel = entry.root_folder.empty() ? entry.source_file.filename() : fs::relative(entry.source_file, entry.root_folder);
+            if (rel.empty())
+                rel = entry.source_file.filename();
+            fs::path target = dest_dir / rel;
+            fs::create_directories(target.parent_path());
 
-                int file_idx = 0;
-                for (auto& dir_entry : fs::directory_iterator(dest_dir))
-                    if (is_gallery_file(dir_entry, ".stl") || is_gallery_file(dir_entry, ".obj")) {
-                        std::string name = dir_entry.path().stem().string();
-                        if (filename == name) {
-                            if (file_idx == 0)
-                                file_idx++;
-                            continue;
-                        }
-                        
-                        if (name.find(filename) != 0 ||
-                            name[filename.size()] != ' ' || name[filename.size()+1] != '(' || name[name.size()-1] != ')')
-                            continue;
-                        std::string idx_str = name.substr(filename.size() + 2, name.size() - filename.size() - 3);                        
-                        if (int cur_idx = atoi(idx_str.c_str()); file_idx <= cur_idx)
-                            file_idx = cur_idx+1;
-                    }
-                if (file_idx > 0) {
-                    filename += " (" + std::to_string(file_idx) + ")." + (is_gallery_file(input_file, ".stl") ? "stl" : "obj");
-                    std::string error_msg;
-                    if (copy_file_inner(current, dest_dir / filename, error_msg))
-                        throw FileIOError(error_msg);
-                }
+            if (fs::exists(target)) {
+                const fs::path parent = target.parent_path();
+                const std::string stem = target.stem().string();
+                const std::string ext = target.extension().string();
+                int file_idx = 1;
+                do {
+                    target = parent / fs::path(stem + " (" + std::to_string(file_idx) + ")" + ext);
+                    ++file_idx;
+                } while (fs::exists(target));
             }
+
+            std::string error_msg;
+            if (copy_file_inner(entry.source_file, target, error_msg))
+                throw FileIOError(error_msg);
         }
         catch (fs::filesystem_error const& e) {
             std::cerr << e.what() << '\n';

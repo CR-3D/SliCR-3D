@@ -847,8 +847,6 @@ void ConfigManipulation::toggle_fff_filament_options(DynamicPrintConfig* config,
    toggle_field("filament_multitool_ramming_flow", multitool_ramming);
 }
 
-
-
 void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
 {
     bool supports_en = config->opt_bool("supports_enable");

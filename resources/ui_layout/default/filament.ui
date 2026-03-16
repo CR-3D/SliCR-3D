@@ -33,21 +33,10 @@ group:Filament properties
 	setting:id$0:filament_shrink
 	setting:id$0:filament_max_overlap
 
-group:Pressure Advance (BETA)
+
+group:Pressure Advance
 line:Filament Pressure Advance
 	setting:id$0:label$_:filament_pressure_advance
-end_line
-line:Adaptive Pressure Advance (beta)
-	setting:id$0:label$Adaptive Pressure Advance:adaptive_pressure_advance
-end_line
-line:Adaptive PA Overhangs
-	setting:id$0:label$Adaptive PA Overhangs:adaptive_pressure_advance_overhangs
-end_line
-line:Adaptive PA Bridges
-	setting:id$0:label$Adaptive PA Bridges:adaptive_pressure_advance_bridges
-end_line
-line:Adaptive PA Model
-	setting:id$0:label$Adapative PA Model:adaptive_pressure_advance_model
 end_line
 
 group:Print speed override

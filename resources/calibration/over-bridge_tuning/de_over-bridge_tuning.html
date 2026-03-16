@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Kalibrierung des Ironing-Musters</title>
+  <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Kalibrierung des Ironing-Musters</h1>
+</td>
+</tr>
+<tr>
+<td style="text-align: right;"><strong>
+    <table><tr><td>Benötigt:</td>
+        <td style="text-align: left;">Fluss</td>
+        <td style="text-align: left;">Temperatur</td></tr>
+    </table>
+    </strong>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Du solltest vor dieser Kalibrierung die Filamentfluss-Kalibrierung und das Bridge-Flow-Ratio durchgeführt haben.</strong> Noch besser ist es, wenn du auch bereits die Filamenttemperatur-Kalibrierung gemacht hast.</p>
+
+<p>Mit dieser Kalibrierungsmethode werden Testmuster mit verschiedenen Werten für das Above-Bridge-Flow-Ratio zwischen 100 und 125 gedruckt. Wähle den niedrigsten Wert, bei dem die obere Oberfläche glatt ist und keine rauen „Löcher“ mehr zeigt. Beginne mit der Above-Bridge-Kalibrierung.</p>
+
+<p>Falls die Above-Bridge-Kalibrierung kein eindeutiges Ergebnis liefert (also auf allen Mustern dieselben Löcher sichtbar sind), setze den Wert auf 110% und verwende anschließend die Top-Flow-Kalibrierung. Diese Einstellung ist etwas unvorhersehbarer, deshalb sollte sie möglichst nicht weit von 100% entfernt verändert werden.</p>
+
+<h2>Ergebnisse</h2>
+<table width="100%">
+<tbody>
+<h4>Beispiel:</h4>
+<tr>
+<td><img src="./100.jpg" width="150" height="100" /></td>
+<td><img src="./105.jpg" width="150" height="100" /></td>
+<td><img src="./110.jpg" width="150" height="100" /></td>
+<td><img src="./115.jpg" width="150" height="100" /></td>
+<td><img src="./120.jpg" width="150" height="100" /></td>
+</tr>
+<tr>
+<td style="text-align: center;">Nicht eben</td>
+<td style="text-align: center;">Nicht eben</td>
+<td style="text-align: center;">Nicht eben</td>
+<td style="text-align: center;">Eben</td>
+<td style="text-align: center;">Eben</td>
+</tr>
+</table>
+
+<p>Hier sieht man, dass die Artefakte vorhanden sind, bis das Above-Bridge-Flow-Ratio auf 115 gesetzt wurde. Die Fläche war in der Fluss-Kalibrierung bereits eben; wenn sie es jetzt nicht mehr ist, dann liegt das daran, dass die Brücken unter den oberen Oberflächen etwas absacken und dadurch später mehr Volumen aufgefüllt werden muss. Hier sollte 115 ausreichen, aber 120 ist die sicherere Wahl.</p>
+
+<h2>Anmerkungen</h2>
+<p>Dieser Test setzt die Einstellung „Einzelne Objekte vollständig drucken“ auf wahr, daher solltest du deine Druckeinstellungen danach gegebenenfalls zurücksetzen.</p>
+<p>Lizenz der für diesen Kalibrierungstest verwendeten Modelle: CC BY-SA 3.0</p>
+
+</body>
+</html>

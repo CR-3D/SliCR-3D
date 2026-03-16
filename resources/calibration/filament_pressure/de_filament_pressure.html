@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Kalibrierung von Pressure Advance</title>
+    <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Kalibrierung von Pressure Advance</h1>
+</td>
+</tr>
+<tr>
+<td style="text-align: right;">
+<strong>
+    <table><tr><td>Voraussetzungen:</td>
+        <td style="text-align: left;">Perfekte Bettnivellierung und korrekter First-Layer-Squish</td></tr>
+    </table>
+</strong>
+</tr>
+</tbody>
+</table>
+
+<p><span style="color: red; font-weight: bold;">Dieser Test befindet sich noch in der Entwicklung. Die Beta-Version sollte gut funktionieren, aber deine aktuellen Druckeinstellungen müssen vor dem Klick auf „Generate“ gespeichert werden, da sie zur Erstellung des Modells verwendet werden.</span></p>
+
+<p>Hinweis: Dieser Test übernimmt automatisch alle aktuell gespeicherten Konfigurationsparameter und erzeugt daraus ein Modell zum Drucken. Für optimale Ergebnisse wird empfohlen, je nach Zielsetzung — Geschwindigkeit, Qualität oder ein Kompromiss aus beidem — ähnliche Geschwindigkeiten für die meisten Extrusionsrollen beizubehalten, auch wenn das nicht zwingend erforderlich ist.</p>
+
+<h2>So stellst du deinen Drucker für Pressure/Linear Advance ein</h2>
+<p>So fängst du an:</p>
+<ul>
+<li>Wähle die Anzahl der zu erstellenden Tests aus, das <b>Maximum</b> ist <b>10</b>.</li>
+<li>Jede Zeile repräsentiert die Konfigurationsparameter für die gewählte Extrusionsrolle (z. B. erste Zeile = ExternalPerimeter, zweite Zeile = FirstLayer).</li>
+<li>Wähle Start-, End- und Schrittwerte; <b>du kannst diese Werte auch manuell bearbeiten, wenn du größere oder kleinere Werte möchtest.</b></li>
+<li>Da jedes Modell seine eigene Konfiguration hat, kann ein Testmodell schneller oder langsamer drucken als andere. Das ist zu erwarten und normal.</li>
+<li>Dies ist das erste Kalibrierungswerkzeug mit Unterstützung für <b>Arachne!</b> Lass es also aktiviert, wenn du Arachne verwendest.</li>
+<li>Hilfreicher Tipp: Wenn du mehrere Tests auf einer einzigen Druckplatte ausführst, mache einen Screenshot der Hauptkonfigurationsseite (oder lasse sie offen und schiebe das Fenster zur Seite), damit du die Zeilennummer mit der ID-Beschriftung unten rechts am geladenen Modell abgleichen kannst. (Die Zählung beginnt bei „0“ ☺)<br>
+Du kannst auch jedes „Basismodell“ untersuchen und die Objektmodifikatoren für jedes 90°-Biegemodell ansehen; im Feld „region_gcode“ befindet sich ein Kommentar zur jeweiligen Extrusionsrolle.<br></li>
+</ul>
+
+<li>Wenn du PA/LA-Befehle in deinem <b>feature_gcode</b> verwendest, musst du sie entfernen, sonst wird dein Test ungültig.</li>
+
+<p>Derzeit nicht unterstützte Rollen:</p>
+<ul>
+<li>BridgeInfill, InternalBridgeInfill, ThinWall, GapFill, Ironing</li>
+</ul>
+<p>Was ist die Option „CheckAll“?<br>
+Die Option „CheckAll“ ist eine experimentelle Funktion. Sie soll für jede Extrusionsrolle ein 90°-Modell erstellen und dabei die jeweiligen rollenspezifischen Einstellungen anwenden.<br>
+Du musst die Pressure-Advance-Werte <b>manuell</b> in das Feld „per region g-code“ eintragen.<br>
+Aktuell funktioniert das jedoch noch nicht perfekt. Gelegentlich bekommen die Modelle „gap fill“, was zu ungenauen Ergebnissen führt. Wähle die Option „CheckAll“, um herauszufinden, welche Extrusionsrollen eine Pressure-Advance-Abstimmung benötigen.</p>
+
+<h2>Bekannte Fehler</h2>
+<ul>
+<li>Das Setzen des PA-Werts für die erste Schicht bei mehreren Tests übernimmt nur den Wert der letzten Zeile in „before_layer_gcode“.</li>
+<li>Die erste Schicht kann bei den 90°-Biegemodellen Gap Fill erhalten; falls das passiert, wird empfohlen, Gap Fill in den Objektmodifikatoren zu deaktivieren.</li>
+<li>Gelegentlich werden einige Zahlen falsch skaliert und erscheinen dann nicht in der G-Code-Vorschau; das betraf bisher hauptsächlich die Zahl „1“. Falls das passiert, stelle in der Hauptkonfiguration „thin_perimeters“ auf „-1“.</li>
+<li>Weitere kleinere Fehler können vorhanden sein.</li>
+</ul>
+
+<h2>Hinweise</h2>
+<p>Bevor du Pressure/Linear Advance kalibrierst, wird empfohlen, zunächst alles andere einzustellen!<br></p>
+<p>Für diesen Test musst du eventuell deine Bauteilkühlung deaktivieren oder anpassen, einschließlich der Funktionen, die die Schichtzeiten verlangsamen. Hinweis: Große Unterschiede bei den ER-Geschwindigkeiten können die Druckqualität und die Maßhaltigkeit verringern.</p>
+<p>Es wird empfohlen, „first_layer_min_speed“ und „first_layer_speed“ auf denselben Wert zu setzen, da Geschwindigkeitsunterschiede die Pressure-Advance-Anpassungen der ersten Schicht stören.</p>
+
+<h2>Anmerkungen</h2>
+<p><strong>TODO: Bilder hinzufügen</strong></p>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: right;">
+<p>Diese Testmethode stammt ursprünglich von <a href="https://ellis3dp.com/Print-Tuning-Guide/">ellis3dp.com/Print-Tuning-Guide</a>. Den ursprünglichen Generator findest du <a href="https://ellis3dp.com/Pressure_Linear_Advance_Tool/">hier</a>.</p>
+</td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

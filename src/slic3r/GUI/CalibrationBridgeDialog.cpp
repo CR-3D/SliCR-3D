@@ -72,7 +72,7 @@ void CalibrationBridgeDialog::create_geometry(std::string setting_to_test, bool 
     gui_app->app_config->set("autocenter", "1");
 
     Model& model = plat->model();
-    if (!plat->new_project(L("Bridge calibration")))
+    if (!plat->new_project(L("Bridge Flow Calibration")))
         return;
     // wait for slicing end if needed
     wxGetApp().Yield();

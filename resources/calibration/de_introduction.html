@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Kalibrierungen</title>
+  <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+<h1>Einführung</h1>
+<p>Willkommen im Kalibrierungsmenü. Dieses Menü hilft dir dabei, schnelle und effiziente Kalibrierungen zu drucken.</p>
+<h2>Warum?</h2>
+<p>Die meisten Druckerprofile sollten mit den Standardeinstellungen recht gut funktionieren. Wenn du aber Probleme feststellst oder die Druckqualität noch weiter verbessern möchtest, musst du sicherstellen, dass alles sauber kalibriert ist. Kalibrierungen lassen sich in drei Gruppen einteilen: Drucker, Filament und Slicer.</p>
+<p>Zuerst sollte der Drucker kalibriert werden, dann das Filament und anschließend der Slicer.</p>
+<h2>Druckerkalibrierung</h2>
+<p>Das ist der erste Bereich, den du kalibrieren solltest. Jeder Drucker ist hier etwas anders, daher solltest du die Anleitung deines Druckers für weitere Informationen lesen.</p>
+<h3>Extruderkalibrierung</h3>
+<p>Dafür gibt es keinen eigenen Menüpunkt, weil sie nicht durch einen Druck kalibriert werden kann. Sie ist nicht zwingend erforderlich, kann aber helfen, einige Probleme zu vermeiden. Das meiste dazu wird im Menüpunkt zur Flusskalibrierung erklärt.</p>
+<h3>Bettnivellierung</h3>
+<p>Die meisten Drucker haben keine automatische Bettnivellierung, und selbst die, die eine haben, müssen mindestens einmal kalibriert werden. Diese Menüs erklären vieles, aber lies auf jeden Fall auch die Dokumentation deines Druckers, falls es spezielle Schritte für dein Modell gibt. Dieser Kalibrierungsdruck ist besonders nützlich, wenn du das Endergebnis überprüfen oder verfeinern möchtest oder einfach kontrollieren willst, ob sich seit dem letzten Mal etwas verändert hat.</p>
+<p>Es werden 5 kleine Flächen erzeugt. Du solltest daran erkennen können, wo das Bett korrekt nivelliert ist und wo noch Anpassungen nötig sind.</p>
+<h2>Filamentkalibrierung</h2>
+<p>Jedes Filament hat andere Eigenschaften und kann Anpassungen benötigen. Auch wenn das Standardprofil meistens funktioniert, kann es vermeidbare Artefakte verursachen. Manche Spezialfilamente, wie zum Beispiel holzgefüllte Filamente, brauchen besondere Aufmerksamkeit.</p>
+<h3>Kalibrierung des Filamentflusses</h3>
+<p>Der Extruder greift das Filament, um es zu fördern, und wie stark die Feder das Filament zusammendrückt, kann den benötigten Fluss verändern. Außerdem hilft dir dieser Schritt, eventuelle Ungenauigkeiten eines nicht optimal kalibrierten Extruders auszugleichen.</p>
+<p>Beachte, dass du Flussprobleme bekommen wirst, wenn dein Filament einen schwankenden Durchmesser hat oder nicht rund ist. Diese Probleme lassen sich so nicht beheben. Du solltest dann den Filamenthersteller wechseln oder in einen Filamentbreitensensor investieren.</p>
+<h3>Kalibrierung der Filamenttemperatur</h3>
+<p>Einige Filamente benötigen mehr Wärme, um gut zu haften, andere brauchen weniger Wärme, damit nicht zu viel Oozing entsteht oder Überhänge weich werden. Diese Kalibrierung hilft dir dabei, einen guten Temperaturwert zu finden. Du kannst auch mehrere Durchläufe mit unterschiedlichen Lüftergeschwindigkeiten machen, um die beste Kombination zu ermitteln.</p>
+<h2>Slicer-Kalibrierung</h2>
+<p>Diese Kalibrierungen helfen dir dabei, die besten Slicer-Einstellungen zu finden, die gut zu deiner Kombination aus Drucker und Filament passen.</p>
+<h3>Kalibrierung des Brückenflusses</h3>
+<p>Brücken sind manchmal etwas schwierig sauber zu drucken. Diese Kalibrierung hilft dir dabei, die beste Einstellung für den Brückenfluss zu finden. Du kannst außerdem mit unterschiedlichen Werten für die Brückenlüftergeschwindigkeit experimentieren.</p>
+<h3>Kalibrierung des Ironing-Musters</h3>
+<p>Es ist schwierig, eine wirklich ebene obere Fläche zu drucken, da sie in der Mitte größerer ebener Bereiche leicht absacken kann. Diese Kalibrierung hilft dir dabei, die beste Einstellung zu finden, um das auszugleichen.</p>
+<h3>Kalibrierungswürfel</h3>
+<p>Mit diesem Eintrag hast du immer einen Kalibrierungswürfel druckbereit. Er ist nützlich, um zu prüfen, ob der Druck eine gute Maßhaltigkeit besitzt. Das kann gegebenenfalls über die verschiedenen Einstellungen zur X-Y-Größenkompensation ausgeglichen werden.</p>
+</body>
+</html>
