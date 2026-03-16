@@ -156,6 +156,8 @@ public:
     virtual std::string get_gizmo_leaving_text() const { assert(false); return ""; }
     virtual std::string get_action_snapshot_name() const;
     virtual void trigger_action() {}
+    virtual bool m_should_trigger_action() { return false; }
+
     void set_common_data_pool(CommonGizmosDataPool* ptr) { m_c = ptr; }
 
     unsigned int get_sprite_id() const { return m_sprite_id; }

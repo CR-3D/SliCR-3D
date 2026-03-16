@@ -565,7 +565,10 @@ inline void release_assert(bool valid) {
 //#define UNOPTIMIZE _Pragma("optimize(\"\", off)")
 #endif
 #endif
-
+template<typename T>
+inline bool is_in_range(const T &value, const T &low, const T &high) {
+    return low <= value && value <= high;
+}
 } // namespace Slic3r
 
 #endif // _libslic3r_h_

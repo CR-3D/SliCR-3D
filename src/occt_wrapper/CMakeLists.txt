@@ -19,12 +19,8 @@ include(GenerateExportHeader)
 
 generate_export_header(OCCTWrapper)
 
-find_package(OpenCASCADE REQUIRED)
-if (OpenCASCADE_VERSION VERSION_LESS 7.6.2)
-    message(FATAL_ERROR "OpenCASCADE v7 >= v7.6.2 must be used")
-elseif (OpenCASCADE_VERSION VERSION_GREATER_EQUAL 8.0.0)
-    message(FATAL_ERROR "OpenCASCADE v7 >= v7.6.2 must be used")
-endif ()
+find_package(OpenCASCADE 7.6.1 REQUIRED)
+
 
 if (OpenCASCADE_VERSION VERSION_LESS 7.8.0)
     message(STATUS "OpenCASCADE_VERSION version < 7.8.0")

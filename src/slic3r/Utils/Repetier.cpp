@@ -291,26 +291,42 @@ bool Repetier::preheat_bed(DynamicPrintConfig config) const {
 }
 
 
-void Repetier::get_printer_config(const CompletionHandler& handler) const {
-    std::string endpoint = "/printer/api/" + port + "?a=getPrinterConfig";
-    std::string url      = make_url((boost::format("printer/api/%1%") % port).str());
-    json json_response;
+void Repetier::get_printer_config(const CompletionHandler& handler) const
+{
+    std::string url = make_url((boost::format("printer/api/%1%") % port).str());
 
     auto http = Http::get(std::move(url));
-    //Http::timeout_max()
     set_auth(http);
-   // http.timeout_connect(3);
-    http.timeout_max(2);
-    
+
+    // Be careful with aggressive timeouts; 2 seconds is often too low on LAN/Wi-Fi.
+    http.timeout_max(10);
+
     http.form_add("a", "getPrinterConfig")
-        .on_complete([&](std::string body, unsigned status) {
-            json_response = json::parse(body);
-            handler(json_response, true, "");  // Call handler with success
+        .on_complete([handler = std::move(handler)](std::string body, unsigned status) mutable {
+            // 1) Check HTTP status first
+            if (status < 200 || status >= 300) {
+                handler(json(), false,
+                        "HTTP " + std::to_string(status) + " (non-2xx). Body: " +
+                        body.substr(0, std::min<size_t>(200, body.size())));
+                return;
+            }
+
+            // 2) Parse safely (no exceptions)
+            json j = json::parse(body, nullptr, /*allow_exceptions*/ false);
+            if (j.is_discarded()) {
+                handler(json(), false,
+                        body.substr(0, std::min<size_t>(80, body.size())));
+                return;
+            }
+
+            handler(j, true, "");
         })
-        .on_error([&](std::string body, std::string error, unsigned status) {
-            handler(json(), false, error);  // Call handler with error
+        .on_error([handler](std::string body, std::string error, unsigned status) mutable {
+            handler(json(), false,
+                    error + " (HTTP " + std::to_string(status) + "). Body: " +
+                    body.substr(0, std::min<size_t>(200, body.size())));
         })
-        .perform_sync();
+        .perform();   // <-- async/non-blocking (use your lib’s async call)
 }
 
 
@@ -439,23 +455,32 @@ bool Repetier::get_groups(wxArrayString& groups) const
 }
 
 void Repetier::get_list_printers(const CompletionHandler& handler) const {
-
-    std::string endpoint = "/printer/api/" + port + "?a=listPrinter";
-    std::string url      = make_url((boost::format("printer/api/%1%") % port).str());
-    json json_response;
+    std::string url = make_url((boost::format("printer/api/%1%") % port).str());
 
     auto http = Http::get(std::move(url));
     set_auth(http);
 
     http.form_add("a", "listPrinter")
-        .on_complete([&](std::string body, unsigned status) {
-            json_response = json::parse(body);
-            handler(json_response, true, "");  // Call handler with success
+        .on_complete([handler = std::move(handler)](std::string body, unsigned status) mutable {
+            if (status < 200 || status >= 300) {
+                handler(json(), false, "HTTP " + std::to_string(status) + ": " + body);
+                return;
+            }
+
+            // Parse without throwing:
+            json j = json::parse(body, /*callback*/nullptr, /*allow_exceptions*/false);
+            if (j.is_discarded()) {
+                handler(json(), false, "Response is not valid JSON. Body starts with: " +
+                                       body.substr(0, std::min<size_t>(40, body.size())));
+                return;
+            }
+
+            handler(j, true, "");
         })
-        .on_error([&](std::string body, std::string error, unsigned status) {
-            handler(json(), false, error);  // Call handler with error
+        .on_error([handler](std::string body, std::string error, unsigned status) mutable {
+            handler(json(), false, error + " (HTTP " + std::to_string(status) + "): " + body);
         })
-        .perform_sync();
+        .perform();   // <-- async / non-blocking (name may differ in your lib)
 }
 
 bool Repetier::get_printers(wxArrayString& printers) const

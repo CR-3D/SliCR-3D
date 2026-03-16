@@ -458,18 +458,20 @@ void GLGizmoMmuSegmentation::on_render_input_window(float x, float y, float bott
         m_imgui->disabled_end();
 
         ImGui::Separator();
-    } else if(m_tool_type == ToolType::SMART_FILL) {
+    } else if (m_tool_type == ToolType::SMART_FILL || m_tool_type == ToolType::BUCKET_FILL) {
         ImGui::AlignTextToFramePadding();
-        m_imgui->text(m_desc["smart_fill_angle"] + ":");
-        std::string format_str = std::string("%.f") + I18N::translate_utf8("°", "Degree sign to use in the respective slider in MMU gizmo,"
-                                                                                "placed after the number with no whitespace in between.");
+        m_imgui->text((m_tool_type == ToolType::SMART_FILL ? m_desc["smart_fill_angle"] : m_desc["bucket_fill_angle"])  + ":");
+        std::string format_str_angle = std::string("%.f") + I18N::translate_utf8("°", "Degree sign to use in the respective slider in MMU gizmo,"
+                                                                                      "placed after the number with no whitespace in between.");
         ImGui::SameLine(sliders_left_width);
         ImGui::PushItemWidth(window_width - sliders_left_width - slider_icon_width);
-        if (m_imgui->slider_float("##smart_fill_angle", &m_smart_fill_angle, SmartFillAngleMin, SmartFillAngleMax, format_str.data(), 1.0f, true, _L("Alt + Mouse wheel")))
-            for (auto &triangle_selector : m_triangle_selectors) {
+        float &fill_angle = (m_tool_type == ToolType::SMART_FILL) ? m_smart_fill_angle : m_bucket_fill_angle;
+        if (m_imgui->slider_float("##fill_angle", &fill_angle, SmartFillAngleMin, SmartFillAngleMax, format_str_angle.data(), 1.0f, true, _L("Alt + Mouse wheel"))) {
+            for (auto &triangle_selector: m_triangle_selectors) {
                 triangle_selector->seed_fill_unselect_all_triangles();
                 triangle_selector->request_update_render_data();
             }
+        }
 
         ImGui::Separator();
     }

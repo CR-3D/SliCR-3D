@@ -579,11 +579,49 @@ bool Selection::is_sla_compliant() const
 }
 
 
-bool Selection::is_text() const {
-   
-    const GLVolume* gl_volume = (m_volumes->volumes)[*m_list.begin()].get();
-    const ModelVolume* model_volume = m_model->objects[gl_volume->object_idx()]->volumes[gl_volume->volume_idx()];
-   
+bool Selection::is_text() const
+{
+    // Basic validity checks
+    if (!m_volumes || !m_model)
+        return false;
+
+    if (m_volumes->volumes.empty())
+        return false;
+
+    if (m_list.empty())
+        return false;
+
+    const auto first_it = m_list.begin();
+    const auto vol_id   = *first_it;
+
+    // Ensure index is in range
+    if (vol_id < 0 || static_cast<size_t>(vol_id) >= m_volumes->volumes.size())
+        return false;
+
+    const auto& vol_ptr = (m_volumes->volumes)[vol_id];
+    if (!vol_ptr)
+        return false;
+
+    const GLVolume* gl_volume = vol_ptr.get();
+    const int obj_idx = gl_volume->object_idx();
+    const int vol_idx = gl_volume->volume_idx();
+
+    // Validate object index
+    if (obj_idx < 0 || static_cast<size_t>(obj_idx) >= m_model->objects.size())
+        return false;
+
+    const ModelObject* obj = m_model->objects[obj_idx];
+    if (!obj)
+        return false;
+
+    // Validate volume index (depends on your container type)
+    if (vol_idx < 0 || static_cast<size_t>(vol_idx) >= obj->volumes.size())
+        return false;
+
+    const ModelVolume* model_volume = obj->volumes[vol_idx];
+    if (!model_volume)
+        return false;
+
     return model_volume->is_text();
 }
 

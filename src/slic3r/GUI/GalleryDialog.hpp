@@ -25,24 +25,30 @@ class GalleryDialog : public DPIDialog
     wxListCtrl*     m_list_ctrl  { nullptr };
     wxImageList*    m_image_list { nullptr };
     wxButton*       m_ok_btn     { nullptr };
-    size_t          m_sys_item_count { 0 };
 
     struct Item {
         std::string name;
+        std::string relative_path;
+        std::string folder;
+        std::string display_name;
         bool        is_system;
     };
+    std::vector<Item>   m_items;
     std::vector<Item>   m_selected_items;
 
     int ID_BTN_ADD_CUSTOM_SHAPE;
+    int ID_BTN_ADD_CUSTOM_FOLDER;
     int ID_BTN_DEL_CUSTOM_SHAPE;
     int ID_BTN_REPLACE_CUSTOM_PNG;
 
     void load_label_icon_list();
     void add_custom_shapes(wxEvent& event);
+    void add_custom_folder(wxEvent& event);
     void del_custom_shapes();
     void del_custom_shapes(wxEvent& event) { del_custom_shapes(); }
     void change_thumbnail();
     void change_thumbnail(wxEvent& event) { change_thumbnail(); }
+    void layout_items_grid();
     void select(wxListEvent& event);
     void deselect(wxListEvent& event);
     void show_context_menu(wxListEvent& event);

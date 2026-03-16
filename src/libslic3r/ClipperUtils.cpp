@@ -14,6 +14,9 @@
 #include "ShortestPath.hpp"
 #include "Utils.hpp"
 
+#include <oneapi/tbb/parallel_reduce.h>
+#include <oneapi/tbb/blocked_range.h>
+
 // #define CLIPPER_UTILS_TIMING
 
 #ifdef CLIPPER_UTILS_TIMING
@@ -903,8 +906,11 @@ Slic3r::Polygons union_(Slic3r::Polygons &&subject, const Slic3r::Polygons &subj
         return std::move(subject);
     return union_(subject, subject2);
 }
+
 Slic3r::Polygons union_(const Slic3r::Polygons &subject, const Slic3r::ExPolygon &subject2)
     { return _clipper(ClipperLib::ctUnion, ClipperUtils::PolygonsProvider(subject), ClipperUtils::ExPolygonProvider(subject2), ApplySafetyOffset::No); }
+Slic3r::Polygons union_(const Slic3r::Polygons &subject, const Slic3r::Polygon &subject2)
+    { return _clipper(ClipperLib::ctUnion, ClipperUtils::PolygonsProvider(subject), ClipperUtils::SinglePathProvider(subject2.points), ApplySafetyOffset::No); }
 
 template <typename TSubject, typename TClip>
 static ExPolygons _clipper_ex(ClipperLib::ClipType clipType, TSubject &&subject,  TClip &&clip, ApplySafetyOffset do_safety_offset, ClipperLib::PolyFillType fill_type = ClipperLib::pftNonZero)
@@ -984,6 +990,13 @@ Slic3r::ExPolygons union_ex(const Slic3r::Polygons &subject, const Slic3r::ExPol
     { return PolyTreeToExPolygons(clipper_do_polytree(ClipperLib::ctUnion, ClipperUtils::PolygonsProvider(subject), ClipperUtils::ExPolygonsProvider(subject2), ClipperLib::pftNonZero)); }
 Slic3r::ExPolygons union_ex(const Slic3r::ExPolygons &subject, const Slic3r::Polygons &subject2)
     { return PolyTreeToExPolygons(clipper_do_polytree(ClipperLib::ctUnion, ClipperUtils::ExPolygonsProvider(subject), ClipperUtils::PolygonsProvider(subject2), ClipperLib::pftNonZero)); }
+
+
+Slic3r::ExPolygons xor_ex(const Slic3r::ExPolygons &subject, const Slic3r::ExPolygon &clip, ApplySafetyOffset do_safety_offset)
+    { return _clipper_ex(ClipperLib::ctXor, ClipperUtils::ExPolygonsProvider(subject), ClipperUtils::ExPolygonProvider(clip), do_safety_offset); }
+Slic3r::ExPolygons xor_ex(const Slic3r::ExPolygons &subject, const Slic3r::ExPolygons &clip, ApplySafetyOffset do_safety_offset)
+    { return _clipper_ex(ClipperLib::ctXor, ClipperUtils::ExPolygonsProvider(subject), ClipperUtils::ExPolygonsProvider(clip), do_safety_offset); }
+
 Slic3r::ExPolygons union_ex(const Slic3r::Surfaces &subject)
     { return PolyTreeToExPolygons(clipper_do_polytree(ClipperLib::ctUnion, ClipperUtils::SurfacesProvider(subject), ClipperUtils::EmptyPathsProvider(), ClipperLib::pftNonZero)); }
 Slic3r::ExPolygons union_ex(const Slic3r::ExPolygons & expolygons1, const Slic3r::ExPolygons & expolygons2, ApplySafetyOffset do_safety_offset)
@@ -997,6 +1010,7 @@ Slic3r::ExPolygons union_ex(const Slic3r::ExPolygons & expolygons1, const Slic3r
     //return _clipper_ex(ClipperLib::ctUnion, poly_union, Slic3r::Polygons(), safety_offset_);
     //OR that, i don't know what is the best
     //return _clipper_ex(ClipperLib::ctUnion, to_polygons(subject1), to_polygons(subject2), safety_offset_);
+
 }
 
 #define CLIPPER_OFFSET_POWER_OF_2 17
@@ -1520,6 +1534,7 @@ Polygons union_pt_chained_outside_in(const Polygons &subject)
     return retval;
 }
 
+
 Polygons simplify_polygons(const Polygons &subject)
 {
     CLIPPER_UTILS_TIME_LIMIT_MILLIS(CLIPPER_UTILS_TIME_LIMIT_DEFAULT);
@@ -1794,6 +1809,21 @@ static void variable_offset_inner_raw(const ExPolygon &expoly, const std::vector
 //    for (auto &c : holes)
 //        assert(ClipperLib::Area(c) > 0.);
 #endif /* NDEBUG */
+}
+
+Polygons union_parallel_reduce(const Polygons &subject)
+{
+    return tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, subject.size()), Polygons(),
+        [&subject](tbb::blocked_range<size_t> range, Polygons partial_union) {
+            for (size_t subject_idx = range.begin(); subject_idx < range.end(); ++subject_idx) {
+                partial_union = union_(partial_union, subject[subject_idx]);
+            }
+            return partial_union;
+        },
+        [](const Polygons &a, const Polygons &b) {
+            return union_(a, b);
+        });
 }
 
 Polygons variable_offset_inner(const ExPolygon &expoly, const std::vector<std::vector<float>> &deltas, double miter_limit)

@@ -160,6 +160,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Gizmos/GLGizmoFdmSupports.hpp
     GUI/Gizmos/GLGizmoFlatten.cpp
     GUI/Gizmos/GLGizmoFlatten.hpp
+    GUI/Gizmos/GLGizmoFuzzySkin.cpp
+    GUI/Gizmos/GLGizmoFuzzySkin.hpp
     GUI/Gizmos/GLGizmoCut.cpp
     GUI/Gizmos/GLGizmoCut.hpp
     GUI/Gizmos/GLGizmoHollow.cpp
@@ -491,7 +493,21 @@ endforeach()
 
 encoding_check(libslic3r_gui)
 
-target_link_libraries(libslic3r_gui libslic3r avrdude libcereal imgui imguizmo GLEW::GLEW OpenGL::GL hidapi exif angelscript libcurl ${wxWidgets_LIBRARIES} NanoSVG::nanosvg NanoSVG::nanosvgrast)
+target_link_libraries(libslic3r_gui 
+                      libslic3r
+                      slic3r-arrange-wrapper
+                      avrdude 
+                      libcereal 
+                      imgui 
+                      imguizmo 
+                      GLEW::GLEW 
+                      OpenGL::GL 
+                      hidapi exif 
+                      angelscript 
+                      libcurl 
+                      ${wxWidgets_LIBRARIES} 
+                      NanoSVG::nanosvg 
+                      NanoSVG::nanosvgrast)
 
 if (MSVC)
     target_link_libraries(libslic3r_gui Setupapi.lib)

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Extruderfluss Kalibrierung (nach Gewicht)</title>
+    <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Extruderfluss Kalibrierung (nach Gewicht)</h1>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Dieser Test hilft Ihnen dabei, einen Extrusionsmultiplikator, eine maximale Überlappung und eine Kurve für die Extruderfluss Kompensation bei hohen Geschwindigkeiten zu bestimmen. Das ist besonders nützlich, wenn ein benutzerdefinierter Drucker zum ersten Mal kalibriert wird.</p>
+<p>Diese Kalibrierung ist in drei Hauptschritte aufgeteilt:</p>
+<ul>
+<li>Abschätzung des grundlegenden Extrusionsmultiplikators.</li>
+<li>Überlappungstest.</li>
+<li>Kalibrierung der Geschwindigkeitskurve für den Extrusionsmultiplikator.</li>
+</ul>
+<p>Sie benötigen möglichst eine präzise Waage, idealerweise mit bekannten Vergleichsgewichten.</p>
+<h2>Abschätzung des grundlegenden Extrusionsmultiplikators</h2>
+<p>Mit diesem Schritt können Sie prüfen, welche maximalen Extrusionsmultiplikatoren überhaupt sinnvoll sind.</p>
+<p>Wählen Sie zunächst ein Filament mit gutem Durchmesserprofil aus, zum Beispiel Prusament, bei dem der Filament Extrusionsmultiplikator normalerweise 1 sein sollte. Erstellen Sie dann ein Filamentprofil mit der passenden Dichte, falls es noch nicht existiert. Stellen Sie die maximale Druckgeschwindigkeit des Filaments für Ihren Drucker oder Extruder auf einen eher niedrigen Wert, zum Beispiel 20 mm/s, damit der Extrusionsfluss nicht begrenzt wird.</p>
+<p>Wählen Sie anschließend das Zielgewicht der Proben. Ein geringeres Gewicht ist schneller gedruckt, lässt sich aber schwerer exakt messen. Wenn Sie Vergleichsgewichte haben, wählen Sie am besten eines, das Sie direkt danebenlegen können.</p>
+<p>Klicken Sie auf "Generate for multiple flow" und drucken Sie die Proben auf Ihrem Drucker. Die Druckreihenfolge sollte so gewählt sein, dass zuerst die Objekte nahe 100% Fluss gedruckt werden. Prüfen Sie regelmäßig, ob ein Druck fehlzuschlagen droht. Ein zu geringer Fluss kann dazu führen, dass ein Teil nicht ausreichend auf dem Druckbett haftet, ein zu hoher Fluss kann dazu führen, dass das Teil an der Düse festschmilzt.</p>
+<p>Jedes Objekt trägt seinen Flusswert im Namen. Beschriften Sie die gedruckten Teile zusätzlich mit einem Marker, damit sie eindeutig zugeordnet werden können. Wiegen Sie die Teile und tragen Sie die Werte in eine Tabelle ein. Sie können dazu eine Tabelle oder ein Spreadsheet anlegen und alle Gewichte pro Extrusionsfluss Prozentwert notieren, um eine Kurve wie unten zu erhalten.</p>
+<p>
+<img src="./first_flow_graph.jpg" />
+</p>
+<p>Hier sieht man, wo die Kurve die horizontale Linie bei "1g" schneidet. In diesem Beispiel wurde das Würfelgewicht auf 1g gesetzt. Setzen Sie den minimalen und maximalen Flussmultiplikator auf Werte rund um diesen Schnittpunkt, hier also 1.05 bis 1.2. Erzeugen und drucken Sie dann erneut eine Platte.</p>
+<p>
+<img src="./second_flow_graph.jpg" />
+</p>
+<p>Die neue Serie zeigt in meinem Fall, dass 1.125 der perfekte Extrusionsmultiplikator für meinen Ender 3 ist.</p>
+<p>Danach können wir den Filament Extrusionsmultiplikator auf diesen Wert setzen. Tragen Sie ihn in die Einstellung für den Extruderfluss ein und speichern Sie das Profil.</p>
+<h2>Überlappungstest</h2>
+<p>Der vorherige Test wurde mit maximal 80% Überlappung durchgeführt. Um jedoch eine bessere Festigkeit und Haftung zu erreichen, möchten wir die Überlappung möglichst weit erhöhen. Mit diesem Test sehen wir, welche Überlappung Ihre Filament Extruder Kombination verarbeiten kann.</p>
+<p>Erzeugen und drucken Sie eine erste Serie mit einem Minimalwert unter 80% und einem Maximalwert von 100%. Markieren Sie wie beim vorherigen Test jedes Teil mit seinem Überlappungswert.</p>
+<p>Tragen Sie die Werte erneut in eine Tabelle ein und betrachten Sie die Form der Kurve.</p>
+<ul>
+<li>Wenn die Kurve linear ist, wählen Sie die Überlappung dort, wo die Kurve das Zielgewicht schneidet, oder 100%, falls sie es nicht schneidet.</li>
+<li>Wenn die Kurve asymptotisch verläuft, wählen Sie den höchsten Überlappungswert, der noch einen deutlichen Einfluss auf das Gewicht hat.</li>
+</ul>
+<p>Falls nötig, können Sie noch eine weitere Runde durchführen. Wenn Ihre ideale Überlappung unter 80% liegt, sollten Sie die erste Phase wiederholen. Speichern Sie dabei unbedingt den neuen Überlappungswert in Ihrem Filamentprofil und gegebenenfalls in allen Überlappungsfeldern des Druckprofils.</p>
+<img src="./overlap_graph.jpg" />
+<p>In meinem Beispiel sieht man, dass unter 80% Überlappung der Fluss nicht ansteigt. Das bedeutet, dass die Hohlräume nicht weiter gefüllt werden können und dies nicht der begrenzende Faktor ist. Oberhalb von 80% sinkt der Fluss etwas, weil der kleinere Hohlraum mehr Druck in der Düse erfordert. Der Rückgang ist aber nicht stark. Ich kann daher 80% oder 90% als Überlappungswert verwenden. Sie können diesen Wert entweder als maximale Filament Überlappung oder direkt im Druckprofil setzen.</p>
+<h2>Kalibrierung der Geschwindigkeitskurve für den Extrusionsmultiplikator</h2>
+<p>Jetzt haben wir eine gute Vorstellung vom Extrusionsmultiplikator und von der Überlappung. Dieser Test zeigt uns, welchen Einfluss die Druckgeschwindigkeit auf den Fluss hat.</p>
+<p>Wählen Sie Ihre minimale und maximale Geschwindigkeit. Diese Werte sollten idealerweise schon gesetzt sein, aber wenn die Profile keine Begrenzung enthalten, wählen Sie sie manuell. Danach wieder: generieren, drucken, beschriften und eine Kurve erstellen.</p>
+<p>Die Kurve sollte ungefähr wie eine inverse Asymptote aussehen. Anschließend müssen wir die Extruder Schlupfkompensation mit passenden Werten füllen, um die Kurve zu korrigieren. Wenn das erledigt und gespeichert ist, erzeugen und drucken Sie erneut. Eine vollständige Kompensation ist nicht immer möglich. Wählen Sie daher eine maximale Druckgeschwindigkeit und verwenden Sie diese als Begrenzung für das Filament, den Drucker in den Maschinenlimits und gegebenenfalls auch für das Druckprofil.</p>
+<img src="./speed_graph.jpg" />
+<p>In meinem Beispiel zeigt die Geschwindigkeitskurve, dass Geschwindigkeiten über 160 dazu führen können, dass der Extruder das Filament beschädigt und der Druck fehlschlägt. Zwischen 20 und 50 mm/s gibt es einen deutlichen Abfall, zwischen 50 und 150 dagegen kaum noch. Das ist etwas ungewöhnlich und zeigt, dass weitere Tests nötig sind, um das Verhalten meines Druckers besser zu verstehen. Zur Kompensation kann ich beispielsweise die Werte speed:20->flow:1, speed:50->flow:1.045 und speed:150->flow:1.058 in die Extruderfluss Kompensation eintragen.</p>
+</body>
+</html>

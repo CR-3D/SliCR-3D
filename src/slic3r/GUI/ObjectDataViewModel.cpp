@@ -74,6 +74,7 @@ const std::map<InfoItemType, InfoItemAtributes> INFO_ITEMS{
             { InfoItemType::MmuSegmentation,     {L("Multimaterial painting"),  "mmu_segmentation_"},  },
             { InfoItemType::Sinking,             {L("Sinking"),                 "sinking"},            },
             { InfoItemType::VariableLayerHeight, {L("Variable layer height"),   "layers"},             },
+            { InfoItemType::FuzzySkin,           {L("Paint-on fuzzy Skin"),     "fuzzy_skin_painting"},},
 };
 
 ObjectDataViewModelNode::ObjectDataViewModelNode(ObjectDataViewModelNode*   parent,

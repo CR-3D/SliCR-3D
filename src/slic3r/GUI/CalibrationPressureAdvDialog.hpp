@@ -9,7 +9,7 @@ namespace GUI {
 class CalibrationPressureAdvDialog : public CalibrationAbstractDialog
 {
 public:
-    CalibrationPressureAdvDialog(GUI_App* app, MainFrame* mainframe) : CalibrationAbstractDialog(app, mainframe, "Pressure calibration") 
+    CalibrationPressureAdvDialog(GUI_App* app, MainFrame* mainframe) : CalibrationAbstractDialog(app, mainframe, "Pressure Advance Calibration") 
     { create(boost::filesystem::path("calibration") / "filament_pressure", "filament_pressure.html", wxSize(1600, 600), true); Centre(wxBOTH); currentTestCount = 1; } //include_close_button = true
     virtual ~CalibrationPressureAdvDialog(){ }
 

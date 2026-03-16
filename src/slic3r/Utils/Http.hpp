@@ -26,7 +26,14 @@ struct HttpRetryOpt
     // if set to zero, retries forever
     size_t max_retries{0};
 
-	static const HttpRetryOpt& no_retry();
+    static inline const HttpRetryOpt& no_retry() {
+        static const HttpRetryOpt opt{
+            std::chrono::milliseconds{0},
+            std::chrono::milliseconds{0},
+            0
+        };
+        return opt;
+    }
     static const HttpRetryOpt& default_retry();
 
     static constexpr size_t MAX_RETRY_DELAY_MS = 4 * 64000;

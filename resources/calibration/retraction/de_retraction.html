@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Kalibrierung der Retraktion</title>
+  <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Kalibrierung der Retraktion</h1>
+</td>
+</tr>
+<tr>
+<td style="text-align: right;"><strong>
+    <table><tr><td>Benötigt:</td>
+        <td style="text-align: left;">Fluss</td>
+        <td style="text-align: left;">Temperatur</td></tr>
+    </table>
+    </strong>
+</tr>
+</tbody>
+</table>
+
+<h2>Anleitung</h2>
+<p>Es ist empfehlenswert, zuvor die Fluss- und Temperaturkalibrierung durchgeführt zu haben.
+Diese Kalibrierung hilft dir dabei, die richtige Retraktionslänge für deinen Extruder und das aktuell verwendete Filament zu bestimmen.</p>
+<p>Dieser Test druckt ein Testobjekt, bei dem sich die Retraktionslänge für jeden in Z-Richtung gedruckten Millimeter erhöht.</p>
+
+<h3>Schrittweite & Höhe</h3>
+<p>Wenn du einen Direkt-Extruder hast, ist es am besten, mit einer Schrittweite von 0,1 mm und etwa 15 mm Höhe zu testen, da man gewöhnlich nicht mehr als 1 mm Retraktion benötigt.</p>
+<p>Wenn du einen Bowden-Extruder hast, ist es am besten, mit einer Schrittweite von 0,5 mm und etwa 15 mm Höhe zu testen, da es nicht ungewöhnlich ist, mehr als 6 mm Retraktion zu brauchen. Du kannst auch eine Schrittweite von 0,2 mm und eine größere Höhe verwenden. Sei vorsichtig, denn eine hohe Retraktionslänge erhöht bei vielen Retraktionen das Risiko einer verstopften Düse erheblich.</p>
+
+<h3>Starttemperatur & Temperaturschritt nach unten</h3>
+<p>Standardmäßig wird die aktuelle Temperatur nur für einen einzigen Test verwendet. Du musst das also nicht ändern, außer du möchtest zusätzlich die Temperatur optimieren, um Stringing zu verringern.</p>
+<p>Bei der Temperaturkalibrierung hast du einen Temperaturbereich ermittelt, in dem dein Druck „gut genug“ ist.</p>
+<p>Hier solltest du mit der höchsten noch akzeptablen Temperatur beginnen. Wenn du diese bereits in deinen Filamenteinstellungen gesetzt hast, kannst du „current“ als Starttemperatur beibehalten. Falls nicht, wähle die maximale Temperatur im Kombinationsfeld „Start temp“.</p>
+<p>Danach wählst du im Feld „Temp decr“ eine Option, die die Temperatur nicht zu stark absenkt. „3x10“ bedeutet zum Beispiel, dass drei Tests gedruckt werden: der erste mit der Maximaltemperatur und jeder weitere mit 10 °C weniger.</p>
+
+<h3>Filament-Verlangsamung entfernen</h3>
+<p>Dieser Button ändert deine Einstellungen unter Filament/Kühlung so, dass alle Funktionen deaktiviert werden, die eingreifen, wenn eine Schicht zu klein ist, um rechtzeitig abzukühlen. Mit deaktivierten Algorithmen wird dein Druck in Bezug auf Retraktion anspruchsvoller, also ein guter Stresstest. Um sie wieder zu aktivieren, entferne alle Änderungen im Filament-Reiter (kleiner blauer „Zurück“-Pfeil).</p>
+
+<h3>Ergebnisse</h3>
+<p>Wenn die Testobjekte gedruckt sind, kannst du die Millimeter anhand der Rippen an den Seiten der Drucktürme zählen. Ich zähle sie mit dem Fingernagel. Sobald du die Höhe gefunden hast, an der keine Fäden mehr auftreten, kannst du dir die Millimeterzahl notieren. Multipliziere sie mit deiner Schrittweite (0,1, 0,2, 0,5 oder 1), und du erhältst deine Retraktionslänge. Du kannst 20 % zusätzliche Länge hinzufügen, um etwas Sicherheitsreserve zu haben.</p>
+<p>Wenn du mehrere Drucke mit unterschiedlichen Temperaturen hast, musst du den besten Druck auswählen, also den mit dem geringsten Stringing, außer die Verringerung des Stringings ist nicht groß genug, um die niedrigere Temperatur zu rechtfertigen.</p>
+
+<h2>Beispiel</h2>
+<table width="100%">
+<tbody>
+<tr>
+<td><img src="./retraction.jpg" width="480" height="270" /></td>
+<td>Bei diesem Druck tritt der letzte kleine Faden auf einer Höhe von etwa 10 auf. Da ich eine Schrittweite von 0,5 verwendet habe, bedeutet das, dass ich mindestens 5 mm Retraktion brauche. Ich würde den Wert aber auf 6 setzen, um sicherzugehen, dass fast das gesamte Stringing verschwindet.</td>
+<td>
+</tr>
+</tbody>
+</table>
+
+<p> </p>
+
+<h2>Anmerkungen</h2>
+<p>Die Retraktionsgeschwindigkeit sollte auf den maximalen Wert gesetzt werden, den dein Extruder, deine Treiber und deine Firmware zuverlässig unterstützen können, mit etwas Sicherheitsreserve. 50 mm/s für Retraktion und 20 mm/s für das Zurückfördern ist ein guter Ausgangspunkt für PLA.</p>
+<p>Lizenz der für diesen Kalibrierungstest verwendeten Modelle: CC BY-SA 3.0</p>
+</body>
+</html>

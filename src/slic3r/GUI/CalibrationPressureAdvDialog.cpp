@@ -1248,9 +1248,9 @@ void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer* button
     GCodeFlavor flavor = printer_config->option<ConfigOptionEnum<GCodeFlavor>>("gcode_flavor")->value;
     const AppConfig* app_config = get_app_config();
 
-    std::string prefix = (gcfMarlinFirmware == flavor) ? " LA " : ((gcfKlipper == flavor || gcfRepRap == flavor) ? " PA " : "unsupported firmware type");
+    const wxString prefix = (gcfMarlinFirmware == flavor) ? "LA" : ((gcfKlipper == flavor || gcfRepRap == flavor) ? "PA" : wxString{});
 
-    if (prefix != "unsupported firmware type") {
+    if (! prefix.empty()) {
 
         wxPanel* mainPanel = new wxPanel(this, wxID_ANY);
         mainPanel->SetBackgroundColour(background_color);
@@ -1271,7 +1271,7 @@ void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer* button
         nbRuns->SetBackgroundColour(background_color);
         nbRuns->SetForegroundColour(text_color);
 
-        wxStaticText* text_generate_count = new wxStaticText(mainPanel, wxID_ANY, _L("Number of" + prefix + "tests: "));
+        wxStaticText* text_generate_count = new wxStaticText(mainPanel, wxID_ANY, wxString::Format(_L("Number of %s tests: "), prefix));
         commonSizer->Add(text_generate_count, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
         commonSizer->Add(nbRuns, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
         text_generate_count->SetBackgroundColour(background_color);
@@ -1300,7 +1300,7 @@ void CalibrationPressureAdvDialog::create_buttons(wxStdDialogButtonSizer* button
         create_row_controls(dynamicSizer, currentTestCount);
     } else {
 
-        wxStaticText* incompatiable_text = new wxStaticText(this, wxID_ANY, _L(prefix));
+        wxStaticText* incompatiable_text = new wxStaticText(this, wxID_ANY, _L("unsupported firmware type"));
         incompatiable_text->SetForegroundColour(*wxRED); // Set the text color to red for the incompatiable firmware tpe
         buttons->Add(incompatiable_text);
     }
@@ -1325,7 +1325,7 @@ void CalibrationPressureAdvDialog::create_row_controls(wxBoxSizer* parentSizer, 
     };
     const DynamicPrintConfig* printer_config = this->gui_app->get_tab(Preset::TYPE_PRINTER)->get_config();
     GCodeFlavor flavor = printer_config->option<ConfigOptionEnum<GCodeFlavor>>("gcode_flavor")->value;
-    std::string prefix = (gcfMarlinFirmware == flavor) ? " LA " : ((gcfKlipper == flavor || gcfRepRap == flavor) ? " PA " : "unsupported firmware type");
+    const wxString prefix = (gcfMarlinFirmware == flavor) ? "LA" : ((gcfKlipper == flavor || gcfRepRap == flavor) ? "PA" : wxString{});
     //improvements: pull retraction value and auto select a better suited start/end value?
 
     int current_selection = 2;//start selection at ExternalPerimeter
@@ -1345,10 +1345,10 @@ void CalibrationPressureAdvDialog::create_row_controls(wxBoxSizer* parentSizer, 
         wxBoxSizer* rowSizer = new wxBoxSizer(wxHORIZONTAL);
 
         wxComboBox* firstPaCombo = new wxComboBox(parentSizer->GetContainingWindow(), wxID_ANY, wxString{ choices_first_layerPA[3] }, wxDefaultPosition, wxSize(80, -1), 6, choices_first_layerPA);
-        wxStaticText* text_first_l_prefix = new wxStaticText(parentSizer->GetContainingWindow(), wxID_ANY, _L("First Layers" + prefix + "value: "));
+        wxStaticText* text_first_l_prefix = new wxStaticText(parentSizer->GetContainingWindow(), wxID_ANY, wxString::Format(_L("First Layers %s value: "), prefix));
         text_first_l_prefix->SetForegroundColour(text_color);
         rowSizer->Add(text_first_l_prefix, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
-        firstPaCombo->SetToolTip(_L("Select the" + prefix + "value to be used for the first layer only.\n(this gets added to 'before_layer_gcode' area)"));
+        firstPaCombo->SetToolTip(wxString::Format(_L("Select the %s value to be used for the first layer only.\n(this gets added to 'before_layer_gcode' area)"), prefix));
         rowSizer->Add(firstPaCombo, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
         dynamicFirstPa.push_back(firstPaCombo);
 
@@ -1358,7 +1358,7 @@ void CalibrationPressureAdvDialog::create_row_controls(wxBoxSizer* parentSizer, 
         wxStaticText* text_start_value = new wxStaticText(parentSizer->GetContainingWindow(), wxID_ANY, _L("Start value: "));
         text_start_value->SetForegroundColour(text_color);
         rowSizer->Add(text_start_value, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
-        startPaCombo->SetToolTip(_L("Select the starting" + prefix + "value to be used.\n (you can manually type in values!)"));
+        startPaCombo->SetToolTip(wxString::Format(_L("Select the starting %s value to be used.\n (you can manually type in values!)"), prefix));
         startPaCombo->SetSelection(0);
         rowSizer->Add(startPaCombo, 0, wxALIGN_CENTER_VERTICAL);
         dynamicStartPa.push_back(startPaCombo);// can't validate input here since this is where they type it in..
@@ -1369,7 +1369,7 @@ void CalibrationPressureAdvDialog::create_row_controls(wxBoxSizer* parentSizer, 
         wxStaticText* text_end_value = new wxStaticText(parentSizer->GetContainingWindow(), wxID_ANY, _L("End value: "));
         text_end_value->SetForegroundColour(text_color);
         rowSizer->Add(text_end_value, 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
-        endPaCombo->SetToolTip(_L("Select the ending" + prefix + "value to be used.\n (you can manually type in values!)"));
+        endPaCombo->SetToolTip(wxString::Format(_L("Select the ending %s value to be used.\n (you can manually type in values!)"), prefix));
         endPaCombo->SetSelection(0);
         rowSizer->Add(endPaCombo, 0, wxALIGN_CENTER_VERTICAL);
         dynamicEndPa.push_back(endPaCombo);
@@ -1402,7 +1402,7 @@ void CalibrationPressureAdvDialog::create_row_controls(wxBoxSizer* parentSizer, 
             current_selection = 0; // Wrap around: SetSelection does it's own memory access checks so this shouldn't be needed. but it's a nice safe guard to have.
         }
 
-        if (prefix == " PA ") {//klipper only feature ?
+        if (prefix == "PA") {//klipper only feature ?
             rowSizer->AddSpacer(15);
             wxCheckBox* enableST = new wxCheckBox(parentSizer->GetContainingWindow(), wxID_ANY, _L(""), wxDefaultPosition, wxDefaultSize);
             wxStaticText* text_smooth_time = new wxStaticText(parentSizer->GetContainingWindow(), wxID_ANY, _L("Smooth time: "));

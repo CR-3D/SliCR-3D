@@ -562,6 +562,7 @@ static std::vector<std::string> s_Preset_print_options {
         "external_perimeters_first",
         "external_perimeters_first_force",
         "external_perimeters_vase",
+        "external_perimeters_vase_min_height",
         "external_perimeters_nothole",
         "external_perimeters_hole",
         // fill pattern
@@ -823,6 +824,9 @@ static std::vector<std::string> s_Preset_print_options {
         //Arachne
         "perimeter_generator", "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle",
         "wall_distribution_count", "min_feature_size", "min_bead_width",
+        "interlocking_beam", "interlocking_orientation", "interlocking_beam_layer_count", "interlocking_depth", "interlocking_boundary_avoidance", "interlocking_beam_width",
+
+
 };
 
 static std::vector<std::string> s_Preset_filament_options {
@@ -912,7 +916,8 @@ static std::vector<std::string> s_Preset_filament_options {
         "filament_wipe_advanced_pigment",
         "chamber_temperature",
         // SoftFever
-        "filament_pressure_advance", "adaptive_pressure_advance", "adaptive_pressure_advance_model", "adaptive_pressure_advance_overhangs", "adaptive_pressure_advance_bridges",
+        "filament_pressure_advance",
+        "filament_pressure_advance_value",
 };
 
 static std::vector<std::string> s_Preset_machine_limits_options {

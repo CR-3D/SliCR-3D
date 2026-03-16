@@ -871,6 +871,13 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                xy_size_compensation))
     ((ConfigOptionFloat,                xy_inner_size_compensation))
     ((ConfigOptionBool,                 wipe_into_objects))
+
+    ((ConfigOptionBool,                interlocking_beam))
+    ((ConfigOptionFloat,               interlocking_beam_width))
+    ((ConfigOptionFloat,               interlocking_orientation))
+    ((ConfigOptionInt,                 interlocking_beam_layer_count))
+    ((ConfigOptionInt,                 interlocking_depth))
+    ((ConfigOptionInt,                 interlocking_boundary_avoidance))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
@@ -910,6 +917,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 external_perimeters_hole))
     ((ConfigOptionBool,                 external_perimeters_nothole))
     ((ConfigOptionBool,                 external_perimeters_vase))
+    ((ConfigOptionFloatOrPercent,       external_perimeters_vase_min_height))
     ((ConfigOptionBool,                 extra_perimeters))
     ((ConfigOptionBool,                 extra_perimeters_odd_layers))
     ((ConfigOptionBool,                 extra_perimeters_on_overhangs))
@@ -1088,13 +1096,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionString,              end_gcode))
     ((ConfigOptionStrings,             end_filament_gcode))
     ((ConfigOptionGraphs,              filament_pressure_advance))
+    ((ConfigOptionFloats,              filament_pressure_advance_value))
     
-    // Orca: adaptive pressure advance and calibration model
-    ((ConfigOptionBools,               adaptive_pressure_advance))
-    ((ConfigOptionBools,               adaptive_pressure_advance_overhangs))
-    ((ConfigOptionStrings,             adaptive_pressure_advance_model))
-    ((ConfigOptionFloats,              adaptive_pressure_advance_bridges))
-
     ((ConfigOptionFloat,               extra_loading_move))
     ((ConfigOptionGraphs,              extruder_extrusion_multiplier_speed))
     ((ConfigOptionPercents,            extruder_fan_offset))

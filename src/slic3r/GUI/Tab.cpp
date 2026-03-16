@@ -1273,6 +1273,33 @@ void Tab::reload_config()
                 if (field) {
                     field->toggle_widget_enable(nozzle_diameters_count == 2);
                 }
+                
+                if (auto* layer_field = og_freq_chng_params->get_field(OptionKeyIdx::scalar("layer_height"))) {
+                    if (auto* print_tab = static_cast<TabPrint*>(this)) {
+                        if (auto* print_config = print_tab->get_config()) {
+
+                            // Make a copy of the current configuration
+                            DynamicPrintConfig new_config = *print_config;
+
+                            // Ensure both keys exist before accessing
+                            if (new_config.has("layer_height") && new_config.has("first_layer_height") && new_config.has("link_layer_heights")) {
+                                const bool link_layers = new_config.option<ConfigOptionBool>("link_layer_heights")->value;
+
+                                const float layer_height = new_config.option("layer_height")->get_float();
+                                const float first_layer_height = new_config.option("first_layer_height")->get_float();
+
+                                // If linked, but not yet synchronized — update first layer height
+                                if (link_layers && first_layer_height != layer_height) {
+                                    new_config.set_key_value("first_layer_height",
+                                        new ConfigOptionFloatOrPercent(layer_height, 0));
+
+                                    // Apply the updated configuration
+                                    print_tab->load_config(new_config);
+                                }
+                            }
+                        }
+                    }
+                }
 
                 for (auto group : page->m_optgroups) {
                     // ask for activated the preset even if the gui isn't created, as the script may want to modify the conf.
@@ -1663,15 +1690,12 @@ void Tab::activate_option(const OptionKeyIdx& opt_key_idx, const wxString& categ
 {
     wxString page_title = translate_category(category, type());
 
-    auto cur_item = m_treectrl->GetFirstVisibleItem();
-    if (!cur_item)
-        return;
-
-    // We should to activate a tab with searched option, if it doesn't.
-    // And do it before finding of the cur_item to avoid a case when Tab isn't activated jet and all treeItems are invisible
+    // We should activate the tab first. Otherwise GetFirstVisibleItem() may be invalid
+    // for inactive tabs and the function could return before switching tabs.
     wxGetApp().mainframe->select_tab(this);
 
-    while (cur_item) {
+    auto cur_item = m_treectrl->GetFirstVisibleItem();
+    while (cur_item.IsOk()) {
         auto title = m_treectrl->GetItemText(cur_item);
         if (page_title != title) {
             cur_item = m_treectrl->GetNextVisible(cur_item);

@@ -44,6 +44,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
@@ -108,6 +109,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
         "duplicate_distance",
         "overhangs_dynamic_fan_speed",
         "filament_pressure_advance",
+        "filament_pressure_advance_value",
         "enforce_retract_first_layer",
         "end_gcode",
         "end_filament_gcode",
@@ -705,6 +707,54 @@ double Print::get_min_first_layer_height() const
     return min_layer_height;
 }
 
+std::pair<bool, bool> get_strings_points(const std::vector<std::string> &str_vec, double min, double max, std::vector<Vec2d> &out_values)
+{
+    bool invalid_val = false;
+    bool out_of_range_val = false;
+
+    // Iterate over each string in the input vector
+    for (const std::string &str : str_vec) {
+        std::stringstream points_stream(str);
+        std::string token;
+
+        // Split input string by commas to get individual point tokens
+        while (std::getline(points_stream, token, ',')) {
+            std::stringstream point_stream(token);
+            std::string x_str, y_str;
+
+            // Split each point by 'x' to separate x and y values
+            if (std::getline(point_stream, x_str, 'x') && std::getline(point_stream, y_str)) {
+                try {
+                    double x = std::stod(x_str);
+                    double y = std::stod(y_str);
+
+                    // Check if values are within specified range
+                    if (min <= x && x <= max && min <= y && y <= max) {
+                        out_values.emplace_back(x, y);
+                    } else {
+                        out_of_range_val = true;
+                    }
+                } catch (const std::invalid_argument&) {
+                    invalid_val = true;
+                } catch (const std::out_of_range&) {
+                    invalid_val = true;
+                }
+            } else {
+                invalid_val = true;
+            }
+
+            // If either an invalid or out-of-range value was found, stop processing
+            if (invalid_val || out_of_range_val) {
+                return {invalid_val, out_of_range_val};
+            }
+        }
+    }
+
+    return {invalid_val, out_of_range_val};
+}
+
+
+
 // Matches "G92 E0" with various forms of writing the zero and with an optional comment.
 boost::regex regex_g92e0 { "^[ \\t]*[gG]92[ \\t]*[eE](0(\\.0*)?|\\.0+)[ \\t]*(;.*)?$" };
 
@@ -730,6 +780,94 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
     if (extruders.empty())
         return { PrintBase::PrintValidationError::pveNoPrint, _u8L("The supplied settings will cause an empty print.") };
 
+   
+    if (! m_config.bed_exclude_area.empty() && m_config.nozzle_diameter.size() > 1) {
+        std::vector<std::string> bed_exclude_area = m_config.bed_exclude_area.get_values();
+        std::vector<Polygons>      exclude_polys_by_extruder(bed_exclude_area.size());
+        std::vector<BoundingBoxes> exclude_bboxes_by_extruder(bed_exclude_area.size());
+
+        for (size_t area_id = 0; area_id < bed_exclude_area.size(); ++ area_id) {
+            const std::string &area_str = bed_exclude_area[area_id];
+            std::vector<Vec2d> points;
+            auto [invalid, out_of_range] = get_strings_points(std::vector<std::string> { area_str }, 0, 1300, points);
+            (void)invalid;
+            (void)out_of_range;
+
+            if (points.size() < 4 || points.size() % 4 != 0)
+                return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Exclude Area needs to have 4 points.\n Right now it has ") + std::to_string(points.size()) + _u8L(" points.") };
+
+            Polygons      &exclude_polys  = exclude_polys_by_extruder[area_id];
+            BoundingBoxes &exclude_bboxes = exclude_bboxes_by_extruder[area_id];
+            exclude_polys.reserve(points.size() / 4);
+            exclude_bboxes.reserve(points.size() / 4);
+
+            for (size_t i = 0; i + 3 < points.size(); i += 4) {
+                Polygon exclude_poly;
+                exclude_poly.points.emplace_back(scale_(points[i + 0].x()), scale_(points[i + 0].y()));
+                exclude_poly.points.emplace_back(scale_(points[i + 1].x()), scale_(points[i + 1].y()));
+                exclude_poly.points.emplace_back(scale_(points[i + 2].x()), scale_(points[i + 2].y()));
+                exclude_poly.points.emplace_back(scale_(points[i + 3].x()), scale_(points[i + 3].y()));
+                exclude_poly.make_counter_clockwise();
+                exclude_bboxes.emplace_back(exclude_poly.bounding_box());
+                exclude_polys.emplace_back(std::move(exclude_poly));
+            }
+        }
+
+        for (const PrintObject *print_object : m_objects) {
+            Polygons      object_exclude_polys;
+            BoundingBoxes object_exclude_bboxes;
+            for (uint16_t extruder_id : print_object->object_extruders()) {
+                const size_t area_id = size_t(extruder_id);
+                if (area_id < exclude_polys_by_extruder.size()) {
+                    append(object_exclude_polys, exclude_polys_by_extruder[area_id]);
+                    const BoundingBoxes &src_bboxes = exclude_bboxes_by_extruder[area_id];
+                    object_exclude_bboxes.insert(object_exclude_bboxes.end(), src_bboxes.begin(), src_bboxes.end());
+                }
+            }
+            if (object_exclude_polys.empty())
+                continue;
+
+            auto overlaps_exclude_bbox = [&object_exclude_bboxes](const BoundingBox &bb) {
+                for (const BoundingBox &exclude_bb : object_exclude_bboxes)
+                    if (exclude_bb.overlap(bb))
+                        return true;
+                return false;
+            };
+
+            for (const PrintInstance &instance : print_object->instances()) {
+                ModelObject *model_object = instance.model_instance->object;
+
+                // Fast reject: if XY bbox of the full instance does not overlap any excluded area,
+                // avoid costly mesh projections.
+                const BoundingBoxf3 instance_bbox_f = model_object->instance_bounding_box(*instance.model_instance, false);
+                const BoundingBox   instance_bbox  { Point(scale_(instance_bbox_f.min.x()), scale_(instance_bbox_f.min.y())),
+                                                     Point(scale_(instance_bbox_f.max.x()), scale_(instance_bbox_f.max.y())) };
+                if (! overlaps_exclude_bbox(instance_bbox))
+                    continue;
+
+                // Second-stage reject: convex hull intersection is much cheaper than exact mesh projection.
+                const Polygon instance_hull = model_object->convex_hull_2d(instance.model_instance->get_matrix());
+                if (! instance_hull.empty() && (! overlaps_exclude_bbox(instance_hull.bounding_box()) ||
+                    intersection(object_exclude_polys, Polygons{ instance_hull }).empty()))
+                    continue;
+
+                // Exact check only for candidates that passed bbox/hull tests.
+                Polygons contours;
+                for (const ModelVolume *v : model_object->volumes) {
+                    Polygons vol_outline = project_mesh(v->mesh().its, instance.model_instance->get_matrix() * v->get_matrix(), [] {});
+                    append(contours, vol_outline);
+                }
+
+                if (! contours.empty() && ! intersection(object_exclude_polys, contours).empty()) {
+                    std::string name = instance.model_instance->get_object()->name;
+                    return { PrintBase::PrintValidationError::pveWrongPosition, name + _u8L(" is too close to exclusion area, there may be collisions when printing.") };
+                }
+            }
+        }
+    }
+    
+    
+    
     if (m_config.complete_objects && !m_config.ignore_extruder_clearance /*|| m_config.parallel_objects_step > 0*/) {
     	if (! sequential_print_horizontal_clearance_valid(*this, const_cast<Polygons*>(&m_sequential_print_clearance_contours)))
             return { PrintBase::PrintValidationError::pveWrongPosition, _u8L("Some objects are too close; your extruder will collide with them.") };
@@ -806,10 +944,6 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
         }
 
     if (this->has_wipe_tower() && ! m_objects.empty()) {
-        // Make sure all extruders use same diameter filament and have the same nozzle diameter
-        // EPSILON comparison is used for nozzles and 10 % tolerance is used for filaments
-        double first_nozzle_diam = m_config.nozzle_diameter.get_at(*extruders.begin());
-        double first_filament_diam = m_config.filament_diameter.get_at(*extruders.begin());
 
         if (m_config.gcode_flavor != gcfRepRap 
             && m_config.gcode_flavor != gcfSprinter
@@ -844,8 +978,6 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                     || slicing_params0.gap_object_support != slicing_params.gap_object_support
                     || slicing_params0.gap_support_object != slicing_params.gap_support_object)
                     return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is only supported for multiple objects if they are printed with the same support_material_contact_distance") };
-                if (! equal_layering(slicing_params, slicing_params0))
-                    return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("The Wipe Tower is only supported for multiple objects if they are sliced equally.") };
                 if (has_custom_layering) {
                     auto &lh         = layer_height_profile(i);
                     auto &lh_tallest = layer_height_profile(tallest_object_idx);
@@ -938,7 +1070,7 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
             if (! object->has_support() && warnings) {
                 for (const ModelVolume* mv : object->model_object()->volumes) {
                     bool has_enforcers = mv->is_support_enforcer() ||
-                        (mv->is_model_part() && mv->supported_facets.has_facets(*mv, EnforcerBlockerType::ENFORCER));
+                        (mv->is_model_part() && mv->supported_facets.has_facets(*mv, TriangleStateType::ENFORCER));
                     if (has_enforcers) {
                         warnings->emplace_back("_SUPPORTS_OFF");
                         break;
@@ -959,54 +1091,82 @@ std::pair<PrintBase::PrintValidationError, std::string> Print::validate(std::vec
                     if (max_layer_height < EPSILON || !config().max_layer_height.is_enabled()) max_layer_height = nozzle_diameter * 0.75;
                     if (min_layer_height > max_layer_height) return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Min layer height can't be greater than Max layer height") };
                     //if (max_layer_height > nozzle_diameter) return { PrintBase::PrintValidationError::pveWrongSettings, _u8L("Max layer height can't be greater than nozzle diameter") };
-                    double skirt_width = Flow::new_from_config_width(frPerimeter,
-                        *Flow::extrusion_width_option("skirt", m_default_region_config),
-                        *Flow::extrusion_spacing_option("skirt", m_default_region_config),
-                        (float)m_config.nozzle_diameter.get_at(extruder_id), 
-                        print_first_layer_height,
-                        1,0 //don't care, all i want if width from width
-                    ).width();
-                    //check first layer layer_ranges
                     
+                    double skirt_width = 0.0;
+                    bool skirt_enabled = config().skirts > 0;
+
+                    if (skirt_enabled) {
+                        skirt_width = Flow::new_from_config_width(
+                                          frPerimeter,
+                                          *Flow::extrusion_width_option("skirt", m_default_region_config),
+                                          *Flow::extrusion_spacing_option("skirt", m_default_region_config),
+                                          static_cast<float>(m_config.nozzle_diameter.get_at(extruder_id)),
+                                          print_first_layer_height,
+                                          1, 0 // only interested in width
+                                      ).width();
+                    }
+
                     if (object->shared_regions()->layer_ranges.front().layer_height_range.first < object_first_layer_height) {
                         if (object_first_layer_height + EPSILON < min_layer_height)
-                            return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("First layer height can't be lower than %s"), "min layer height") };
-                        for (auto tuple : std::vector<std::pair<double, const char*>>{
-                                {nozzle_diameter, "nozzle diameter"},
-                                {max_layer_height, "max layer height"},
-                                {skirt_width, "skirt extrusion width"},
-                                {object->config().support_material ? region.width(FlowRole::frSupportMaterial, true, *object) : object_first_layer_height, "support material extrusion width"},
-                                {region.width(FlowRole::frPerimeter, true, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frExternalPerimeter, true, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frInfill, true, *object), "infill extrusion width"},
-                                {region.width(FlowRole::frSolidInfill, true, *object), "solid infill extrusion width"},
-                                {region.width(FlowRole::frTopSolidInfill, true, *object), "top solid infill extrusion width"},
-                            })
-                            if (object_first_layer_height > tuple.first + EPSILON)
-                                return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("First layer height can't be greater than %s"), tuple.second) };
+                            return { PrintBase::PrintValidationError::pveWrongSettings,
+                                     format(_u8L("First layer height can't be lower than %s"), "min layer height") };
 
+                        std::vector<std::pair<double, const char*>> checks = {
+                            { nozzle_diameter, "nozzle diameter" },
+                            { max_layer_height, "max layer height" },
+                            { region.width(FlowRole::frPerimeter, true, *object), "perimeter extrusion width" },
+                            { region.width(FlowRole::frExternalPerimeter, true, *object), "external perimeter extrusion width" },
+                            { region.width(FlowRole::frInfill, true, *object), "infill extrusion width" },
+                            { region.width(FlowRole::frSolidInfill, true, *object), "solid infill extrusion width" },
+                            { region.width(FlowRole::frTopSolidInfill, true, *object), "top solid infill extrusion width" },
+                            { object->config().support_material
+                                ? region.width(FlowRole::frSupportMaterial, true, *object)
+                                : object_first_layer_height,
+                              "support material extrusion width" }
+                        };
+
+                        // Add skirt width check only if enabled
+                        if (skirt_enabled)
+                            checks.emplace_back(skirt_width, "skirt extrusion width");
+
+                        for (const auto& [limit, name] : checks) {
+                            if (object_first_layer_height > limit + EPSILON)
+                                return { PrintBase::PrintValidationError::pveWrongSettings,
+                                         format(_u8L("First layer height can't be greater than %s"), name) };
+                        }
                     }
+                    
                     //check not-first layer
                     if (object->shared_regions()->layer_ranges.front().layer_height_range.second > layer_height) {
                         if (layer_height + EPSILON < min_layer_height)
                             return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("Layer height can't be lower than %s"), "min layer height") };
-                        for (auto tuple : std::vector<std::pair<double, const char*>>{
-                                {nozzle_diameter, "nozzle diameter"},
-                                {max_layer_height, "max layer height"},
-                                {skirt_width, "skirt extrusion width"},
-                                {object->config().support_material ? region.width(FlowRole::frSupportMaterial, false, *object) : layer_height, "support material extrusion width"},
-                                {region.width(FlowRole::frPerimeter, false, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frExternalPerimeter, false, *object), "perimeter extrusion width"},
-                                {region.width(FlowRole::frInfill, false, *object), "infill extrusion width"},
-                                {region.width(FlowRole::frSolidInfill, false, *object), "solid infill extrusion width"},
-                                {region.width(FlowRole::frTopSolidInfill, false, *object), "top solid infill extrusion width"},
-                            })
-                            if (layer_height > tuple.first + EPSILON)
-                                return { PrintBase::PrintValidationError::pveWrongSettings, format(_u8L("Layer height can't be greater than %s"), tuple.second) };
+                        
+                        std::vector<std::pair<double, const char*>> checks = {
+                            { nozzle_diameter, "nozzle diameter" },
+                            { max_layer_height, "max layer height" },
+                            { region.width(FlowRole::frPerimeter, true, *object), "perimeter extrusion width" },
+                            { region.width(FlowRole::frExternalPerimeter, true, *object), "external perimeter extrusion width" },
+                            { region.width(FlowRole::frInfill, true, *object), "infill extrusion width" },
+                            { region.width(FlowRole::frSolidInfill, true, *object), "solid infill extrusion width" },
+                            { region.width(FlowRole::frTopSolidInfill, true, *object), "top solid infill extrusion width" },
+                            { object->config().support_material
+                                ? region.width(FlowRole::frSupportMaterial, true, *object)
+                                : object_first_layer_height,
+                              "support material extrusion width" }
+                        };
+
+                        // Add skirt width check only if enabled
+                        if (skirt_enabled)
+                            checks.emplace_back(skirt_width, "skirt extrusion width");
+
+                        for (const auto& [limit, name] : checks) {
+                            if (object_first_layer_height > limit + EPSILON)
+                                return { PrintBase::PrintValidationError::pveWrongSettings,
+                                         format(_u8L("Layer height can't be greater than %s"), name) };
+                        }
                     }
                 }
             }
-
         }
     }
     {
@@ -1927,7 +2087,7 @@ Points Print::first_layer_wipe_tower_corners() const
     if (has_wipe_tower() && ! m_wipe_tower_data.tool_changes.empty()) {
         double width = m_config.wipe_tower_width + 2*m_wipe_tower_data.brim_width;
         double depth = m_wipe_tower_data.depth + 2*m_wipe_tower_data.brim_width;
-        Vec2d pt0(-m_wipe_tower_data.brim_width, -m_wipe_tower_data.brim_width);
+        Vec2d pt0(m_model.get_wipe_tower_vector()[0].position.x(), m_model.get_wipe_tower_vector()[0].position.y());
         
         // First the corners.
         std::vector<Vec2d> pts = { pt0,
@@ -2449,6 +2609,23 @@ std::string PrintStatistics::finalize_output_path(const std::string &path_in) co
         final_path = path_in;
     }
     return final_path;
+}
+
+PrintRegion *PrintObjectRegions::FuzzySkinPaintedRegion::parent_print_object_region(const LayerRangeRegions &layer_range) const
+{
+    using FuzzySkinParentType = PrintObjectRegions::FuzzySkinPaintedRegion::ParentType;
+
+    if (this->parent_type == FuzzySkinParentType::PaintedRegion) {
+        return layer_range.painted_regions[this->parent].region;
+    }
+
+    assert(this->parent_type == FuzzySkinParentType::VolumeRegion);
+    return layer_range.volume_regions[this->parent].region;
+}
+
+int PrintObjectRegions::FuzzySkinPaintedRegion::parent_print_object_region_id(const LayerRangeRegions &layer_range) const
+{
+    return this->parent_print_object_region(layer_range)->print_object_region_id();
 }
 
 

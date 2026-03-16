@@ -13,7 +13,29 @@
 ///|/
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
-#include "Exception.hpp"
+#include <libqhullcpp/Qhull.h>
+#include <libqhullcpp/QhullFacetList.h>
+#include <libqhullcpp/QhullVertexSet.h>
+#include <boost/log/trivial.hpp>
+#include <boost/nowide/cstdio.hpp>
+#include <boost/predef/other/endian.h>
+#include <libqhull_r/user_r.h>
+#include <libqhullcpp/QhullFacet.h>
+#include <libqhullcpp/QhullPoint.h>
+#include <libqhullcpp/QhullVertex.h>
+#include <oneapi/tbb/blocked_range.h>
+#include <oneapi/tbb/concurrent_vector.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <cmath>
+#include <vector>
+#include <utility>
+#include <algorithm>
+#include <iterator>
+#include <map>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 #include "TriangleMesh.hpp"
 #include "TriangleMeshSlicer.hpp"
 #include "MeshSplitImpl.hpp"
@@ -24,29 +46,10 @@
 #include "Execution/ExecutionTBB.hpp"
 #include "Execution/ExecutionSeq.hpp"
 #include "Utils.hpp"
-
-#include <libqhullcpp/Qhull.h>
-#include <libqhullcpp/QhullFacetList.h>
-#include <libqhullcpp/QhullVertexSet.h>
-
-#include <cassert>
-#include <cmath>
-#include <deque>
-#include <queue>
-#include <vector>
-#include <utility>
-#include <algorithm>
-#include <type_traits>
-
-#include <boost/log/trivial.hpp>
-#include <boost/nowide/cstdio.hpp>
-#include <boost/predef/other/endian.h>
-
-#include <oneapi/tbb/concurrent_vector.h>
-
-#include <Eigen/Core>
-#include <Eigen/Dense>
-
+#include "admesh/stl.h"
+#include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/Polygon.hpp"
+#include "libslic3r/libslic3r.h"
 
 namespace Slic3r {
 
@@ -55,7 +58,7 @@ static void update_bounding_box(const indexed_triangle_set &its, TriangleMeshSta
     BoundingBoxf3 bbox      = Slic3r::bounding_box(its);
     out.min                 = bbox.min.cast<float>();
     out.max                 = bbox.max.cast<float>();
-    out.size                = out.max - out.min;    
+    out.size                = out.max - out.min;
 }
 
 static void fill_initial_stats(const indexed_triangle_set &its, TriangleMeshStats &out)
@@ -213,7 +216,7 @@ void TriangleMesh::from_facets(std::vector<stl_facet> &&facets, bool repair)
 }
 
 bool TriangleMesh::ReadSTLFile(const char* input_file, bool repair)
-{ 
+{
     stl_file stl;
     if (! stl_open(&stl, input_file))
         return false;
@@ -244,12 +247,12 @@ bool TriangleMesh::ReadSTLFile(const char* input_file, bool repair)
 }
 
 bool TriangleMesh::write_ascii(const char* output_file)
-{ 
+{
     return its_write_stl_ascii(output_file, "", this->its);
 }
 
 bool TriangleMesh::write_binary(const char* output_file)
-{ 
+{
     return its_write_stl_binary(output_file, "", this->its);
 }
 
@@ -540,7 +543,6 @@ TriangleMesh TriangleMesh::convex_hull_3d() const
 
 std::vector<ExPolygons> TriangleMesh::slice(const std::vector<double> &z) const
 {
-    throw Exception("not using config");
     // convert doubles to floats
     std::vector<float> z_f(z.begin(), z.end());
     return slice_mesh_ex(this->its, z_f, 0.0004f);
@@ -566,9 +568,10 @@ struct EdgeToFace {
     bool operator<(const EdgeToFace &other) const { return vertex_low < other.vertex_low || (vertex_low == other.vertex_low && vertex_high < other.vertex_high); }
 };
 
-template<typename FaceFilter, typename ThrowOnCancelCallback>
-static std::vector<EdgeToFace> create_edge_map(
-    const indexed_triangle_set &its, FaceFilter face_filter, ThrowOnCancelCallback throw_on_cancel)
+template<AdditionalMeshInfo mesh_info = AdditionalMeshInfo::None, typename FaceFilter, typename ThrowOnCancelCallback>
+static std::vector<EdgeToFace> create_edge_map(const typename IndexedTriangleSetType<mesh_info>::type &its,
+                                               FaceFilter                                              face_filter,
+                                               ThrowOnCancelCallback                                   throw_on_cancel)
 {
     std::vector<EdgeToFace> edges_map;
     edges_map.reserve(its.indices.size() * 3);
@@ -597,12 +600,14 @@ static std::vector<EdgeToFace> create_edge_map(
 
 // Map from a face edge to a unique edge identifier or -1 if no neighbor exists.
 // Two neighbor faces share a unique edge identifier even if they are flipped.
-template<typename FaceFilter, typename ThrowOnCancelCallback>
-static inline std::vector<Vec3i32> its_face_edge_ids_impl(const indexed_triangle_set &its, FaceFilter face_filter, ThrowOnCancelCallback throw_on_cancel)
+template<AdditionalMeshInfo mesh_info = AdditionalMeshInfo::None, typename FaceFilter, typename ThrowOnCancelCallback>
+static inline std::vector<Vec3i32> its_face_edge_ids_impl(const typename IndexedTriangleSetType<mesh_info>::type &its,
+                                                        FaceFilter                                              face_filter,
+                                                        ThrowOnCancelCallback                                   throw_on_cancel)
 {
     std::vector<Vec3i32> out(its.indices.size(), Vec3i32(-1, -1, -1));
 
-    std::vector<EdgeToFace> edges_map = create_edge_map(its, face_filter, throw_on_cancel);
+    std::vector<EdgeToFace> edges_map = create_edge_map<mesh_info>(its, face_filter, throw_on_cancel);
 
     // Assign a unique common edge id to touching triangle edges.
     int num_edges = 0;
@@ -622,8 +627,8 @@ static inline std::vector<Vec3i32> its_face_edge_ids_impl(const indexed_triangle
             }
         if (! found) {
             //FIXME Vojtech: Trying to find an edge with equal orientation. This smells.
-            // admesh can assign the same edge ID to more than two facets (which is 
-            // still topologically correct), so we have to search for a duplicate of 
+            // admesh can assign the same edge ID to more than two facets (which is
+            // still topologically correct), so we have to search for a duplicate of
             // this edge too in case it was already seen in this orientation
             for (j = i + 1; j < edges_map.size() && edge_i == edges_map[j]; ++ j)
                 if (edges_map[j].face != -1) {
@@ -648,9 +653,17 @@ static inline std::vector<Vec3i32> its_face_edge_ids_impl(const indexed_triangle
     return out;
 }
 
-std::vector<Vec3i32> its_face_edge_ids(const indexed_triangle_set &its)
+// Explicit template instantiation.
+template std::vector<Vec3i32> its_face_edge_ids<AdditionalMeshInfo::None>(const IndexedTriangleSetType<AdditionalMeshInfo::None>::type &);
+template std::vector<Vec3i32> its_face_edge_ids<AdditionalMeshInfo::Color>(const IndexedTriangleSetType<AdditionalMeshInfo::Color>::type &);
+template std::vector<Vec3i32> its_face_edge_ids<AdditionalMeshInfo::None>(const IndexedTriangleSetType<AdditionalMeshInfo::None>::type &, const std::vector<char> &);
+template std::vector<Vec3i32> its_face_edge_ids<AdditionalMeshInfo::Color>(const IndexedTriangleSetType<AdditionalMeshInfo::Color>::type &, const std::vector<char> &);
+
+
+template<AdditionalMeshInfo mesh_info>
+std::vector<Vec3i32> its_face_edge_ids(const typename IndexedTriangleSetType<mesh_info>::type &its)
 {
-    return its_face_edge_ids_impl(its, [](const uint32_t){ return true; }, [](){});
+    return its_face_edge_ids_impl<mesh_info>(its, [](const uint32_t){ return true; }, [](){});
 }
 
 std::vector<Vec3i32> its_face_edge_ids(const indexed_triangle_set &its, std::function<void()> throw_on_cancel_callback)
@@ -658,9 +671,10 @@ std::vector<Vec3i32> its_face_edge_ids(const indexed_triangle_set &its, std::fun
     return its_face_edge_ids_impl(its, [](const uint32_t){ return true; }, throw_on_cancel_callback);
 }
 
-std::vector<Vec3i32> its_face_edge_ids(const indexed_triangle_set &its, const std::vector<char> &face_mask)
+template<AdditionalMeshInfo mesh_info>
+std::vector<Vec3i32> its_face_edge_ids(const typename IndexedTriangleSetType<mesh_info>::type &its, const std::vector<char> &face_mask)
 {
-    return its_face_edge_ids_impl(its, [&face_mask](const uint32_t idx){ return face_mask[idx]; }, [](){});
+    return its_face_edge_ids_impl<mesh_info>(its, [&face_mask](const uint32_t idx){ return face_mask[idx]; }, [](){});
 }
 
 // Having the face neighbors available, assign unique edge IDs to face edges for chaining of polygons over slices.
@@ -671,7 +685,7 @@ std::vector<Vec3i32> its_face_edge_ids(const indexed_triangle_set &its, std::vec
     int last_edge_id = 0;
     for (int i = 0; i < int(face_neighbors.size()); ++ i) {
         const stl_triangle_vertex_indices   &triangle  = its.indices[i];
-        const Vec3i32                       &neighbors = face_neighbors[i];
+        const Vec3i32                        &neighbors = face_neighbors[i];
         for (int j = 0; j < 3; ++ j) {
             int n = neighbors[j];
             if (n > i) {
@@ -828,7 +842,7 @@ int its_compactify_vertices(indexed_triangle_set &its, bool shrink_to_fit)
 
 bool its_store_triangle_to_obj(const indexed_triangle_set &its,
                                const char                 *obj_filename,
-                        size_t                      triangle_index)
+                               size_t                      triangle_index)
 {
     if (its.indices.size() <= triangle_index) return false;
     Vec3i32              t = its.indices[triangle_index];
@@ -929,24 +943,12 @@ Polygon its_convex_hull_2d_above(const indexed_triangle_set& its, const Transfor
                 iprev = iedge;
             }
         }
-        if (pts.size() > 2) {
-            Polygon polygon = Geometry::convex_hull(std::move(pts));
-            while (polygon.size() > 2 && polygon.points.front().coincides_with_epsilon(polygon.points.back())) {
-                polygon.points.pop_back();
-            }
-            if (polygon.size() > 2) {
-                return std::move(polygon);
-            }
-        }
-        return Polygon();
+        return Geometry::convex_hull(std::move(pts));
     };
 
     tbb::concurrent_vector<Polygon> chs;
     tbb::parallel_for(tbb::blocked_range<size_t>(0, its.indices.size()), [&](const tbb::blocked_range<size_t>& range) {
-        Polygon poly = collect_mesh_projection_points_above(range);
-        if (!poly.empty()) {
-            chs.push_back(poly);
-        }
+        chs.push_back(collect_mesh_projection_points_above(range));
     });
 
     const Polygons polygons(std::make_move_iterator(chs.begin()), std::make_move_iterator(chs.end()));
@@ -995,7 +997,7 @@ indexed_triangle_set its_make_prism(float width, float length, float height)
     };
 }
 
-// Generate the mesh for a cylinder and return it, using 
+// Generate the mesh for a cylinder and return it, using
 // the generated angle to calculate the top mesh triangles.
 // Default is 360 sides, angle fa is in radians.
 indexed_triangle_set its_make_cylinder(double r, double h, double fa)
@@ -1133,7 +1135,7 @@ indexed_triangle_set its_make_pyramid(float base, float height)
 }
 
 // Generates mesh for a sphere centered about the origin, using the generated angle
-// to determine the granularity. 
+// to determine the granularity.
 // Default angle is 1 degree.
 indexed_triangle_set its_make_sphere(double radius, double fa)
 {
@@ -1150,7 +1152,7 @@ indexed_triangle_set its_make_sphere(double radius, double fa)
     indices.reserve(20);
 
     float z, xy;
-    float hAngle1 = -float(PI) / 2 - H_ANGLE / 2;
+    float hAngle1 = -PI / 2 - H_ANGLE / 2;
 
     vertices[0] = stl_vertex(0, 0, radius); // the first top vertex at (0, 0, r)
 
@@ -1258,8 +1260,8 @@ indexed_triangle_set its_make_sphere(double radius, double fa)
 indexed_triangle_set its_make_frustum_dowel(double radius, double h, int sectorCount)
 {
     int   stackCount = 2;
-    float sectorStep  = float(2. * M_PI / sectorCount);
-    float stackStep   = float(M_PI / stackCount);
+    float sectorStep = float(2. * M_PI / sectorCount);
+    float stackStep = float(M_PI / stackCount);
 
     indexed_triangle_set mesh;
     auto& vertices = mesh.vertices;
@@ -1268,7 +1270,7 @@ indexed_triangle_set its_make_frustum_dowel(double radius, double h, int sectorC
         // from pi/2 to -pi/2
         double stackAngle = 0.5 * M_PI - stackStep * i;
         double xy = radius * cos(stackAngle);
-        double z  = radius * sin(stackAngle);
+        double z = radius * sin(stackAngle);
         if (i == 0 || i == stackCount)
             vertices.emplace_back(Vec3f(float(xy), 0.f, float(h * sin(stackAngle))));
         else
@@ -1597,7 +1599,7 @@ float its_average_edge_length(const indexed_triangle_set &its)
     double edge_length = 0.f;
     for (size_t i = 0; i < its.indices.size(); ++ i) {
         const its_triangle v = its_triangle_vertices(its, i);
-        edge_length += (v[1] - v[0]).cast<double>().norm() + 
+        edge_length += (v[1] - v[0]).cast<double>().norm() +
                        (v[2] - v[0]).cast<double>().norm() +
                        (v[1] - v[2]).cast<double>().norm();
     }
@@ -1694,7 +1696,7 @@ std::vector<Vec3i32> its_face_neighbors_par(const indexed_triangle_set &its)
     return create_face_neighbors_index(ex_tbb, its);
 }
 
-std::vector<Vec3f> its_face_normals(const indexed_triangle_set &its) 
+std::vector<Vec3f> its_face_normals(const indexed_triangle_set &its)
 {
     std::vector<Vec3f> normals;
     normals.reserve(its.indices.size());

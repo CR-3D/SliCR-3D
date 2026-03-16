@@ -62,7 +62,7 @@ static const std::string PROFILE_FOLDER_URL = "https://files.prusa3d.com/wp-cont
 
 static const std::string PROFILE_FOLDER_URL = "http://files.cr3d.de/updates/SliCR-3D/profiles/";
 static const std::string INDEX_ARCHIVE_URL= "http://files.cr3d.de/updates/SliCR-3D/vendor_indices.zip";
-static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/SliCR-3D/SliCR-3D.version";
+static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/liCR-3D_Internal/SliCR-3D.version";
 
 const std::string AppConfig::SECTION_FILAMENTS = "filaments";
 const std::string AppConfig::SECTION_MATERIALS = "sla_materials";
@@ -192,7 +192,7 @@ void AppConfig::set_defaults()
             set("side_panel_width", "42");
 
         if (get("gcodeviewer_decimals").empty())
-            set("gcodeviewer_decimals", "0");
+            set("gcodeviewer_decimals", "1");
 
         //get default color from the ini file
 

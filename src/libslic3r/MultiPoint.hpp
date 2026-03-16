@@ -19,8 +19,8 @@ class BoundingBox3;
 
 // Reduces polyline in the <begin, end) range, outputs into the output iterator.
 // Output iterator may be equal to input iterator as long as the iterator value type move operator supports move at the same input / output address.
-template<typename SquareLengthType, typename InputIterator, typename OutputIterator, typename PointGetter>
-inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, OutputIterator out, const coord_t tolerance, PointGetter point_getter)
+template<typename SquareLengthType, typename InputIterator, typename OutputIterator, typename TakeFloaterPredicate, typename PointGetter>
+inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, OutputIterator out, TakeFloaterPredicate take_floater_predicate, PointGetter point_getter)
 {
     using InputIteratorCategory = typename std::iterator_traits<InputIterator>::iterator_category;
     static_assert(std::is_base_of_v<std::input_iterator_tag, InputIteratorCategory>);
@@ -36,7 +36,6 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
             // Two points input.
             *out ++ = std::move(*next);
         } else {
-            const SquareLengthType tolerance_sq = Slic3r::sqr(SquareLengthType(tolerance));
             InputIterator anchor  = begin;
             InputIterator floater = std::prev(end);
             std::vector<InputIterator> dpStack;
@@ -52,17 +51,17 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
                     // Two point segment. Accept the floater.
                     take_floater = true;
                 } else {
-                    SquareLengthType max_dist_sq = 0;
+                    std::optional<SquareLengthType> max_dist_sq;
                     // Find point furthest from line seg created by (anchor, floater) and note it.
                     const Vector v = (f - a).template cast<SquareLengthType>();
                     if (const SquareLengthType l2 = v.squaredNorm(); l2 == 0) {
                         // Zero length segment, find the furthest point between anchor and floater.
-                        for (auto it = std::next(anchor); it != floater; ++ it)
-                            if (SquareLengthType dist_sq = (point_getter(*it) - a).template cast<SquareLengthType>().squaredNorm(); 
-                                dist_sq > max_dist_sq) {
-                                max_dist_sq  = dist_sq;
-                                furthest = it;
+                        for (auto it = std::next(anchor); it != floater; ++ it) {
+                            if (SquareLengthType dist_sq = (point_getter(*it) - a).template cast<SquareLengthType>().squaredNorm(); !max_dist_sq.has_value() || dist_sq > max_dist_sq) {
+                                max_dist_sq = dist_sq;
+                                furthest    = it;
                             }
+                        }
                     } else {
                         // Find Find the furthest point from the line <anchor, floater>.
                         const double dl2 = double(l2);
@@ -84,15 +83,20 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
                                 const Vector w = (dt * dv).cast<SquareLengthType>();
                                 dist_sq = (w - va).squaredNorm();
                             }
-                            if (dist_sq > max_dist_sq) {
+
+                            if (!max_dist_sq.has_value() || dist_sq > max_dist_sq) {
                                 max_dist_sq  = dist_sq;
                                 furthest     = it;
                             }
-                        }                        
+                        }
                     }
-                    // remove point if less than tolerance
-                    take_floater = max_dist_sq <= tolerance_sq;
+
+                    assert(max_dist_sq.has_value());
+
+                    // Remove points between the anchor and the floater when the predicate is satisfied.
+                    take_floater = take_floater_predicate(anchor, floater, *max_dist_sq);
                 }
+
                 if (take_floater) {
                     // The points between anchor and floater are close to the <anchor, floater> line.
                     // Drop the points between them.
@@ -103,10 +107,11 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
                     dpStack.pop_back();
                     if (dpStack.empty())
                         break;
+
                     floater = dpStack.back();
                     f = point_getter(*floater);
                 } else {
-                    // The furthest point is too far from the segment <anchor, floater>. 
+                    // The furthest point is too far from the segment <anchor, floater>.
                     // Divide recursively.
                     floater = furthest;
                     f = point_getter(*floater);
@@ -118,15 +123,30 @@ inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, Ou
     return out;
 }
 
-// Reduces polyline in the <begin, end) range, outputs into the output iterator.
-// Output iterator may be equal to input iterator as long as the iterator value type move operator supports move at the same input / output address.
+template<typename SquareLengthType, typename InputIterator, typename OutputIterator, typename PointGetter>
+inline OutputIterator douglas_peucker(InputIterator begin, InputIterator end, OutputIterator out, const double tolerance, PointGetter point_getter) {
+    const auto tolerance_sq = static_cast<SquareLengthType>(sqr(tolerance));
+
+    const auto take_floater_predicate = [&tolerance_sq](InputIterator, InputIterator, const SquareLengthType max_dist_sq) -> bool {
+        return max_dist_sq <= tolerance_sq;
+    };
+
+    return douglas_peucker<SquareLengthType>(begin, end, out, take_floater_predicate, point_getter);
+}
+
 template<typename OutputIterator>
-inline OutputIterator douglas_peucker(Points::const_iterator begin, Points::const_iterator end, OutputIterator out, const coord_t tolerance)
+inline OutputIterator douglas_peucker(Points::const_iterator begin, Points::const_iterator end, OutputIterator out, const double tolerance)
 {
     return douglas_peucker<int64_t>(begin, end, out, tolerance, [](const Point &p) { return p; });
 }
 
-inline Points douglas_peucker(const Points &src, const coord_t tolerance) 
+template<typename OutputIterator>
+inline OutputIterator douglas_peucker(Pointfs::const_iterator begin, Pointfs::const_iterator end, OutputIterator out, const double tolerance)
+{
+    return douglas_peucker<double>(begin, end, out, tolerance, [](const Vec2d &p) { return p; });
+}
+
+inline Points douglas_peucker(const Points &src, const double tolerance)
 {
     Points out;
     out.reserve(src.size());
@@ -220,9 +240,8 @@ public:
         }
     }
 
-    static Points douglas_peucker(const Points &src, const coord_t tolerance) {
-        return Slic3r::douglas_peucker(src, tolerance);
-    }
+    static Points douglas_peucker(const Points &src, const double tolerance) { return Slic3r::douglas_peucker(src, tolerance); }
+
     static Points _douglas_peucker_plus(const Points& pts, const double tolerance, const double min_length);
     static Points visivalingam(const Points &src, const double tolerance);
 

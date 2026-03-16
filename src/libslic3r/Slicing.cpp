@@ -133,7 +133,7 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
     double min_support_material_interface_height   = min_layer_height_from_nozzle(print_config, object_config.support_material_interface_extruder - 1);
     double max_support_material_interface_height   = max_layer_height_from_nozzle(print_config, object_config.support_material_interface_extruder - 1);
     bool   soluble_interface                       = object_config.support_material_contact_distance_type.value == zdNone;
-
+    
     if (object_config.support_material_extruder > 0) {
         max_support_material_height = std::min(max_support_material_height,
                                                print_config.nozzle_diameter.get_at(
@@ -194,22 +194,26 @@ std::shared_ptr<SlicingParameters> SlicingParameters::create_from_config(
         params.max_layer_height = std::min(params.max_layer_height, max_layer_height_from_nozzle(print_config, 1));
     } else {
         for (unsigned int extruder_id : object_extruders) {
-            params.min_layer_height = std::max(params.min_layer_height, min_layer_height_from_nozzle(print_config, extruder_id + 1));
-            params.max_layer_height = std::min(params.max_layer_height, max_layer_height_from_nozzle(print_config, extruder_id + 1));
+            params.min_layer_height = std::max(params.min_layer_height, min_layer_height_from_nozzle(print_config, extruder_id - 1));
+            params.max_layer_height = std::min(params.max_layer_height, max_layer_height_from_nozzle(print_config, extruder_id - 1));
         }
     }
-
+    
     if (params.max_layer_height == std::numeric_limits<double>::max())
         params.max_layer_height = params.layer_height;
     if (params.min_layer_height == 0)
         params.min_layer_height = params.layer_height;
 
-    //apply z_step to min/max
+    // apply z_step to min/max
     params.min_layer_height = check_z_step(params.min_layer_height, params.z_step);
     params.max_layer_height = check_z_step(params.max_layer_height, params.z_step);
-    if (params.max_suport_layer_height == 0) params.max_suport_layer_height = params.max_layer_height;
+
+    if (params.max_suport_layer_height == 0)
+        params.max_suport_layer_height = params.max_layer_height;
     params.max_suport_layer_height = check_z_step(params.max_suport_layer_height, params.z_step);
-    if (params.min_suport_layer_height == 0) params.min_suport_layer_height = params.min_layer_height;
+
+    if (params.min_suport_layer_height == 0)
+        params.min_suport_layer_height = params.min_layer_height;
     params.min_suport_layer_height = check_z_step(params.min_suport_layer_height, params.z_step);
 
     //layer height can't lower or higher than the min / max

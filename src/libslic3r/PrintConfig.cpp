@@ -148,10 +148,11 @@ static const t_config_enum_values s_keys_map_BridgeType{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(BridgeType)
 
-static const t_config_enum_values s_keys_map_FuzzySkinType{{"none", int(FuzzySkinType::None)},
-                                                           {"external", int(FuzzySkinType::External)},
-                                                           {"shell", int(FuzzySkinType::Shell)},
-                                                           {"all", int(FuzzySkinType::All)}};
+static const t_config_enum_values s_keys_map_FuzzySkinType {
+    { "none",           int(FuzzySkinType::None) },
+    { "external",       int(FuzzySkinType::External) },
+    { "all",            int(FuzzySkinType::All) }
+};
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(FuzzySkinType)
 
 static const t_config_enum_values s_keys_map_InfillPattern {
@@ -1773,19 +1774,24 @@ void PrintConfigDef::init_fff_params() {
     def->set_default_value(new ConfigOptionBool(false));
 
     def = this->add("external_perimeters_vase", coBool);
-    def->label = L("In vase mode (no seam)");
+    def->label = L("In vase mode (scarf seam)");
     def->full_label = L("External perimeters in vase mode");
     def->category = OptionCategory::perimeter;
-    def->tooltip = L("Print contour perimeters in two circles, in a continuous way, like for a vase mode. It needs "
-                     "the external_perimeters_first parameter to work."
-                     " \nDoesn't work for the first layer, as it may damage the bed overwise."
-                     " \nNote that it will use min_layer_height from your hardware setting as the base height (it "
-                     "doesn't start at 0)"
-                     ", so be sure to put here the lowest value your printer can handle."
-                     " if it's not lower than two times the current layer height, it falls back to the normal "
-                     "algorithm, as there is not enough room to do two loops.");
+    def->tooltip = L("Print contour perimeters in two circles, in a continuous way, like for a vase mode. It needs the external_perimeters_first parameter to work."
+        "\nDoesn't work for the first layer, as it may damage the bed overwise."
+        "\nIt does two loop instead of one, the first one growing and the second one shrinking the height.");
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("external_perimeters_vase_min_height", coFloatOrPercent);
+    def->label = L("Minimum extrusion height");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("When using the 'external_perimeters_vase' (scarf seam) setting, it will use this setting to compute the base height (it doesn't start at 0)"
+        ", so be sure to put here the lowest value your extruder can handle whithout clogging (or 0 if it works)."
+        "\nCan't be more than a third of the current layer height."
+        "\nCan be a percentage of the current nozzle diameter.");
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionFloatOrPercent(5, true));
 
     def = this->add("external_perimeters_nothole", coBool);
     def->label = L("Only for contours");
@@ -1876,6 +1882,16 @@ void PrintConfigDef::init_fff_params() {
     def->graph_settings->max_y = 0.10;
     def->graph_settings->step_y = 0.0005;
     def->graph_settings->allowed_types = {GraphData::GraphType::SQUARE};
+
+
+    def = this->add("filament_pressure_advance_value", coFloats);
+    def->label = L("Pressure Advance Value");
+    def->category = OptionCategory::filament;
+    def->tooltip = L("This is the default pressure advance value used when the graph is disabled or when the nozzle size is not in the graph.");
+    def->is_vector_extruder = true;
+    def->mode = comExpert | comPrusa;
+    def->set_default_value(new ConfigOptionFloats{0.05});
+    
 
     // Nozzle TYPE
     def = this->add("nozzle_type", coStrings);
@@ -2422,63 +2438,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comExpert | comPrusa;
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{0.0});
-
-    // Orca: Adaptive pressure advance option and calibration values
-    def = this->add("adaptive_pressure_advance", coBools);
-    def->label = L("Enable adaptive pressure advance (beta)");
-    def->tooltip = L("With increasing print speeds (and hence increasing volumetric flow through the nozzle) and increasing accelerations, "
-                     "it has been observed that the effective PA value typically decreases. "
-                     "This means that a single PA value is not always 100% optimal for all features and a compromise value is usually used "
-                     "that does not cause too much bulging on features with lower flow speed and accelerations while also not causing gaps on faster features.\n\n"
-                     "This feature aims to address this limitation by modeling the response of your printer's extrusion system depending "
-                     "on the volumetric flow speed and acceleration it is printing at. Internally, it generates a fitted model that can extrapolate the needed pressure "
-                     "advance for any given volumetric flow speed and acceleration, which is then emmited to the printer depending on the current print conditions.\n\n"
-                     "When enabled, the pressure advance value above is overriden. However, a reasonable default value above is "
-                     "strongly recomended to act as a fallback and for when tool changing.\n\n");
-    def->mode = comExpert;
-    def->set_default_value(new ConfigOptionBools{ false });
-    
-    // Orca: Adaptive pressure advance option and calibration values
-    def = this->add("adaptive_pressure_advance_model", coStrings);
-    def->label = L("Adaptive pressure advance measurements (beta)");
-    def->tooltip = L("Add sets of pressure advance (PA) values, the volumetric flow speeds and accelerations they were measured at, separated by a comma. "
-                     "One set of values per line. For example\n"
-                     "0.04,3.96,3000\n0.033,3.96,10000\n0.029,7.91,3000\n0.026,7.91,10000\n\n"
-                     "How to calibrate:\n"
-                     "1. Run the pressure advance test for at least 3 speeds per acceleration value. It is recommended that the test is run "
-                     "for at least the speed of the external perimeters, the speed of the internal perimeters and the fastest feature "
-                     "print speed in your profile (usually its the sparse or solid infill). Then run them for the same speeds for the slowest and fastest print accelerations,"
-                     "and no faster than the recommended maximum acceleration as given by the klipper input shaper.\n"
-                     "2. Take note of the optimal PA value for each volumetric flow speed and acceleration. You can find the flow number by selecting "
-                     "flow from the color scheme drop down and move the horizontal slider over the PA pattern lines. The number should be visible "
-                     "at the bottom of the page. The ideal PA value should be decreasing the higher the volumetric flow is. If it is not, confirm that your extruder is functioning correctly."
-                     "The slower and with less acceleration you print, the larger the range of acceptable PA values. If no difference is visible, use the PA value from the faster test."
-                     "3. Enter the triplets of PA values, Flow and Accelerations in the text box here and save your filament profile\n\n"
-                     "");
-    def->mode = comExpert;
-    def->multiline = true;
-    def->full_width = true;
-    def->height = 15;
-    def->set_default_value(new ConfigOptionStrings{"0,0,0"});
-
-    def = this->add("adaptive_pressure_advance_overhangs", coBools);
-    def->label = L("Enable adaptive pressure advance for overhangs (beta)");
-    def->tooltip = L("Enable adaptive PA for overhangs as well as when flow changes within the same feature. This is an experimental option, "
-                     "as if the PA profile is not set accurately, it will cause uniformity issues on the external surfaces before and after overhangs.\n");
-    def->mode = comExpert;
-    def->set_default_value(new ConfigOptionBools{ false });
-    
-    def = this->add("adaptive_pressure_advance_bridges", coFloats);
-    def->label = L("Pressure advance for bridges");
-    def->tooltip = L("Pressure advance value for bridges. Set to 0 to disable. \n\n A lower PA value when printing bridges helps reduce the appearance of slight under extrusion "
-                     "immediately after bridges. This is caused by the pressure drop in the nozzle when printing in the air and a lower PA helps counteract this.");
-    def->max = 2;
-    def->mode = comExpert;
-    def->set_default_value(new ConfigOptionFloats { 0.0 });
-
-
-
-
 
     def = this->add("filament_ramming_parameters", coStrings);
     def->label = L("Ramming parameters");
@@ -3109,7 +3068,6 @@ void PrintConfigDef::init_fff_params() {
     def->tooltip = L("Fuzzy skin type.");
     def->set_enum<FuzzySkinType>({{"none", L("None")},
                                   {"external", L("Outside walls")},
-                                  {"shell", L("External walls")},
                                   {"all", L("All walls")}});
     def->mode = comSimpleAE | comPrusa;
     def->set_default_value(new ConfigOptionEnum<FuzzySkinType>(FuzzySkinType::None));
@@ -3123,7 +3081,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloatOrPercent(150, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0.3, false));
 
     def = this->add("fuzzy_skin_point_dist", coFloatOrPercent);
     def->label = L("Fuzzy skin point distance");
@@ -3135,7 +3093,7 @@ void PrintConfigDef::init_fff_params() {
     def->sidetext = L("mm/%");
     def->min = 0;
     def->mode = comAdvancedE | comPrusa;
-    def->set_default_value(new ConfigOptionFloatOrPercent(200, true));
+    def->set_default_value(new ConfigOptionFloatOrPercent(0.8, false));
 
     def = this->add("gap_fill_enabled", coBool);
     def->label = L("Gap fill");
@@ -3816,6 +3774,56 @@ void PrintConfigDef::init_fff_params() {
     def->category = OptionCategory::mmsetup;
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionFloat(0.));
+
+    def           = this->add("interlocking_beam", coBool);
+    def->label    = L("Use beam interlocking");
+    def->tooltip  = L("Generate interlocking beam structure at the locations where different filaments touch. This improves the adhesion between filaments, especially models printed in different materials.");
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def           = this->add("interlocking_beam_width", coFloat);
+    def->label    = L("Interlocking beam width");
+    def->tooltip  = L("The width of the interlocking structure beams.");
+    def->sidetext = L("mm");
+    def->min      = 0.1f;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0.8));
+
+    def           = this->add("interlocking_orientation", coFloat);
+    def->label    = L("Interlocking direction");
+    def->tooltip  = L("Orientation of interlocking beams.");
+    def->sidetext = L("°");
+    def->min      = 0;
+    def->max      = 360;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(22.5));
+
+    def           = this->add("interlocking_beam_layer_count", coInt);
+    def->label    = L("Interlocking beam layers");
+    def->tooltip  = L("The height of the beams of the interlocking structure, measured in number of layers. Less layers is stronger, but more prone to defects.");
+    def->min      = 1;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(2));
+
+    def           = this->add("interlocking_depth", coInt);
+    def->label    = L("Interlocking depth");
+    def->tooltip  = L("The distance from the boundary between filaments to generate interlocking structure, measured in cells. Too few cells will result in poor adhesion.");
+    def->min      = 1;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(2));
+
+    def           = this->add("interlocking_boundary_avoidance", coInt);
+    def->label    = L("Interlocking boundary avoidance");
+    def->tooltip  = L("The distance from the outside of a model where interlocking structures will not be generated, measured in cells.");
+    def->min      = 0;
+    def->category = OptionCategory::advanced;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(2));
 
     def = this->add("ironing", coBool);
     def->label = L("Enable ironing");
@@ -10273,6 +10281,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "external_perimeters_hole",
 "external_perimeters_nothole",
 "external_perimeters_vase",
+"external_perimeters_vase_min_height",
 "extra_perimeters_odd_layers",
 "extruder_extrusion_multiplier_speed",
 "extruder_fan_offset",

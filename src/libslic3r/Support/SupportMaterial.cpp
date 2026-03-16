@@ -1207,7 +1207,7 @@ struct SupportAnnotations
         // Append custom supports to object's generated ones.
         std::vector<ExPolygons> enforcers = object.slice_support_enforcers();
         std::vector<Polygons> custom_enforcers =
-            object.project_and_append_custom_facets(false, EnforcerBlockerType::ENFORCER);
+            object.project_and_append_custom_facets(false, TriangleStateType::ENFORCER);
         const size_t enforcer_layer_count = std::max(enforcers.size(), custom_enforcers.size());
         assert(enforcers.empty() || enforcers.size() == enforcer_layer_count);
         assert(custom_enforcers.empty() || custom_enforcers.size() == enforcer_layer_count);
@@ -1223,7 +1223,7 @@ struct SupportAnnotations
 
         std::vector<ExPolygons> blockers = object.slice_support_blockers();
         std::vector<Polygons> custom_blockers = object.project_and_append_custom_facets(false,
-                                                                                        EnforcerBlockerType::BLOCKER);
+                                                                                        TriangleStateType::BLOCKER);
         const size_t blocker_layer_count = std::max(blockers.size(), custom_blockers.size());
         assert(blockers.empty() || blockers.size() == blocker_layer_count);
         assert(custom_blockers.empty() || custom_blockers.size() == blocker_layer_count);

@@ -538,6 +538,11 @@ Slic3r::Polygons union_pt_chained_outside_in(const Slic3r::Polygons &subject);
 
 ClipperLib::PolyNodes order_nodes(const ClipperLib::PolyNodes &nodes);
 
+Slic3r::Polygons union_parallel_reduce(const Slic3r::Polygons &subject);
+
+Slic3r::ExPolygons xor_ex(const Slic3r::ExPolygons &subject, const Slic3r::ExPolygon &clip, ApplySafetyOffset do_safety_offset = ApplySafetyOffset::No);
+Slic3r::ExPolygons xor_ex(const Slic3r::ExPolygons &subject, const Slic3r::ExPolygons &clip, ApplySafetyOffset do_safety_offset = ApplySafetyOffset::No);
+
 // Implementing generalized loop (foreach) over a list of nodes which can be
 // ordered or unordered (performance gain) based on template parameter
 enum class e_ordering {

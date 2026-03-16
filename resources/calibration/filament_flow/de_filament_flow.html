@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Kalibrierung des Filamentflusses</title>
+      <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+
+<table width="100%">
+<tbody>
+<tr>
+<td style="text-align: center;">
+<h1>Kalibrierung des Filamentflusses</h1>
+</td>
+</tr>
+<tr>
+<td style="text-align: right;"><strong>
+    <table><tr><td>Benötigt:</td>
+        <td style="text-align: left;">Bettnivellierung</td></tr>
+    </table>
+    </strong>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Du musst die Bettnivellierung vor dieser Kalibrierung durchführen.</strong></p>
+<p>Dieser Test druckt fünf Testmuster mit unterschiedlichen Flussraten. Du kannst die Differenz des Flusses zwischen den einzelnen Stufen wählen. Du solltest mit dem Test in 10%-Schritten beginnen.
+Nachdem du das Ergebnis mit Hilfe der Tabelle unten überprüft hast, musst du den Extrusionsmultiplikator des Filaments in deinem Filamentprofil anpassen (wenn -20 das beste Ergebnis ist, ändere den Multiplikator von 1 auf 0,8, siehe Formel unten). Vergiss nicht, das Profil anschließend zu speichern! Du kannst danach mit dem Test in 2%-Schritten weitermachen, wenn du etwas mehr Genauigkeit möchtest.</p>
+
+<h2>Ergebnisse</h2>
+<h4>Beispiel:</h4>
+<table width="100%">
+<tbody>
+<tr>
+<td><img src="./m20.jpg" width="150" height="150" /></td>
+<td><img src="./m10.jpg" width="150" height="150" /></td>
+<td><img src="./0_v1.jpg" width="150" height="150" /></td>
+<td><img src="./p10.jpg" width="150" height="150" /></td>
+<td><img src="./p20.jpg" width="150" height="150" /></td>
+</tr>
+<tr>
+<td style="text-align: center;">Nicht eben</td>
+<td style="text-align: center;">Nicht eben</td>
+<td style="text-align: center;">Nicht eben</td>
+<td style="text-align: center;">Ebene Fläche,<br />aber der Kreis<br />ist nicht so gut</td>
+<td style="text-align: center;">Ebene Fläche<br />und guter Kreis</td>
+</tr>
+</table>
+
+<p>Du solltest den niedrigsten Flusswert wählen, bei dem keine Lücken in der oberen Fläche entstehen. In diesem Beispiel scheint der richtige Wert unter +20% zu liegen. Du musst also deinen Extrusionsmultiplikator auf 1,2 ändern und den zweiten Testsatz drucken (oder 1,15 einstellen und es dabei belassen).</p>
+
+<p>Beachte nicht die Oberflächenqualität des Buchstabens, sie sollte nur bei 0 gut sein, da wir die Betthöhe für genau diesen Fluss kalibriert haben. Wenn du hier mit +20% Fluss gehst, solltest du das Bett etwas absenken (also die Bettnivellierung erneut durchführen).</p>
+
+<h4>Zweiter Schritt, ausgehend von +20%:</h4>
+<table>
+<tbody>
+<tr>
+<td><img src="./m8.jpg" width="150" height="150" /></td>
+<td><img src="./m6.jpg" width="150" height="150" /></td>
+<td><img src="./m4.jpg" width="150" height="150" /></td>
+<td><img src="./m2.jpg" width="150" height="150" /></td>
+<td><img src="./0_v2.jpg" width="150" height="150" /></td>
+</tr>
+<tr>
+<td style="text-align: center;">Nicht gut</td>
+<td style="text-align: center;">Nicht gut</td>
+<td style="text-align: center;">Fast gut</td>
+<td style="text-align: center;">Gut, aber der<br />Kreis hat einige<br />Unregelmäßigkeiten</td>
+<td style="text-align: center;">Gut</td>
+</tr>
+</table>
+
+<p>Hier sieht man, dass die Schleife bei -8 und -6 nicht besonders gut ist. -4 ist fast rund, aber eben nicht ganz, was darauf hinweist, dass die Düse Druck verloren hat. -2 ist fast gut, aber nur 0 kann wirklich als „gut“ angesehen werden, und selbst dort ist die Schleife nicht perfekt.</p>
+
+<h2>So stellst du deinen Drucker ein</h2>
+<p>Du musst den Extrusionsmultiplikator für das Filament ändern, das du kalibrierst, und die Änderung speichern. Formel für den neuen Extrusionsmultiplikator: new_multiplier = ( (100 + gewählte_Zahl) / 100 ) * alter_multiplier<br />
+Beispiel: erster Schritt, ich wähle -10, also ergibt sich ((100-10)/100) * 1 = (0,9) * 1 = 0,9<br />
+zweiter Schritt: ich wähle +5, also ergibt sich ((100+5)/100) * 0,9 = (1,05) * 0,9 = 0,945
+</p>
+
+<p>Wenn du diese Änderung dauerhaft übernehmen und den Extrusionsmultiplikator im Slicer auf 1 belassen möchtest, kannst du deine Firmware-Konfiguration ändern, indem du die „Extrudergeschwindigkeitseinstellung“ (e-step, step_distance) mit diesem Extrusionsmultiplikator multiplizierst (oder dividierst, je nach Firmware/Einstellung).</p>
+
+<h2>Hinweise</h2>
+<p>Vor diesem Test ist es empfehlenswert, deinen Extruder zu kalibrieren (das ist bei Bowden-Setups einfacher):</p>
+<ul>
+<li>Entferne den Bowdenschlauch des Extruders am Ausgang des Extruders (oder entferne die Extrudereinheit von der Düseneinheit, wenn du einen Direkt-Extruder hast).</li>
+<li>Führe das Filament hindurch (von Hand oder über die Softwaresteuerung).</li>
+<li>Schneide das Filament bündig am Ausgang des Extruders ab. Miss mit deinem Federstahl-Lineal, sodass du genau 0 mm misst. Falls nicht, notiere den Wert und vergiss nicht, ihn von allen weiteren Messungen abzuziehen.</li>
+<li>Lass deinen Extruder 200 mm Filament extrudieren (G-Code: G1 E200).</li>
+<li>Miss die Länge des extrudierten Filaments. Wiederhole diesen Vorgang noch zwei weitere Male, wenn du mehr Genauigkeit möchtest.</li>
+<li>Du musst den Extrudermultiplikator (estep, step_distance) anpassen, indem du den aktuellen Wert mit (200 / Durchschnitt_der_gemessenen_Werte) multiplizierst (oder dividierst, je nach Firmware).</li>
+<p>Beachte, dass sich dieser Wert ändern kann, wenn du den Druck änderst, mit dem der Extruder auf das Filament drückt.</p>
+</ul>
+
+<h2>Anmerkungen</h2>
+<p>Es ist sehr schwierig, den Fluss unterhalb der 2%-Marke zu kalibrieren, und ohnehin ist kein Filament konsistent genug, um das wirklich zu rechtfertigen. Filamente mit einer Toleranz von +-0,03 mm haben zwischen kleinstem und größtem Querschnitt eine Abweichung von etwa 7%.</p>
+<p>Die meisten Kalibrierungen sollten in der richtigen Reihenfolge durchgeführt werden. Diese sollte an zweiter Stelle kommen.</p>
+<p>Du solltest die Bettnivellierung erneut durchführen, wenn das Ergebnis unter 0,9 oder über 1,1 liegt.</p>
+<p>Beachte, dass sich der Filament-Extrusionsmultiplikator bei unterschiedlichen Filamentmaterialien ändern kann, da weichere Materialien vom Extruder stärker zusammengedrückt/eingedrückt werden können und dadurch in den Extruderzahnrädern einen kleineren Durchmesser haben.</p>
+<p>Wenn der Extruder deines Druckers das Filament „auffrisst“ und die obere Schicht nicht fertigstellen kann, musst du die Bügelverteilung erhöhen (in 5%-Schritten). (Experteneinstellung, Druck -> Infill)</p>
+<p>Dieser Test setzt die Einstellung „Einzelne Objekte vollständig drucken“ auf wahr, daher solltest du deine Druckeinstellungen danach eventuell zurücksetzen.</p>
+<p>Lizenz der für diesen Kalibrierungstest verwendeten Modelle: CC BY-SA 3.0</p>
+</body>
+</html>

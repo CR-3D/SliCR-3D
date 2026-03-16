@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<title>CR-3D Würfel Kalibrierung</title>
+	    <style>
+		body {
+            font-family: Arial, sans-serif;
+			font-size: small;
+			background: #333233; /* Set your desired background color */
+			color: white; /* Set your desired font color */
+			padding-left: 15px;
+		}
+    h1, h2 {
+      color: #333;
+      text-align: center;
+    }
+    ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+    p, li {
+      margin: 10px 0;
+    }
+    .warning {
+      color: red;
+      font-weight: bold;
+    }
+    .info {
+      font-style: italic;
+    }
+    .right-align {
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+	<table width="100%">
+		<tbody>
+			<tr>
+				<td style="text-align: center; padding-bottom: 10px;">
+					<img src="./CR-3D_Logo.png" alt="CR3D Logo" style="max-width: 200px;">
+					<h1>CR-3D Würfel Kalibrierung</h1>
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align: right; font-family: HarmonyOS Sans SC, sans-serif;">
+					<table>
+						<tr>
+							<td class="bold-big">Benötigt:</td>
+							<td style="text-align: left;">Nichts</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</tbody>
+		</td>
+		</tr>
+		</tbody>
+	</table>
+	<body>
+		<h1>CR-3D Kalibrierwürfel</h1>
+
+		<p>Auf dieser Seite können Sie den CR-3D Kalibrierwürfel drucken. Er ist nützlich, um zu prüfen, wie genau Ihr Drucker arbeitet, und um verschiedene Einstellungen zu kalibrieren. Wählen Sie zuerst, ob Sie die Single oder Dual Cube Version verwenden möchten.</p>
+
+		<div>
+			<h2>Single Extruder Würfel</h2>
+
+			<p>
+				<img src="single.png" />
+			</p>
+			<p>Mit dem Single Extruder Würfel können Sie viele verschiedene Parameter prüfen. Es gibt zahlreiche Möglichkeiten, die Maßhaltigkeit zu kontrollieren: Bohrungen, Öffnungen, Außenmaße und vieles mehr.</p>
+			<p>Außerdem gibt es Bereiche, in denen Bridging erforderlich ist. Dafür sind verschiedene Brückenlängen integriert, damit sich das Verhalten gut beurteilen lässt.</p>
+			<p>Zusätzlich enthält das Modell feine Details und dünne Wände, um die Präzision des Druckers zu testen.</p>
+			<p>Darüber hinaus wurde ein Ringing Test integriert, um das Schwingungsverhalten des Druckers zu untersuchen.</p>
+		</div>
+
+		<div>
+			<h2>Dual Extruder Würfel</h2>
+
+			<p>Mit dem Dual Extruder Kalibrierwürfel können Sie ebenfalls viele Parameter testen. Er eignet sich besonders, um die Maßhaltigkeit und die Tool Offsets Ihres Dual Extruders zu prüfen.</p>
+			<p>Die Tool Offsets in XY Richtung lassen sich am einfachsten an den unteren Schichten bestimmen. Dort erkennt man im unteren Bereich des Würfels, ob verschiedene Elemente in eine Richtung verschoben sind. Der Versatz kann einfach mit einer Schieblehre gemessen und anschließend am Drucker nachjustiert werden. Zusätzlich gibt es über den gesamten Würfel verteilt weitere Multi Material Bereiche, an denen die Passgenauigkeit beider Tools überprüft werden kann.</p>
+			<p>Auch hier gibt es Bereiche, in denen Bridging erforderlich ist. Verschiedene Brückenlängen helfen dabei, das Verhalten gezielt zu testen.</p>
+			<p>Außerdem sind feine Details und dünne Wände enthalten, um die Präzision des Druckers zu prüfen.</p>
+			<p>
+				<img src="dual.png" />
+			</p>
+			<p>Zur Korrektur der Tool Offsets haben wir eine Übersicht der Koordinatenrichtungen von Tool 1, also dem rechten Tool, zusammengestellt.</p>
+			<p>
+				<img src="z_offset.png" />
+			</p>
+		</div>
+
+		<div>
+			<a href="https://www.thingiverse.com/thing:4962191" target="_blank">CR-3D Kalibrierwürfel auf thingiverse.com</a>
+		</div>
+	</body>
+</html>

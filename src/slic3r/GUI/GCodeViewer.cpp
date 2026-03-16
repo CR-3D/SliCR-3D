@@ -1415,14 +1415,11 @@ void GCodeViewer::init()
     m_gl_data_initialized = true;
 }
 
-bool GCodeViewer::is_loaded(const GCodeProcessorResult& gcode_result) {
-    return (m_last_result_id == gcode_result.id);
-}
-
 void GCodeViewer::load(const GCodeProcessorResult& gcode_result, const Print& print)
 {
-    if (!m_gcode_result.has_value())
-        m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
+
+    m_gcode_result = wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()];
+
     assert(&m_gcode_result->get() == &gcode_result);
     if (!m_print.has_value())
         m_print = print;

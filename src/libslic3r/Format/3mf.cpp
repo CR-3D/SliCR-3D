@@ -81,6 +81,7 @@ const unsigned int MM_PAINTING_VERSION           = 1;
 const std::string SLIC3RPE_FDM_SUPPORTS_PAINTING_VERSION = "slic3rpe:FdmSupportsPaintingVersion";
 const std::string SLIC3RPE_SEAM_PAINTING_VERSION         = "slic3rpe:SeamPaintingVersion";
 const std::string SLIC3RPE_MM_PAINTING_VERSION           = "slic3rpe:MmPaintingVersion";
+const std::string SLIC3RPE_FUZZY_SKIN_VERSION                        = "slic3rpe:fuzzy_skin";
 
 const std::string MODEL_FOLDER = "3D/";
 const std::string MODEL_EXTENSION = ".model";
@@ -146,6 +147,7 @@ static constexpr const char* INSTANCESCOUNT_ATTR = "instances_count";
 static constexpr const char* CUSTOM_SUPPORTS_ATTR = "slic3rpe:custom_supports";
 static constexpr const char* CUSTOM_SEAM_ATTR = "slic3rpe:custom_seam";
 static constexpr const char* MM_SEGMENTATION_ATTR = "slic3rpe:mmu_segmentation";
+static constexpr const char* FUZZY_SKIN_ATTR = "slic3rpe:fuzzy_skin";
 
 static constexpr const char* KEY_ATTR = "key";
 static constexpr const char* VALUE_ATTR = "value";
@@ -390,6 +392,7 @@ namespace Slic3r {
             std::vector<std::string> custom_supports;
             std::vector<std::string> custom_seam;
             std::vector<std::string> mm_segmentation;
+            std::vector<std::string> fuzzy_skin;
 
             bool empty() { return vertices.empty() || triangles.empty(); }
 
@@ -399,6 +402,7 @@ namespace Slic3r {
                 custom_supports.clear();
                 custom_seam.clear();
                 mm_segmentation.clear();
+                fuzzy_skin.clear();
             }
         };
 
@@ -2175,6 +2179,7 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
         m_curr_object.geometry.custom_supports.push_back(get_attribute_value_string(attributes, num_attributes, CUSTOM_SUPPORTS_ATTR));
         m_curr_object.geometry.custom_seam.push_back(get_attribute_value_string(attributes, num_attributes, CUSTOM_SEAM_ATTR));
         m_curr_object.geometry.mm_segmentation.push_back(get_attribute_value_string(attributes, num_attributes, MM_SEGMENTATION_ATTR));
+        m_curr_object.geometry.fuzzy_skin.push_back(get_attribute_value_string(attributes, num_attributes, FUZZY_SKIN_ATTR));
         return true;
     }
 
@@ -2670,21 +2675,26 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
             volume->supported_facets.reserve(triangles_count);
             volume->seam_facets.reserve(triangles_count);
             volume->mm_segmentation_facets.reserve(triangles_count);
+            volume->fuzzy_skin_facets.reserve(triangles_count);
             for (size_t i=0; i<triangles_count; ++i) {
                 size_t index = volume_data.first_triangle_id + i;
                 assert(index < geometry.custom_supports.size());
                 assert(index < geometry.custom_seam.size());
                 assert(index < geometry.mm_segmentation.size());
+                assert(index < geometry.fuzzy_skin.size());
                 if (! geometry.custom_supports[index].empty())
                     volume->supported_facets.set_triangle_from_string(i, geometry.custom_supports[index]);
                 if (! geometry.custom_seam[index].empty())
                     volume->seam_facets.set_triangle_from_string(i, geometry.custom_seam[index]);
                 if (! geometry.mm_segmentation[index].empty())
                     volume->mm_segmentation_facets.set_triangle_from_string(i, geometry.mm_segmentation[index]);
+                if (! geometry.fuzzy_skin[index].empty())
+                    volume->fuzzy_skin_facets.set_triangle_from_string(i, geometry.fuzzy_skin[index]);
             }
             volume->supported_facets.shrink_to_fit();
             volume->seam_facets.shrink_to_fit();
             volume->mm_segmentation_facets.shrink_to_fit();
+            volume->fuzzy_skin_facets.shrink_to_fit();
 
             if (auto &es = volume_data.shape_configuration; es.has_value())
                 volume->emboss_shape = std::move(es);            
@@ -3396,6 +3406,15 @@ void _3MF_Importer::_extract_wipe_tower_information_from_archive_legacy(::mz_zip
                     output_buffer += MM_SEGMENTATION_ATTR;
                     output_buffer += "=\"";
                     output_buffer += mm_painting_data_string;
+                    output_buffer += "\"";
+                }
+
+                std::string fuzzy_skin_data_string = volume->fuzzy_skin_facets.get_triangle_as_string(i);
+                if (! fuzzy_skin_data_string.empty()) {
+                    output_buffer += " ";
+                    output_buffer += FUZZY_SKIN_ATTR;
+                    output_buffer += "=\"";
+                    output_buffer += fuzzy_skin_data_string;
                     output_buffer += "\"";
                 }
 

@@ -5,7 +5,7 @@
 #ifndef ARRANGESETTINGSDIALOGIMGUI_HPP
 #define ARRANGESETTINGSDIALOGIMGUI_HPP
 
-#include "libslic3r/Arrange/ArrangeSettingsView.hpp"
+#include <arrange-wrapper/ArrangeSettingsView.hpp>
 #include "ImGuiWrapper.hpp"
 #include "libslic3r/AnyPtr.hpp"
 #include "libslic3r/PrintConfig.hpp"
@@ -51,7 +51,6 @@ public:
     // ArrangeSettingsView iface:
 
     float get_distance_from_objects() const override { return m_db.get_distance_from_objects(); }
-    float get_previous_distance_from_objects() const override { return m_db.get_previous_distance_from_objects(); }
     float get_distance_from_bed() const  override { return m_db.get_distance_from_bed(); }
     bool  is_rotation_enabled() const override { return m_db.is_rotation_enabled(); }
     

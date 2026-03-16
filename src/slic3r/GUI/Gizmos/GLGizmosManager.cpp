@@ -29,6 +29,8 @@
 #include "slic3r/GUI/Gizmos/GLGizmoEmboss.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoSVG.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoMeasure.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoFuzzySkin.hpp"
+
 
 #include "libslic3r/format.hpp"
 #include "libslic3r/Model.hpp"
@@ -113,6 +115,7 @@ bool GLGizmosManager::init()
     m_gizmos.emplace_back(new GLGizmoSlaSupports(m_parent, "sla_supports.svg", EType::SlaSupports)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
     m_gizmos.emplace_back(new GLGizmoFdmSupports(m_parent, "fdm_supports.svg", EType::FdmSupports)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
     m_gizmos.emplace_back(new GLGizmoSeam(m_parent, "seam.svg", EType::Seam)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
+    m_gizmos.emplace_back(new GLGizmoFuzzySkin(m_parent, "fuzzy_skin_painting.svg", EType::FuzzySkin)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
     m_gizmos.emplace_back(new GLGizmoMmuSegmentation(m_parent, "mmu_segmentation.svg", EType::MmuSegmentation)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
     m_gizmos.emplace_back(new GLGizmoMeasure(m_parent, "measure.svg", EType::Measure)); assert(m_gizmos.back()->get_sprite_id() == m_gizmos.size() - 1);
     m_gizmos.emplace_back(new GLGizmoSVG(m_parent)); assert(EType::Svg == m_gizmos.size() - 1);
@@ -193,9 +196,10 @@ bool GLGizmosManager::open_gizmo(EType type) {
     if (m_current == type)
         type = Undefined;
 
-    if (m_gizmos[idx]->is_actionable()) {
+    if (m_gizmos[idx]->is_actionable() && m_gizmos[idx]->is_activable()) {
         m_gizmos[idx]->trigger_action();
         // remove update data into gizmo itself
+        activate_gizmo(type);
         update_data();
         return true;
     }
@@ -259,6 +263,7 @@ bool GLGizmosManager::handle_shortcut(int key)
     if (GLGizmoBase* gizmo_emboss = m_gizmos[Emboss].get();
         is_key(gizmo_emboss->get_shortcut_key())) {
         dynamic_cast<GLGizmoEmboss *>(gizmo_emboss)->on_shortcut_key();
+        dynamic_cast<GLGizmoEmboss*>(gizmo_emboss)->m_should_trigger_action = false;
         return true;
     }
 
@@ -274,6 +279,8 @@ bool GLGizmosManager::handle_shortcut(int key)
         return false;
 
     EType gizmo_type = EType(it - m_gizmos.begin());
+
+
     return open_gizmo(gizmo_type);
 }
 
@@ -305,7 +312,8 @@ bool GLGizmosManager::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_p
         return dynamic_cast<GLGizmoMeasure*>(m_gizmos[Measure].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == Cut)
         return dynamic_cast<GLGizmoCut3D*>(m_gizmos[Cut].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
-    else
+    else if (m_current == FuzzySkin)
+        return dynamic_cast<GLGizmoFuzzySkin*>(m_gizmos[FuzzySkin].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
         return false;
 }
 
@@ -372,7 +380,7 @@ bool GLGizmosManager::on_mouse_wheel(const wxMouseEvent &evt)
 {
     bool processed = false;
 
-    if (m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == Seam || m_current == MmuSegmentation) {
+    if (m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == Seam || m_current == MmuSegmentation || m_current == FuzzySkin) {
         float rot = (float)evt.GetWheelRotation() / (float)evt.GetWheelDelta();
         if (gizmo_event((rot > 0.f ? SLAGizmoEventType::MouseWheelUp : SLAGizmoEventType::MouseWheelDown), Vec2d::Zero(), evt.ShiftDown(), evt.AltDown(), evt.ControlDown()))
             processed = true;
@@ -545,7 +553,7 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
         case 'r' :
         case 'R' :
         {
-            if ((m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == Seam || m_current == MmuSegmentation) && gizmo_event(SLAGizmoEventType::ResetClippingPlane))
+            if ((m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == Seam || m_current == MmuSegmentation || m_current == FuzzySkin) && gizmo_event(SLAGizmoEventType::ResetClippingPlane))
                 processed = true;
 
             break;

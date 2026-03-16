@@ -179,8 +179,6 @@ void ArrangeSettingsDialogImgui::set_arrange_settings_distance_from_objects(cons
             dist += dd_opt->value;
         }
         m_db.set_distance_from_objects(dist);
-    } else {
-        m_db.set_distance_from_objects(m_db.get_previous_distance_from_objects());
     }
 }
 

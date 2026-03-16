@@ -3,3 +3,14 @@
 0.0.3 output_filename updated to 'alpha3'
 0.0.4 output_filename back to stable name
 0.0.5 changed PETG max_volumetric speed to 50 with toolhead 3+
+0.0.6 Changed bed temperature for 'SoftPLA ToolHead 3+'
+0.0.7 Changed skirt_extrusion_width to 125% and all remaining filament_max_volumetric_speed's to 40mm/3 max
+0.0.8 Added PPS CF10 as filament
+0.0.9 'Support VXL111' added
+0.0.10 Added Support VXL111 to default materials
+0.0.11 Fixed PA on Flex FibCR20
+0.0.12 Added PC CF10
+0.0.13 New Printers: I6X5+; I6X5-IDEX+
+0.0.14 Bugfix update
+0.0.15 Added bed_exclude_area to all IDEX printers
+0.0.16 start_gcode updated

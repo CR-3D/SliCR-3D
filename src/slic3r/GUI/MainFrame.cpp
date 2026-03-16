@@ -1782,10 +1782,12 @@ void MainFrame::init_menubar_as_editor()
             [this](wxCommandEvent&) { if (m_plater) m_plater->add_model(true); }, "import_plater", nullptr,
             [this](){return m_plater != nullptr; }, this);
         
+        /*
         append_menu_item(import_menu, wxID_ANY, _L("Import SLA Archive") + dots, _L("Load an SLA archive"),
             [this](wxCommandEvent&) { if (m_plater) m_plater->import_sl1_archive(); }, "import_plater", nullptr,
             [this](){return m_plater != nullptr && m_plater->get_ui_job_worker().is_idle(); }, this);
-    
+    */
+
         append_menu_item(import_menu, wxID_ANY, _L("Import ZIP Archive") + dots, _L("Load a ZIP archive"),
             [this](wxCommandEvent&) { if (m_plater) m_plater->import_zip_archive(); }, "import_plater", nullptr,
             [this]() {return m_plater != nullptr; }, this);
@@ -1862,10 +1864,11 @@ void MainFrame::init_menubar_as_editor()
             []() { return true; }, this);
         append_submenu(fileMenu, convert_menu, wxID_ANY, _L("&Convert"), "");
 
+        /*
 		append_menu_item(fileMenu, wxID_ANY, _L("Ejec&t SD Card / Flash Drive") + dots + "\tCtrl+T", _L("Eject SD card / Flash drive after the G-code was exported to it."),
 			[this](wxCommandEvent&) { if (m_plater) m_plater->eject_drive(); }, "eject_sd", nullptr,
 			[this]() {return can_eject(); }, this);
-
+        */
         fileMenu->AppendSeparator();
 
         m_menu_item_reslice_now = append_menu_item(fileMenu, wxID_ANY, _L("(Re)Slice No&w") + "\tCtrl+R", _L("Start new slicing process"),
@@ -1944,56 +1947,19 @@ void MainFrame::init_menubar_as_editor()
         append_menu_item(editMenu, wxID_ANY, _L("Searc&h") + "\tCtrl+F",
             _L("Search in settings"), [this](wxCommandEvent&) { m_plater->search(/*m_tabpanel->GetCurrentPage() == */m_plater->IsShown() && can_change_view()); },
             "search", nullptr, []() { return true; }, this);
-    }
 
-    // Window menu
-    auto windowMenu = new wxMenu();
-    {
-        if (m_plater) {
-            append_menu_item(windowMenu, wxID_HIGHEST + 1, _L("3D &Plater Tab") + "\tCtrl+1", _L("Show the editor of the input models"),
-                [this](wxCommandEvent&) { select_tab(TabPosition::tpPlater); }, "tab_editor_menu", nullptr,
-                []() {return true; }, this);
-            append_menu_item(windowMenu, wxID_HIGHEST + 2, _L("GCode Pre&view Tab") + "\tCtrl+2", _L("Show the preview of the gcode output"),
-                [this](wxCommandEvent&) { select_tab(TabPosition::tpPlaterGCode); }, "tab_preview_menu", nullptr,
-                []() {return true; }, this);
-            append_menu_item(windowMenu, wxID_HIGHEST + 2, _L("Device Tab") + "\tCtrl+3", _L("Show the device tab"),
-                [this](wxCommandEvent&) { select_tab(TabPosition::tpDevice); }, "tab_device_active", nullptr,
-                []() {return true; }, this);
-            windowMenu->AppendSeparator();
-        }
-        append_menu_item(windowMenu, wxID_HIGHEST + 4, _L("P&rint Settings Tab") + "\tCtrl+4", _L("Show the print settings"),
-            [this /*, tab_offset*/](wxCommandEvent &) { select_tab(TabPosition::tpPrintSettings); }, "cog", nullptr,
-            []() {return true; }, this);
-        wxMenuItem* item_material_tab = append_menu_item(windowMenu, wxID_HIGHEST + 5, _L("&Filament Settings Tab") + "\tCtrl+5", _L("Show the filament settings"),
-            [this/*, tab_offset*/](wxCommandEvent&) { select_tab(TabPosition::tpFilamentSettings); }, "spool", nullptr,
-            []() {return true; }, this);
-
-        m_changeable_menu_items.push_back(item_material_tab);
-        wxMenuItem* item_printer_tab = append_menu_item(windowMenu, wxID_HIGHEST + 6, _L("Print&er Settings Tab") + "\tCtrl+6", _L("Show the printer settings"),
-            [this/*, tab_offset*/](wxCommandEvent&) { select_tab(TabPosition::tpPrinterSettings); }, "printer", nullptr,
-            []() {return true; }, this);
-            
-        m_changeable_menu_items.push_back(item_printer_tab);
-
-        windowMenu->AppendSeparator();
-        append_menu_item(windowMenu, wxID_ANY, _L("Print &Host Upload Queue") + "\tCtrl+J", _L("Display the Print Host Upload Queue window"),
-            [this](wxCommandEvent&) { m_printhost_queue_dlg->Show(); }, "upload_queue", nullptr, []() {return true; }, this);
-        
-        windowMenu->AppendSeparator();
-        append_menu_item(windowMenu, wxID_ANY, _L("Open New Instance") + "\tCtrl+Shift+" + "I", wxString::Format(_L("Open a new %s instance"), SLIC3R_APP_NAME),
-            [this](wxCommandEvent&) { start_new_slicer(); }, "", nullptr, [this]() {return m_plater != nullptr && !get_app_config()->get_bool("single_instance"); }, this);
-
-        windowMenu->AppendSeparator();
-        append_menu_item(windowMenu, wxID_ANY, _L("Compare Presets")/* + "\tCtrl+F"*/, _L("Compare presets"),
+        editMenu->AppendSeparator();
+        append_menu_item(editMenu, wxID_ANY, _L("Compare Presets")/* + "\tCtrl+F"*/, _L("Compare presets"),
             [this](wxCommandEvent&) { diff_dialog.show();}, "compare", nullptr, []() {return true; }, this);
+        
     }
 
     // View menu
     wxMenu* viewMenu = nullptr;
     if (m_plater) {
         viewMenu = new wxMenu();
-        add_common_view_menu_items(viewMenu, this, std::bind(&MainFrame::can_change_view, this));
-        viewMenu->AppendSeparator();
+       // add_common_view_menu_items(viewMenu, this, std::bind(&MainFrame::can_change_view, this));
+        //viewMenu->AppendSeparator();
         append_menu_check_item(viewMenu, wxID_ANY, _L("Show &Labels") + sep + "E", _L("Show object/instance labels in 3D scene"),
             [this](wxCommandEvent&) { m_plater->show_view3D_labels(!m_plater->are_view3D_labels_shown()); /* only called on clic, real event is handled by GLCanvas3D::on_char */ }, this,
             [this]() { return m_plater->is_view3D_shown(); }, [this]() { return m_plater->are_view3D_labels_shown(); }, this);
@@ -2109,7 +2075,7 @@ void MainFrame::init_menubar_as_editor()
     m_menubar->SetFont(this->normal_font());
     m_menubar->Append(fileMenu, _L("&File"));
     if (editMenu) m_menubar->Append(editMenu, _L("&Edit"));
-    m_menubar->Append(windowMenu, _L("&Window"));
+   // m_menubar->Append(windowMenu, _L("&Window"));
     if (viewMenu) m_menubar->Append(viewMenu, _L("&View"));
     if (m_calibration_menu) m_menubar->Append(m_calibration_menu, _L("Calibration"));
     //if (generationMenu) m_menubar->Append(generationMenu, _L("&Generate"));
@@ -2230,10 +2196,10 @@ void MainFrame::update_menubar()
     m_changeable_menu_items[miExport]       ->SetItemLabel((is_fff ? _L("Export &G-code")         : _L("E&xport"))        + dots    + "\tCtrl+G");
     m_changeable_menu_items[miSend]         ->SetItemLabel((is_fff ? _L("S&end G-code")           : _L("S&end to print")) + dots    + "\tCtrl+Shift+G");
 
-    m_changeable_menu_items[miMaterialTab]  ->SetItemLabel((is_fff ? _L("&Filament Settings Tab") : _L("Mate&rial Settings Tab"))   + "\tCtrl+5");
-    m_changeable_menu_items[miMaterialTab]  ->SetBitmap(*get_bmp_bundle(is_fff ? "spool"   : "resin"));
+    //m_changeable_menu_items[miMaterialTab]  ->SetItemLabel((is_fff ? _L("&Filament Settings Tab") : _L("Mate&rial Settings Tab"))   + "\tCtrl+5");
+  //  m_changeable_menu_items[miMaterialTab]  ->SetBitmap(*get_bmp_bundle(is_fff ? "spool"   : "resin"));
 
-    m_changeable_menu_items[miPrinterTab]   ->SetBitmap(*get_bmp_bundle(is_fff ? "printer" : "sla_printer"));
+   // m_changeable_menu_items[miPrinterTab]   ->SetBitmap(*get_bmp_bundle(is_fff ? "printer" : "sla_printer"));
 
     if (m_calibration_menu) {
         int id = m_menubar->FindMenu(m_calibration_menu->GetTitle());
