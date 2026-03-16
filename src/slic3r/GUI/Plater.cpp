@@ -4948,6 +4948,7 @@ void Plater::priv::on_support_material_selected(std::string filament_name, int i
         return;
     
     Tab* tab_print = wxGetApp().get_tab(Preset::TYPE_FFF_PRINT);
+    Tab* tab_filament = wxGetApp().get_tab(Preset::TYPE_FFF_FILAMENT);
     DynamicPrintConfig* new_conf = tab_print->get_config();
     
     // Set specific values in the new configuration
@@ -4961,9 +4962,29 @@ void Plater::priv::on_support_material_selected(std::string filament_name, int i
     new_conf->set_key_value("support_material_interface_extruder", new ConfigOptionInt(2));
     new_conf->set_key_value("support_material_contact_distance", new ConfigOptionFloatOrPercent(0, false));
 
+    PresetBundle* preset_bundle = wxGetApp().preset_bundle;
+    if (idx_selected < int(preset_bundle->extruders_filaments.size())) {
+        const std::string source_preset_name = preset_bundle->extruders_filaments[0].get_selected_preset_name();
+        const std::string target_preset_name = preset_bundle->extruders_filaments[idx_selected].get_selected_preset_name();
+
+        if (Preset* source_preset = preset_bundle->filaments.find_preset(source_preset_name, true);
+            source_preset != nullptr) {
+            if (const ConfigOptionInts* source_bed_temp = source_preset->config.option<ConfigOptionInts>("first_layer_bed_temperature");
+                source_bed_temp != nullptr && source_bed_temp->size() > 0) {
+                if (Preset* target_preset = preset_bundle->filaments.find_preset(target_preset_name, true);
+                    target_preset != nullptr) {
+                    target_preset->config.set_key_value("first_layer_bed_temperature", new ConfigOptionInts(1, source_bed_temp->get_at(0)));
+                }
+            }
+        }
+    }
+
     tab_print->load_config(*new_conf);
     tab_print->update_dirty();
     tab_print->reload_config();
+
+    tab_filament->update_dirty();
+    tab_filament->reload_config();
     return;
 }
 
@@ -4997,17 +5018,17 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
     if (preset_type == Preset::TYPE_FFF_FILAMENT) {
         wxGetApp().preset_bundle->set_filament_preset(idx, preset_name);
         TabFilament* tab = dynamic_cast<TabFilament*>(wxGetApp().get_tab(Preset::TYPE_FFF_FILAMENT));
-        
-        this->on_support_material_selected(preset_name, idx);
-        
+
         if (tab && combo->get_extruder_idx() == tab->get_active_extruder() && !tab->select_preset(preset_name)) {
             // revert previously selection
             const std::string& old_name = wxGetApp().preset_bundle->filaments.get_edited_preset().name;
             wxGetApp().preset_bundle->set_filament_preset(idx, old_name);
         }
-        else
+        else {
+            this->on_support_material_selected(preset_name, idx);
             // Synchronize config.ini with the current selections.
             wxGetApp().preset_bundle->export_selections(*wxGetApp().app_config);
+        }
         combo->update();
     }
     else if (select_preset) {
