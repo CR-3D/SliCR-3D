@@ -13,3 +13,4 @@
 0.0.13 New Printers: I6X5+; I6X5-IDEX+
 0.0.14 Bugfix update
 0.0.15 Added bed_exclude_area to all IDEX printers
+0.0.16 start_gcode updated
