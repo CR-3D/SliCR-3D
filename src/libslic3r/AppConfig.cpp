@@ -62,7 +62,7 @@ static const std::string PROFILE_FOLDER_URL = "https://files.prusa3d.com/wp-cont
 
 static const std::string PROFILE_FOLDER_URL = "http://files.cr3d.de/updates/SliCR-3D/profiles/";
 static const std::string INDEX_ARCHIVE_URL= "http://files.cr3d.de/updates/SliCR-3D/vendor_indices.zip";
-static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/liCR-3D_Internal/SliCR-3D.version";
+static const std::string VERSION_CHECK_URL = "http://files.cr3d.de/updates/SliCR-3D/SliCR-3D.version";
 
 const std::string AppConfig::SECTION_FILAMENTS = "filaments";
 const std::string AppConfig::SECTION_MATERIALS = "sla_materials";
