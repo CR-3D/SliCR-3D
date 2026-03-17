@@ -10,7 +10,5 @@
 0.0.10 Added Support VXL111 to default materials
 0.0.11 Fixed PA on Flex FibCR20
 0.0.12 Added PC CF10
-0.0.13 New Printers: I6X5+; I6X5-IDEX+
-0.0.14 Bugfix update
-0.0.15 Added bed_exclude_area to all IDEX printers
-0.0.16 start_gcode updated
+min_slic3r_version = 2.7.0.6
+0.0.13 New Printers: I6X5+; I6X5-IDEX+; Bugfix Update; Added bed_exclude_area to all IDEX printers; start_gcode updated 
