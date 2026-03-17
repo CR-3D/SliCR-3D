@@ -40,7 +40,7 @@ jobs:
       run: ./BuildMacOS.sh -ad
 
   build:
-    runs-on: self-hosted
+    runs-on: macos-latest
     needs: build_dep
 
     steps:
