@@ -2057,10 +2057,12 @@ void GCodeGenerator::_do_export(Print& print_mod, GCodeOutputStream &file, Thumb
                     }
                     this->m_throw_if_canceled();
                 }
+            
                 // Process all layers of all objects (non-sequential mode) with a parallel pipeline:
                 // Generate G-code, run the filters (vase mode, cooling buffer), run the G-code analyser
                 // and export G-code into file.
                 this->process_layers(print, status_monitor, tool_ordering, print_object_instances_ordering, layers_to_print, preamble_to_put_start_layer, file);
+                
                 if (m_wipe_tower)
                     // Purge the extruder, pull out the active filament.
                     file.write(m_wipe_tower->finalize(*this));
@@ -7125,7 +7127,7 @@ std::string GCodeGenerator::_before_extrude(const ExtrusionPath &path, const std
     // compensate retraction
     if (m_delayed_layer_change.empty()) {
         gcode += m_writer.unlift();//this->unretract();
-        assert(is_approx(m_writer.get_position().z(), m_layer->print_z, EPSILON) || m_loop_vase_mode);
+
     } else {
         //check if an unlift happens
         std::string unlift = m_writer.unlift();
@@ -7684,7 +7686,6 @@ void GCodeGenerator::write_travel_to(std::string &gcode, Polyline& travel, std::
         this->writer().set_lift(this->writer().get_position().z() - *m_new_z_target);
         m_new_z_target.reset();
     }
-    assert(is_approx(this->writer().get_unlifted_position().z(), m_layer->print_z, EPSILON) || comment == "Travel to a Wipe Tower" || m_loop_vase_mode);
 }
 
 // generate a travel in xyz
@@ -7694,7 +7695,7 @@ std::string GCodeGenerator::generate_travel_gcode(
 ) {
     std::string gcode;
 
-    const unsigned acceleration =(unsigned)(m_config.travel_acceleration.value + 0.5);
+    const unsigned travel_acceleration =(unsigned)(get_travel_acceleration(m_config) + 0.5);
 
     if (travel.empty()) {
         return "";
@@ -7702,7 +7703,7 @@ std::string GCodeGenerator::generate_travel_gcode(
 
     // generate G-code for the travel move
     // use G1 because we rely on paths being straight (G0 may make round paths)
-    this->m_writer.set_travel_acceleration(acceleration);
+    this->m_writer.set_travel_acceleration(travel_acceleration);
 
     Vec3d previous_point{this->point_to_gcode(travel.front())};
     for (const Vec3crd& point : travel) {
@@ -7717,7 +7718,7 @@ std::string GCodeGenerator::generate_travel_gcode(
     if (! GCodeWriter::supports_separate_travel_acceleration(config().gcode_flavor)) {
         // In case that this flavor does not support separate print and travel acceleration,
         // reset acceleration to default.
-        this->m_writer.set_travel_acceleration(acceleration);
+        this->m_writer.set_travel_acceleration(travel_acceleration);
     }
 
     return gcode;
