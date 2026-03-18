@@ -3984,7 +3984,10 @@ void PrintObject::bridge_over_infill()
                                                          [](const Line &s) { return s.a == s.b; }),
                                           polygon_sections[i].end());
                 std::sort(polygon_sections[i].begin(), polygon_sections[i].end(),
-                          [](const Line &a, const Line &b) { return a.a.y() < b.b.y(); });
+                            [](const Line& a, const Line& b) {
+                                if (a.a.y() != b.a.y()) return a.a.y() < b.a.y();
+                                return a.b.y() < b.b.y();
+                            });
             }
 
             // reconstruct polygon from polygon sections

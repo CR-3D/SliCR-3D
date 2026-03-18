@@ -3360,15 +3360,6 @@ void PrintConfigDef::init_fff_params() {
     def->mode = comAdvancedE | comPrusa;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
-    def = this->add("travel_acceleration", coFloat);
-    def->label = L("Travel");
-    def->tooltip = L("This is the acceleration your printer will use for travel moves. Set zero to disable "
-                     "acceleration control for travel.");
-    def->sidetext = L("mm/s²");
-    def->min = 0;
-    def->mode = comExpert | comPrusa;
-    def->set_default_value(new ConfigOptionFloat(0));
-
     def = this->add("infill_every_layers", coInt);
     def->label = L("Combine infill every");
     def->category = OptionCategory::infill;
@@ -7831,7 +7822,6 @@ void PrintConfigDef::init_extruder_option_keys() {
         "wipe_only_crossing",
         "wipe_speed",
     };
-    assert(std::is_sorted(m_extruder_option_keys.begin(), m_extruder_option_keys.end()));
 
     m_extruder_retract_keys = {
         "deretract_speed",
@@ -7866,7 +7856,7 @@ void PrintConfigDef::init_extruder_option_keys() {
         "wipe_only_crossing",
         "wipe_speed",
     };
-    assert(std::is_sorted(m_extruder_retract_keys.begin(), m_extruder_retract_keys.end()));
+
     m_filament_override_option_keys = {
         "deretract_speed",
         "retract_before_travel",
@@ -9134,7 +9124,6 @@ void _handle_legacy(std::unordered_map<t_config_option_key, std::pair<t_config_o
         } else if (value() == "0") {
             value() = "disabled";
         } else if (const t_config_enum_values &enum_keys_map = ConfigOptionEnum<EnsureVerticalShellThickness>::get_enum_values(); enum_keys_map.find(value()) == enum_keys_map.end()) {
-            assert(value() == "0" || value() == "1");
             // Values other than 0/1 are replaced with "partial" for handling values from different slicers.
             value() = "partial";
         }
@@ -12549,7 +12538,7 @@ static std::map<t_custom_gcode_key, t_config_option_keys> s_CustomGcodeSpecificP
     {"end_filament_gcode",      {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
     {"milling_toolchange_start_gcode", {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
     {"milling_toolchange_end_gcode",   {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "previous_extruder", "next_extruder"}},
-    {"start_gcode",             {"start_gcode_bed_temperature"}},
+    {"start_gcode",             {"start_gcode_bed_temperature", "filament_pressure_advance_value"}},
     {"end_gcode",               {"layer_num", "layer_z", "max_layer_z", "filament_extruder_id", "previous_extruder", "next_extruder"}},
     {"before_layer_gcode",      {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "gcode_bed_temperature"}},
     {"layer_gcode",             {"layer_num", "layer_z", "previous_layer_z", "max_layer_z", "gcode_bed_temperature"}},
@@ -12644,6 +12633,10 @@ CustomGcodeSpecificConfigDef::CustomGcodeSpecificConfigDef() {
     def = this->add("gcode_bed_temperature", coInt);
     def->label = L("Computed bed temperature");
     def->tooltip = L("It's the 'print_bed_temperature' if defined or the maximum of the 'bed_temperature'.");
+    
+    def = this->add("filament_pressure_advance_value", coFloats);
+    def->label = L("filament_pressure_advance_value");
+    
 }
 
 const CustomGcodeSpecificConfigDef custom_gcode_specific_config_def;

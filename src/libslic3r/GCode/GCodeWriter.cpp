@@ -398,6 +398,10 @@ void GCodeWriter::set_acceleration(uint32_t acceleration)
 {
     if (acceleration == 0 || acceleration == m_current_acceleration)
         return;
+    
+    if (acceleration <= 100) {
+        std::cout << "EDIT";
+    }
 
     m_current_acceleration = acceleration;
 }
@@ -409,6 +413,11 @@ void GCodeWriter::set_travel_acceleration(uint32_t acceleration)
     if (FLAVOR_IS_NOT(gcfMarlinFirmware) && FLAVOR_IS_NOT(gcfRepRap))
         set_acceleration(acceleration);
 
+    
+    if (acceleration <= 100) {
+        std::cout << "EDIT";
+    }
+    
     if (acceleration == m_current_travel_acceleration)
         return;
 
@@ -420,11 +429,17 @@ uint32_t GCodeWriter::get_acceleration() const
     return m_current_acceleration;
 }
 
-std::string GCodeWriter::write_acceleration(){
+std::string GCodeWriter::write_acceleration() {
     bool need_write_travel_accel = (FLAVOR_IS(gcfMarlinFirmware) || FLAVOR_IS(gcfRepRap)) &&
                                    m_current_travel_acceleration != m_last_travel_acceleration;
     bool need_write_main_accel = m_current_acceleration != m_last_acceleration &&
                                  m_current_acceleration != 0;
+
+    // TEMP DEBUG
+    if (need_write_main_accel && m_current_acceleration == 100) {
+        std::cerr << "[ACCEL] write_acceleration -> emitting 100 (feature likely wipe/purge)\n";
+    }
+
     if (!need_write_main_accel && !need_write_travel_accel)
         return "";
 
@@ -454,6 +469,7 @@ std::string GCodeWriter::write_acceleration(){
         if (m_current_acceleration > 0)
             gcode << "M204 S" << m_current_acceleration;
     }
+    
     //if at least something, add comment and line return
     if (gcode.tellp() != std::streampos(0)) {
         if (this->config.gcode_comments)
@@ -1181,3 +1197,4 @@ std::string GCodeWriter::set_fan(const uint8_t speed, uint16_t default_tool)
 }
 
 } // namespace Slic3r
+

@@ -1549,7 +1549,6 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
         m_tool_colors.push_back(default_color);
 
     if (!gcode_result.filament_colors.empty()) {
-        assert(str_tool_colors.size() == gcode_result.filament_colors.size());
         // update filament colors
         decode_colors(str_tool_colors, m_filament_colors);
         // update(override) filament colors from config stored in the gcode

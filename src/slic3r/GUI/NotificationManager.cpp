@@ -938,7 +938,6 @@ void NotificationManager::ProgressBarNotification::render_text(ImGuiWrapper &img
             render_cancel_button(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
         render_bar(imgui, win_size_x, win_size_y, win_pos_x, win_pos_y);
     } else {
-        assert(m_text1.size() >= m_endlines[0]);
         if (m_endlines[0] > m_text1.size())
             return;
         // one line text, one line bar

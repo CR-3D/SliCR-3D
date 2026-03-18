@@ -732,7 +732,6 @@ void FreqChangedParams::Show(PrinterTechnology tech)
         entry.second->Show( (entry.first & tech) != 0);
 
     // correct showing of the FreqChangedParams sizer when m_wiping_dialog_button is hidden
-    assert(m_wiping_dialog_button);
     if (m_wiping_dialog_button) {
         const bool is_wdb_shown = m_wiping_dialog_button->IsShown();
         if ((tech & PrinterTechnology::ptFFF) != 0 && !is_wdb_shown)

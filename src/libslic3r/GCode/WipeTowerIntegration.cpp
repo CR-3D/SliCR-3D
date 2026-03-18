@@ -287,11 +287,12 @@ std::string WipeTowerIntegration::tool_change(GCodeGenerator &gcodegen, int extr
 std::string WipeTowerIntegration::finalize(GCodeGenerator &gcodegen)
 {
     std::string gcode;
-    if (std::abs(gcodegen.writer().get_position().z() - m_final_purge.print_z) > EPSILON)
+    const double purge_z{m_final_purge.print_z + gcodegen.config().z_offset.value};
+    if (std::abs(gcodegen.writer().get_position().z() - purge_z) > EPSILON)
         gcode += gcodegen.generate_travel_gcode(
-            {{gcodegen.last_pos().x(), gcodegen.last_pos().y(), scaled(m_final_purge.print_z)}},
-            "move to safe place for purging"
-        );
+            {{gcodegen.last_pos().x(), gcodegen.last_pos().y(), scaled(purge_z)}},
+                                                "move to safe place for purging");
+        
     gcode += append_tcr(gcodegen, m_final_purge, -1);
     return gcode;
 }
