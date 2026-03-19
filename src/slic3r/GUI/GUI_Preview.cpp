@@ -919,7 +919,6 @@ void Preview::load_print_as_fff(bool keep_z_range)
 
     GCodeViewer::EViewType gcode_view_type = m_canvas->get_gcode_view_preview_type();
    bool gcode_preview_data_valid = !active_gcode_result()->moves.empty();
-    gcode_preview_data_valid = gcode_preview_data_valid && current_force_state != ForceState::ForceGcode;
     // Collect colors per extruder.
     std::vector<std::string> colors;
     std::vector<CustomGCode::Item> color_print_values = {};
@@ -962,40 +961,25 @@ void Preview::load_print_as_fff(bool keep_z_range)
     std::vector<double> zs;
 
     if (IsShown()) {
-        if (current_force_state == ForceState::ForceGcode)
-            m_canvas->set_items_show(false, true);
-        else
-            m_canvas->set_items_show(true, true);
+        m_canvas->set_items_show(false, true);
+
 
         m_canvas->set_selected_extruder(0);
-        bool gcode_not_extrusions = false;
-        if (current_force_state == ForceState::ForceGcode) {
-            // Load the real G-code preview.
-            if (current_force_state == ForceState::NoForce)
-                m_canvas->set_items_show(false, true);
-            m_canvas->load_gcode_preview(wxGetApp().plater_->get_gcode_results()[s_multiple_beds.get_active_bed()], colors);
+        if (gcode_preview_data_valid) {
+
+            m_canvas->load_gcode_preview(*active_gcode_result(), colors);
             m_left_sizer->Layout();
             Refresh();
             zs = m_canvas->get_gcode_layers_zs();
             if (!zs.empty())
                 m_left_sizer->Show(m_bottom_toolbar_panel);
             m_loaded = true;
-            gcode_not_extrusions = true;
-        }
-        else if (wxGetApp().is_editor()) {
-            // Load the initial preview based on slices, not the final G-code.
-            if (current_force_state == ForceState::NoForce)
-                m_canvas->set_items_show(true, false);
-            m_canvas->load_preview(colors, color_print_values);
-            m_left_sizer->Hide(m_bottom_toolbar_panel);
-            m_left_sizer->Layout();
-            Refresh();
-            zs = m_canvas->get_volumes_print_zs(true);
-            gcode_not_extrusions = false;
+            //gcode_not_extrusions = true;
         }
         else {
             m_left_sizer->Hide(m_bottom_toolbar_panel);
             m_left_sizer->Layout();
+
             Refresh();
         }
 
@@ -1028,9 +1012,9 @@ void Preview::load_print_as_fff(bool keep_z_range)
             // all layers filtered out
             hide_layers_slider();
             m_canvas_widget->Refresh();
-        } else {
-            update_layers_slider(zs, gcode_not_extrusions, keep_z_range);
         }
+        else
+            update_layers_slider(zs, keep_z_range);
     }
 }
 
