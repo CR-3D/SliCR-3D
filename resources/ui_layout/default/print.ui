@@ -553,7 +553,7 @@ group:Organic Supports
 page:Speed:time
 group:Default Speed
 	line:Default speed
-		setting:width$6:sidetext_width$15:default_speed
+		setting:label$_:default_speed
 
 group:Perimeter Speed
 	line:Internal Perimeter Speed

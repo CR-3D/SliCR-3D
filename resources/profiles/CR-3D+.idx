@@ -12,3 +12,5 @@
 0.0.12 Added PC CF10
 min_slic3r_version = 2.7.0.6
 0.0.13 New Printers: I6X5+; I6X5-IDEX+; Bugfix Update; Added bed_exclude_area to all IDEX printers; start_gcode updated 
+0.0.14 Reduced speeds of large printers
+0.0.15 Changed FieldRACK bed_shape size
