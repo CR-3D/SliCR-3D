@@ -20,6 +20,7 @@
 #include "libslic3r/PrintConfig.hpp"
 #include "slic3r/GUI/I18N.hpp"
 #include "slic3r/GUI/GUI.hpp"
+#include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/GUI/format.hpp"
 #include "Http.hpp"
 #include "nlohmann/json.hpp"
@@ -298,35 +299,43 @@ void Repetier::get_printer_config(const CompletionHandler& handler) const
     auto http = Http::get(std::move(url));
     set_auth(http);
 
-    // Be careful with aggressive timeouts; 2 seconds is often too low on LAN/Wi-Fi.
     http.timeout_max(10);
 
     http.form_add("a", "getPrinterConfig")
         .on_complete([handler = std::move(handler)](std::string body, unsigned status) mutable {
-            // 1) Check HTTP status first
+            // Parse im Background Thread – das ist OK
             if (status < 200 || status >= 300) {
-                handler(json(), false,
-                        "HTTP " + std::to_string(status) + " (non-2xx). Body: " +
-                        body.substr(0, std::min<size_t>(200, body.size())));
+                std::string err = "HTTP " + std::to_string(status) + ". Body: " +
+                                  body.substr(0, std::min<size_t>(200, body.size()));
+                // UI-Callback → Main Thread
+                GUI::wxGetApp().CallAfter([handler, err]() mutable {
+                    handler(json(), false, err);
+                });
                 return;
             }
 
-            // 2) Parse safely (no exceptions)
-            json j = json::parse(body, nullptr, /*allow_exceptions*/ false);
+            json j = json::parse(body, nullptr, false);
             if (j.is_discarded()) {
-                handler(json(), false,
-                        body.substr(0, std::min<size_t>(80, body.size())));
+                std::string err = body.substr(0, std::min<size_t>(80, body.size()));
+                GUI::wxGetApp().CallAfter([handler, err]() mutable {
+                    handler(json(), false, err);
+                });
                 return;
             }
 
-            handler(j, true, "");
+            // Alles gut → ebenfalls auf Main Thread
+            GUI::wxGetApp().CallAfter([handler, j]() mutable {
+                handler(j, true, "");
+            });
         })
         .on_error([handler](std::string body, std::string error, unsigned status) mutable {
-            handler(json(), false,
-                    error + " (HTTP " + std::to_string(status) + "). Body: " +
-                    body.substr(0, std::min<size_t>(200, body.size())));
+            std::string err = error + " (HTTP " + std::to_string(status) + "). Body: " +
+                              body.substr(0, std::min<size_t>(200, body.size()));
+            GUI::wxGetApp().CallAfter([handler, err]() mutable {
+                handler(json(), false, err);
+            });
         })
-        .perform();   // <-- async/non-blocking (use your lib’s async call)
+        .perform();
 }
 
 
@@ -532,3 +541,4 @@ bool Repetier::get_printers(wxArrayString& printers) const
 }
 
 }
+
