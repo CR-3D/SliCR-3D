@@ -11,10 +11,10 @@ set(SLIC3R_APP_KEY "SliCR-3D")
 set(SLIC3R_APP_CMD "SliCR-3D")
 
 # versions
-set(SLIC3R_VERSION "2.7.0.6")
+set(SLIC3R_VERSION "2.7.0.7")
 set(SLIC3R_BUILD_ID "${SLIC3R_APP_KEY}_${SLIC3R_VERSION}+UNKNOWN")
-set(SLIC3R_RC_VERSION "2,7,0,6")
-set(SLIC3R_RC_VERSION_DOTS "2.7.0.6")
+set(SLIC3R_RC_VERSION "2,7,0,7")
+set(SLIC3R_RC_VERSION_DOTS "2.7.0.7")
 
 # Same as the slicer name but for gcodeviewer
 set(GCODEVIEWER_APP_NAME "${SLIC3R_APP_NAME} G-code Viewer")
