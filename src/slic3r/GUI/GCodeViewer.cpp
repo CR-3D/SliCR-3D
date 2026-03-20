@@ -1549,6 +1549,7 @@ void GCodeViewer::refresh(const GCodeProcessorResult& gcode_result, const std::v
         m_tool_colors.push_back(default_color);
 
     if (!gcode_result.filament_colors.empty()) {
+        assert(str_tool_colors.size() == gcode_result.filament_colors.size());
         // update filament colors
         decode_colors(str_tool_colors, m_filament_colors);
         // update(override) filament colors from config stored in the gcode
@@ -2489,7 +2490,7 @@ void GCodeViewer::load_toolpaths(const GCodeProcessorResult& gcode_result)
                     VertexBuffer& vbuffer = v_multibuffer[prev_sub_path.first.b_id];
                     // offset into the vertex buffer of the next segment 1st vertex
                     const size_t next_1st_offset = (prev_sub_path.last.s_id - curr_s_id) * 6 * vertex_size_floats;
-                    // offset into the vertex buffer of the left vertex of the previous segment 
+                    // offset into the vertex buffer of the left vertex of the previous segment
                     const size_t prev_left_offset = prev_sub_path.last.i_id - next_1st_offset - 1 * vertex_size_floats;
                     // new position of the left vertices
                     const Vec3f shared_vertex = extract_position_at(vbuffer, prev_left_offset) + displacement_vec;
@@ -4296,7 +4297,7 @@ void GCodeViewer::render_legend(float& legend_height)
                 continue;
 
             const std::vector<double> zs = m_layers.get_zs();
-            auto lower_b = std::lower_bound(zs.begin(), zs.end(), item.print_z - Slic3r::DoubleSlider::epsilon());
+            auto lower_b = std::lower_bound(zs.begin(), zs.end(), unscaled(item.print_z) - Slic3r::DoubleSlider::epsilon());
             if (lower_b == zs.end())
                 continue;
 

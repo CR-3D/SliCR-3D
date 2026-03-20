@@ -4012,9 +4012,7 @@ void GCodeProcessor::process_T(const std::string_view command)
             if ((m_flavor == gcfMarlinLegacy || m_flavor == gcfMarlinFirmware) && (command == "Tx" || command == "Tc" || command == "T?"))
                 return;
 
-            // T-1 is a valid gcode line for RepRap Firmwares (used to deselects all tools) see https://github.com/prusa3d/PrusaSlicer/issues/5677
-            if ((m_flavor != gcfRepRap && m_flavor != gcfSprinter) || eid != -1)
-                BOOST_LOG_TRIVIAL(error) << "GCodeProcessor encountered an invalid toolchange (" << command << ").";
+
         }
         else {
             uint16_t id = static_cast<uint16_t>(eid);

@@ -6691,6 +6691,7 @@ void Plater::load_gcode(const wxString &filename)
     reset_gcode_toolpaths();
     p->preview->reload_print(false);
     p->get_current_canvas3D()->render();
+    this->set_force_preview(Preview::ForceState::ForceGcode);
     
     wxBusyCursor wait;
     
