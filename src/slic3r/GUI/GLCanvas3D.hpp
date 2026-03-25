@@ -232,6 +232,7 @@ class GLCanvas3D
 
         mutable HeightProfileAdaptiveParams m_adaptive_params;
         mutable HeightProfileSmoothingParams m_smooth_params;
+
         
         static float                s_overlay_window_width;
 
@@ -537,6 +538,9 @@ private:
     // see request_extra_frame()
     bool m_extra_frame_requested;
     bool m_event_handlers_bound{ false };
+
+    mutable Vec2i32              m_fit_camera_button_pos = {128, 5};
+    mutable float              m_sc{1};
 
     bool m_show_objects = true;
     GLVolumeCollection m_volumes;
@@ -1137,6 +1141,7 @@ private:
     bool _render_arrange_menu(float pos_x, bool current_bed);
     bool _render_orient_menu(float left, float right, float bottom, float top, bool current_bed);
     void _render_3d_navigator();
+    void _render_fit_camera_toolbar();
     const float get_scale() const;
     
     void _render_thumbnail_internal(ThumbnailData& thumbnail_data, const ThumbnailsParams& thumbnail_params, const GLVolumeCollection& volumes, Camera::EType camera_type);

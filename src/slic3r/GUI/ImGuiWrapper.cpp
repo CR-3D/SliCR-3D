@@ -121,6 +121,7 @@ static const std::map<const wchar_t, std::string> font_icons_large = {
     {ImGui::SlaViewOriginal         , "sla_view_original"               },
     {ImGui::SlaViewProcessed        , "sla_view_processed"              },
     {ImGui::SliceAllBtnIcon         , "slice_all"                       },
+        {ImGui::FitCamera               , "fit_camera"                       },
 };
 
 static const std::map<const wchar_t, std::string> font_icons_extra_large = {

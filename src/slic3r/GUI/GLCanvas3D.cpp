@@ -6042,7 +6042,8 @@ void GLCanvas3D::_render_3d_navigator() {
                 cameraView[x * 4 + y] = m(y, x);
         }
     }
-
+    m_fit_camera_button_pos[0] = viewManipulationLeft + size + 10 * sc;
+    m_sc                       = sc;
     const bool dirty = ImGuizmo::ViewManipulate(cameraView,
                                                 cameraProjection,
                                                 ImGuizmo::OPERATION::ROTATE,
@@ -7474,6 +7475,8 @@ void GLCanvas3D::_render_overlays()
     m_labels.render(sorted_instances);
     
     _render_3d_navigator();
+    _render_fit_camera_toolbar();
+
 }
 
 #define use_scrolling 1
@@ -7572,7 +7575,15 @@ bool button_with_icon(const wchar_t icon, const std::string& tooltip, bool is_ac
     const ImGuiStyle& style = g.Style;
     const ImGuiID id = window->GetID(btn_name.c_str());
     const ImFontAtlasCustomRect* const rect = wxGetApp().imgui()->GetTextureCustomRect(icon);
+    if (rect == nullptr)
+        return false;
     const ImVec2 label_size = ImVec2(rect->Width, rect->Height);
+    const ImGuiIO& io = ImGui::GetIO();
+    const ImTextureID tex_id = io.Fonts->TexID;
+    const float inv_tex_w = 1.0f / float(io.Fonts->TexWidth);
+    const float inv_tex_h = 1.0f / float(io.Fonts->TexHeight);
+    const ImVec2 uv0 = ImVec2(float(rect->X) * inv_tex_w, float(rect->Y) * inv_tex_h);
+    const ImVec2 uv1 = ImVec2(float(rect->X + rect->Width) * inv_tex_w, float(rect->Y + rect->Height) * inv_tex_h);
 
     ImVec2 pos = window->DC.CursorPos;
     const ImRect bb(pos, pos + size);
@@ -7589,13 +7600,16 @@ bool button_with_icon(const wchar_t icon, const std::string& tooltip, bool is_ac
     // Render
     const ImU32 col = ImGui::GetColorU32((held && hovered) ? COL_TURQUOISE_DARK : hovered ? COL_TURQUOISE_DARK : COL_GREY_DARK);
     ImGui::RenderNavHighlight(bb, id);
-    ImGui::PushStyleColor(ImGuiCol_Border, is_active ? COL_BUTTON_ACTIVE : COL_GREY_DARK);
-    ImGui::RenderFrame(bb.Min, bb.Max, col, true, style.FrameRounding);
-    ImGui::PopStyleColor();
 
-    if (g.LogEnabled)
-        ImGui::LogSetNextTextDecoration("[", "]");
-    ImGui::RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, btn_name.c_str(), NULL, &label_size, style.ButtonTextAlign, &bb);
+    const ImVec2 center = ImVec2(0.5f * (bb.Min.x + bb.Max.x), 0.5f * (bb.Min.y + bb.Max.y));
+    const float radius = 0.5f * std::min(size.x, size.y) - 1.0f;
+    window->DrawList->AddCircleFilled(center, radius, col, 32);
+    if (is_active)
+        window->DrawList->AddCircle(center, radius, ImGui::GetColorU32(COL_BUTTON_ACTIVE), 32, 2.0f);
+
+    const ImVec2 image_min = ImVec2(bb.Min.x + 0.5f * (size.x - label_size.x), bb.Min.y + 0.5f * (size.y - label_size.y));
+    const ImVec2 image_max = ImVec2(image_min.x + label_size.x, image_min.y + label_size.y);
+    window->DrawList->AddImage(tex_id, image_min, image_max, uv0, uv1, ImGui::GetColorU32(ImVec4(1.f, 1.f, 1.f, 1.f)));
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window->DC.LastItemStatusFlags);
 
@@ -7858,6 +7872,54 @@ void GLCanvas3D::_render_gizmos_overlay()
     if (m_gizmo_highlighter.m_render_arrow)
         m_gizmos.render_arrow(*this, m_gizmo_highlighter.m_gizmo_type);
 }
+
+void GLCanvas3D::_render_fit_camera_toolbar()
+{
+    float  font_size        = ImGui::GetFontSize();
+    ImVec2 button_icon_size = ImVec2(font_size * 0.8, font_size * 0.8);
+
+    ImGuiWrapper &imgui         = *wxGetApp().imgui();
+    float         window_width  = button_icon_size.x + imgui.scaled(2.0f);
+    float         window_height = button_icon_size.y + imgui.scaled(2.0f);
+
+    Size cnv_size              = get_canvas_size();
+    m_fit_camera_button_pos[0] = cnv_size.get_width() - window_width - 110 * m_sc;
+    m_fit_camera_button_pos[1] = cnv_size.get_height() - button_icon_size[1] - 60 * m_sc;
+    imgui.set_next_window_pos(m_fit_camera_button_pos[0], m_fit_camera_button_pos[1], ImGuiCond_Always, 0, 0);
+    
+#ifdef __WINDOWS__
+    imgui.set_next_window_size(window_width, window_height, ImGuiCond_Always);
+#endif
+
+    imgui.begin(_L("Fit camera"),
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+
+    if (button_with_icon(
+            ImGui::FitCamera,
+            _u8L("Fit camera to scene or selected object."),
+            false,
+            ImVec2(window_width, window_height))) {
+        select_view("plate");
+        if (m_selection.is_empty()) {
+                zoom_to_bed();
+        } else {
+            zoom_to_selection();
+        }
+    }
+
+    ImGui::PopStyleVar(2);
+    imgui.end();
+
+}
+
 
 void GLCanvas3D::_render_main_toolbar()
 {

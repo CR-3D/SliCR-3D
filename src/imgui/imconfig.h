@@ -215,5 +215,6 @@ namespace ImGui
     const wchar_t PrintFinished            = 0x2814;
     const wchar_t WarningMarkerDisabled    = 0x2815;
     //    void MyFunction(const char* name, const MyMatrix44& v);
+const wchar_t FitCamera                = 0x2816;
 }
 
