@@ -611,27 +611,15 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_classic(const Parameters &pa
     Polylines *previous = &ok_polylines;
     bool copy_all = false;
     if (dynamic_enabled) {
-        bool empty = false;
-        if (!params.lower_slices_bridge_dynamic.empty()) {
-            Polygons lower_slices_bridge_clipped =
-            ClipperUtils::clip_clipper_polygons_with_subject_bbox(params.lower_slices_bridge_dynamic, bbox);
-            if (!lower_slices_bridge_clipped.empty()) {
-                dynamic_speed = diff_pl(*previous, lower_slices_bridge_clipped);
-                if (!dynamic_speed.empty()) {
-                    *previous = intersection_pl(*previous, lower_slices_bridge_clipped);
-                    previous = &dynamic_speed;
-                }
-            } else {
-                empty = true;
-            }
-        } else {
-            empty = true;
-        }
-        if (empty) {
-            dynamic_speed = std::move(*previous);
-            previous->clear();
-            previous = &dynamic_speed;
-        }
+        // Skip the coarse polygon clipping against lower_slices_bridge_dynamic.
+        // On gradual curves, polygon discretization causes the perimeter to cross the
+        // boundary multiple times, creating alternating ok/dynamic fragments that produce
+        // visible speed banding. Instead, classify everything as dynamic and let
+        // calculate_and_split_overhanging_extrusions() compute exact point-by-point distances.
+        // Well-supported points get speed_ratio≈1 (perimeter speed) automatically.
+        dynamic_speed = std::move(*previous);
+        previous->clear();
+        previous = &dynamic_speed;
     }
     if (dynamic_enabled || (speed_enabled && (overhangs_width_speed < overhangs_width || !flow_enabled))) {
         bool empty = false;
@@ -1823,73 +1811,19 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
     ClipperLib_Z::Paths clipped_zpaths;
     
     ClipperLib_Z::Paths* previous = &ok_polylines;
-    bool empty = dynamic_enabled && params.lower_slices_bridge_dynamic.empty();
-    if (dynamic_enabled && !params.lower_slices_bridge_dynamic.empty()) {
-        convert_to_clipperpath_with_bbox(params.lower_slices_bridge_dynamic, extrusion_path_bbox, clipped_zpaths);
-        if (!clipped_zpaths.empty()) {
-#ifdef _DEBUG
-            Points outer_points;
-            for(auto & line: *previous) for(auto &pt : line) outer_points.emplace_back(coord_t(pt.x()), coord_t(pt.y()));
-#endif
-            dynamic_speed = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctDifference);
-#ifdef _DEBUG
-            for (ClipperLib_Z::Path &poly : dynamic_speed)   // assert dynamic_speed
-                for (int i = 0; i < poly.size() - 1; i++)    // assert dynamic_speed
-                    assert(poly[i] != poly[i + 1]);          // assert dynamic_speed
-#endif
-            if (!dynamic_speed.empty()) {
-                *previous = clip_extrusion(*previous, clipped_zpaths, ClipperLib_Z::ctIntersection);
-#ifdef _DEBUG
-                test_overhangs(dynamic_speed, *previous, outer_points);
-                test_overhangs(*previous, dynamic_speed, outer_points);
-                //for (ClipperLib_Z::Path &poly : dynamic_speed) {
-                //    assert(poly.size() > 1);
-                //    assert(is_length_more_than_epsilon(poly));
-                //}
-                //for (ClipperLib_Z::Path &poly : *previous) {
-                //    assert (poly.size() > 1);
-                //    assert(is_length_more_than_epsilon(poly));
-                //}
-#endif
-                // merge epsilon-length from dynamic_speed into previous
-                for (size_t path_idx = 0; path_idx < dynamic_speed.size(); ++path_idx) {
-                    ClipperLib_Z::Path &poly = dynamic_speed[path_idx];
-                    if (!is_length_more_than_epsilon(poly)) {
-                        merge_path(poly, *previous); //TODO
-                        dynamic_speed.erase(dynamic_speed.begin() + path_idx);
-                        path_idx--;
-                    }
-                }
-                for (size_t path_idx = 0; path_idx < previous->size(); ++path_idx) {
-                    ClipperLib_Z::Path &poly = (*previous)[path_idx];
-                    if (!is_length_more_than_epsilon(poly)) {
-                        merge_path(poly, dynamic_speed); //TODO
-                        previous->erase(previous->begin() + path_idx);
-                        path_idx--;
-                    }
-                }
-#ifdef _DEBUG
-                for (ClipperLib_Z::Path &poly : dynamic_speed) {
-                    assert(poly.size() > 1);
-                    assert(is_length_more_than_epsilon(poly));
-                }
-                for (ClipperLib_Z::Path &poly : *previous) {
-                    assert (poly.size() > 1);
-                    assert(is_length_more_than_epsilon(poly));
-                }
-#endif
-                previous = &dynamic_speed;
-            }
-        } else {
-            empty = true;
-        }
-    }
-    if (empty) {
+    if (dynamic_enabled) {
+        // Skip the coarse polygon clipping against lower_slices_bridge_dynamic.
+        // On gradual curves, polygon discretization causes the perimeter to cross the
+        // boundary multiple times, creating alternating ok/dynamic fragments that produce
+        // visible speed banding. Instead, classify everything as dynamic and let
+        // calculate_and_split_overhanging_extrusions() compute exact point-by-point distances.
+        // Well-supported points get speed_ratio≈1 (perimeter speed) automatically.
         dynamic_speed = std::move(*previous);
         previous->clear();
         previous = &dynamic_speed;
     }
-    
+
+    bool empty;
     if (dynamic_enabled || (speed_enabled && (overhangs_width_speed < overhangs_width || !flow_enabled))) {
         empty = !no_small_speed && params.lower_slices_bridge_speed_small.empty();
         if (!no_small_speed && !params.lower_slices_bridge_speed_small.empty()) {
