@@ -874,26 +874,28 @@ group:Advanced
 	line:Segmented Regions Max Width
 		setting:label$_:mmu_segmented_region_max_width
 	end_line
-	label:MMU Interlocking Depth
-		setting:label$_:mmu_segmented_region_interlocking_depth
-	end_line
 
-	label:Interlocking Beam
+
+group:Interlocking Beam
+	line:Interlocking Beam
 		setting:label$_:interlocking_beam
 	end_line
-	label:Interlocking Beam Width
+	line:MMU Interlocking Depth
+		setting:label$_:mmu_segmented_region_interlocking_depth
+	end_line
+	line:Interlocking Beam Width
 		setting:label$_:interlocking_beam_width
 	end_line
-	label:Interlocking Orientation
+	line:Interlocking Orientation
 		setting:label$_:interlocking_orientation
 	end_line
-	label:Interlocking Beam Layer Count
+	line:Interlocking Beam Layer Count
 		setting:label$_:interlocking_beam_layer_count
 	end_line
-	label:Interlocking Depth
+	line:Interlocking Depth
 		setting:label$_:interlocking_depth
 	end_line
-	label:Interlocking Boundary Avoidance
+	line:Interlocking Boundary Avoidance
 		setting:label$_:interlocking_boundary_avoidance
 	end_line
 

@@ -363,6 +363,7 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             }
         }
         
+        // detect overhanging/bridging perimeters
         ExtrusionPaths paths;
 
         fuzzified = loop.polygon;
@@ -401,37 +402,30 @@ ExtrusionEntityCollection PerimeterGenerator::_traverse_loops_classic(const Para
             can_overhang = false;
         }
         
-        Polygon base_poly = loop.polygon;
-        Polygon final_poly;
+        // Apply fuzzy skin first (on the clean polygon), then use the result for overhang detection.
+        // This ensures both features work together: fuzzy modifies geometry, overhangs split it.
+        const Polygon polygon = apply_fuzzy_skin(loop.polygon, params.config, params.perimeter_regions,
+                                                 params.layer->id(), loop.depth, loop.is_contour);
 
         if (can_overhang) {
-            // Overhangs use the CLEAN polygon
-            ExtrusionPaths base_paths =
-                this->create_overhangs_classic(params, base_poly.split_at_first_point(), role, is_external);
-
-            // Fuzzify AFTER overhang extrusion is created
-            final_poly = apply_fuzzy_skin(base_poly, params.config, params.perimeter_regions,
-                                          params.layer->id(), loop.depth, loop.is_contour);
+            // Detect overhangs on the (possibly fuzzified) polygon and split into
+            // overhang/non-overhang segments with appropriate flow settings.
+            paths = this->create_overhangs_classic(params, polygon.split_at_first_point(), role, is_external);
         } else {
-            // No overhangs → fuzzify the original polygon
-            final_poly = apply_fuzzy_skin(base_poly, params.config, params.perimeter_regions,
-                                          params.layer->id(), loop.depth, loop.is_contour);
+            paths.emplace_back(
+                polygon.split_at_first_point(),
+                ExtrusionAttributes{
+                    role,
+                    ExtrusionFlow{
+                        is_external ? params.ext_mm3_per_mm() : params.mm3_per_mm(),
+                        is_external ? params.ext_perimeter_flow.width() : params.perimeter_flow.width(),
+                        float(params.layer->height)
+                    }
+                },
+                false
+            );
         }
 
-        paths.emplace_back(
-            final_poly.split_at_first_point(),
-                           ExtrusionAttributes{
-                               role,
-                               ExtrusionFlow{
-                                   is_external ? params.ext_mm3_per_mm() : params.mm3_per_mm(),
-                                   is_external ? params.ext_perimeter_flow.width() : params.perimeter_flow.width(),
-                                   float(params.layer->height)
-                               }
-                           },
-            false
-        );
-        
-        
         coll.push_back(new ExtrusionLoop(paths, loop_role));
     }
     assert(coll.size() == loops.size());
@@ -1946,7 +1940,7 @@ ExtrusionPaths PerimeterGenerator::create_overhangs_arachne(const Parameters &  
             previous->clear();
             previous = &small_speed;
         }
-        
+
         empty = !no_small_flow && params.lower_slices_bridge_speed_big.empty();
         if (!params.lower_slices_bridge_speed_big.empty()) {
 #ifdef _DEBUG
@@ -2468,7 +2462,7 @@ Polylines reconnect_polylines(const Polylines &polylines, coordf_t limit_distanc
             }
         }
     }
-    
+
     Polylines result;
     for (auto &ext : connected) {
         result.push_back(std::move(ext.second));
@@ -2481,7 +2475,7 @@ Polylines reconnect_polylines(const Polylines &polylines, coordf_t limit_distanc
 ExtrusionPaths sort_extra_perimeters(const ExtrusionPaths& extra_perims, int index_of_first_unanchored, coordf_t extrusion_spacing)
 {
     if (extra_perims.empty()) return {};
-    
+
     std::vector<std::unordered_set<size_t>> dependencies(extra_perims.size());
     for (size_t path_idx = 0; path_idx < extra_perims.size(); path_idx++) {
         for (size_t prev_path_idx = 0; prev_path_idx < path_idx; prev_path_idx++) {
@@ -3123,7 +3117,7 @@ std::vector<PerimeterGeneratorArachneExtrusion> reorderPerimetersByProximity(
             currentInsetIndex++;
         }
     };
-    
+
     // Loop through all perimeters and reorder starting from each inset index 0 perimeter
     for (size_t refIdx = 0; refIdx < entities.size(); ++refIdx) {
         if (entities[refIdx].extrusion->inset_idx == 0 && includedIndices.count(refIdx) == 0) {
@@ -4981,6 +4975,8 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(const Parameters &param
                         contour_expolygon = contour_expolygon.front().simplify(SCALED_EPSILON);
                         assert(contour_expolygon.size() == 1);
                         // Add the new perimeter
+                        contours[contours_size].emplace_back(contour_expolygon.front().contour, contours_size, true,
+                                                             has_steep_overhang);
                         // create the new gapfills
                         ExPolygons gapfill_area = offset_ex(Polygons{expoly.contour},
                                                             -(float) (params.get_perimeter_spacing()));
