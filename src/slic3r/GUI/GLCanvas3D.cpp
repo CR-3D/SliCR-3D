@@ -7887,10 +7887,6 @@ void GLCanvas3D::_render_fit_camera_toolbar()
     m_fit_camera_button_pos[1] = cnv_size.get_height() - button_icon_size[1] - 60 * m_sc;
     imgui.set_next_window_pos(m_fit_camera_button_pos[0], m_fit_camera_button_pos[1], ImGuiCond_Always, 0, 0);
     
-#ifdef __WINDOWS__
-    imgui.set_next_window_size(window_width, window_height, ImGuiCond_Always);
-#endif
-
     imgui.begin(_L("Fit camera"),
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoBackground |
