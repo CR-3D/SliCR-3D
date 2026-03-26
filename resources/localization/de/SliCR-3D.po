@@ -87,6 +87,9 @@ msgstr "Winkelpräzision"
 msgid "STEP import quality (%1%)"
 msgstr "STEP Import Qualität (%1%)"
 
+msgid "Fit camera to scene or selected object."
+msgstr "Kamera an Szene oder ausgewähltes Objekt anpassen."
+
 #: src/slic3r/GUI/Tab.cpp:4772
 #, boost-format
 msgid ""

@@ -876,28 +876,28 @@ group:Advanced
 	end_line
 
 
-group:Interlocking Beam
-	line:Interlocking Beam
-		setting:label$_:interlocking_beam
-	end_line
-	line:MMU Interlocking Depth
-		setting:label$_:mmu_segmented_region_interlocking_depth
-	end_line
-	line:Interlocking Beam Width
-		setting:label$_:interlocking_beam_width
-	end_line
-	line:Interlocking Orientation
-		setting:label$_:interlocking_orientation
-	end_line
-	line:Interlocking Beam Layer Count
-		setting:label$_:interlocking_beam_layer_count
-	end_line
-	line:Interlocking Depth
-		setting:label$_:interlocking_depth
-	end_line
-	line:Interlocking Boundary Avoidance
-		setting:label$_:interlocking_boundary_avoidance
-	end_line
+#group:Interlocking Beam
+#	line:Interlocking Beam
+#		setting:label$_:interlocking_beam
+#	end_line
+#	line:MMU Interlocking Depth
+#		setting:label$_:mmu_segmented_region_interlocking_depth
+#	end_line
+#	line:Interlocking Beam Width
+#		setting:label$_:interlocking_beam_width
+#	end_line
+#	line:Interlocking Orientation
+#		setting:label$_:interlocking_orientation
+#	end_line
+#	line:Interlocking Beam Layer Count
+#		setting:label$_:interlocking_beam_layer_count
+#	end_line
+#	line:Interlocking Depth
+#		setting:label$_:interlocking_depth
+#	end_line
+#	line:Interlocking Boundary Avoidance
+#		setting:label$_:interlocking_boundary_avoidance
+#	end_line
 
 
 page:Output options:output+page_white
